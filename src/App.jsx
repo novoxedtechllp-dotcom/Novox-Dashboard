@@ -10,10 +10,11 @@ import SalesCrmContent from './components/SalesCrmContent';
 import WhatsappContent from './components/WhatsappContent';
 import LeaderboardContent from './components/LeaderboardContent';
 import AcademicJourneyContent from './components/AcademicJourneyContent';
+import SeoAgentContent from './components/SeoAgentContent';
 import Fab from './components/Fab';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('journey');
+  const [activeTab, setActiveTab] = useState('seo');
 
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
@@ -40,6 +41,8 @@ function App() {
             <LeaderboardContent />
           ) : activeTab === 'journey' ? (
             <AcademicJourneyContent />
+          ) : activeTab === 'seo' ? (
+            <SeoAgentContent />
           ) : (
             <div className="p-[24px]">
               <h2 className="text-2xl font-bold capitalize">{activeTab.replace('-', ' ')} Page</h2>
