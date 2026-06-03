@@ -11,10 +11,16 @@ import WhatsappContent from './components/WhatsappContent';
 import LeaderboardContent from './components/LeaderboardContent';
 import AcademicJourneyContent from './components/AcademicJourneyContent';
 import SeoAgentContent from './components/SeoAgentContent';
+import Login from './components/Login';
 import Fab from './components/Fab';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('seo');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  if (!isAuthenticated) {
+    return <Login onLogin={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
