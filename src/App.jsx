@@ -8,10 +8,12 @@ import CoursesContent from './components/CoursesContent';
 import FeesContent from './components/FeesContent';
 import SalesCrmContent from './components/SalesCrmContent';
 import WhatsappContent from './components/WhatsappContent';
+import LeaderboardContent from './components/LeaderboardContent';
+import AcademicJourneyContent from './components/AcademicJourneyContent';
 import Fab from './components/Fab';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('whatsapp-automation');
+  const [activeTab, setActiveTab] = useState('journey');
 
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
@@ -34,6 +36,10 @@ function App() {
             <SalesCrmContent />
           ) : activeTab === 'whatsapp-automation' ? (
             <WhatsappContent />
+          ) : activeTab === 'leaderboard' ? (
+            <LeaderboardContent />
+          ) : activeTab === 'journey' ? (
+            <AcademicJourneyContent />
           ) : (
             <div className="p-[24px]">
               <h2 className="text-2xl font-bold capitalize">{activeTab.replace('-', ' ')} Page</h2>
