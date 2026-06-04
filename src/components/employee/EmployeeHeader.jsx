@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Bell, HelpCircle, User, LogOut, Search, Settings } from 'lucide-react';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 const EmployeeHeader = ({ onLogout }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  const profileRef = useClickOutside(() => setIsDropdownOpen(false));
+  const notifRef = useClickOutside(() => setIsNotifOpen(false));
 
   return (
     <header className="h-[64px] min-h-[64px] bg-white border-b border-[#C2C6D4] px-[24px] flex items-center justify-between">
@@ -24,7 +28,7 @@ const EmployeeHeader = ({ onLogout }) => {
       
       {/* Header Actions */}
       <div className="flex items-center gap-5">
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative text-[#555F6B] hover:text-[#003F87] transition-colors p-2">
             <Bell size={20} />
             <span className="absolute top-[4px] right-[4px] w-[6px] h-[6px] bg-red-500 rounded-full"></span>
@@ -58,7 +62,7 @@ const EmployeeHeader = ({ onLogout }) => {
           <HelpCircle size={20} />
         </button>
         
-        <div className="relative">
+        <div className="relative" ref={profileRef}>
           <div onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex items-center gap-3 border-l border-[#C2C6D4] pl-5 cursor-pointer">
             <div className="text-right">
               <div className="text-[14px] font-bold text-slate-900 leading-tight">Staff Member</div>

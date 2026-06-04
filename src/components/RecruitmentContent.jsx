@@ -3,6 +3,8 @@ import { Users, Search, Calendar, FileText, CheckCircle, Video, Play, Phone } fr
 
 const RecruitmentContent = () => {
   const [candidates, setCandidates] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newCandidate, setNewCandidate] = useState({ full_name: '', email: '', phone: '', source_platform: 'INDEED' });
   
   useEffect(() => {
     setCandidates([
@@ -14,14 +16,33 @@ const RecruitmentContent = () => {
 
   const stages = ['APPLIED', 'SCREENED', 'SCHEDULED', 'HIRED', 'REJECTED'];
 
+  const advanceStage = (id, newStage) => {
+    setCandidates(candidates.map(c => c.id === id ? { ...c, status: newStage } : c));
+  };
+
+  const handleAddCandidate = (e) => {
+    e.preventDefault();
+    if (!newCandidate.full_name) return;
+    const candidate = {
+      id: `c-${Date.now()}`,
+      ...newCandidate,
+      status: 'APPLIED',
+      resume_url: '/docs/pending.pdf'
+    };
+    setCandidates([...candidates, candidate]);
+    setIsModalOpen(false);
+    setNewCandidate({ full_name: '', email: '', phone: '', source_platform: 'INDEED' });
+  };
+
   return (
+    <>
     <div className="p-[24px] flex flex-col gap-[24px] w-full h-full">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-[20px] font-bold text-[#003F87]">Recruitment Pipeline</h2>
           <p className="text-[13px] text-[#555F6B]">Manage candidates and schedule interviews.</p>
         </div>
-        <button className="bg-[#003F87] text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors">
+        <button onClick={() => setIsModalOpen(true)} className="bg-[#003F87] text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors">
           <Users size={16} /> Add Candidate
         </button>
       </div>
@@ -47,9 +68,24 @@ const RecruitmentContent = () => {
                     <div className="flex items-center gap-2 text-xs text-slate-500"><FileText size={12} /> Resume Uploaded</div>
                   </div>
                   <div className="border-t border-slate-100 pt-3 flex gap-2">
-                    {stage === 'APPLIED' && <button className="flex-1 bg-blue-50 text-[#003F87] text-xs font-bold py-1.5 rounded hover:bg-blue-100">Screen</button>}
-                    {stage === 'SCREENED' && <button className="flex-1 bg-amber-50 text-amber-700 text-xs font-bold py-1.5 rounded hover:bg-amber-100">Schedule</button>}
-                    {stage === 'SCHEDULED' && <button className="flex-1 bg-green-50 text-green-700 text-xs font-bold py-1.5 rounded hover:bg-green-100">Evaluate</button>}
+                    {stage === 'APPLIED' && (
+                      <>
+                        <button onClick={() => advanceStage(c.id, 'SCREENED')} className="flex-1 bg-blue-50 text-[#003F87] text-xs font-bold py-1.5 rounded hover:bg-blue-100">Screen</button>
+                        <button onClick={() => advanceStage(c.id, 'REJECTED')} className="flex-1 bg-red-50 text-red-700 text-xs font-bold py-1.5 rounded hover:bg-red-100">Reject</button>
+                      </>
+                    )}
+                    {stage === 'SCREENED' && (
+                      <>
+                        <button onClick={() => advanceStage(c.id, 'SCHEDULED')} className="flex-1 bg-amber-50 text-amber-700 text-xs font-bold py-1.5 rounded hover:bg-amber-100">Schedule</button>
+                        <button onClick={() => advanceStage(c.id, 'REJECTED')} className="flex-1 bg-red-50 text-red-700 text-xs font-bold py-1.5 rounded hover:bg-red-100">Reject</button>
+                      </>
+                    )}
+                    {stage === 'SCHEDULED' && (
+                      <>
+                        <button onClick={() => advanceStage(c.id, 'HIRED')} className="flex-1 bg-green-50 text-green-700 text-xs font-bold py-1.5 rounded hover:bg-green-100">Hire</button>
+                        <button onClick={() => advanceStage(c.id, 'REJECTED')} className="flex-1 bg-red-50 text-red-700 text-xs font-bold py-1.5 rounded hover:bg-red-100">Reject</button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -61,6 +97,47 @@ const RecruitmentContent = () => {
         ))}
       </div>
     </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4" onClick={() => setIsModalOpen(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-800">Add Candidate</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">&times;</button>
+            </div>
+            <form onSubmit={handleAddCandidate} className="p-6 flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name</label>
+                <input type="text" required value={newCandidate.full_name} onChange={e => setNewCandidate({...newCandidate, full_name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
+                  <input type="email" value={newCandidate.email} onChange={e => setNewCandidate({...newCandidate, email: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Phone</label>
+                  <input type="text" value={newCandidate.phone} onChange={e => setNewCandidate({...newCandidate, phone: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none text-sm" placeholder="+91 98765 43210" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Source</label>
+                <select value={newCandidate.source_platform} onChange={e => setNewCandidate({...newCandidate, source_platform: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none bg-white text-sm">
+                  <option value="INDEED">Indeed</option>
+                  <option value="LINKEDIN">LinkedIn</option>
+                  <option value="NAUKRI">Naukri</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              <div className="flex gap-3 justify-end mt-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white">Add</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

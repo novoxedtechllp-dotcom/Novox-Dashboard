@@ -289,8 +289,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
       {/* Add Student Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setIsAddModalOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
               <h2 className="text-xl font-black text-slate-800">Enroll New Student</h2>
               <button onClick={() => setIsAddModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors">
@@ -380,8 +380,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
       {/* Delete Confirmation Modal */}
       {studentToDelete && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4 text-center">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setStudentToDelete(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4 text-center" onClick={e => e.stopPropagation()}>
             <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-2">
               <Trash2 size={24} />
             </div>
@@ -401,8 +401,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
       {/* View Details Command Center Modal */}
       {activeStudent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setActiveStudent(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
             
             {/* Modal Header */}
             <div className="px-8 py-6 bg-[#003F87] text-white flex items-start justify-between shrink-0 relative overflow-hidden">

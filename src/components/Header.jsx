@@ -2,11 +2,17 @@ import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Search, Bell, HelpCircle, User, UserPlus, Plus, LogOut, Settings } from 'lucide-react';
 import AddBtn from './AddBtn';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 const Header = ({ onLogout }) => {
   const location = useLocation();
   const activeTab = location.pathname.substring(1) || 'dashboard';
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  const profileRef = useClickOutside(() => setIsDropdownOpen(false));
+  const notifRef = useClickOutside(() => setIsNotifOpen(false));
+
   return (
     <header className="h-[64px] min-h-[64px] bg-white border-b border-[#C2C6D4] px-[24px] flex items-center justify-between">
       {/* Search Bar & Title */}
@@ -23,15 +29,41 @@ const Header = ({ onLogout }) => {
       
       {/* Header Actions */}
       <div className="flex items-center gap-5">
-        <button className="relative text-[#555F6B] hover:text-[#003F87] transition-colors">
-          <Bell size={20} />
-          <span className="absolute top-[2px] right-[2px] w-[6px] h-[6px] bg-red-500 rounded-full"></span>
-        </button>
+        <div className="relative" ref={notifRef}>
+          <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative text-[#555F6B] hover:text-[#003F87] transition-colors p-2">
+            <Bell size={20} />
+            <span className="absolute top-[4px] right-[4px] w-[6px] h-[6px] bg-red-500 rounded-full"></span>
+          </button>
+          
+          {isNotifOpen && (
+            <div className="absolute right-0 top-[40px] w-[300px] bg-white border border-[#C2C6D4] rounded-md shadow-lg overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <h3 className="font-bold text-sm text-slate-800">Notifications</h3>
+                <button className="text-xs text-[#003F87] font-semibold hover:underline">Mark all read</button>
+              </div>
+              <div className="max-h-[300px] overflow-y-auto">
+                <div className="px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
+                  <p className="text-sm font-semibold text-slate-800">New Enrollment</p>
+                  <p className="text-xs text-slate-500 mt-1">John Doe has enrolled in Advanced Cloud Architecture.</p>
+                  <span className="text-[10px] text-slate-400 mt-2 block">10 mins ago</span>
+                </div>
+                <div className="px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
+                  <p className="text-sm font-semibold text-slate-800">System Alert</p>
+                  <p className="text-xs text-slate-500 mt-1">Database migration completed successfully.</p>
+                  <span className="text-[10px] text-slate-400 mt-2 block">2 hours ago</span>
+                </div>
+              </div>
+              <div className="px-4 py-2 bg-slate-50 text-center border-t border-slate-200">
+                <button className="text-xs text-[#003F87] font-bold hover:underline">View All Notifications</button>
+              </div>
+            </div>
+          )}
+        </div>
         <button className="text-[#555F6B] hover:text-[#003F87] transition-colors">
           <HelpCircle size={20} />
         </button>
         
-        <div className="relative">
+        <div className="relative" ref={profileRef}>
           <div onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex items-center gap-3 border-l border-[#C2C6D4] pl-5 cursor-pointer">
             <div className="text-right">
               <div className="text-[14px] font-bold text-slate-900 leading-tight">Admin User</div>

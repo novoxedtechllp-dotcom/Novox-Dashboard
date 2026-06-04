@@ -7,6 +7,8 @@ const WorkReportsContent = () => {
   const [employees, setEmployees] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [newReport, setNewReport] = useState({ employee_id: '', project_id: '', report_type: 'DAILY', work_done: '', blockers: '' });
 
   useEffect(() => {
     // Mock Fetch Data
@@ -37,14 +39,31 @@ const WorkReportsContent = () => {
     return true;
   });
 
+  const handleSubmitReport = (e) => {
+    e.preventDefault();
+    if (!newReport.employee_id || !newReport.project_id || !newReport.work_done) return;
+    
+    const report = {
+      id: `wr-${Date.now()}`,
+      ...newReport,
+      submitted_at: new Date().toISOString(),
+      approval_status: 'PENDING'
+    };
+    
+    setReports([report, ...reports]);
+    setIsSubmitModalOpen(false);
+    setNewReport({ employee_id: '', project_id: '', report_type: 'DAILY', work_done: '', blockers: '' });
+  };
+
   return (
+    <>
     <div className="p-[24px] flex flex-col gap-[24px] w-full">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-[20px] font-bold text-[#003F87]">Work Reports</h2>
           <p className="text-[13px] text-[#555F6B]">Manage daily and weekly employee submissions.</p>
         </div>
-        <button className="bg-[#003F87] text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors">
+        <button onClick={() => setIsSubmitModalOpen(true)} className="bg-[#003F87] text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors">
           <Plus size={16} /> Submit Report
         </button>
       </div>
@@ -138,6 +157,55 @@ const WorkReportsContent = () => {
         })}
       </div>
     </div>
+
+      {isSubmitModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4" onClick={() => setIsSubmitModalOpen(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-800">Submit Work Report</h2>
+              <button onClick={() => setIsSubmitModalOpen(false)} className="text-slate-400 hover:text-slate-600">&times;</button>
+            </div>
+            <form onSubmit={handleSubmitReport} className="p-6 flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Employee</label>
+                <select required value={newReport.employee_id} onChange={e => setNewReport({...newReport, employee_id: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none bg-white">
+                  <option value="">Select Employee...</option>
+                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Project</label>
+                  <select required value={newReport.project_id} onChange={e => setNewReport({...newReport, project_id: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none bg-white">
+                    <option value="">Select Project...</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Report Type</label>
+                  <select value={newReport.report_type} onChange={e => setNewReport({...newReport, report_type: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none bg-white">
+                    <option value="DAILY">DAILY</option>
+                    <option value="WEEKLY">WEEKLY</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Work Done</label>
+                <textarea required rows="3" value={newReport.work_done} onChange={e => setNewReport({...newReport, work_done: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none" placeholder="Describe work completed..."></textarea>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Blockers (Optional)</label>
+                <input type="text" value={newReport.blockers} onChange={e => setNewReport({...newReport, blockers: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none" placeholder="Any issues?" />
+              </div>
+              <div className="flex gap-3 justify-end mt-4">
+                <button type="button" onClick={() => setIsSubmitModalOpen(false)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white">Submit</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
