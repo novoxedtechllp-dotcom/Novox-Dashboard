@@ -1,22 +1,23 @@
-import React, { useState, useRef } from 'react';
-import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Upload, Eye, Edit, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+const feesData = [
+  { id: 1, initials: 'JD', name: 'John Doe', course: 'Advanced Cloud Architecture', type: 'Monthly', amount: '$1,200.00', date: 'Oct 24, 2023', status: 'Full Paid', statusColor: 'green' },
+  { id: 2, initials: 'SA', name: 'Sarah Adams', course: 'Full Stack Bootcamp', type: 'Full', amount: '$4,500.00', date: 'Oct 23, 2023', status: 'Partially Paid', statusColor: 'yellow' },
+  { id: 3, initials: 'MK', name: 'Michael K.', course: 'Data Science Masterclass', type: 'Monthly', amount: '$1,200.00', date: 'Oct 22, 2023', status: 'Pending', statusColor: 'red' },
+  { id: 4, initials: 'EL', name: 'Emma Lee', course: 'UI/UX Design Path', type: 'Monthly', amount: '$950.00', date: 'Oct 21, 2023', status: 'Full Paid', statusColor: 'green' }
+];
 
 const FeesContent = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
-  const fileInputRef = useRef(null);
 
   const submitFees = (e) => {
     e.preventDefault();
     setIsModalOpen(false);
     alert("Fees recorded successfully!");
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      alert(`Successfully uploaded: ${file.name}`);
-    }
   };
 
   const toggleDropdown = (id) => {
@@ -25,6 +26,37 @@ const FeesContent = () => {
     } else {
       setActiveDropdown(id);
     }
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text("Financial Dashboard - Fees Report", 14, 22);
+    
+    doc.setFontSize(11);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    
+    const tableColumn = ["Student Name", "Course", "Payment Type", "Amount", "Date", "Status"];
+    const tableRows = feesData.map(fee => [
+      fee.name,
+      fee.course,
+      fee.type,
+      fee.amount,
+      fee.date,
+      fee.status
+    ]);
+    
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 35,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [0, 63, 135] }
+    });
+    
+    doc.save(`fees_report_${new Date().getTime()}.pdf`);
   };
 
   return (
@@ -38,15 +70,8 @@ const FeesContent = () => {
           <h2 className="text-[24px] font-bold text-[#003F87] leading-tight">Financial Dashboard</h2>
         </div>
         <div className="flex items-center gap-[12px]">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-            accept=".pdf,image/*" 
-            className="hidden" 
-          />
-          <button onClick={() => fileInputRef.current.click()} className="bg-white border border-[#C2C6D4] shadow-sm text-[#555F6B] px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors">
-            <Upload size={16} /> Upload Report
+          <button onClick={handleExportPDF} className="bg-white border border-[#C2C6D4] shadow-sm text-[#555F6B] px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors">
+            <Download size={16} /> Export Report
           </button>
           <button onClick={() => setIsModalOpen(true)} className="bg-[#003F87] text-white px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors shadow-sm">
             <Plus size={16} /> Add Fees
@@ -118,161 +143,78 @@ const FeesContent = () => {
               </tr>
             </thead>
             <tbody>
-              {/* Row 1 */}
-              <tr className="border-b border-slate-100">
-                <td className="py-[16px] px-[24px]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-[32px] h-[32px] rounded-full bg-[#E5F0FF] text-[#003F87] font-bold text-[11px] flex items-center justify-center shrink-0">JD</div>
-                    <div className="text-[13px] font-bold text-slate-900 leading-tight">John<br/>Doe</div>
-                  </div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[13px] text-[#555F6B] leading-tight">Advanced Cloud<br/>Architecture</div>
-                </td>
-                <td className="py-[16px] px-[24px] text-center">
-                  <span className="inline-block bg-[#F8FAFC] text-[#555F6B] text-[11px] font-bold px-[12px] py-[4px] rounded-full border border-[#C2C6D4]">Monthly</span>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[14px] font-bold text-slate-900">$1,200.00</div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[13px] text-[#555F6B] leading-tight">Oct 24,<br/>2023</div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
-                    <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> Full Paid
-                  </span>
-                </td>
-                <td className="py-[16px] px-[24px] text-right relative">
-                  <button onClick={() => toggleDropdown(1)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
-                  {activeDropdown === 1 && (
-                    <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-10 flex flex-col overflow-hidden">
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
+              {feesData.map((fee) => (
+                <tr key={fee.id} className="border-b border-slate-100">
+                  <td className="py-[16px] px-[24px]">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center shrink-0 font-bold text-[11px] ${
+                        fee.statusColor === 'green' || fee.statusColor === 'yellow' ? 'bg-[#E5F0FF] text-[#003F87]' : 'bg-[#F3F4F6] text-[#555F6B]'
+                      }`}>
+                        {fee.initials}
+                      </div>
+                      <div className="text-[13px] font-bold text-slate-900 leading-tight">
+                        {fee.name.split(' ')[0]}<br/>{fee.name.split(' ').slice(1).join(' ')}
+                      </div>
                     </div>
-                  )}
-                </td>
-              </tr>
-              
-              {/* Row 2 */}
-              <tr className="border-b border-slate-100">
-                <td className="py-[16px] px-[24px]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-[32px] h-[32px] rounded-full bg-[#E5F0FF] text-[#003F87] font-bold text-[11px] flex items-center justify-center shrink-0">SA</div>
-                    <div className="text-[13px] font-bold text-slate-900 leading-tight">Sarah<br/>Adams</div>
-                  </div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[13px] text-[#555F6B] leading-tight">Full Stack<br/>Bootcamp</div>
-                </td>
-                <td className="py-[16px] px-[24px] text-center">
-                  <span className="inline-block bg-[#E5F0FF] text-[#003F87] text-[11px] font-bold px-[12px] py-[4px] rounded-full border border-[#003F87]">Full</span>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[14px] font-bold text-slate-900">$4,500.00</div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[13px] text-[#555F6B] leading-tight">Oct 23,<br/>2023</div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="inline-flex items-center gap-2 bg-[#FFF4E5] text-[#B26E00] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
-                    <span className="w-[6px] h-[6px] rounded-full bg-[#B26E00] shrink-0"></span> 
-                    <span className="leading-tight text-left">Partially<br/>Paid</span>
-                  </div>
-                </td>
-                <td className="py-[16px] px-[24px] text-right relative">
-                  <button onClick={() => toggleDropdown(2)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
-                  {activeDropdown === 2 && (
-                    <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-10 flex flex-col overflow-hidden">
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
+                  </td>
+                  <td className="py-[16px] px-[24px]">
+                    <div className="text-[13px] text-[#555F6B] leading-tight">
+                      {fee.course.split(' ')[0]} {fee.course.split(' ').length > 1 && fee.course.split(' ')[1]}<br/>
+                      {fee.course.split(' ').slice(2).join(' ')}
                     </div>
-                  )}
-                </td>
-              </tr>
-
-              {/* Row 3 */}
-              <tr className="border-b border-slate-100">
-                <td className="py-[16px] px-[24px]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-[32px] h-[32px] rounded-full bg-[#F3F4F6] text-[#555F6B] font-bold text-[11px] flex items-center justify-center shrink-0">MK</div>
-                    <div className="text-[13px] font-bold text-slate-900 leading-tight">Michael<br/>K.</div>
-                  </div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[13px] text-[#555F6B] leading-tight">Data Science<br/>Masterclass</div>
-                </td>
-                <td className="py-[16px] px-[24px] text-center">
-                  <span className="inline-block bg-[#F8FAFC] text-[#555F6B] text-[11px] font-bold px-[12px] py-[4px] rounded-full border border-[#C2C6D4]">Monthly</span>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[14px] font-bold text-slate-900">$1,200.00</div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[13px] text-[#555F6B] leading-tight">Oct 22,<br/>2023</div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <span className="inline-flex items-center gap-2 bg-[#FDE2E2] text-[#D80000] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
-                    <span className="w-[6px] h-[6px] rounded-full bg-[#D80000]"></span> Pending
-                  </span>
-                </td>
-                <td className="py-[16px] px-[24px] text-right relative">
-                  <button onClick={() => toggleDropdown(3)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
-                  {activeDropdown === 3 && (
-                    <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-10 flex flex-col overflow-hidden">
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
+                  </td>
+                  <td className="py-[16px] px-[24px] text-center">
+                    <span className={`inline-block text-[11px] font-bold px-[12px] py-[4px] rounded-full border ${
+                      fee.type === 'Full' ? 'bg-[#E5F0FF] text-[#003F87] border-[#003F87]' : 'bg-[#F8FAFC] text-[#555F6B] border-[#C2C6D4]'
+                    }`}>
+                      {fee.type}
+                    </span>
+                  </td>
+                  <td className="py-[16px] px-[24px]">
+                    <div className="text-[14px] font-bold text-slate-900">{fee.amount}</div>
+                  </td>
+                  <td className="py-[16px] px-[24px]">
+                    <div className="text-[13px] text-[#555F6B] leading-tight">
+                      {fee.date.split(',')[0]},<br/>{fee.date.split(',')[1]}
                     </div>
-                  )}
-                </td>
-              </tr>
-
-              {/* Row 4 */}
-              <tr className="border-b border-slate-100">
-                <td className="py-[16px] px-[24px]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-[32px] h-[32px] rounded-full bg-[#E5F0FF] text-[#003F87] font-bold text-[11px] flex items-center justify-center shrink-0">EL</div>
-                    <div className="text-[13px] font-bold text-slate-900 leading-tight">Emma<br/>Lee</div>
-                  </div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[13px] text-[#555F6B] leading-tight">UI/UX Design<br/>Path</div>
-                </td>
-                <td className="py-[16px] px-[24px] text-center">
-                  <span className="inline-block bg-[#F8FAFC] text-[#555F6B] text-[11px] font-bold px-[12px] py-[4px] rounded-full border border-[#C2C6D4]">Monthly</span>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[14px] font-bold text-slate-900">$950.00</div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <div className="text-[13px] text-[#555F6B] leading-tight">Oct 21,<br/>2023</div>
-                </td>
-                <td className="py-[16px] px-[24px]">
-                  <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
-                    <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> Full Paid
-                  </span>
-                </td>
-                <td className="py-[16px] px-[24px] text-right relative">
-                  <button onClick={() => toggleDropdown(4)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
-                  {activeDropdown === 4 && (
-                    <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-10 flex flex-col overflow-hidden">
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
-                    </div>
-                  )}
-                </td>
-              </tr>
+                  </td>
+                  <td className="py-[16px] px-[24px]">
+                    {fee.statusColor === 'green' && (
+                      <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
+                        <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> {fee.status}
+                      </span>
+                    )}
+                    {fee.statusColor === 'yellow' && (
+                      <div className="inline-flex items-center gap-2 bg-[#FFF4E5] text-[#B26E00] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
+                        <span className="w-[6px] h-[6px] rounded-full bg-[#B26E00] shrink-0"></span> 
+                        <span className="leading-tight text-left">Partially<br/>Paid</span>
+                      </div>
+                    )}
+                    {fee.statusColor === 'red' && (
+                      <span className="inline-flex items-center gap-2 bg-[#FDE2E2] text-[#D80000] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
+                        <span className="w-[6px] h-[6px] rounded-full bg-[#D80000]"></span> {fee.status}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-[16px] px-[24px] text-right relative">
+                    <button onClick={() => toggleDropdown(fee.id)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                    {activeDropdown === fee.id && (
+                      <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-10 flex flex-col overflow-hidden">
+                        <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
+                        <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
+                        <button className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
         <div className="p-[16px] px-[24px] bg-white flex justify-between items-center border-t border-[#C2C6D4]">
-          <div className="text-[13px] text-[#555F6B] font-medium">Showing 1 to 10 of 258 entries</div>
+          <div className="text-[13px] text-[#555F6B] font-medium">Showing 1 to 4 of 258 entries</div>
           <div className="flex items-center gap-1">
             <button className="w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] text-[#555F6B] bg-white hover:bg-slate-50 transition-colors">&lt;</button>
             <button className="w-[28px] h-[28px] flex items-center justify-center rounded-[4px] bg-[#003F87] text-white font-bold">1</button>
