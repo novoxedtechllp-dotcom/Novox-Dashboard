@@ -7,6 +7,7 @@ import studentRouter from "./routes/student.routes.js";
 import userRouter from "./routes/user.routes.js";
 import employeeRouter from "./routes/employee.routes.js";
 import courseRouter from "./routes/course.routes.js";
+import attendanceRouter from "./routes/attendance.routes.js";
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use("/api/v1/students", studentRouter);
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/employees", employeeRouter);
 app.use("/api/v1/courses", courseRouter);
+app.use("/api/v1/attendance", attendanceRouter);
 
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
