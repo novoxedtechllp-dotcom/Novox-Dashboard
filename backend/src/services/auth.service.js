@@ -14,7 +14,7 @@ export const loginUserService = async (email, password) => {
     throw new ApiError(401, "User Not Found");
   }
 
-  const isPasswordCorrect = await bcrypt.compare(password, user.password);
+  const isPasswordCorrect = await bcrypt.compare(password, user.password_hash);
   if (!isPasswordCorrect) {
     throw new ApiError(401, "Invalid Credentials");
   }
@@ -34,7 +34,9 @@ export const loginUserService = async (email, password) => {
     throw new ApiError(500, "Failed to update user with refresh Token");
   }
 
-  delete user.password;
+  delete user.password_hash;
+  delete user.refresh_token;
+  delete user.access_token;
 
   return {
     user,

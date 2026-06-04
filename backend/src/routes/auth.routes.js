@@ -12,7 +12,7 @@ const router = Router();
 
 router.post("/login", login);
 
-router.post("/logout", logout);
+router.post("/logout", verifyJWT, logout);
 
 router.get("/me", verifyJWT, getCurrentUser);
 

@@ -72,7 +72,7 @@ export const getEmployees = asyncHandler(async (req, res) => {
 // @desc    Get single employee by ID
 // @route   GET /api/v1/employees/:id
 export const getEmployeeById = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { employeeId } = req.params;
 
   const { data, error } = await supabase
     .from("employee_profiles")
@@ -83,7 +83,7 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
       employee_documents(*),
       course_instructors(courses(name, track, status))
     `)
-    .eq("id", id)
+    .eq("id", employeeId)
     .single();
 
   if (error) throw new ApiError(404, "Employee not found");
@@ -94,7 +94,7 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 // @desc    Update employee (e.g., status, role, details)
 // @route   PUT /api/v1/employees/:id
 export const updateEmployee = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { employeeId } = req.params;
   const { first_name, last_name, phone, designation, status, joining_date } = req.body;
 
   const updates = {};
@@ -108,7 +108,7 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from("employee_profiles")
     .update(updates)
-    .eq("id", id)
+    .eq("id", employeeId)
     .select();
 
   if (error) throw new ApiError(500, error.message || "Failed to update employee");
@@ -120,12 +120,12 @@ export const updateEmployee = asyncHandler(async (req, res) => {
 // @desc    Delete employee
 // @route   DELETE /api/v1/employees/:id
 export const deleteEmployee = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { employeeId } = req.params;
 
   const { data, error } = await supabase
     .from("employee_profiles")
     .delete()
-    .eq("id", id)
+    .eq("id", employeeId)
     .select();
 
   if (error) throw new ApiError(500, error.message || "Failed to delete employee");
@@ -141,7 +141,7 @@ export const deleteEmployee = asyncHandler(async (req, res) => {
 // @desc    Add employee document
 // @route   POST /api/v1/employees/:id/documents
 export const addEmployeeDocument = asyncHandler(async (req, res) => {
-  const { id } = req.params; // employee_id
+  const { employeeId } = req.params;
   const { document_name, cloudinary_url } = req.body;
 
   if (!document_name || !cloudinary_url) {
@@ -150,7 +150,7 @@ export const addEmployeeDocument = asyncHandler(async (req, res) => {
 
   const { data, error } = await supabase
     .from("employee_documents")
-    .insert([{ employee_id: id, document_name, cloudinary_url }])
+    .insert([{ employee_id: employeeId, document_name, cloudinary_url }])
     .select();
 
   if (error) throw new ApiError(500, error.message || "Failed to add document");
@@ -161,13 +161,13 @@ export const addEmployeeDocument = asyncHandler(async (req, res) => {
 // @desc    Delete employee document
 // @route   DELETE /api/v1/employees/:id/documents/:docId
 export const deleteEmployeeDocument = asyncHandler(async (req, res) => {
-  const { id, docId } = req.params;
+  const { employeeId, docId } = req.params;
 
   const { data, error } = await supabase
     .from("employee_documents")
     .delete()
     .eq("id", docId)
-    .eq("employee_id", id)
+    .eq("employee_id", employeeId)
     .select();
 
   if (error) throw new ApiError(500, error.message || "Failed to delete document");
@@ -183,7 +183,7 @@ export const deleteEmployeeDocument = asyncHandler(async (req, res) => {
 // @desc    Assign course to employee (instructor)
 // @route   POST /api/v1/employees/:id/courses
 export const assignCourse = asyncHandler(async (req, res) => {
-  const { id } = req.params; // employee_id
+  const { employeeId } = req.params;
   const { course_id } = req.body;
 
   if (!course_id) throw new ApiError(400, "Please provide course_id");
@@ -191,7 +191,7 @@ export const assignCourse = asyncHandler(async (req, res) => {
   const { data: existing } = await supabase
     .from("course_instructors")
     .select("id")
-    .eq("employee_id", id)
+    .eq("employee_id", employeeId)
     .eq("course_id", course_id)
     .single();
 
@@ -199,7 +199,7 @@ export const assignCourse = asyncHandler(async (req, res) => {
 
   const { data, error } = await supabase
     .from("course_instructors")
-    .insert([{ employee_id: id, course_id }])
+    .insert([{ employee_id: employeeId, course_id }])
     .select();
 
   if (error) throw new ApiError(500, error.message || "Failed to assign course");
@@ -210,13 +210,13 @@ export const assignCourse = asyncHandler(async (req, res) => {
 // @desc    Remove course from employee
 // @route   DELETE /api/v1/employees/:id/courses/:courseId
 export const removeCourse = asyncHandler(async (req, res) => {
-  const { id, courseId } = req.params;
+  const { employeeId, courseId } = req.params;
 
   const { data, error } = await supabase
     .from("course_instructors")
     .delete()
     .eq("course_id", courseId)
-    .eq("employee_id", id)
+    .eq("employee_id", employeeId)
     .select();
 
   if (error) throw new ApiError(500, error.message || "Failed to remove course assignment");
@@ -232,36 +232,13 @@ export const removeCourse = asyncHandler(async (req, res) => {
 // @desc    Get Employee Summary Report
 // @route   GET /api/v1/employees/:id/report
 export const getEmployeeReport = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { count: totalActive } = await supabase.from("employee_profiles").select("*", { count: 'exact', head: true }).eq("status", "ACTIVE");
+  const { count: totalOnLeave } = await supabase.from("employee_profiles").select("*", { count: 'exact', head: true }).eq("status", "ON_LEAVE");
+  const { count: totalTerminated } = await supabase.from("employee_profiles").select("*", { count: 'exact', head: true }).eq("status", "TERMINATED");
 
-  // Fetch basic profile, role, documents, and courses
-  const { data: profile, error: profileError } = await supabase
-    .from("employee_profiles")
-    .select(`
-      *,
-      employee_roles(role_name),
-      users(email, role, status),
-      employee_documents(*),
-      course_instructors(courses(name, track, status))
-    `)
-    .eq("id", id)
-    .single();
-
-  if (profileError) throw new ApiError(404, "Employee not found");
-
-  // Generate some aggregate report data
-  const reportData = {
-    employee_code: profile.employee_code,
-    name: `${profile.first_name} ${profile.last_name}`,
-    status: profile.status,
-    role: profile.employee_roles?.role_name,
-    total_documents: profile.employee_documents?.length || 0,
-    total_courses_instructing: profile.course_instructors?.length || 0,
-    documents: profile.employee_documents,
-    courses: profile.course_instructors?.map(c => c.courses),
-    joining_date: profile.joining_date,
-    salary: profile.salary
-  };
-
-  return res.status(200).json(new ApiResponse(200, reportData, "Employee report generated successfully"));
+  return res.status(200).json(new ApiResponse(200, {
+    totalActive,
+    totalOnLeave,
+    totalTerminated
+  }, "Employee global report generated successfully"));
 });

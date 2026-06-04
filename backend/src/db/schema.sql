@@ -3,7 +3,7 @@ DROP TABLE IF EXISTS
   audit_logs, notifications, blog_statistics, blogs, candidate_evaluations, interviews, candidates, 
   whatsapp_messages, whatsapp_conversations, whatsapp_campaigns, whatsapp_templates, 
   followups, lead_activities, leads, lead_sources, 
-  fee_payments, fee_receipts, student_fee_plans, 
+  fee_payments, student_fee_plans, 
   salary_slips, payroll, 
   work_reports, project_members, projects, 
   automated_alerts_log, employee_attendance, student_attendance, 
@@ -56,8 +56,7 @@ CREATE TABLE users (
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    refresh_token VARCHAR(255),
-    access_token TEXT
+    refresh_token VARCHAR(255)
 );
 
 CREATE TABLE employee_roles (
