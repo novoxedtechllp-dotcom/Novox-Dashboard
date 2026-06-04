@@ -1,10 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { GraduationCap, Phone, Plus, X, Upload, User } from 'lucide-react';
 
 const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const [students, setStudents] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   
   const [courseFilter, setCourseFilter] = useState('All Courses');
   const [monthFilter, setMonthFilter] = useState('All Months');
@@ -26,67 +25,26 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     }
   };
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  const fetchStudents = async () => {
-    setLoading(true);
-    try {
-      const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-      if (!userInfo || !userInfo.token) return;
-
-      const response = await fetch('http://localhost:5000/api/students', {
-        headers: {
-          'Authorization': `Bearer ${userInfo.token}`
-        }
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setStudents(data);
-      }
-    } catch (error) {
-      console.error('Error fetching students:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddStudent = async (e) => {
+  const handleAddStudent = (e) => {
     e.preventDefault();
     if (!newStudent.name || !newStudent.course) return;
 
-    try {
-      const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-      if (!userInfo || !userInfo.token) return;
+    const newId = students.length ? Math.max(...students.map(s => s.id)) + 1 : 1;
+    const addedStudent = {
+      id: newId,
+      sid: `202401${newId.toString().padStart(2, '0')}`,
+      name: newStudent.name,
+      course: newStudent.course,
+      phone: newStudent.phone || '+1 (555) 000-0000',
+      feeStatus: newStudent.feeStatus,
+      attendance: '100%',
+      enrollmentMonth: newStudent.enrollmentMonth,
+      avatar: newStudent.avatarUrl
+    };
 
-      const payload = {
-        name: newStudent.name,
-        course: newStudent.course,
-        phone: newStudent.phone,
-        feeStatus: newStudent.feeStatus,
-        enrollmentMonth: newStudent.enrollmentMonth,
-        avatar: newStudent.avatarUrl
-      };
-
-      const response = await fetch('http://localhost:5000/api/students', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userInfo.token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setStudents([data, ...students]);
-        setIsModalOpen(false);
-        setNewStudent({ name: '', course: '', phone: '', feeStatus: 'Paid', enrollmentMonth: 'January', avatarUrl: null });
-      }
-    } catch (error) {
-      console.error('Error creating student:', error);
-    }
+    setStudents([addedStudent, ...students]);
+    setIsModalOpen(false);
+    setNewStudent({ name: '', course: '', phone: '', feeStatus: 'Paid', enrollmentMonth: 'January', avatarUrl: null });
   };
 
   const filteredStudents = useMemo(() => {
@@ -140,15 +98,10 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       </div>
 
       {/* Grid Container */}
-      {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <p className="text-slate-500 font-semibold">Loading Students...</p>
-        </div>
-      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[24px]">
         
         {filteredStudents.map(student => (
-          <div key={student._id || student.id} className="bg-white rounded-[8px] border border-[#C2C6D4] p-[24px] flex flex-col h-[247px]">
+          <div key={student.id || student._id} className="bg-white rounded-[8px] border border-[#C2C6D4] p-[24px] flex flex-col h-[247px]">
             <div className="flex items-start gap-4 mb-auto">
               <div className="relative w-[48px] h-[48px] rounded-full overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center">
                 {student.avatar ? (
@@ -197,7 +150,6 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         </div>
 
       </div>
-      )}
 
       {/* Pagination (Removed for infinite scroll/all-on-one-page) */}
       <div className="w-full flex justify-between items-center pt-[8px]">

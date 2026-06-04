@@ -6,31 +6,10 @@ export default function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setError(null);
-    try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        localStorage.setItem('userInfo', JSON.stringify(data));
-        if (onLogin) onLogin(data.role);
-      } else {
-        setError(data.message || 'Login failed');
-      }
-    } catch (err) {
-      setError('Cannot connect to server');
-    }
+    if (onLogin) onLogin(role);
   };
 
   return (
@@ -118,7 +97,7 @@ export default function Login({ onLogin }) {
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                   </svg>
-                  <input type="email" placeholder="name@novox-edtech.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  <input type="email" placeholder="name@novox-edtech.com" />
                 </div>
               </div>
 
@@ -135,9 +114,7 @@ export default function Login({ onLogin }) {
                   <input 
                     type={showPassword ? "text" : "password"} 
                     placeholder="••••••••" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
+                    defaultValue="password123"
                   />
                   <button 
                     type="button" 
@@ -152,7 +129,7 @@ export default function Login({ onLogin }) {
                 </div>
               </div>
 
-              {error && <div style={{color: 'red', fontSize: '14px', marginBottom: '15px'}}>{error}</div>}
+
 
               <div className="checkbox-group">
                 <label className="checkbox-label">
