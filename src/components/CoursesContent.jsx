@@ -4,25 +4,60 @@ import {useState} from 'react';
 import AddStudentBtn from './AddBtn';
 import AddBtn from './AddBtn';
 
-const CoursesContent = ({ courses = [], setCourses }) => {
-  const handleAddCourse = () => {
-    if (!setCourses) return;
-    const title = window.prompt("Enter new course title:");
-    if (!title) return;
-    const category = window.prompt("Enter course category (e.g. DEVELOPMENT):") || "GENERAL";
-    
-    const newCourse = {
-      id: courses.length ? Math.max(...courses.map(c => c.id)) + 1 : 1,
-      category: category.toUpperCase(),
-      title,
-      duration: '12 Weeks',
-      price: '$999.00',
-      mentorName: 'New Mentor',
-      mentorInitials: 'NM',
-      imgUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&q=80'
-    };
-    setCourses([...courses, newCourse]);
-  };
+const courses = [
+  {
+    id: 1,
+    category: 'DEVELOPMENT',
+    title: 'Full Stack Web Engineering',
+    duration: '24 Weeks',
+    price: '$1,200.00',
+    mentorName: 'Sarah Mitchell',
+    mentorInitials: 'SM',
+    imgUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=500&q=80'
+  },
+  {
+    id: 2,
+    category: 'MARKETING',
+    title: 'Advanced Digital Strategy',
+    duration: '12 Weeks',
+    price: '$850.00',
+    mentorName: 'David Chen',
+    mentorInitials: 'DC',
+    imgUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=500&q=80'
+  },
+  {
+    id: 3,
+    category: 'DESIGN',
+    title: 'UI/UX Design Masterclass',
+    duration: '16 Weeks',
+    price: '$990.00',
+    mentorName: 'Elena Lopez',
+    mentorInitials: 'EL',
+    imgUrl: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=500&q=80'
+  },
+  {
+    id: 4,
+    category: 'HR',
+    title: 'Strategic HR Management',
+    duration: '8 Weeks',
+    price: '$600.00',
+    mentorName: 'James Baxter',
+    mentorInitials: 'JB',
+    imgUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=500&q=80'
+  },
+  {
+    id: 5,
+    category: 'DEVELOPMENT',
+    title: 'Data Science & Analytics',
+    duration: '20 Weeks',
+    price: '$1,450.00',
+    mentorName: 'Rajiv Kapoor',
+    mentorInitials: 'RK',
+    imgUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500&q=80'
+  }
+];
+
+const CoursesContent = () => {
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full">
       {/* Header Container: 972 x 56 */}
@@ -31,13 +66,7 @@ const CoursesContent = ({ courses = [], setCourses }) => {
           <h2 className="text-[20px] font-bold text-[#003F87] leading-tight">Course Management</h2>
           <p className="text-[13px] text-[#555F6B] mt-1">Manage institutional academic offerings and mentor assignments.</p>
         </div>
-<<<<<<< HEAD
         <AddBtn title="Add Course" />
-=======
-        <button onClick={handleAddCourse} className="bg-[#003F87] text-white px-[20px] py-[10px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors">
-          <Plus size={16} /> Add Course
-        </button>
->>>>>>> 3ed7742abbb34d709942173671f0e8468e85b94d
       </div>
 
       {/* Filter Section: 972 x 44 */}
