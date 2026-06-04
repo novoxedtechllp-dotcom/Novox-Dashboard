@@ -11,6 +11,7 @@ import WhatsappContent from './components/WhatsappContent';
 import LeaderboardContent from './components/LeaderboardContent';
 import AcademicJourneyContent from './components/AcademicJourneyContent';
 import SeoAgentContent from './components/SeoAgentContent';
+import PayrollContent from './components/PayrollContent';
 import Login from './components/Login';
 import Fab from './components/Fab';
 
@@ -39,6 +40,8 @@ function App() {
             <CoursesContent />
           ) : activeTab === 'fees' ? (
             <FeesContent />
+          ) : activeTab === 'payroll' ? (
+            <PayrollContent />
           ) : activeTab === 'sales-crm' ? (
             <SalesCrmContent />
           ) : activeTab === 'whatsapp-automation' ? (
