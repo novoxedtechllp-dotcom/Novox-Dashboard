@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import MainContent from './components/MainContent';
@@ -13,6 +13,13 @@ import AcademicJourneyContent from './components/AcademicJourneyContent';
 import SeoAgentContent from './components/SeoAgentContent';
 import Login from './components/Login';
 import Fab from './components/Fab';
+import EmployeeSidebar from './components/EmployeeSidebar';
+import EmployeeHeader from './components/EmployeeHeader';
+import EmployeeDashboard from './components/EmployeeDashboard';
+import EmployeeAttendance from './components/EmployeeAttendance';
+import EmployeeTasks from './components/EmployeeTasks';
+import EmployeeLeaves from './components/EmployeeLeaves';
+import EmployeeProfile from './components/EmployeeProfile';
 
 const initialCourses = [
   { id: 1, title: 'Full Stack Web Engineering', category: 'DEVELOPMENT', duration: '24 Weeks', price: '$1,200.00', mentorName: 'Sarah Mitchell', mentorInitials: 'SM', imgUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=500&q=80' },
@@ -29,14 +36,82 @@ const initialNotifications = [
 ];
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return !!localStorage.getItem('userInfo');
+  });
+  const [userRole, setUserRole] = useState(() => {
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      try {
+        return JSON.parse(userInfo).role;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('activeTab') || 'dashboard';
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [courses, setCourses] = useState(initialCourses);
   const [notifications, setNotifications] = useState(initialNotifications);
+  const [employeeActiveTab, setEmployeeActiveTab] = useState(() => {
+    return localStorage.getItem('employeeActiveTab') || 'employee-dashboard';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('employeeActiveTab', employeeActiveTab);
+  }, [employeeActiveTab]);
+
+
+  const handleLogout = () => {
+    localStorage.removeItem('userInfo');
+    setIsAuthenticated(false);
+    setUserRole(null);
+  };
 
   if (!isAuthenticated) {
-    return <Login onLogin={() => setIsAuthenticated(true)} />;
+    return <Login onLogin={(role) => {
+      setUserRole(role);
+      setIsAuthenticated(true);
+    }} />;
+  }
+
+  if (userRole === 'Employee') {
+    return (
+      <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
+        <EmployeeSidebar activeTab={employeeActiveTab} setActiveTab={setEmployeeActiveTab} />
+        
+        <main className="flex-1 flex flex-col h-full overflow-hidden bg-white min-w-0">
+          <EmployeeHeader activeTab={employeeActiveTab} />
+          <div className="flex-1 overflow-y-auto">
+            {employeeActiveTab === 'employee-dashboard' ? (
+              <EmployeeDashboard />
+            ) : employeeActiveTab === 'employee-attendance' ? (
+              <EmployeeAttendance />
+            ) : employeeActiveTab === 'employee-tasks' ? (
+              <EmployeeTasks />
+            ) : employeeActiveTab === 'employee-leaves' ? (
+              <EmployeeLeaves />
+            ) : employeeActiveTab === 'employee-profile' ? (
+              <EmployeeProfile />
+            ) : (
+              <div className="p-[24px]">
+                <h2 className="text-2xl font-bold capitalize">{employeeActiveTab.replace('employee-', '').replace('-', ' ')} Page</h2>
+                <p className="text-slate-500 mt-2">Content for {employeeActiveTab} will go here.</p>
+              </div>
+            )}
+          </div>
+        </main>
+        
+        <Fab />
+      </div>
+    );
   }
 
   return (
@@ -48,7 +123,7 @@ function App() {
           activeTab={activeTab} 
           searchQuery={searchQuery} 
           setSearchQuery={setSearchQuery} 
-          onLogout={() => setIsAuthenticated(false)} 
+          onLogout={handleLogout} 
           notifications={notifications}
         />
         <div className="flex-1 overflow-y-auto">
