@@ -16,6 +16,29 @@ import PayrollContent from './components/PayrollContent';
 import Login from './components/Login';
 import Fab from './components/Fab';
 
+const initialEmployees = [
+  {
+    id: 1,
+    eid: 'EMP001',
+    name: 'Alice Johnson',
+    department: 'Engineering',
+    phone: '+1 (555) 123-4567',
+    status: 'Active',
+    joinDate: 'Jan 2023',
+    avatar: null
+  },
+  {
+    id: 2,
+    eid: 'EMP002',
+    name: 'Bob Smith',
+    department: 'Marketing',
+    phone: '+1 (555) 987-6543',
+    status: 'On Leave',
+    joinDate: 'Mar 2023',
+    avatar: null
+  }
+];
+
 const initialCourses = [
   {
     id: 1,
@@ -73,6 +96,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [courses, setCourses] = useState(initialCourses);
+  const [employees, setEmployees] = useState(initialEmployees);
 
   if (!isAuthenticated) {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
@@ -86,15 +110,15 @@ function App() {
         <Header activeTab={activeTab} />
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'dashboard' ? (
-            <MainContent activeTab={activeTab} />
+            <MainContent activeTab={activeTab} employees={employees} />
           ) : activeTab === 'attendance' ? (
             <AttendanceContent />
           ) : activeTab === 'students' ? (
             <StudentsContent courses={courses} />
           ) : activeTab === 'employees' ? (
-            <EmployeesContent />
+            <EmployeesContent employees={employees} setEmployees={setEmployees} />
           ) : activeTab === 'courses' ? (
-            <CoursesContent courses={courses} setCourses={setCourses} />
+            <CoursesContent courses={courses} setCourses={setCourses} employees={employees} />
           ) : activeTab === 'fees' ? (
             <FeesContent />
           ) : activeTab === 'payroll' ? (

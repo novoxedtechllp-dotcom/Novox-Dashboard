@@ -1,12 +1,64 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronRight, Zap } from 'lucide-react';
-import { useState } from 'react';
 
-const LowerContent = () => {
+const LowerContent = ({ employees = [], students = [] }) => {
   const [viewAllBtn, setViewAllBtn] = useState(true);
+  const [attendanceTab, setAttendanceTab] = useState('Students');
+  
+  // Local state for dashboard students if not passed as prop
+  const [dashboardStudents, setDashboardStudents] = useState(students);
+
+  useEffect(() => {
+    if (students.length === 0) {
+      // Fetch students from backend just for dashboard if not lifted
+      const fetchStudents = async () => {
+        try {
+          const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+          if (!userInfo || !userInfo.token) return;
+          const response = await fetch('http://localhost:5000/api/students', {
+            headers: { 'Authorization': `Bearer ${userInfo.token}` }
+          });
+          const data = await response.json();
+          if (response.ok) {
+            setDashboardStudents(data);
+          }
+        } catch (error) {
+          console.error('Error fetching students for dashboard:', error);
+        }
+      };
+      fetchStudents();
+    } else {
+      setDashboardStudents(students);
+    }
+  }, [students]);
+
   const handleViewAllClick = () => {
     setViewAllBtn(!viewAllBtn);
   };
+
+  const displayData = attendanceTab === 'Students' 
+    ? dashboardStudents.map(s => ({
+        id: s.id || s._id,
+        name: s.name,
+        subtitle: s.course,
+        initials: s.name.substring(0, 2).toUpperCase(),
+        time: s.attendance === '100%' ? '08:15 AM' : '--:--',
+        status: s.attendance === '100%' ? 'Present' : 'Absent',
+        statusColor: s.attendance === '100%' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600',
+        dotColor: s.attendance === '100%' ? 'bg-green-500' : 'bg-slate-400'
+      }))
+    : employees.map(e => ({
+        id: e.id,
+        name: e.name,
+        subtitle: e.department,
+        initials: e.name.substring(0, 2).toUpperCase(),
+        time: e.status === 'Active' ? '08:00 AM' : '--:--',
+        status: e.status === 'Active' ? 'Present' : 'On Leave',
+        statusColor: e.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600',
+        dotColor: e.status === 'Active' ? 'bg-green-500' : 'bg-slate-400'
+      }));
+
+  const visibleData = viewAllBtn ? displayData.slice(0, 4) : displayData;
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-[24px]">
       {/* Attendance Overview (Takes 2 columns) */}
@@ -17,8 +69,18 @@ const LowerContent = () => {
             <p className="text-[12px] text-slate-500">Real-time status tracking for the institution.</p>
           </div>
           <div className="flex bg-slate-100 rounded-lg p-1">
-            <button className="px-4 py-1.5 text-xs font-bold bg-white text-[#003F87] rounded-md shadow-sm">Students</button>
-            <button className="px-4 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700">Employees</button>
+            <button 
+              onClick={() => setAttendanceTab('Students')}
+              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${attendanceTab === 'Students' ? 'bg-white text-[#003F87] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Students
+            </button>
+            <button 
+              onClick={() => setAttendanceTab('Employees')}
+              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${attendanceTab === 'Employees' ? 'bg-white text-[#003F87] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Employees
+            </button>
           </div>
         </div>
         
@@ -33,166 +95,32 @@ const LowerContent = () => {
               </tr>
             </thead>
             <tbody>
-              {/* Row 1 */}
-              <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                <td className="py-4 px-6 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">AS</div>
-                  <div>
-                    <div className="text-sm font-bold text-slate-800">Alex Thompson</div>
-                    <div className="text-[11px] text-slate-500">Grade 12 - Section A</div>
-                  </div>
-                </td>
-                <td className="py-4 px-6 text-[13px] font-medium text-slate-700">08:15 AM</td>
-                <td className="py-4 px-6">
-                  <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                    Present
-                  </span>
-                </td>
-                <td className="py-4 px-6">
-                  <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
-                </td>
-              </tr>
-              {/* Row 2 */}
-              <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                <td className="py-4 px-6 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">MB</div>
-                  <div>
-                    <div className="text-sm font-bold text-slate-800">Maria Garcia</div>
-                    <div className="text-[11px] text-slate-500">Grade 11 - Section B</div>
-                  </div>
-                </td>
-                <td className="py-4 px-6 text-[13px] font-medium text-slate-700">08:42 AM</td>
-                <td className="py-4 px-6">
-                  <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-600 px-2.5 py-1 rounded-full text-[11px] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                    Late
-                  </span>
-                </td>
-                <td className="py-4 px-6">
-                  <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
-                </td>
-              </tr>
-              {/* Row 3 */}
-              <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                <td className="py-4 px-6 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">JD</div>
-                  <div>
-                    <div className="text-sm font-bold text-slate-800">James Wilson</div>
-                    <div className="text-[11px] text-slate-500">Grade 12 - Section A</div>
-                  </div>
-                </td>
-                <td className="py-4 px-6 text-[13px] font-medium text-slate-500">--:--</td>
-                <td className="py-4 px-6">
-                  <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[11px] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                    Absent
-                  </span>
-                </td>
-                <td className="py-4 px-6">
-                  <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
-                </td>
-              </tr>
-              {/* Row 4 */}
-              <tr className="hover:bg-slate-50 transition-colors">
-                <td className="py-4 px-6 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">LK</div>
-                  <div>
-                    <div className="text-sm font-bold text-slate-800">Linda Kim</div>
-                    <div className="text-[11px] text-slate-500">Grade 10 - Section C</div>
-                  </div>
-                </td>
-                <td className="py-4 px-6 text-[13px] font-medium text-slate-700">08:02 AM</td>
-                <td className="py-4 px-6">
-                  <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                    Present
-                  </span>
-                </td>
-                <td className="py-4 px-6">
-                  <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
-                </td>
-              </tr>
-              {!viewAllBtn && (
-                <>
-                <tr className="hover:bg-slate-50 transition-colors">
+              {visibleData.length > 0 ? visibleData.map(item => (
+                <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                   <td className="py-4 px-6 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">LK</div>
+                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">{item.initials}</div>
                     <div>
-                      <div className="text-sm font-bold text-slate-800">Linda Kim</div>
-                      <div className="text-[11px] text-slate-500">Grade 10 - Section C</div>
+                      <div className="text-sm font-bold text-slate-800">{item.name}</div>
+                      <div className="text-[11px] text-slate-500">{item.subtitle}</div>
                     </div>
                   </td>
-                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700">08:02 AM</td>
+                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700">{item.time}</td>
                   <td className="py-4 px-6">
-                    <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                      Present
+                    <span className={`inline-flex items-center gap-1.5 ${item.statusColor} px-2.5 py-1 rounded-full text-[11px] font-bold`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${item.dotColor}`}></span>
+                      {item.status}
                     </span>
                   </td>
                   <td className="py-4 px-6">
-                    <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
+                    <button className="text-[#003F87] text-xs font-bold hover:underline">Details</button>
                   </td>
                 </tr>
-                <tr className="hover:bg-slate-50 transition-colors">
-                  <td className="py-4 px-6 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">LK</div>
-                    <div>
-                      <div className="text-sm font-bold text-slate-800">Linda Kim</div>
-                      <div className="text-[11px] text-slate-500">Grade 10 - Section C</div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700">08:02 AM</td>
-                  <td className="py-4 px-6">
-                    <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                      Present
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
+              )) : (
+                <tr>
+                  <td colSpan="4" className="py-6 text-center text-sm text-slate-500">
+                    No {attendanceTab.toLowerCase()} data available.
                   </td>
                 </tr>
-                <tr className="hover:bg-slate-50 transition-colors">
-                  <td className="py-4 px-6 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">LK</div>
-                    <div>
-                      <div className="text-sm font-bold text-slate-800">Linda Kim</div>
-                      <div className="text-[11px] text-slate-500">Grade 10 - Section C</div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700">08:02 AM</td>
-                  <td className="py-4 px-6">
-                    <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                      Present
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
-                  </td>
-                </tr>
-                <tr className="hover:bg-slate-50 transition-colors">
-                  <td className="py-4 px-6 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">LK</div>
-                    <div>
-                      <div className="text-sm font-bold text-slate-800">Linda Kim</div>
-                      <div className="text-[11px] text-slate-500">Grade 10 - Section C</div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700">08:02 AM</td>
-                  <td className="py-4 px-6">
-                    <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                      Present
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
-                  </td>
-                </tr>
-                </>
-                
               )}
             </tbody>
           </table>

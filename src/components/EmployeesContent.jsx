@@ -1,31 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil } from 'lucide-react';
 
-const initialEmployees = [
-  {
-    id: 1,
-    eid: 'EMP001',
-    name: 'Alice Johnson',
-    department: 'Engineering',
-    phone: '+1 (555) 123-4567',
-    status: 'Active',
-    joinDate: 'Jan 2023',
-    avatar: null
-  },
-  {
-    id: 2,
-    eid: 'EMP002',
-    name: 'Bob Smith',
-    department: 'Marketing',
-    phone: '+1 (555) 987-6543',
-    status: 'On Leave',
-    joinDate: 'Mar 2023',
-    avatar: null
-  }
-];
-
-const EmployeesContent = () => {
-  const [employees, setEmployees] = useState(initialEmployees);
+const EmployeesContent = ({ employees = [], setEmployees }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
