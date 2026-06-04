@@ -1,7 +1,12 @@
 import React from 'react';
 import { ChevronRight, Zap } from 'lucide-react';
+import { useState } from 'react';
 
 const LowerContent = () => {
+  const [viewAllBtn, setViewAllBtn] = useState(true);
+  const handleViewAllClick = () => {
+    setViewAllBtn(!viewAllBtn);
+  };
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-[24px]">
       {/* Attendance Overview (Takes 2 columns) */}
@@ -108,14 +113,99 @@ const LowerContent = () => {
                   <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
                 </td>
               </tr>
+              {!viewAllBtn && (
+                <>
+                <tr className="hover:bg-slate-50 transition-colors">
+                  <td className="py-4 px-6 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">LK</div>
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">Linda Kim</div>
+                      <div className="text-[11px] text-slate-500">Grade 10 - Section C</div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700">08:02 AM</td>
+                  <td className="py-4 px-6">
+                    <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                      Present
+                    </span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
+                  </td>
+                </tr>
+                <tr className="hover:bg-slate-50 transition-colors">
+                  <td className="py-4 px-6 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">LK</div>
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">Linda Kim</div>
+                      <div className="text-[11px] text-slate-500">Grade 10 - Section C</div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700">08:02 AM</td>
+                  <td className="py-4 px-6">
+                    <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                      Present
+                    </span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
+                  </td>
+                </tr>
+                <tr className="hover:bg-slate-50 transition-colors">
+                  <td className="py-4 px-6 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">LK</div>
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">Linda Kim</div>
+                      <div className="text-[11px] text-slate-500">Grade 10 - Section C</div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700">08:02 AM</td>
+                  <td className="py-4 px-6">
+                    <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                      Present
+                    </span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
+                  </td>
+                </tr>
+                <tr className="hover:bg-slate-50 transition-colors">
+                  <td className="py-4 px-6 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">LK</div>
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">Linda Kim</div>
+                      <div className="text-[11px] text-slate-500">Grade 10 - Section C</div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700">08:02 AM</td>
+                  <td className="py-4 px-6">
+                    <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 px-2.5 py-1 rounded-full text-[11px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                      Present
+                    </span>
+                  </td>
+                  <td className="py-4 px-6">
+                    <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">Details</a>
+                  </td>
+                </tr>
+                </>
+                
+              )}
             </tbody>
           </table>
         </div>
-        
-        <div className="p-4 text-center border-t border-slate-200">
-          <a href="#" className="text-[#003F87] text-xs font-bold hover:underline">View All Attendance Records</a>
-        </div>
+        {viewAllBtn && (
+          <div className="p-4 text-center border-t border-slate-200">
+            <button onClick={handleViewAllClick} className="text-[#003F87] text-xs font-bold hover:underline">
+              View All Attendance Records
+            </button>
+          </div>
+        )}
       </div>
+
 
       {/* Widgets (Takes 1 column) */}
       <div className="xl:col-span-1 flex flex-col gap-[24px]">
