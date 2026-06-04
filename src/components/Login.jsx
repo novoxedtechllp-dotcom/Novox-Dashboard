@@ -4,6 +4,10 @@ import './Login.css';
 export default function Login({ onLogin }) {
   const [role, setRole] = useState('Admin');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -13,6 +17,26 @@ export default function Login({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    
+    if (isForgotPassword) {
+      if (!otpSent) {
+        setOtpSent(true);
+        // Simulate sending OTP
+      } else {
+        if (password !== confirmPassword) {
+          setError("Passwords do not match!");
+          return;
+        }
+        // Simulate resetting password
+        setIsForgotPassword(false);
+        setOtpSent(false);
+        setPassword('');
+        setConfirmPassword('');
+        setOtp('');
+      }
+      return;
+    }
+
     try {
       const response = await fetch('http://localhost:5000/api/v1/auth/login', {
         method: 'POST',
@@ -99,29 +123,83 @@ export default function Login({ onLogin }) {
         <div className="login-right-panel">
           <div className="login-box">
             <div className="login-header">
-              <h2>Welcome Back</h2>
-              <p>Enter your credentials to access the management portal.</p>
+              <h2>{isForgotPassword ? 'Reset Password' : 'Welcome Back'}</h2>
+              <p>{isForgotPassword ? (otpSent ? 'Enter the OTP sent to your email and your new password.' : 'Enter your email to receive a password reset OTP.') : 'Enter your credentials to access the management portal.'}</p>
             </div>
 
-            <div className="role-toggle">
-              <button 
-                type="button"
-                className={`toggle-btn ${role === 'Admin' ? 'active' : ''}`}
-                onClick={() => { setRole('Admin'); setIsSignUp(false); }}
-              >
-                Admin
-              </button>
-              <button 
-                type="button"
-                className={`toggle-btn ${role === 'Employee' ? 'active' : ''}`}
-                onClick={() => setRole('Employee')}
-              >
-                Employee
-              </button>
-            </div>
+            {!isForgotPassword && (
+              <div className="role-toggle">
+                <button 
+                  type="button"
+                  className={`toggle-btn ${role === 'Admin' ? 'active' : ''}`}
+                  onClick={() => { setRole('Admin'); setIsSignUp(false); }}
+                >
+                  Admin
+                </button>
+                <button 
+                  type="button"
+                  className={`toggle-btn ${role === 'Employee' ? 'active' : ''}`}
+                  onClick={() => setRole('Employee')}
+                >
+                  Employee
+                </button>
+              </div>
+            )}
 
             <form className="login-form" onSubmit={handleSubmit}>
-              {role === 'Employee' && isSignUp && (
+              {isForgotPassword ? (
+                <>
+                  <div className="form-group">
+                    <label>Email Address</label>
+                    <div className="input-wrapper">
+                      <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                      </svg>
+                      <input type="email" placeholder="name@novox-edtech.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={otpSent} />
+                    </div>
+                  </div>
+
+                  {otpSent && (
+                    <>
+                      <div className="form-group">
+                        <label>OTP Code</label>
+                        <div className="input-wrapper">
+                          <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                          </svg>
+                          <input type="text" placeholder="123456" value={otp} onChange={(e) => setOtp(e.target.value)} required />
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label>New Password</label>
+                        <div className="input-wrapper">
+                          <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label>Confirm Password</label>
+                        <div className="input-wrapper">
+                          <input type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {error && <div style={{color: 'red', fontSize: '14px', marginBottom: '15px'}}>{error}</div>}
+
+                  <button type="submit" className="submit-btn" style={{marginTop: '10px'}}>
+                    {otpSent ? 'Reset Password' : 'Send OTP'}
+                  </button>
+
+                  <div style={{textAlign: 'center', marginTop: '20px', fontSize: '14px'}}>
+                    <a href="#" onClick={(e) => { e.preventDefault(); setIsForgotPassword(false); setOtpSent(false); }} style={{color: '#555F6B', textDecoration: 'none'}}>Back to Login</a>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {role === 'Employee' && isSignUp && (
                 <div className="form-group">
                   <label>Full Name</label>
                   <div className="input-wrapper">
@@ -174,7 +252,7 @@ export default function Login({ onLogin }) {
                 </div>
                 {role === 'Employee' && !isSignUp && (
                   <div style={{textAlign: 'right', marginTop: '8px'}}>
-                    <a href="#" className="forgot-link" style={{color: '#003F87', textDecoration: 'none', fontSize: '13px', fontWeight: '500'}}>Forgot Password?</a>
+                    <a href="#" onClick={(e) => { e.preventDefault(); setIsForgotPassword(true); }} className="forgot-link" style={{color: '#003F87', textDecoration: 'none', fontSize: '13px', fontWeight: '500'}}>Forgot Password?</a>
                   </div>
                 )}
               </div>
@@ -205,6 +283,8 @@ export default function Login({ onLogin }) {
                   </a>
                 </div>
               )}
+              </>
+            )}
             </form>
 
             <div className="footer">
