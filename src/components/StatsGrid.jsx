@@ -56,7 +56,7 @@ const StatsGrid = () => {
         <div className="relative z-10">
           <p className="text-[11px] font-bold text-blue-100 uppercase tracking-wide mb-1">Recent Sales (Today)</p>
           <div className="flex items-end gap-3">
-            <h3 className="text-3xl font-bold text-white mb-0 leading-none">$12,450</h3>
+            <h3 className="text-3xl font-bold text-white mb-0 leading-none">₹12,450</h3>
           </div>
           <div className="flex items-center gap-1 text-[10px] text-blue-200 mt-2">
             <TrendingUp size={12} />

@@ -51,8 +51,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
             student_code: 'STD-001',
             first_name: 'Alex',
             last_name: 'Thompson',
-            phone: '+1 (555) 111-2222',
-            parent_phone: '+1 (555) 333-4444',
+            phone: '+91 98765 43210',
+            parent_phone: '+91 98765 43211',
             address: '123 Main St, Tech City',
             joining_date: '2024-01-15',
             status: 'ACTIVE',
@@ -343,11 +343,11 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Student Phone</label>
-                  <input type="text" required value={newStudent.phone} onChange={(e) => setNewStudent({...newStudent, phone: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm" placeholder="+1 (555) 000-0000" />
+                  <input type="text" required value={newStudent.phone} onChange={(e) => setNewStudent({...newStudent, phone: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm" placeholder="+91 98765 43210" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Parent Phone</label>
-                  <input type="text" value={newStudent.parent_phone} onChange={(e) => setNewStudent({...newStudent, parent_phone: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm" placeholder="+1 (555) 000-0000" />
+                  <input type="text" value={newStudent.parent_phone} onChange={(e) => setNewStudent({...newStudent, parent_phone: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm" placeholder="+91 98765 43210" />
                 </div>
               </div>
 

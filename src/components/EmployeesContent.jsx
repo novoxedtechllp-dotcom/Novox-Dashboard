@@ -35,7 +35,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
       eid: `EMP${newId.toString().padStart(3, '0')}`,
       name: newEmployee.name,
       department: newEmployee.department,
-      phone: newEmployee.phone || '+1 (555) 000-0000',
+      phone: newEmployee.phone || '+91 98765 43210',
       status: newEmployee.status,
       joinDate: newEmployee.joinDate,
       avatar: newEmployee.avatarUrl || null

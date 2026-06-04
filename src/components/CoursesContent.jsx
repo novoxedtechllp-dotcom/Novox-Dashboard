@@ -10,6 +10,11 @@ const initialSchedules = [
   { id: 1, course_id: 1, start_date: '2024-01-10', end_date: '2024-06-10', days_of_week: 'Mon, Wed, Fri', start_time: '10:00', end_time: '12:00' }
 ];
 
+const formatPrice = (price) => {
+  const numStr = String(price).replace(/[^\d.]/g, '');
+  return numStr ? `₹${numStr}/-` : 'Free';
+};
+
 const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
@@ -73,7 +78,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
       category: newCourse.category,
       duration_months: Number(newCourse.duration_months),
       capacity: Number(newCourse.capacity),
-      price: newCourse.price || '$0.00',
+      price: newCourse.price || '₹0.00',
       mentorId: Number(newCourse.mentorId),
       mentorName: mentorName,
       mentorInitials: getMentorInitials(mentorName),
@@ -212,7 +217,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
             
             <div className="border-t border-dashed border-[#C2C6D4] pt-4 flex justify-between items-center">
               <div className="text-[11px] font-semibold text-[#555F6B]">
-                Price: <span className="font-bold text-[#008A2E]">{course.price}</span>
+                Price: <span className="font-bold text-[#008A2E]">{formatPrice(course.price)}</span>
               </div>
               <button 
                 onClick={() => { setSelectedCourse(course); setActiveTab('overview'); }}
@@ -300,7 +305,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Price</label>
-                  <input type="text" value={newCourse.price} onChange={e => setNewCourse({...newCourse, price: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" placeholder="$0.00" />
+                  <input type="text" value={newCourse.price} onChange={e => setNewCourse({...newCourse, price: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" placeholder="₹0.00" />
                 </div>
               </div>
 
@@ -414,7 +419,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-bold text-slate-600">Price</div>
-                  <div className="text-xl font-black text-[#008A2E]">{selectedCourse.price}</div>
+                  <div className="text-xl font-black text-[#008A2E]">{formatPrice(selectedCourse.price)}</div>
                 </div>
               </div>
               <button onClick={() => setSelectedCourse(null)} className="absolute top-[16px] right-[16px] w-8 h-8 bg-black/20 text-slate-900 rounded-full flex items-center justify-center hover:bg-black/40 z-20">
