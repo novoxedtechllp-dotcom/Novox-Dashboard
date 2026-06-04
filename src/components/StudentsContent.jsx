@@ -70,7 +70,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/students', {
+      const response = await fetch('http://localhost:5000/api/v1/students', {
         headers: { 'Authorization': `Bearer ${userInfo.token}` }
       });
       const data = await response.json();

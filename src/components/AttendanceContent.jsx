@@ -18,43 +18,46 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
   const [courseFilter, setCourseFilter] = useState('All Categories');
   const [dateFilter, setDateFilter] = useState('');
 
-  // Fetch Students to map IDs to Names
+  // Fetch data from backend
   useEffect(() => {
-    const fetchStudents = async () => {
+    const fetchData = async () => {
       try {
         const userInfo = JSON.parse(localStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) {
           // Fallback mock students if no real backend
           setStudents([{ id: 1, student_code: 'STD-001', first_name: 'Alex', last_name: 'Thompson' }]);
+          
+          setStudentAttendance([
+            { id: 'uuid-sa-1', student_id: 1, attendance_date: '2024-10-27', check_in: '2024-10-27T08:45:00', check_out: '2024-10-27T16:30:00', status: 'PRESENT', remarks: '' },
+            { id: 'uuid-sa-2', student_id: 2, attendance_date: '2024-10-27', check_in: '2024-10-27T09:15:00', check_out: null, status: 'LATE', remarks: 'Transit delay due to rain' },
+          ]);
+          setEmployeeAttendance([
+            { id: 'uuid-ea-1', employee_id: 1, attendance_date: '2024-10-27', check_in: '2024-10-27T08:00:00', check_out: '2024-10-27T17:00:00', status: 'PRESENT', remarks: '' },
+          ]);
           return;
         }
-        const response = await fetch('http://localhost:5000/api/students', {
-          headers: { 'Authorization': `Bearer ${userInfo.token}` }
-        });
-        const data = await response.json();
-        if (response.ok) {
-          setStudents(data);
+
+        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+
+        // Fetch students
+        const stdRes = await fetch('http://localhost:5000/api/v1/students', { headers });
+        if (stdRes.ok) setStudents(await stdRes.json());
+
+        // Fetch attendance (V2 API uses a single endpoint for all attendance)
+        const attRes = await fetch('http://localhost:5000/api/v1/attendance', { headers });
+        if (attRes.ok) {
+          const attendanceData = await attRes.json();
+          // Assuming the backend returns mixed data or we filter it here
+          // If the backend hasn't implemented V2 fully, this will just gracefully fallback to empty arrays
+          setStudentAttendance(attendanceData.filter(a => a.student_id));
+          setEmployeeAttendance(attendanceData.filter(a => a.employee_id));
         }
+
       } catch (error) {
-        console.error('Error fetching students:', error);
+        console.error('Error fetching data:', error);
       }
     };
-    fetchStudents();
-  }, []);
-
-  // Initialize mock data for the tables
-  useEffect(() => {
-    setStudentAttendance([
-      { id: 'uuid-sa-1', student_id: 1, attendance_date: '2024-10-27', check_in: '2024-10-27T08:45:00', check_out: '2024-10-27T16:30:00', status: 'PRESENT', remarks: '' },
-      { id: 'uuid-sa-2', student_id: 2, attendance_date: '2024-10-27', check_in: '2024-10-27T09:15:00', check_out: null, status: 'LATE', remarks: 'Transit delay due to rain' },
-      { id: 'uuid-sa-3', student_id: 3, attendance_date: '2024-10-27', check_in: null, check_out: null, status: 'ABSENT', remarks: '' },
-      { id: 'uuid-sa-4', student_id: 4, attendance_date: '2024-10-27', check_in: '2024-10-27T10:00:00', check_out: null, status: 'HALF_DAY', remarks: 'Left early for doctor' }
-    ]);
-    
-    setEmployeeAttendance([
-      { id: 'uuid-ea-1', employee_id: 1, attendance_date: '2024-10-27', check_in: '2024-10-27T08:00:00', check_out: '2024-10-27T17:00:00', status: 'PRESENT', remarks: '' },
-      { id: 'uuid-ea-2', employee_id: 2, attendance_date: '2024-10-27', check_in: '2024-10-27T09:30:00', check_out: null, status: 'LATE', remarks: 'Overslept' }
-    ]);
+    fetchData();
   }, []);
 
   const handleRefresh = () => {

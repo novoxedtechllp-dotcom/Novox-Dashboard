@@ -13,6 +13,9 @@ import LeaderboardContent from './components/LeaderboardContent';
 import AcademicJourneyContent from './components/AcademicJourneyContent';
 import SeoAgentContent from './components/SeoAgentContent';
 import PayrollContent from './components/PayrollContent';
+import WorkReportsContent from './components/WorkReportsContent';
+import RecruitmentContent from './components/RecruitmentContent';
+import BlogDashboardContent from './components/BlogDashboardContent';
 import Login from './components/Login';
 import Fab from './components/Fab';
 
@@ -123,14 +126,20 @@ function App() {
             <FeesContent />
           ) : activeTab === 'payroll' ? (
             <PayrollContent />
+          ) : activeTab === 'work-reports' ? (
+            <WorkReportsContent />
           ) : activeTab === 'sales-crm' ? (
             <SalesCrmContent courses={courses} />
+          ) : activeTab === 'recruitment' ? (
+            <RecruitmentContent />
           ) : activeTab === 'whatsapp-automation' ? (
             <WhatsappContent />
           ) : activeTab === 'leaderboard' ? (
             <LeaderboardContent />
           ) : activeTab === 'journey' ? (
             <AcademicJourneyContent />
+          ) : activeTab === 'blog' ? (
+            <BlogDashboardContent />
           ) : activeTab === 'seo' ? (
             <SeoAgentContent />
           ) : (
