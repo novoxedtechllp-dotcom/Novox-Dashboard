@@ -1,11 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2 } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, Pencil } from 'lucide-react';
+
+const fallbackCourses = [
+  'Full Stack Web Engineering',
+  'Advanced Digital Strategy',
+  'UI/UX Design Masterclass',
+  'Strategic HR Management',
+  'Data Science & Analytics'
+];
 
 const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const [students, setStudents] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState(null);
+  const [studentToEdit, setStudentToEdit] = useState(null);
   
   const [courseFilter, setCourseFilter] = useState('All Courses');
   const [monthFilter, setMonthFilter] = useState('All Months');
@@ -78,7 +87,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
           sid: `202401${newId.toString().padStart(2, '0')}`,
           attendance: '100%',
           ...payload,
-          avatar: payload.avatar || `https://i.pravatar.cc/150?u=${newId}`
+          avatar: payload.avatar || null
         };
         setStudents([addedStudent, ...students]);
         setIsModalOpen(false);
@@ -134,6 +143,17 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     setStudents(students.filter(s => (s.id || s._id) !== id));
   };
 
+  const handleUpdateStudent = async (e) => {
+    e.preventDefault();
+    setStudents(students.map(s => {
+      if ((s.id || s._id) === (studentToEdit.id || studentToEdit._id)) {
+        return { ...s, ...studentToEdit };
+      }
+      return s;
+    }));
+    setStudentToEdit(null);
+  };
+
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
       const matchCourse = courseFilter === 'All Courses' || student.course === courseFilter;
@@ -144,8 +164,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     });
   }, [students, courseFilter, monthFilter, searchQuery]);
 
-  // Extract unique courses from global courses array
-  const uniqueCourses = ['All Courses', ...courses.map(c => c.title)];
+  const activeCourses = courses.length > 0 ? courses.map(c => c.title || c) : fallbackCourses;
+  const uniqueCourses = ['All Courses', ...activeCourses];
   const uniqueMonths = ['All Months', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   return (
@@ -195,13 +215,22 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         {filteredStudents.map(student => (
           <div key={student._id || student.id} className="bg-white rounded-[8px] border border-[#C2C6D4] p-[24px] flex flex-col h-[247px] relative group hover:border-[#003F87] transition-colors">
             
-            <button 
-              onClick={(e) => { e.stopPropagation(); setStudentToDelete(student._id || student.id); }}
-              className="absolute top-[16px] right-[16px] text-[#C2C6D4] hover:text-[#D80000] opacity-0 group-hover:opacity-100 transition-all"
-              title="Delete Student"
-            >
-              <Trash2 size={16} />
-            </button>
+            <div className="absolute top-[16px] right-[16px] flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setStudentToEdit(student); }}
+                className="text-[#C2C6D4] hover:text-[#003F87]"
+                title="Edit Student"
+              >
+                <Pencil size={16} />
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setStudentToDelete(student._id || student.id); }}
+                className="text-[#C2C6D4] hover:text-[#D80000]"
+                title="Delete Student"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
 
             <div className="flex items-start gap-4 mb-auto">
               <div className="relative w-[48px] h-[48px] rounded-full overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center">
@@ -316,7 +345,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                   className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
                 >
                   <option value="" disabled>Select a course</option>
-                  {courses.map(c => <option key={c.id} value={c.title}>{c.title}</option>)}
+                  {activeCourses.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
@@ -422,6 +451,112 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Student Modal */}
+      {studentToEdit && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+              <h2 className="text-lg font-bold text-slate-800">Edit Student</h2>
+              <button onClick={() => setStudentToEdit(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdateStudent} className="p-6 flex flex-col gap-4 overflow-y-auto">
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Full Name</label>
+                <input 
+                  type="text" 
+                  required
+                  value={studentToEdit.name}
+                  onChange={(e) => setStudentToEdit({...studentToEdit, name: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Course</label>
+                <select 
+                  required
+                  value={studentToEdit.course}
+                  onChange={(e) => setStudentToEdit({...studentToEdit, course: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
+                >
+                  <option value="" disabled>Select a course</option>
+                  {activeCourses.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Phone Number</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={studentToEdit.phone}
+                    onChange={(e) => setStudentToEdit({...studentToEdit, phone: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Month</label>
+                  <select 
+                    value={studentToEdit.enrollmentMonth}
+                    onChange={(e) => setStudentToEdit({...studentToEdit, enrollmentMonth: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
+                  >
+                    {uniqueMonths.slice(1).map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Fee Status</label>
+                  <select 
+                    value={studentToEdit.feeStatus}
+                    onChange={(e) => setStudentToEdit({...studentToEdit, feeStatus: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
+                  >
+                    <option value="Paid">Paid</option>
+                    <option value="Partially Paid">Partially Paid</option>
+                    <option value="Pending">Pending</option>
+                  </select>
+                </div>
+                {studentToEdit.feeStatus === 'Partially Paid' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Remaining Fees</label>
+                    <input 
+                      type="text" 
+                      value={studentToEdit.remainingFees || ''}
+                      onChange={(e) => setStudentToEdit({...studentToEdit, remainingFees: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200">
+                <button 
+                  type="button" 
+                  onClick={() => setStudentToEdit(null)}
+                  className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E] transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

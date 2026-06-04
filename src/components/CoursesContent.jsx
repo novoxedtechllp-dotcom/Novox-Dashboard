@@ -1,64 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Clock, Plus, X, Upload, BookOpen, User, Trash2 } from 'lucide-react';
+import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil } from 'lucide-react';
 
-const initialCourses = [
-  {
-    id: 1,
-    category: 'DEVELOPMENT',
-    title: 'Full Stack Web Engineering',
-    duration: '24 Weeks',
-    price: '$1,200.00',
-    mentorName: 'Sarah Mitchell',
-    mentorInitials: 'SM',
-    imgUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=500&q=80'
-  },
-  {
-    id: 2,
-    category: 'MARKETING',
-    title: 'Advanced Digital Strategy',
-    duration: '12 Weeks',
-    price: '$850.00',
-    mentorName: 'David Chen',
-    mentorInitials: 'DC',
-    imgUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=500&q=80'
-  },
-  {
-    id: 3,
-    category: 'DESIGN',
-    title: 'UI/UX Design Masterclass',
-    duration: '16 Weeks',
-    price: '$990.00',
-    mentorName: 'Elena Lopez',
-    mentorInitials: 'EL',
-    imgUrl: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=500&q=80'
-  },
-  {
-    id: 4,
-    category: 'HR',
-    title: 'Strategic HR Management',
-    duration: '8 Weeks',
-    price: '$600.00',
-    mentorName: 'James Baxter',
-    mentorInitials: 'JB',
-    imgUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=500&q=80'
-  },
-  {
-    id: 5,
-    category: 'DEVELOPMENT',
-    title: 'Data Science & Analytics',
-    duration: '20 Weeks',
-    price: '$1,450.00',
-    mentorName: 'Rajiv Kapoor',
-    mentorInitials: 'RK',
-    imgUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500&q=80'
-  }
-];
 
-const CoursesContent = () => {
-  const [courses, setCourses] = useState(initialCourses);
+const CoursesContent = ({ courses = [], setCourses }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [courseToDelete, setCourseToDelete] = useState(null);
+  const [courseToEdit, setCourseToEdit] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
   
   const [newCourse, setNewCourse] = useState({
@@ -97,7 +45,7 @@ const CoursesContent = () => {
       price: newCourse.price || '$0.00',
       mentorName: newCourse.mentorName,
       mentorInitials,
-      imgUrl: newCourse.imgUrl || `https://i.pravatar.cc/150?u=${newId + 100}`
+      imgUrl: newCourse.imgUrl || null
     };
 
     setCourses([...courses, addedCourse]);
@@ -107,6 +55,21 @@ const CoursesContent = () => {
 
   const handleDeleteCourse = (id) => {
     setCourses(courses.filter(c => c.id !== id));
+  };
+
+  const handleUpdateCourse = (e) => {
+    e.preventDefault();
+    setCourses(courses.map(c => {
+      if (c.id === courseToEdit.id) {
+        const words = courseToEdit.mentorName.trim().split(' ');
+        const mentorInitials = words.length > 1 
+          ? (words[0][0] + words[1][0]).toUpperCase() 
+          : words[0][0].toUpperCase();
+        return { ...c, ...courseToEdit, mentorInitials };
+      }
+      return c;
+    }));
+    setCourseToEdit(null);
   };
 
   const filteredCourses = useMemo(() => {
@@ -147,13 +110,22 @@ const CoursesContent = () => {
         {filteredCourses.map(course => (
           <div key={course.id} className="bg-white rounded-[8px] border border-[#C2C6D4] p-[24px] flex flex-col h-[247px] relative group hover:border-[#003F87] transition-colors">
             
-            <button 
-              onClick={(e) => { e.stopPropagation(); setCourseToDelete(course.id); }}
-              className="absolute top-[16px] right-[16px] text-[#C2C6D4] hover:text-[#D80000] opacity-0 group-hover:opacity-100 transition-all"
-              title="Delete Course"
-            >
-              <Trash2 size={16} />
-            </button>
+            <div className="absolute top-[16px] right-[16px] flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setCourseToEdit(course); }}
+                className="text-[#C2C6D4] hover:text-[#003F87]"
+                title="Edit Course"
+              >
+                <Pencil size={16} />
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setCourseToDelete(course.id); }}
+                className="text-[#C2C6D4] hover:text-[#D80000]"
+                title="Delete Course"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
 
             <div className="flex items-start gap-4 mb-auto">
               <div className="relative w-[48px] h-[48px] rounded-full overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center">
@@ -380,6 +352,96 @@ const CoursesContent = () => {
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Course Modal */}
+      {courseToEdit && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+              <h2 className="text-lg font-bold text-slate-800">Edit Course</h2>
+              <button onClick={() => setCourseToEdit(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdateCourse} className="p-6 flex flex-col gap-4 overflow-y-auto">
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Course Title</label>
+                <input 
+                  type="text" 
+                  required
+                  value={courseToEdit.title}
+                  onChange={(e) => setCourseToEdit({...courseToEdit, title: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Category</label>
+                <select 
+                  value={courseToEdit.category}
+                  onChange={(e) => setCourseToEdit({...courseToEdit, category: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
+                >
+                  <option value="DEVELOPMENT">DEVELOPMENT</option>
+                  <option value="MARKETING">MARKETING</option>
+                  <option value="DESIGN">DESIGN</option>
+                  <option value="HR">HR</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Duration</label>
+                  <input 
+                    type="text" 
+                    value={courseToEdit.duration}
+                    onChange={(e) => setCourseToEdit({...courseToEdit, duration: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Price</label>
+                  <input 
+                    type="text" 
+                    value={courseToEdit.price}
+                    onChange={(e) => setCourseToEdit({...courseToEdit, price: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Mentor Name</label>
+                <input 
+                  type="text" 
+                  required
+                  value={courseToEdit.mentorName}
+                  onChange={(e) => setCourseToEdit({...courseToEdit, mentorName: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200">
+                <button 
+                  type="button" 
+                  onClick={() => setCourseToEdit(null)}
+                  className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E] transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

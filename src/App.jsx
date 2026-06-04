@@ -4,6 +4,7 @@ import Header from './components/Header';
 import MainContent from './components/MainContent';
 import AttendanceContent from './components/AttendanceContent';
 import StudentsContent from './components/StudentsContent';
+import EmployeesContent from './components/EmployeesContent';
 import CoursesContent from './components/CoursesContent';
 import FeesContent from './components/FeesContent';
 import SalesCrmContent from './components/SalesCrmContent';
@@ -11,12 +12,67 @@ import WhatsappContent from './components/WhatsappContent';
 import LeaderboardContent from './components/LeaderboardContent';
 import AcademicJourneyContent from './components/AcademicJourneyContent';
 import SeoAgentContent from './components/SeoAgentContent';
+import PayrollContent from './components/PayrollContent';
 import Login from './components/Login';
 import Fab from './components/Fab';
+
+const initialCourses = [
+  {
+    id: 1,
+    category: 'DEVELOPMENT',
+    title: 'Full Stack Web Engineering',
+    duration: '24 Weeks',
+    price: '$1,200.00',
+    mentorName: 'Sarah Mitchell',
+    mentorInitials: 'SM',
+    imgUrl: null
+  },
+  {
+    id: 2,
+    category: 'MARKETING',
+    title: 'Advanced Digital Strategy',
+    duration: '12 Weeks',
+    price: '$850.00',
+    mentorName: 'David Chen',
+    mentorInitials: 'DC',
+    imgUrl: null
+  },
+  {
+    id: 3,
+    category: 'DESIGN',
+    title: 'UI/UX Design Masterclass',
+    duration: '16 Weeks',
+    price: '$990.00',
+    mentorName: 'Elena Lopez',
+    mentorInitials: 'EL',
+    imgUrl: null
+  },
+  {
+    id: 4,
+    category: 'HR',
+    title: 'Strategic HR Management',
+    duration: '8 Weeks',
+    price: '$600.00',
+    mentorName: 'James Baxter',
+    mentorInitials: 'JB',
+    imgUrl: null
+  },
+  {
+    id: 5,
+    category: 'DEVELOPMENT',
+    title: 'Data Science & Analytics',
+    duration: '20 Weeks',
+    price: '$1,450.00',
+    mentorName: 'Rajiv Kapoor',
+    mentorInitials: 'RK',
+    imgUrl: null
+  }
+];
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [courses, setCourses] = useState(initialCourses);
 
   if (!isAuthenticated) {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
@@ -34,13 +90,17 @@ function App() {
           ) : activeTab === 'attendance' ? (
             <AttendanceContent />
           ) : activeTab === 'students' ? (
-            <StudentsContent />
+            <StudentsContent courses={courses} />
+          ) : activeTab === 'employees' ? (
+            <EmployeesContent />
           ) : activeTab === 'courses' ? (
-            <CoursesContent />
+            <CoursesContent courses={courses} setCourses={setCourses} />
           ) : activeTab === 'fees' ? (
             <FeesContent />
+          ) : activeTab === 'payroll' ? (
+            <PayrollContent />
           ) : activeTab === 'sales-crm' ? (
-            <SalesCrmContent />
+            <SalesCrmContent courses={courses} />
           ) : activeTab === 'whatsapp-automation' ? (
             <WhatsappContent />
           ) : activeTab === 'leaderboard' ? (

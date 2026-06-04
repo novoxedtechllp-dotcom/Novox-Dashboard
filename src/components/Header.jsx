@@ -22,14 +22,6 @@ const Header = ({ activeTab }) => {
       
       {/* Header Actions */}
       <div className="flex items-center gap-5">
-        {activeTab === 'students' && (
-          <AddBtn title="Add Student" />
-        )}
-        {activeTab === 'sales-crm' && (
-          <button className="bg-[#003F87] text-white px-[16px] h-[36px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors">
-            <Plus size={16} /> New Lead
-          </button>
-        )}
         <button className="relative text-[#555F6B] hover:text-[#003F87] transition-colors">
           <Bell size={20} />
           <span className="absolute top-[2px] right-[2px] w-[6px] h-[6px] bg-red-500 rounded-full"></span>
