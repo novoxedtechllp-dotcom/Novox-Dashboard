@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
-import { User, Lock, Bell, Settings as SettingsIcon, Camera, Save, LogOut, CheckCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { User, Lock, Bell, Settings as SettingsIcon, Camera, Save, LogOut, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 const EmployeeSettings = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [showToast, setShowToast] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatarUrl(URL.createObjectURL(file));
+    }
+  };
 
   const handleThemeChange = (e) => {
     const newTheme = e.target.value;
@@ -60,17 +72,22 @@ const EmployeeSettings = () => {
               
               <div className="flex items-center gap-6 mb-2">
                 <div className="relative">
-                  <div className="w-24 h-24 rounded-full bg-[#E5F0FF] border-2 border-[#003F87] flex items-center justify-center text-[#003F87] text-3xl font-bold">
-                    SM
+                  <div className="w-24 h-24 rounded-full bg-[#E5F0FF] border-2 border-[#003F87] flex items-center justify-center text-[#003F87] text-3xl font-bold overflow-hidden">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      "SM"
+                    )}
                   </div>
-                  <button type="button" className="absolute bottom-0 right-0 w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-600 hover:text-[#003F87] shadow-sm">
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-600 hover:text-[#003F87] shadow-sm">
                     <Camera size={14} />
                   </button>
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-800 text-lg">Staff Member</h4>
                   <p className="text-sm text-slate-500">Academic Operations</p>
-                  <button type="button" className="text-xs font-semibold text-[#003F87] mt-2 border border-[#003F87] px-3 py-1 rounded-md hover:bg-[#E5F0FF]">Change Photo</button>
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="text-xs font-semibold text-[#003F87] mt-2 border border-[#003F87] px-3 py-1 rounded-md hover:bg-[#E5F0FF]">Change Photo</button>
+                  <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
                 </div>
               </div>
 
@@ -115,36 +132,37 @@ const EmployeeSettings = () => {
                 <h4 className="font-bold text-slate-700 text-sm">Change Password</h4>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 uppercase">Current Password</label>
-                  <input type="password" placeholder="••••••••" className="border border-slate-200 rounded-md px-3 py-2 outline-none focus:border-[#003F87] text-sm" />
+                  <div className="relative">
+                    <input type={showCurrentPassword ? "text" : "password"} placeholder="••••••••" className="w-full border border-slate-200 rounded-md px-3 py-2 outline-none focus:border-[#003F87] text-sm pr-10" />
+                    <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#003F87]">
+                      {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 uppercase">New Password</label>
-                  <input type="password" placeholder="Enter new password" className="border border-slate-200 rounded-md px-3 py-2 outline-none focus:border-[#003F87] text-sm" />
+                  <div className="relative">
+                    <input type={showNewPassword ? "text" : "password"} placeholder="Enter new password" className="w-full border border-slate-200 rounded-md px-3 py-2 outline-none focus:border-[#003F87] text-sm pr-10" />
+                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#003F87]">
+                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold text-slate-600 uppercase">Confirm New Password</label>
-                  <input type="password" placeholder="Confirm new password" className="border border-slate-200 rounded-md px-3 py-2 outline-none focus:border-[#003F87] text-sm" />
+                  <div className="relative">
+                    <input type={showConfirmPassword ? "text" : "password"} placeholder="Confirm new password" className="w-full border border-slate-200 rounded-md px-3 py-2 outline-none focus:border-[#003F87] text-sm pr-10" />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#003F87]">
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
                 <button type="button" className="bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-bold w-fit mt-2 hover:bg-slate-700">Update Password</button>
               </div>
 
               <div className="border-t border-slate-200 my-2"></div>
 
-              <div>
-                <h4 className="font-bold text-slate-700 text-sm mb-4">Two-Factor Authentication</h4>
-                <div className="flex items-center justify-between bg-slate-50 p-4 rounded-lg border border-slate-200">
-                  <div>
-                    <p className="font-semibold text-slate-800 text-sm">Enable 2FA</p>
-                    <p className="text-xs text-slate-500">Secure your account with a verification code.</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#003F87]"></div>
-                  </label>
-                </div>
-              </div>
 
-              <div className="border-t border-slate-200 my-2"></div>
 
               <div>
                 <h4 className="font-bold text-slate-700 text-sm mb-4">Active Sessions</h4>
