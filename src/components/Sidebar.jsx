@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Briefcase, BookOpen, Calendar, 
   CreditCard, Wallet, MessageSquare, Handshake, Trophy, 
@@ -23,7 +24,9 @@ const navItems = [
   { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
-const Sidebar = ({ activeTab, setActiveTab }) => {
+const Sidebar = () => {
+  const location = useLocation();
+  const activeTab = location.pathname.substring(1) || 'dashboard';
   return (
     <aside className="w-[260px] min-w-[260px] h-screen bg-white border-r border-[#C2C6D4] flex flex-col pl-[16px] py-[24px] z-10">
       {/* Top Logo Container - 227x108 */}
@@ -40,9 +43,9 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
-            <button
+            <Link
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              to={`/${item.id}`}
               className={`flex items-center gap-[12px] px-[12px] py-[8px] rounded-[4px] transition-colors text-left w-full h-[36px] shrink-0
                 ${isActive 
                   ? 'bg-[#D9E3F1] text-[#003F87] font-semibold' 
@@ -51,21 +54,31 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
             >
               <Icon size={18} className={isActive ? 'text-[#003F87]' : 'text-[#555F6B]'} />
               <span className="text-[14px] leading-none">{item.label}</span>
-            </button>
+            </Link>
           );
         })}
       </nav>
 
       {/* Bottom Nav Container - pt-[32px] */}
       <div className="w-[227px] pt-[32px] mt-auto border-t border-[#C2C6D4] flex flex-col gap-[12px]">
-        <button className="flex items-center gap-[12px] px-[12px] py-[8px] rounded-[4px] text-[#555F6B] font-medium hover:bg-slate-50 transition-colors w-full text-left h-[36px]">
-          <Settings size={18} className="text-[#555F6B]" />
+        <Link 
+          to="/settings"
+          className={`flex items-center gap-[12px] px-[12px] py-[8px] rounded-[4px] font-medium transition-colors w-full text-left h-[36px] ${
+            activeTab === 'settings' ? 'bg-[#D9E3F1] text-[#003F87] font-semibold' : 'text-[#555F6B] hover:bg-slate-50'
+          }`}
+        >
+          <Settings size={18} className={activeTab === 'settings' ? 'text-[#003F87]' : 'text-[#555F6B]'} />
           <span className="text-[14px] leading-none">Settings</span>
-        </button>
-        <button className="flex items-center gap-[12px] px-[12px] py-[8px] rounded-[4px] text-[#555F6B] font-medium hover:bg-slate-50 transition-colors w-full text-left h-[36px]">
-          <HelpCircle size={18} className="text-[#555F6B]" />
+        </Link>
+        <Link 
+          to="/support"
+          className={`flex items-center gap-[12px] px-[12px] py-[8px] rounded-[4px] font-medium transition-colors w-full text-left h-[36px] ${
+            activeTab === 'support' ? 'bg-[#D9E3F1] text-[#003F87] font-semibold' : 'text-[#555F6B] hover:bg-slate-50'
+          }`}
+        >
+          <HelpCircle size={18} className={activeTab === 'support' ? 'text-[#003F87]' : 'text-[#555F6B]'} />
           <span className="text-[14px] leading-none">Support</span>
-        </button>
+        </Link>
       </div>
     </aside>
   );

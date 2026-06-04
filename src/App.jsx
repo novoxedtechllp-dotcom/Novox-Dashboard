@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import MainContent from './components/MainContent';
@@ -16,6 +17,8 @@ import PayrollContent from './components/PayrollContent';
 import WorkReportsContent from './components/WorkReportsContent';
 import RecruitmentContent from './components/RecruitmentContent';
 import BlogDashboardContent from './components/BlogDashboardContent';
+import SettingsContent from './components/SettingsContent';
+import SupportContent from './components/SupportContent';
 import Login from './components/Login';
 import Fab from './components/Fab';
 
@@ -41,6 +44,15 @@ const initialEmployees = [
     avatar: null
   }
 ];
+
+// Employee Components
+import EmployeeSidebar from './components/employee/EmployeeSidebar';
+import EmployeeHeader from './components/employee/EmployeeHeader';
+import EmployeeDashboard from './components/employee/EmployeeDashboard';
+import EmployeeTasks from './components/employee/EmployeeTasks';
+import EmployeeAttendance from './components/employee/EmployeeAttendance';
+import EmployeePayroll from './components/employee/EmployeePayroll';
+import EmployeeSettings from './components/employee/EmployeeSettings';
 
 const initialCourses = [
   {
@@ -97,57 +109,72 @@ const initialCourses = [
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [userRole, setUserRole] = useState(null);
   const [courses, setCourses] = useState(initialCourses);
   const [employees, setEmployees] = useState(initialEmployees);
 
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
   if (!isAuthenticated) {
-    return <Login onLogin={() => setIsAuthenticated(true)} />;
+    return <Login onLogin={(role) => { setIsAuthenticated(true); setUserRole(role); }} />;
+  }
+
+  if (userRole === 'Employee') {
+    return (
+      <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
+        <EmployeeSidebar />
+        <main className="flex-1 flex flex-col h-full overflow-hidden bg-white min-w-0">
+          <EmployeeHeader onLogout={() => setIsAuthenticated(false)} />
+          <div className="flex-1 overflow-y-auto">
+            <Routes>
+              <Route path="/" element={<Navigate to="/employee/dashboard" replace />} />
+              <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
+              <Route path="/employee/tasks" element={<EmployeeTasks />} />
+              <Route path="/employee/attendance" element={<EmployeeAttendance />} />
+              <Route path="/employee/payroll" element={<EmployeePayroll />} />
+              <Route path="/employee/settings" element={<EmployeeSettings />} />
+              <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
+            </Routes>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar />
       
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-white min-w-0">
-        <Header activeTab={activeTab} />
+        <Header onLogout={() => setIsAuthenticated(false)} />
         <div className="flex-1 overflow-y-auto">
-          {activeTab === 'dashboard' ? (
-            <MainContent activeTab={activeTab} employees={employees} />
-          ) : activeTab === 'attendance' ? (
-            <AttendanceContent employees={employees} courses={courses} />
-          ) : activeTab === 'students' ? (
-            <StudentsContent courses={courses} />
-          ) : activeTab === 'employees' ? (
-            <EmployeesContent employees={employees} setEmployees={setEmployees} />
-          ) : activeTab === 'courses' ? (
-            <CoursesContent courses={courses} setCourses={setCourses} employees={employees} />
-          ) : activeTab === 'fees' ? (
-            <FeesContent />
-          ) : activeTab === 'payroll' ? (
-            <PayrollContent />
-          ) : activeTab === 'work-reports' ? (
-            <WorkReportsContent />
-          ) : activeTab === 'sales-crm' ? (
-            <SalesCrmContent courses={courses} />
-          ) : activeTab === 'recruitment' ? (
-            <RecruitmentContent />
-          ) : activeTab === 'whatsapp-automation' ? (
-            <WhatsappContent />
-          ) : activeTab === 'leaderboard' ? (
-            <LeaderboardContent />
-          ) : activeTab === 'journey' ? (
-            <AcademicJourneyContent />
-          ) : activeTab === 'blog' ? (
-            <BlogDashboardContent />
-          ) : activeTab === 'seo' ? (
-            <SeoAgentContent />
-          ) : (
-            <div className="p-[24px]">
-              <h2 className="text-2xl font-bold capitalize">{activeTab.replace('-', ' ')} Page</h2>
-              <p className="text-slate-500 mt-2">Content for {activeTab} will go here.</p>
-            </div>
-          )}
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<MainContent activeTab="dashboard" employees={employees} />} />
+            <Route path="/attendance" element={<AttendanceContent employees={employees} courses={courses} />} />
+            <Route path="/students" element={<StudentsContent courses={courses} />} />
+            <Route path="/employees" element={<EmployeesContent employees={employees} setEmployees={setEmployees} />} />
+            <Route path="/courses" element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} />} />
+            <Route path="/fees" element={<FeesContent />} />
+            <Route path="/payroll" element={<PayrollContent />} />
+            <Route path="/work-reports" element={<WorkReportsContent />} />
+            <Route path="/sales-crm" element={<SalesCrmContent courses={courses} />} />
+            <Route path="/recruitment" element={<RecruitmentContent />} />
+            <Route path="/whatsapp-automation" element={<WhatsappContent />} />
+            <Route path="/leaderboard" element={<LeaderboardContent />} />
+            <Route path="/journey" element={<AcademicJourneyContent />} />
+            <Route path="/seo" element={<SeoAgentContent />} />
+            <Route path="/settings" element={<SettingsContent />} />
+            <Route path="/support" element={<SupportContent />} />
+            <Route path="/blog" element={<BlogDashboardContent />} />
+          </Routes>
         </div>
       </main>
       

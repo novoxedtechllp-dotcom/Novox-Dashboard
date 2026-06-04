@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -30,12 +30,27 @@ const FeesContent = () => {
   const [viewItem, setViewItem] = useState(null);
   const [editItem, setEditItem] = useState(null);
   
+  // Filter state
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [filterDate, setFilterDate] = useState('');
+
+  const filteredData = useMemo(() => {
+    return feesList.filter(fee => {
+      if (filterStatus !== 'All' && fee.status !== filterStatus) return false;
+      if (filterDate) {
+        const selectedDateStr = new Date(filterDate).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' });
+        if (fee.date !== selectedDateStr) return false;
+      }
+      return true;
+    });
+  }, [feesList, filterStatus, filterDate]);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-  const totalPages = Math.ceil(feesList.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
 
-  const paginatedData = feesList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const submitFees = (e) => {
     e.preventDefault();
@@ -73,8 +88,7 @@ const FeesContent = () => {
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
     
     const tableColumn = ["Student Name", "Course", "Payment Type", "Amount", "Date", "Status"];
-    // Export only the current page, or all data? Usually all data is preferred, but let's export all data
-    const tableRows = feesList.map(fee => [
+    const tableRows = filteredData.map(fee => [
       fee.name,
       fee.course,
       fee.type,
@@ -153,6 +167,44 @@ const FeesContent = () => {
             <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">₹14,120</h3>
             <div className="flex items-center gap-1 text-[11px] text-[#555F6B]">
               <CheckCircle size={12} className="text-[#008A2E]" /> Compliant
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex items-center gap-6 bg-slate-50">
+          <div className="flex items-center gap-2">
+            <Filter size={16} className="text-[#555F6B]" />
+            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Status:</span>
+            <select 
+              value={filterStatus}
+              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+              className="text-[13px] border border-[#C2C6D4] rounded-md px-3 py-1.5 outline-none bg-white text-slate-700 focus:border-[#003F87]"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Full Paid">Full Paid</option>
+              <option value="Partially Paid">Partially Paid</option>
+              <option value="Pending">Pending / Not Paid</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Due Date:</span>
+            <div className="flex items-center bg-white border border-[#C2C6D4] rounded-md focus-within:border-[#003F87] overflow-hidden">
+              <input 
+                type="date"
+                value={filterDate}
+                onChange={(e) => { setFilterDate(e.target.value); setCurrentPage(1); }}
+                className="text-[13px] px-3 py-1.5 outline-none text-slate-700 bg-transparent"
+              />
+              {filterDate && (
+                <button 
+                  onClick={() => { setFilterDate(''); setCurrentPage(1); }}
+                  className="px-2 text-slate-400 hover:text-red-500 font-bold"
+                  title="Clear date"
+                >
+                  &times;
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -244,7 +296,7 @@ const FeesContent = () => {
         {/* Pagination */}
         <div className="p-[16px] px-[24px] bg-white flex justify-between items-center border-t border-[#C2C6D4]">
           <div className="text-[13px] text-[#555F6B] font-medium">
-            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, feesList.length)} of {feesList.length} entries
+            Showing {filteredData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} entries
           </div>
           <div className="flex items-center gap-1">
             <button 

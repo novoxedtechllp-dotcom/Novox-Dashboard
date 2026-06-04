@@ -1,22 +1,22 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronRight, Star, GitMerge, Users, Code, Layers, MoreHorizontal, Filter, Share2, X } from 'lucide-react';
+import { ChevronRight, Star, GitMerge, Users, Code, Layers, MoreHorizontal, Filter, Share2, X, Award, ExternalLink, User, Loader2 } from 'lucide-react';
 
 const baseStudents = [
-  { name: 'Sarah Jenkins', course: 'Advanced UI/UX Design', avatar: 'sarah', baseScore: 3125, trend: '↗ +150 this week', trendColor: 'text-[#008A2E]' },
-  { name: 'Ethan Wright', course: 'Full Stack Development', avatar: 'ethan', baseScore: 2840, trend: '↗ +120 this week', trendColor: 'text-[#008A2E]' },
-  { name: 'Aarav Patel', course: 'Cloud Architecture', avatar: 'aarav', baseScore: 2610, trend: '— No change', trendColor: 'text-[#555F6B]' },
-  { name: 'Maya Rodriguez', course: 'Digital Marketing Professional', avatar: 'maya', baseScore: 2450, trend: '↗ +142 this week', trendColor: 'text-[#008A2E]' },
-  { name: 'Lucas Bennett', course: 'Data Science Immersion', avatar: 'lucas', baseScore: 2280, trend: '— No change', trendColor: 'text-[#555F6B]' },
-  { name: 'Elena Kozlova', course: 'Cyber Security Specialist', avatar: 'elena', baseScore: 2115, trend: '↘ -1 rank', trendColor: 'text-[#D80000]' },
-  { name: 'David Kim', course: 'Frontend Engineering', avatar: 'david', baseScore: 2050, trend: '↗ +50 this week', trendColor: 'text-[#008A2E]' },
-  { name: 'Sophie Chen', course: 'Backend Systems', avatar: 'sophie', baseScore: 1980, trend: '— No change', trendColor: 'text-[#555F6B]' },
-  { name: 'James Wilson', course: 'AI & Machine Learning', avatar: 'james', baseScore: 1850, trend: '↘ -2 rank', trendColor: 'text-[#D80000]' },
-  { name: 'Olivia Davis', course: 'Mobile App Development', avatar: 'olivia', baseScore: 1720, trend: '↗ +80 this week', trendColor: 'text-[#008A2E]' },
-  { name: 'Liam Martinez', course: 'DevOps Engineering', avatar: 'liam', baseScore: 1650, trend: '— No change', trendColor: 'text-[#555F6B]' },
-  { name: 'Isabella Taylor', course: 'Database Administration', avatar: 'isabella', baseScore: 1580, trend: '↗ +30 this week', trendColor: 'text-[#008A2E]' },
-  { name: 'Noah Thomas', course: 'Blockchain Development', avatar: 'noah', baseScore: 1510, trend: '— No change', trendColor: 'text-[#555F6B]' },
-  { name: 'Mia White', course: 'Game Design', avatar: 'mia', baseScore: 1450, trend: '↘ -1 rank', trendColor: 'text-[#D80000]' },
-  { name: 'William Lee', course: 'Software Testing', avatar: 'william', baseScore: 1390, trend: '↗ +20 this week', trendColor: 'text-[#008A2E]' }
+  { name: 'Sarah Jenkins', course: 'Advanced UI/UX Design', avatar: 'sarah', baseScore: 3125, trend: '↗ +150 this week', trendColor: 'text-[#008A2E]', location: 'North America', department: 'Design' },
+  { name: 'Ethan Wright', course: 'Full Stack Development', avatar: 'ethan', baseScore: 2840, trend: '↗ +120 this week', trendColor: 'text-[#008A2E]', location: 'Europe', department: 'Development' },
+  { name: 'Aarav Patel', course: 'Cloud Architecture', avatar: 'aarav', baseScore: 2610, trend: '— No change', trendColor: 'text-[#555F6B]', location: 'Asia', department: 'Development' },
+  { name: 'Maya Rodriguez', course: 'Digital Marketing Professional', avatar: 'maya', baseScore: 2450, trend: '↗ +142 this week', trendColor: 'text-[#008A2E]', location: 'North America', department: 'Marketing' },
+  { name: 'Lucas Bennett', course: 'Data Science Immersion', avatar: 'lucas', baseScore: 2280, trend: '— No change', trendColor: 'text-[#555F6B]', location: 'Europe', department: 'Development' },
+  { name: 'Elena Kozlova', course: 'Cyber Security Specialist', avatar: 'elena', baseScore: 2115, trend: '↘ -1 rank', trendColor: 'text-[#D80000]', location: 'Europe', department: 'Development' },
+  { name: 'David Kim', course: 'Frontend Engineering', avatar: 'david', baseScore: 2050, trend: '↗ +50 this week', trendColor: 'text-[#008A2E]', location: 'Asia', department: 'Development' },
+  { name: 'Sophie Chen', course: 'Marketing Analytics', avatar: 'sophie', baseScore: 1980, trend: '— No change', trendColor: 'text-[#555F6B]', location: 'Asia', department: 'Marketing' },
+  { name: 'James Wilson', course: 'HR Management', avatar: 'james', baseScore: 1850, trend: '↘ -2 rank', trendColor: 'text-[#D80000]', location: 'North America', department: 'HR' },
+  { name: 'Olivia Davis', course: 'Mobile App Development', avatar: 'olivia', baseScore: 1720, trend: '↗ +80 this week', trendColor: 'text-[#008A2E]', location: 'North America', department: 'Development' },
+  { name: 'Liam Martinez', course: 'DevOps Engineering', avatar: 'liam', baseScore: 1650, trend: '— No change', trendColor: 'text-[#555F6B]', location: 'Europe', department: 'Development' },
+  { name: 'Isabella Taylor', course: 'Database Administration', avatar: 'isabella', baseScore: 1580, trend: '↗ +30 this week', trendColor: 'text-[#008A2E]', location: 'North America', department: 'Development' },
+  { name: 'Noah Thomas', course: 'Blockchain Development', avatar: 'noah', baseScore: 1510, trend: '— No change', trendColor: 'text-[#555F6B]', location: 'Europe', department: 'Development' },
+  { name: 'Mia White', course: 'Game Design', avatar: 'mia', baseScore: 1450, trend: '↘ -1 rank', trendColor: 'text-[#D80000]', location: 'Asia', department: 'Design' },
+  { name: 'William Lee', course: 'Software Testing', avatar: 'william', baseScore: 1390, trend: '↗ +20 this week', trendColor: 'text-[#008A2E]', location: 'North America', department: 'Development' }
 ];
 
 const mockData = baseStudents.map((s, i) => {
@@ -58,10 +58,32 @@ const LeaderboardContent = () => {
   const [visibleCount, setVisibleCount] = useState(6);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  
+  const [filterLocation, setFilterLocation] = useState('Global');
+  const [filterDepartment, setFilterDepartment] = useState('All Departments');
+
+  const [activeAchievementsStudent, setActiveAchievementsStudent] = useState(null);
+  const [activeProfilesStudent, setActiveProfilesStudent] = useState(null);
+  const [isLoadingModal, setIsLoadingModal] = useState(false);
+
+  const openAchievements = (student) => {
+    setIsLoadingModal(true);
+    setActiveAchievementsStudent(student);
+    setTimeout(() => setIsLoadingModal(false), 800);
+  };
+
+  const openProfiles = (student) => {
+    setIsLoadingModal(true);
+    setActiveProfilesStudent(student);
+    setTimeout(() => setIsLoadingModal(false), 600);
+  };
 
   const sortedData = useMemo(() => {
-    return [...mockData].sort((a, b) => b.scores[timeframe][platform] - a.scores[timeframe][platform]);
-  }, [timeframe, platform]);
+    return [...mockData]
+      .filter(s => filterLocation === 'Global' || s.location === filterLocation)
+      .filter(s => filterDepartment === 'All Departments' || s.department === filterDepartment)
+      .sort((a, b) => b.scores[timeframe][platform] - a.scores[timeframe][platform]);
+  }, [timeframe, platform, filterLocation, filterDepartment]);
 
   const podium = sortedData.slice(0, 3);
   const list = sortedData.slice(3, visibleCount);
@@ -190,8 +212,31 @@ const LeaderboardContent = () => {
               </div>
               <div className="flex items-center gap-[24px]">
                 <div className="flex items-center gap-[12px] border-r border-[#C2C6D4] pr-[24px]">
-                  <div className="flex gap-2 opacity-60 items-center">
-                    <Star size={16} /> <GitMerge size={16} /> <Users size={16} />
+                  <div className="flex gap-[8px] items-center mr-[8px]">
+                    <button 
+                      title="View Achievements"
+                      onClick={(e) => { e.stopPropagation(); openAchievements(student); }}
+                      className="p-[6px] rounded-[6px] hover:bg-amber-50 text-slate-400 hover:text-amber-500 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      aria-label="View Achievements"
+                    >
+                      <Award size={18} />
+                    </button>
+                    <button 
+                      title="View Connected Profiles"
+                      onClick={(e) => { e.stopPropagation(); openProfiles(student); }}
+                      className="p-[6px] rounded-[6px] hover:bg-blue-50 text-slate-400 hover:text-[#003F87] transition-colors focus:outline-none focus:ring-2 focus:ring-[#003F87]"
+                      aria-label="View Connected Profiles"
+                    >
+                      <ExternalLink size={18} />
+                    </button>
+                    <button 
+                      title="View Student Profile"
+                      onClick={(e) => { e.stopPropagation(); setSelectedStudent(student); }}
+                      className="p-[6px] rounded-[6px] hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-700"
+                      aria-label="View Student Profile"
+                    >
+                      <User size={18} />
+                    </button>
                   </div>
                   <span className="text-[13px] font-bold text-slate-800">{student.coursesCompleted} Courses Completed</span>
                 </div>
@@ -239,20 +284,30 @@ const LeaderboardContent = () => {
             </div>
             <div className="p-6 flex flex-col gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cohort</label>
-                <select className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white">
-                  <option>All Cohorts</option>
-                  <option>Spring 2023</option>
-                  <option>Fall 2023</option>
-                </select>
-              </div>
-              <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Location</label>
-                <select className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white">
+                <select 
+                  value={filterLocation}
+                  onChange={(e) => setFilterLocation(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
+                >
                   <option>Global</option>
                   <option>North America</option>
                   <option>Europe</option>
                   <option>Asia</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Department</label>
+                <select 
+                  value={filterDepartment}
+                  onChange={(e) => setFilterDepartment(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
+                >
+                  <option>All Departments</option>
+                  <option>Development</option>
+                  <option>Marketing</option>
+                  <option>Design</option>
+                  <option>HR</option>
                 </select>
               </div>
               <div className="flex justify-end mt-4 pt-4 border-t border-slate-200">
@@ -296,6 +351,96 @@ const LeaderboardContent = () => {
           </div>
         </div>
       )}
+
+      {/* Loading Overlay */}
+      {isLoadingModal && (
+        <div className="fixed inset-0 bg-slate-900/20 z-[60] flex items-center justify-center backdrop-blur-[1px]">
+          <div className="bg-white rounded-xl shadow-xl p-6 flex flex-col items-center justify-center gap-3">
+            <Loader2 size={32} className="text-[#003F87] animate-spin" />
+            <p className="text-sm font-semibold text-slate-700">Loading data...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Achievements Modal */}
+      {activeAchievementsStudent && !isLoadingModal && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-800">Student Achievements</h2>
+              <button onClick={() => setActiveAchievementsStudent(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <div className="flex items-center gap-4 mb-2">
+                <img src={activeAchievementsStudent.avatar} alt="" className="w-12 h-12 rounded-full border border-slate-200" />
+                <div>
+                  <h3 className="font-bold text-slate-900">{activeAchievementsStudent.name}</h3>
+                  <p className="text-xs text-slate-500">{activeAchievementsStudent.course}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 flex items-start gap-3">
+                  <div className="bg-amber-100 text-amber-600 p-2 rounded-md"><Award size={16} /></div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">Milestone</p>
+                    <p className="text-sm font-bold text-slate-800">Top 5% Performer</p>
+                  </div>
+                </div>
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-start gap-3">
+                  <div className="bg-blue-100 text-blue-600 p-2 rounded-md"><Star size={16} /></div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase">Certification</p>
+                    <p className="text-sm font-bold text-slate-800">Advanced React</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profiles Modal */}
+      {activeProfilesStudent && !isLoadingModal && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-800">Connected Profiles</h2>
+              <button onClick={() => setActiveProfilesStudent(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 flex flex-col gap-2">
+              <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-colors text-left group">
+                <div className="bg-slate-100 p-2 rounded-md group-hover:bg-slate-200 text-slate-700 transition-colors"><GitMerge size={18} /></div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-slate-800">GitHub</p>
+                  <p className="text-xs text-slate-500">github.com/{activeProfilesStudent.name.toLowerCase().replace(' ', '')}</p>
+                </div>
+                <ExternalLink size={14} className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+              <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-colors text-left group">
+                <div className="bg-[#0A66C2]/10 p-2 rounded-md group-hover:bg-[#0A66C2]/20 text-[#0A66C2] transition-colors"><Users size={18} /></div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-slate-800">LinkedIn</p>
+                  <p className="text-xs text-slate-500">linkedin.com/in/{activeProfilesStudent.name.toLowerCase().replace(' ', '')}</p>
+                </div>
+                <ExternalLink size={14} className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+              <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-colors text-left group">
+                <div className="bg-orange-100 p-2 rounded-md group-hover:bg-orange-200 text-orange-600 transition-colors"><Code size={18} /></div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-slate-800">LeetCode</p>
+                  <p className="text-xs text-slate-500">leetcode.com/{activeProfilesStudent.name.toLowerCase().replace(' ', '')}</p>
+                </div>
+                <ExternalLink size={14} className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
     </div>
   );

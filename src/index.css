@@ -15,3 +15,42 @@ body {
   padding: 0;
   overflow: hidden;
 }
+
+/* Global Dark Mode Overrides */
+html.dark body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+html.dark .bg-white {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+html.dark .bg-slate-50 {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+}
+html.dark .text-slate-800, html.dark .text-slate-900 {
+  color: #f8fafc !important;
+}
+html.dark .text-slate-700, html.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+html.dark .text-slate-500, html.dark .text-[#555F6B] {
+  color: #94a3b8 !important;
+}
+html.dark .border-slate-200, html.dark .border-slate-100, html.dark .border-\[\#C2C6D4\] {
+  border-color: #334155 !important;
+}
+html.dark .text-\[\#003F87\] {
+  color: #60a5fa !important;
+}
+html.dark .bg-\[\#003F87\] {
+  background-color: #3b82f6 !important;
+}
+html.dark .bg-\[\#E5F0FF\] {
+  background-color: #1e3a8a !important;
+  color: #bfdbfe !important;
+}
+html.dark .shadow-sm, html.dark .shadow-md {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5) !important;
+}
