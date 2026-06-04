@@ -1,13 +1,30 @@
-import React from 'react';
-import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Upload, Eye, Edit, Trash2 } from 'lucide-react';
 
 const FeesContent = () => {
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const fileInputRef = useRef(null);
 
   const submitFees = (e) => {
     e.preventDefault();
     setIsModalOpen(false);
     alert("Fees recorded successfully!");
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      alert(`Successfully uploaded: ${file.name}`);
+    }
+  };
+
+  const toggleDropdown = (id) => {
+    if (activeDropdown === id) {
+      setActiveDropdown(null);
+    } else {
+      setActiveDropdown(id);
+    }
   };
 
   return (
@@ -21,8 +38,15 @@ const FeesContent = () => {
           <h2 className="text-[24px] font-bold text-[#003F87] leading-tight">Financial Dashboard</h2>
         </div>
         <div className="flex items-center gap-[12px]">
-          <button className="bg-white border border-[#C2C6D4] shadow-sm text-[#555F6B] px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors">
-            <Download size={16} /> Export Report
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            accept=".pdf,image/*" 
+            className="hidden" 
+          />
+          <button onClick={() => fileInputRef.current.click()} className="bg-white border border-[#C2C6D4] shadow-sm text-[#555F6B] px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors">
+            <Upload size={16} /> Upload Report
           </button>
           <button onClick={() => setIsModalOpen(true)} className="bg-[#003F87] text-white px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors shadow-sm">
             <Plus size={16} /> Add Fees
@@ -119,8 +143,15 @@ const FeesContent = () => {
                     <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> Full Paid
                   </span>
                 </td>
-                <td className="py-[16px] px-[24px] text-right">
-                  <button className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                <td className="py-[16px] px-[24px] text-right relative">
+                  <button onClick={() => toggleDropdown(1)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                  {activeDropdown === 1 && (
+                    <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-10 flex flex-col overflow-hidden">
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
+                    </div>
+                  )}
                 </td>
               </tr>
               
@@ -150,8 +181,15 @@ const FeesContent = () => {
                     <span className="leading-tight text-left">Partially<br/>Paid</span>
                   </div>
                 </td>
-                <td className="py-[16px] px-[24px] text-right">
-                  <button className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                <td className="py-[16px] px-[24px] text-right relative">
+                  <button onClick={() => toggleDropdown(2)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                  {activeDropdown === 2 && (
+                    <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-10 flex flex-col overflow-hidden">
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
+                    </div>
+                  )}
                 </td>
               </tr>
 
@@ -180,8 +218,15 @@ const FeesContent = () => {
                     <span className="w-[6px] h-[6px] rounded-full bg-[#D80000]"></span> Pending
                   </span>
                 </td>
-                <td className="py-[16px] px-[24px] text-right">
-                  <button className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                <td className="py-[16px] px-[24px] text-right relative">
+                  <button onClick={() => toggleDropdown(3)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                  {activeDropdown === 3 && (
+                    <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-10 flex flex-col overflow-hidden">
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
+                    </div>
+                  )}
                 </td>
               </tr>
 
@@ -210,8 +255,15 @@ const FeesContent = () => {
                     <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> Full Paid
                   </span>
                 </td>
-                <td className="py-[16px] px-[24px] text-right">
-                  <button className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                <td className="py-[16px] px-[24px] text-right relative">
+                  <button onClick={() => toggleDropdown(4)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                  {activeDropdown === 4 && (
+                    <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-10 flex flex-col overflow-hidden">
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
+                      <button className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
+                    </div>
+                  )}
                 </td>
               </tr>
             </tbody>
