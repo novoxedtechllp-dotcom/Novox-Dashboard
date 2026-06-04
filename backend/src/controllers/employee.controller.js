@@ -27,6 +27,9 @@ export const createEmployee = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Please provide all required fields");
   }
 
+  const { data: userExists } = await supabase.from("users").select("id").eq("id", user_id).single();
+  if (!userExists) throw new ApiError(400, "User not found");
+
   const { data, error } = await supabase
     .from("employee_profiles")
     .insert([
@@ -92,7 +95,15 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/employees/:id
 export const updateEmployee = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const updates = req.body;
+  const { first_name, last_name, phone, designation, status, joining_date } = req.body;
+
+  const updates = {};
+  if (first_name !== undefined) updates.first_name = first_name;
+  if (last_name !== undefined) updates.last_name = last_name;
+  if (phone !== undefined) updates.phone = phone;
+  if (designation !== undefined) updates.designation = designation;
+  if (status !== undefined) updates.status = status;
+  if (joining_date !== undefined) updates.joining_date = joining_date;
 
   const { data, error } = await supabase
     .from("employee_profiles")
@@ -176,6 +187,15 @@ export const assignCourse = asyncHandler(async (req, res) => {
   const { course_id } = req.body;
 
   if (!course_id) throw new ApiError(400, "Please provide course_id");
+
+  const { data: existing } = await supabase
+    .from("course_instructors")
+    .select("id")
+    .eq("employee_id", id)
+    .eq("course_id", course_id)
+    .single();
+
+  if (existing) throw new ApiError(409, "Course already assigned to this employee");
 
   const { data, error } = await supabase
     .from("course_instructors")

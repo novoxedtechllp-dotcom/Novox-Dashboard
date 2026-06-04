@@ -2,21 +2,24 @@ import { supabase } from "../config/supabase.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import bcrypt from "bcrypt";
 
 const userSelectFields = "id, email, role, status, last_login, created_at, updated_at";
 
 // @desc    Create a new user
 // @route   POST /api/v1/users
 export const createUser = asyncHandler(async (req, res) => {
-  const { email, password_hash, role, status } = req.body;
+  const { email, password, role, status } = req.body;
 
-  if (!email || !password_hash || !role) {
-    throw new ApiError(400, "Please provide email, password_hash, and role");
+  if (!email || !password || !role) {
+    throw new ApiError(400, "Please provide email, password, and role");
   }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
 
   const { data, error } = await supabase
     .from("users")
-    .insert([{ email, password_hash, role, status: status || "ACTIVE" }])
+    .insert([{ email, password_hash: hashedPassword, role, status: status || "ACTIVE" }])
     .select(userSelectFields);
 
   if (error) throw new ApiError(500, error.message || "Failed to create user");
@@ -54,7 +57,12 @@ export const getUserById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/users/:id
 export const updateUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const updates = req.body;
+  const { email, status, role } = req.body;
+
+  const updates = {};
+  if (email !== undefined) updates.email = email;
+  if (status !== undefined) updates.status = status;
+  if (role !== undefined) updates.role = role;
 
   // Prevent updating password through this route usually, but allowed here for simplicity
   const { data, error } = await supabase

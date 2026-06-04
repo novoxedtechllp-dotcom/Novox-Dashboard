@@ -14,22 +14,30 @@ import {
   removeInstructorFromCourse,
 } from "../controllers/course.controller.js";
 
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { authorize } from "../middlewares/authorize.middleware.js";
+import { ROLES } from "../constants/roles.js";
+
 const router = Router();
+router.use(verifyJWT);
 
-// Course CRUD
-router.route("/").post(createCourse).get(getCourses);
-router.route("/:id").get(getCourseById).put(updateCourse).delete(deleteCourse);
+// Read
+router.route("/").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT] }), getCourses);
+router.route("/:id").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT] }), getCourseById);
 
-// Course Modules (Curriculum Breakdown)
-router.route("/:id/modules").post(addCourseModule);
-router.route("/:id/modules/:moduleId").put(updateCourseModule).delete(deleteCourseModule);
+// Write (Admin only)
+const adminAuth = authorize({ roles: [ROLES.ADMIN] });
 
-// Course Schedules
-router.route("/:id/schedules").post(addCourseSchedule);
-router.route("/:id/schedules/:scheduleId").delete(deleteCourseSchedule);
+router.route("/").post(adminAuth, createCourse);
+router.route("/:id").put(adminAuth, updateCourse).delete(adminAuth, deleteCourse);
 
-// Course Instructors
-router.route("/:id/instructors").post(assignInstructorToCourse);
-router.route("/:id/instructors/:instructorId").delete(removeInstructorFromCourse);
+router.route("/:id/modules").post(adminAuth, addCourseModule);
+router.route("/:id/modules/:moduleId").put(adminAuth, updateCourseModule).delete(adminAuth, deleteCourseModule);
+
+router.route("/:id/schedules").post(adminAuth, addCourseSchedule);
+router.route("/:id/schedules/:scheduleId").delete(adminAuth, deleteCourseSchedule);
+
+router.route("/:id/instructors").post(adminAuth, assignInstructorToCourse);
+router.route("/:id/instructors/:instructorId").delete(adminAuth, removeInstructorFromCourse);
 
 export default router;

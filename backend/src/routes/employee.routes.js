@@ -12,21 +12,28 @@ import {
   getEmployeeReport
 } from "../controllers/employee.controller.js";
 
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { authorize } from "../middlewares/authorize.middleware.js";
+import { ROLES, EMPLOYEE_ROLES } from "../constants/roles.js";
+
 const router = Router();
+router.use(verifyJWT);
 
-// Employee Profile Routes
-router.route("/").post(createEmployee).get(getEmployees);
-router.route("/:id").get(getEmployeeById).put(updateEmployee).delete(deleteEmployee);
+// Employees and Admins can read
+router.route("/").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), getEmployees);
+router.route("/:id").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), getEmployeeById);
+router.route("/:id/report").get(authorize({ roles: [ROLES.ADMIN], employeeRoles: [EMPLOYEE_ROLES.HR] }), getEmployeeReport);
 
-// Employee Documents Routes
-router.route("/:id/documents").post(addEmployeeDocument);
-router.route("/:id/documents/:docId").delete(deleteEmployeeDocument);
+// Only Admin / HR can create, update, delete
+const writeAuth = authorize({ roles: [ROLES.ADMIN], employeeRoles: [EMPLOYEE_ROLES.HR] });
 
-// Employee Courses Routes
-router.route("/:id/courses").post(assignCourse);
-router.route("/:id/courses/:courseId").delete(removeCourse);
+router.route("/").post(writeAuth, createEmployee);
+router.route("/:id").put(writeAuth, updateEmployee).delete(writeAuth, deleteEmployee);
 
-// Employee Report Route
-router.route("/:id/report").get(getEmployeeReport);
+router.route("/:id/documents").post(writeAuth, addEmployeeDocument);
+router.route("/:id/documents/:docId").delete(writeAuth, deleteEmployeeDocument);
+
+router.route("/:id/courses").post(writeAuth, assignCourse);
+router.route("/:id/courses/:courseId").delete(writeAuth, removeCourse);
 
 export default router;

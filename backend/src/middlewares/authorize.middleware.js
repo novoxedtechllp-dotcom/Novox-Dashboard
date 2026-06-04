@@ -6,15 +6,22 @@ export const authorize = ({ roles = [], employeeRoles = [] } = {}) => {
       return next(new ApiError(401, "Unauthorized"));
     }
 
-    if (roles.length && !roles.includes(req.user.role)) {
-      return next(new ApiError(403, "Access Denied"));
+    if (roles.length === 0 && employeeRoles.length === 0) {
+      return next();
     }
 
-    if (
-      employeeRoles.length &&
-      !employeeRoles.includes(req.user.employeeRole)
-    ) {
-      return next(new ApiError(403, "Insufficient Permissions"));
+    let isAuthorized = false;
+
+    if (roles.length > 0 && roles.includes(req.user.role)) {
+      isAuthorized = true;
+    }
+
+    if (employeeRoles.length > 0 && employeeRoles.includes(req.user.employeeRole)) {
+      isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+      return next(new ApiError(403, "Access Denied"));
     }
 
     next();

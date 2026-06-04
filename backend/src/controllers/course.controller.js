@@ -52,7 +52,7 @@ export const getCourses = asyncHandler(async (req, res) => {
   // Format data to expose enrollment count clearly
   const formattedData = data.map((course) => ({
     ...course,
-    enrollment_count: course.student_courses[0]?.count || 0,
+    enrollment_count: parseInt(course.student_courses[0]?.count || "0", 10),
   }));
 
   return res.status(200).json(new ApiResponse(200, formattedData, "Courses fetched successfully"));
@@ -77,7 +77,7 @@ export const getCourseById = asyncHandler(async (req, res) => {
 
   if (error) throw new ApiError(404, "Course not found");
 
-  data.enrollment_count = data.student_courses[0]?.count || 0;
+  data.enrollment_count = parseInt(data.student_courses[0]?.count || "0", 10);
 
   return res.status(200).json(new ApiResponse(200, data, "Course fetched successfully"));
 });
@@ -86,7 +86,15 @@ export const getCourseById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/courses/:id
 export const updateCourse = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const updates = req.body;
+  const { name, description, track, duration_months, capacity, status } = req.body;
+
+  const updates = {};
+  if (name !== undefined) updates.name = name;
+  if (description !== undefined) updates.description = description;
+  if (track !== undefined) updates.track = track;
+  if (duration_months !== undefined) updates.duration_months = duration_months;
+  if (capacity !== undefined) updates.capacity = capacity;
+  if (status !== undefined) updates.status = status;
 
   const { data, error } = await supabase
     .from("courses")
@@ -127,8 +135,8 @@ export const addCourseModule = asyncHandler(async (req, res) => {
   const { id } = req.params; // course_id
   const { title, description, sequence_order } = req.body;
 
-  if (!title || sequence_order === undefined) {
-    throw new ApiError(400, "Please provide title and sequence_order");
+  if (!title || sequence_order === undefined || !Number.isInteger(sequence_order) || sequence_order < 0) {
+    throw new ApiError(400, "Please provide title and a non-negative integer for sequence_order");
   }
 
   const { data, error } = await supabase
@@ -145,7 +153,12 @@ export const addCourseModule = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/courses/:id/modules/:moduleId
 export const updateCourseModule = asyncHandler(async (req, res) => {
   const { id, moduleId } = req.params;
-  const updates = req.body;
+  const { title, description, sequence_order } = req.body;
+
+  const updates = {};
+  if (title !== undefined) updates.title = title;
+  if (description !== undefined) updates.description = description;
+  if (sequence_order !== undefined) updates.sequence_order = sequence_order;
 
   const { data, error } = await supabase
     .from("course_modules")
@@ -231,6 +244,15 @@ export const assignInstructorToCourse = asyncHandler(async (req, res) => {
   const { employee_id } = req.body;
 
   if (!employee_id) throw new ApiError(400, "Please provide employee_id");
+
+  const { data: existing } = await supabase
+    .from("course_instructors")
+    .select("id")
+    .eq("employee_id", employee_id)
+    .eq("course_id", id)
+    .single();
+
+  if (existing) throw new ApiError(409, "Instructor already assigned to this course");
 
   const { data, error } = await supabase
     .from("course_instructors")

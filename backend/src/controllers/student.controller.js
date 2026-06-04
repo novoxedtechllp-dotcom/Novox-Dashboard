@@ -3,6 +3,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, address, joining_date, status, created_at";
+
 // @desc    Create a new student
 // @route   POST /api/v1/students
 const createStudent = asyncHandler(async (req, res) => {
@@ -29,6 +31,16 @@ const createStudent = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Please provide all required fields");
   }
 
+  const { data: userExists } = await supabase
+    .from("users")
+    .select("id")
+    .eq("id", user_id)
+    .single();
+
+  if (!userExists) {
+    throw new ApiError(400, "User not found");
+  }
+
   const { data, error } = await supabase
     .from("students")
     .insert([
@@ -44,7 +56,7 @@ const createStudent = asyncHandler(async (req, res) => {
         status: status || "ACTIVE",
       },
     ])
-    .select();
+    .select(studentSelectFields);
 
   if (error) {
     throw new ApiError(500, error.message || "Failed to create student");
@@ -58,7 +70,7 @@ const createStudent = asyncHandler(async (req, res) => {
 // @desc    Get all students
 // @route   GET /api/v1/students
 const getStudents = asyncHandler(async (req, res) => {
-  const { data, error } = await supabase.from("students").select("*");
+  const { data, error } = await supabase.from("students").select(studentSelectFields);
 
   if (error) {
     throw new ApiError(500, error.message || "Failed to fetch students");
@@ -76,7 +88,7 @@ const getStudentById = asyncHandler(async (req, res) => {
 
   const { data, error } = await supabase
     .from("students")
-    .select("*")
+    .select(studentSelectFields)
     .eq("id", id)
     .single();
 
@@ -93,13 +105,21 @@ const getStudentById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/students/:id
 const updateStudent = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const updates = req.body;
+  const { first_name, last_name, phone, parent_phone, address, status } = req.body;
+
+  const updates = {};
+  if (first_name !== undefined) updates.first_name = first_name;
+  if (last_name !== undefined) updates.last_name = last_name;
+  if (phone !== undefined) updates.phone = phone;
+  if (parent_phone !== undefined) updates.parent_phone = parent_phone;
+  if (address !== undefined) updates.address = address;
+  if (status !== undefined) updates.status = status;
 
   const { data, error } = await supabase
     .from("students")
     .update(updates)
     .eq("id", id)
-    .select();
+    .select(studentSelectFields);
 
   if (error) {
     throw new ApiError(500, error.message || "Failed to update student");
