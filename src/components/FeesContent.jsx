@@ -3,16 +3,36 @@ import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckC
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
-const feesData = [
-  { id: 1, initials: 'JD', name: 'John Doe', course: 'Advanced Cloud Architecture', type: 'Monthly', amount: '$1,200.00', date: 'Oct 24, 2023', status: 'Full Paid', statusColor: 'green' },
-  { id: 2, initials: 'SA', name: 'Sarah Adams', course: 'Full Stack Bootcamp', type: 'Full', amount: '$4,500.00', date: 'Oct 23, 2023', status: 'Partially Paid', statusColor: 'yellow' },
-  { id: 3, initials: 'MK', name: 'Michael K.', course: 'Data Science Masterclass', type: 'Monthly', amount: '$1,200.00', date: 'Oct 22, 2023', status: 'Pending', statusColor: 'red' },
-  { id: 4, initials: 'EL', name: 'Emma Lee', course: 'UI/UX Design Path', type: 'Monthly', amount: '$950.00', date: 'Oct 21, 2023', status: 'Full Paid', statusColor: 'green' }
+// Generate 15 mock items for pagination testing
+const baseFeesData = [
+  { initials: 'JD', name: 'John Doe', course: 'Advanced Cloud Architecture', type: 'Monthly', amount: '$1,200.00', status: 'Full Paid', statusColor: 'green' },
+  { initials: 'SA', name: 'Sarah Adams', course: 'Full Stack Bootcamp', type: 'Full', amount: '$4,500.00', status: 'Partially Paid', statusColor: 'yellow' },
+  { initials: 'MK', name: 'Michael K.', course: 'Data Science Masterclass', type: 'Monthly', amount: '$1,200.00', status: 'Pending', statusColor: 'red' },
+  { initials: 'EL', name: 'Emma Lee', course: 'UI/UX Design Path', type: 'Monthly', amount: '$950.00', status: 'Full Paid', statusColor: 'green' },
+  { initials: 'RJ', name: 'Ryan Jones', course: 'AI Foundations', type: 'Monthly', amount: '$1,100.00', status: 'Full Paid', statusColor: 'green' }
 ];
+
+const feesData = Array.from({ length: 15 }, (_, i) => {
+  const base = baseFeesData[i % baseFeesData.length];
+  const dateObj = new Date(2023, 9, 24 - i);
+  return {
+    ...base,
+    id: i + 1,
+    name: `${base.name.split(' ')[0]} ${String.fromCharCode(65 + (i % 26))}.`,
+    date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  };
+});
 
 const FeesContent = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(feesData.length / itemsPerPage);
+
+  const paginatedData = feesData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const submitFees = (e) => {
     e.preventDefault();
@@ -38,6 +58,7 @@ const FeesContent = () => {
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
     
     const tableColumn = ["Student Name", "Course", "Payment Type", "Amount", "Date", "Status"];
+    // Export only the current page, or all data? Usually all data is preferred, but let's export all data
     const tableRows = feesData.map(fee => [
       fee.name,
       fee.course,
@@ -91,7 +112,6 @@ const FeesContent = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 border-b border-[#C2C6D4] h-auto xl:h-[136px]">
-          {/* Metric 1 */}
           <div className="p-[24px] flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#C2C6D4]">
             <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">TOTAL COLLECTIONS</p>
             <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">$284,500</h3>
@@ -99,8 +119,6 @@ const FeesContent = () => {
               <TrendingUp size={12} /> +12% vs last month
             </div>
           </div>
-          
-          {/* Metric 2 */}
           <div className="p-[24px] flex flex-col justify-center border-b xl:border-b-0 xl:border-r border-[#C2C6D4]">
             <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">OUTSTANDING FEES</p>
             <h3 className="text-[32px] font-bold text-[#D80000] leading-none mb-2">$12,240</h3>
@@ -108,8 +126,6 @@ const FeesContent = () => {
               From 18 students
             </div>
           </div>
-
-          {/* Metric 3 */}
           <div className="p-[24px] flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#C2C6D4]">
             <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">UPCOMING PAYROLL</p>
             <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">$45,800</h3>
@@ -117,8 +133,6 @@ const FeesContent = () => {
               Due in 4 days
             </div>
           </div>
-
-          {/* Metric 4 */}
           <div className="p-[24px] flex flex-col justify-center">
             <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">TAX RESERVE</p>
             <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">$14,120</h3>
@@ -129,7 +143,7 @@ const FeesContent = () => {
         </div>
 
         {/* Table */}
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-x-auto min-h-[400px]">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="border-b border-[#C2C6D4] bg-white">
@@ -143,8 +157,8 @@ const FeesContent = () => {
               </tr>
             </thead>
             <tbody>
-              {feesData.map((fee) => (
-                <tr key={fee.id} className="border-b border-slate-100">
+              {paginatedData.map((fee) => (
+                <tr key={fee.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                   <td className="py-[16px] px-[24px]">
                     <div className="flex items-center gap-3">
                       <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center shrink-0 font-bold text-[11px] ${
@@ -214,13 +228,37 @@ const FeesContent = () => {
 
         {/* Pagination */}
         <div className="p-[16px] px-[24px] bg-white flex justify-between items-center border-t border-[#C2C6D4]">
-          <div className="text-[13px] text-[#555F6B] font-medium">Showing 1 to 4 of 258 entries</div>
+          <div className="text-[13px] text-[#555F6B] font-medium">
+            Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, feesData.length)} of {feesData.length} entries
+          </div>
           <div className="flex items-center gap-1">
-            <button className="w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] text-[#555F6B] bg-white hover:bg-slate-50 transition-colors">&lt;</button>
-            <button className="w-[28px] h-[28px] flex items-center justify-center rounded-[4px] bg-[#003F87] text-white font-bold">1</button>
-            <button className="w-[28px] h-[28px] flex items-center justify-center rounded-[4px] text-[#555F6B] hover:bg-slate-100 transition-colors font-semibold">2</button>
-            <button className="w-[28px] h-[28px] flex items-center justify-center rounded-[4px] text-[#555F6B] hover:bg-slate-100 transition-colors font-semibold">3</button>
-            <button className="w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] text-[#555F6B] bg-white hover:bg-slate-50 transition-colors">&gt;</button>
+            <button 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] transition-colors ${
+                currentPage === 1 ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-[#555F6B] bg-white hover:bg-slate-50'
+              }`}
+            >&lt;</button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button 
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] font-semibold transition-colors ${
+                  currentPage === page ? 'bg-[#003F87] text-white font-bold' : 'text-[#555F6B] hover:bg-slate-100'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+
+            <button 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] transition-colors ${
+                currentPage === totalPages ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-[#555F6B] bg-white hover:bg-slate-50'
+              }`}
+            >&gt;</button>
           </div>
         </div>
 
