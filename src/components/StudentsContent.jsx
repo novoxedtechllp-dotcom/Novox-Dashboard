@@ -75,7 +75,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         course: newStudent.course,
         phone: newStudent.phone || '+1 (555) 000-0000',
         feeStatus: newStudent.feeStatus,
-        remainingFees: newStudent.remainingFees || '$0.00',
+        remainingFees: newStudent.remainingFees || '₹0.00',
         enrollmentMonth: newStudent.enrollmentMonth,
         avatar: newStudent.avatarUrl
       };
@@ -405,7 +405,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                       value={newStudent.remainingFees}
                       onChange={(e) => setNewStudent({...newStudent, remainingFees: e.target.value})}
                       className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
-                      placeholder="e.g. $500.00"
+                      placeholder="e.g. ₹500.00"
                     />
                   </div>
                 )}
