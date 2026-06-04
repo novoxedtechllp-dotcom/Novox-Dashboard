@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { GraduationCap, Phone, Plus, X, Upload, User } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2 } from 'lucide-react';
 
 const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const [students, setStudents] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState(null);
   
   const [courseFilter, setCourseFilter] = useState('All Courses');
   const [monthFilter, setMonthFilter] = useState('All Months');
@@ -118,6 +119,21 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     }
   };
 
+  const handleDeleteStudent = async (id) => {
+    try {
+      const userInfo = JSON.parse(localStorage.getItem('userInfo')) || {};
+      if (userInfo.token) {
+        await fetch(`http://localhost:5000/api/students/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${userInfo.token}` }
+        });
+      }
+    } catch (e) {
+      console.error('Delete error', e);
+    }
+    setStudents(students.filter(s => (s.id || s._id) !== id));
+  };
+
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
       const matchCourse = courseFilter === 'All Courses' || student.course === courseFilter;
@@ -177,7 +193,16 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[24px]">
         
         {filteredStudents.map(student => (
-          <div key={student._id || student.id} className="bg-white rounded-[8px] border border-[#C2C6D4] p-[24px] flex flex-col h-[247px]">
+          <div key={student._id || student.id} className="bg-white rounded-[8px] border border-[#C2C6D4] p-[24px] flex flex-col h-[247px] relative group hover:border-[#003F87] transition-colors">
+            
+            <button 
+              onClick={(e) => { e.stopPropagation(); setStudentToDelete(student._id || student.id); }}
+              className="absolute top-[16px] right-[16px] text-[#C2C6D4] hover:text-[#D80000] opacity-0 group-hover:opacity-100 transition-all"
+              title="Delete Student"
+            >
+              <Trash2 size={16} />
+            </button>
+
             <div className="flex items-start gap-4 mb-auto">
               <div className="relative w-[48px] h-[48px] rounded-full overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center">
                 {student.avatar ? (
@@ -373,6 +398,30 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {studentToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4">
+            <h3 className="text-lg font-bold text-slate-900">Confirm Deletion</h3>
+            <p className="text-sm text-slate-600">Are you sure you want to delete this student? This action cannot be undone.</p>
+            <div className="flex gap-3 justify-end mt-2">
+              <button 
+                onClick={() => setStudentToDelete(null)} 
+                className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => { handleDeleteStudent(studentToDelete); setStudentToDelete(null); }} 
+                className="px-4 py-2 bg-[#D80000] text-white rounded-md text-sm font-semibold hover:bg-red-700 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
