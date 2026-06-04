@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Search, Bell, HelpCircle, User, UserPlus, Plus, LogOut, Settings } from 'lucide-react';
 import AddBtn from './AddBtn';
@@ -9,6 +9,17 @@ const Header = ({ onLogout }) => {
   const activeTab = location.pathname.substring(1) || 'dashboard';
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { id: 1, title: 'New Enrollment', shortMessage: 'Sarah Jenkins has enrolled in MERN Stack Development.', message: 'Sarah Jenkins has enrolled in MERN Stack Development cohort. Payment verified.', time: '10 mins ago', isUnread: true },
+    { id: 2, title: 'System Update', shortMessage: 'Scheduled maintenance will occur at midnight.', message: 'Scheduled database maintenance will occur at midnight EST. Expected downtime is 15 minutes.', time: '2 hours ago', isUnread: true },
+    { id: 3, title: 'New Lead Captured', shortMessage: 'Michael Chang requested syllabus details.', message: 'Michael Chang requested syllabus details for the Data Science Bootcamp.', time: 'Yesterday', isUnread: true },
+    { id: 4, title: 'Report Ready', shortMessage: 'Monthly academic report is ready.', message: 'Monthly academic performance report is ready to be reviewed.', time: 'Oct 12, 2023', isUnread: true }
+  ]);
+  const hasUnread = notifications.some(n => n.isUnread);
+
+  const markAllRead = () => setNotifications(notifications.map(n => ({ ...n, isUnread: false })));
+  const markAsRead = (id) => setNotifications(notifications.map(n => n.id === id ? { ...n, isUnread: false } : n));
 
   const profileRef = useClickOutside(() => setIsDropdownOpen(false));
   const notifRef = useClickOutside(() => setIsNotifOpen(false));
@@ -32,39 +43,53 @@ const Header = ({ onLogout }) => {
         <div className="relative" ref={notifRef}>
           <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative text-[#555F6B] hover:text-[#003F87] transition-colors p-2">
             <Bell size={20} />
-            <span className="absolute top-[4px] right-[4px] w-[6px] h-[6px] bg-red-500 rounded-full"></span>
+            {hasUnread && <span className="absolute top-[4px] right-[4px] w-[6px] h-[6px] bg-red-500 rounded-full"></span>}
           </button>
           
           {isNotifOpen && (
             <div className="absolute right-0 top-[40px] w-[300px] bg-white border border-[#C2C6D4] rounded-md shadow-lg overflow-hidden z-50">
               <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-center bg-slate-50">
                 <h3 className="font-bold text-sm text-slate-800">Notifications</h3>
-                <button className="text-xs text-[#003F87] font-semibold hover:underline">Mark all read</button>
+                {hasUnread && (
+                  <button onClick={markAllRead} className="text-xs text-[#003F87] font-semibold hover:underline">Mark all read</button>
+                )}
               </div>
               <div className="max-h-[300px] overflow-y-auto">
-                <div className="px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
-                  <p className="text-sm font-semibold text-slate-800">New Enrollment</p>
-                  <p className="text-xs text-slate-500 mt-1">John Doe has enrolled in Advanced Cloud Architecture.</p>
-                  <span className="text-[10px] text-slate-400 mt-2 block">10 mins ago</span>
-                </div>
-                <div className="px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
-                  <p className="text-sm font-semibold text-slate-800">System Alert</p>
-                  <p className="text-xs text-slate-500 mt-1">Database migration completed successfully.</p>
-                  <span className="text-[10px] text-slate-400 mt-2 block">2 hours ago</span>
-                </div>
+                {notifications.slice(0, 2).map(notif => (
+                  <div key={notif.id} onClick={() => markAsRead(notif.id)} className="px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">{notif.title}</p>
+                        <p className="text-xs text-slate-500 mt-1">{notif.shortMessage}</p>
+                        <span className="text-[10px] text-slate-400 mt-2 block">{notif.time}</span>
+                      </div>
+                      <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${notif.isUnread ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                    </div>
+                  </div>
+                ))}
               </div>
               <div className="px-4 py-2 bg-slate-50 text-center border-t border-slate-200">
-                <button className="text-xs text-[#003F87] font-bold hover:underline">View All Notifications</button>
+                <button 
+                  onClick={() => { setIsNotifOpen(false); setShowAllNotifications(true); }}
+                  className="text-xs text-[#003F87] font-bold hover:underline"
+                >
+                  View All Notifications
+                </button>
               </div>
             </div>
           )}
         </div>
-        <button className="text-[#555F6B] hover:text-[#003F87] transition-colors">
+        <Link to="/support" className="text-[#555F6B] hover:text-[#003F87] transition-colors p-2">
           <HelpCircle size={20} />
-        </button>
+        </Link>
+        <div className="h-[24px] w-[1px] bg-[#C2C6D4]"></div>
         
+        {/* Profile Dropdown */}
         <div className="relative" ref={profileRef}>
-          <div onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex items-center gap-3 border-l border-[#C2C6D4] pl-5 cursor-pointer">
+          <div 
+            className="flex items-center gap-[12px] cursor-pointer hover:bg-[#F8FAFC] p-2 rounded-md transition-colors"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          >
             <div className="text-right">
               <div className="text-[14px] font-bold text-slate-900 leading-tight">Admin User</div>
               <div className="text-[12px] text-[#555F6B]">Super Admin</div>
@@ -98,6 +123,41 @@ const Header = ({ onLogout }) => {
           )}
         </div>
       </div>
+
+      {showAllNotifications && (
+        <div className="fixed inset-0 bg-slate-900/50 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Bell size={20} className="text-[#003F87]" /> All Notifications
+              </h2>
+              <button onClick={() => setShowAllNotifications(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            
+            <div className="p-0 flex flex-col max-h-[70vh] overflow-y-auto">
+              {notifications.map(notif => (
+                <div key={notif.id} onClick={() => markAsRead(notif.id)} className="px-6 py-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer flex justify-between items-start">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">{notif.title}</p>
+                    <p className="text-sm text-slate-600 mt-1">{notif.message}</p>
+                    <span className="text-xs text-slate-400 mt-2 block font-medium">{notif.time}</span>
+                  </div>
+                  <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${notif.isUnread ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                </div>
+              ))}
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+              <span className="text-xs text-slate-500">Showing {notifications.length} of 48 notifications</span>
+              {hasUnread && (
+                <button onClick={markAllRead} className="text-sm text-[#003F87] font-bold hover:underline">Mark All as Read</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

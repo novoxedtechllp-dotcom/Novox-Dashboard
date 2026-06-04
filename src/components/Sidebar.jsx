@@ -38,7 +38,7 @@ const Sidebar = () => {
       </div>
 
       {/* Main Nav Container */}
-      <nav className="w-[227px] flex-1 flex flex-col gap-[4px] overflow-y-auto mt-4" style={{scrollbarWidth: 'none'}}>
+      <nav className="w-[227px] flex-1 flex flex-col gap-[4px] overflow-y-auto mt-4 pr-1 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
