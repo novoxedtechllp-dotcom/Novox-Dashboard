@@ -30,12 +30,13 @@
 /* Left Panel */
 .login-left-panel {
   flex: 1;
-  background-color: var(--primary);
+  background-color: #003F87;
   color: var(--white);
-  padding-left: 70px;
+  padding: 0 70px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   position: relative;
   overflow: hidden;
 }
@@ -56,7 +57,7 @@
 
 .login-wrapper .logo-icon {
   background-color: var(--white);
-  color: var(--primary);
+  color: #003F87;
   border-radius: 8px;
   width: 32px;
   height: 32px;
@@ -184,7 +185,7 @@
 
 .login-wrapper .toggle-btn.active {
   background-color: var(--white);
-  color: var(--primary);
+  color: #003F87;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
@@ -214,7 +215,7 @@
 
 .login-wrapper .forgot-link {
   font-size: 0.8125rem;
-  color: var(--primary);
+  color: #003F87;
   text-decoration: none;
   font-weight: 600;
 }
@@ -252,7 +253,7 @@
 
 .login-wrapper .input-wrapper input:focus {
   outline: none;
-  border-color: var(--primary);
+  border-color: #003F87;
 }
 
 .login-wrapper .input-wrapper input::placeholder {
@@ -305,8 +306,8 @@
 }
 
 .login-wrapper .checkbox-label input:checked {
-  background-color: var(--primary);
-  border-color: var(--primary);
+  background-color: #003F87;
+  border-color: #003F87;
 }
 
 .login-wrapper .checkbox-label input:checked::after {
@@ -322,7 +323,7 @@
 }
 
 .login-wrapper .submit-btn {
-  background-color: var(--primary);
+  background-color: #003F87;
   color: var(--white);
   padding: 0.75rem;
   border: none;
