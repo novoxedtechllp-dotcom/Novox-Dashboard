@@ -13,6 +13,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     course: '',
     phone: '',
     feeStatus: 'Paid',
+    remainingFees: '',
     enrollmentMonth: 'January',
     avatarUrl: null
   });
@@ -37,6 +38,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       course: newStudent.course,
       phone: newStudent.phone || '+1 (555) 000-0000',
       feeStatus: newStudent.feeStatus,
+      remainingFees: newStudent.remainingFees || '$0.00',
       attendance: '100%',
       enrollmentMonth: newStudent.enrollmentMonth,
       avatar: newStudent.avatarUrl || `https://i.pravatar.cc/150?u=${newId}`
@@ -44,7 +46,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
     setStudents([...students, addedStudent]);
     setIsModalOpen(false);
-    setNewStudent({ name: '', course: '', phone: '', feeStatus: 'Paid', enrollmentMonth: 'January', avatarUrl: null });
+    setNewStudent({ name: '', course: '', phone: '', feeStatus: 'Paid', remainingFees: '', enrollmentMonth: 'January', avatarUrl: null });
   };
 
   const filteredStudents = useMemo(() => {
@@ -122,13 +124,20 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               </div>
             </div>
             
-            <div className="border-t border-dashed border-[#C2C6D4] pt-4 flex justify-between items-center">
-              <div className="text-[11px] font-semibold text-[#555F6B]">
-                Fee Status: <span className={`font-bold ${student.feeStatus === 'Paid' ? 'text-[#008A2E]' : 'text-[#D80000]'}`}>{student.feeStatus}</span>
+            <div className="border-t border-dashed border-[#C2C6D4] pt-4 flex flex-col gap-2">
+              <div className="flex justify-between items-center">
+                <div className="text-[11px] font-semibold text-[#555F6B]">
+                  Fee Status: <span className={`font-bold ${student.feeStatus === 'Paid' ? 'text-[#008A2E]' : student.feeStatus === 'Partially Paid' ? 'text-[#B26E00]' : 'text-[#D80000]'}`}>{student.feeStatus}</span>
+                </div>
+                <div className="text-[11px] font-semibold text-[#555F6B]">
+                  Att: <span className="text-[#003F87] font-bold">{student.attendance}</span>
+                </div>
               </div>
-              <div className="text-[11px] font-semibold text-[#555F6B]">
-                Att: <span className="text-[#003F87] font-bold">{student.attendance}</span>
-              </div>
+              {student.feeStatus === 'Partially Paid' && student.remainingFees && (
+                <div className="text-[11px] font-bold text-[#D80000]">
+                  Remaining: {student.remainingFees}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -212,6 +221,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Phone Number</label>
                   <input 
                     type="text" 
+                    required
                     value={newStudent.phone}
                     onChange={(e) => setNewStudent({...newStudent, phone: e.target.value})}
                     className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
@@ -241,16 +251,31 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Fee Status</label>
-                <select 
-                  value={newStudent.feeStatus}
-                  onChange={(e) => setNewStudent({...newStudent, feeStatus: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
-                >
-                  <option value="Paid">Paid</option>
-                  <option value="Pending">Pending</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Fee Status</label>
+                  <select 
+                    value={newStudent.feeStatus}
+                    onChange={(e) => setNewStudent({...newStudent, feeStatus: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
+                  >
+                    <option value="Paid">Paid</option>
+                    <option value="Partially Paid">Partially Paid</option>
+                    <option value="Pending">Pending</option>
+                  </select>
+                </div>
+                {newStudent.feeStatus === 'Partially Paid' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Remaining Fees</label>
+                    <input 
+                      type="text" 
+                      value={newStudent.remainingFees}
+                      onChange={(e) => setNewStudent({...newStudent, remainingFees: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                      placeholder="e.g. $500.00"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200">

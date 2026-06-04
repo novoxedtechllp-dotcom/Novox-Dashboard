@@ -81,7 +81,7 @@ function App() {
         </div>
       </main>
       
-      {activeTab !== 'students' && <Fab />}
+      {activeTab !== 'students' && activeTab !== 'attendance' && <Fab />}
     </div>
   );
 }

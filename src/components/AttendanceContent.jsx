@@ -11,7 +11,11 @@ const initialAttendanceData = [
 ];
 
 const AttendanceContent = ({ courses = [] }) => {
+  const [attendanceData, setAttendanceData] = useState(initialAttendanceData);
   const [activeTab, setActiveTab] = useState('Students');
+  const [openActionMenuId, setOpenActionMenuId] = useState(null);
+  const [editRecordId, setEditRecordId] = useState(null);
+  const [editForm, setEditForm] = useState({ status: 'Present', inTime: '', outTime: '' });
   const [searchQuery, setSearchQuery] = useState('');
   const [courseFilter, setCourseFilter] = useState('All Categories');
   const [dateFilter, setDateFilter] = useState('');
@@ -22,7 +26,51 @@ const AttendanceContent = ({ courses = [] }) => {
     setDateFilter('');
   };
 
-  const filteredData = initialAttendanceData.filter(item => {
+  const handleUpdateStatus = (id, newStatus) => {
+    const updated = attendanceData.map(item => {
+      if (item.id === id) {
+        return { 
+          ...item, 
+          status: newStatus,
+          inTime: newStatus === 'Present' || newStatus === 'Late' ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-- : --',
+          note: newStatus === 'Late' ? 'Manually updated' : ''
+        };
+      }
+      return item;
+    });
+    setAttendanceData(updated);
+    setOpenActionMenuId(null);
+  };
+
+  const handleOpenEdit = (item) => {
+    setEditForm({
+      status: item.status,
+      inTime: item.inTime !== '-- : --' ? item.inTime : '',
+      outTime: item.outTime !== '-- : --' ? item.outTime : ''
+    });
+    setEditRecordId(item.id);
+    setOpenActionMenuId(null);
+  };
+
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    const updated = attendanceData.map(item => {
+      if (item.id === editRecordId) {
+        return { 
+          ...item, 
+          status: editForm.status,
+          inTime: editForm.inTime || '-- : --',
+          outTime: editForm.outTime || '-- : --',
+          note: editForm.status === 'Late' ? 'Manually updated times' : ''
+        };
+      }
+      return item;
+    });
+    setAttendanceData(updated);
+    setEditRecordId(null);
+  };
+
+  const filteredData = attendanceData.filter(item => {
     if (activeTab === 'Students' && item.type !== 'Student') return false;
     if (activeTab === 'Employees' && item.type !== 'Employee') return false;
 
@@ -43,6 +91,13 @@ const AttendanceContent = ({ courses = [] }) => {
 
     return true;
   });
+
+  const total = filteredData.length;
+  const presentCount = filteredData.filter(d => d.status === 'Present' || d.status === 'Late').length;
+  const lateCount = filteredData.filter(d => d.status === 'Late').length;
+  
+  const presencePercent = total === 0 ? 0 : (presentCount / total * 100).toFixed(1);
+  const avgLatency = total === 0 ? 0 : Math.round((lateCount * 15) / total);
 
   const uniqueCourses = ['All Categories', ...courses.map(c => c.title)];
 
@@ -182,8 +237,22 @@ const AttendanceContent = ({ courses = [] }) => {
                   <td className="py-[16px] px-[24px]">
                     <div className="text-[13px] font-medium text-slate-900 leading-tight">{item.outTime}</div>
                   </td>
-                  <td className="py-[16px] px-[24px] text-right">
-                    <button className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                  <td className="py-[16px] px-[24px] text-right relative">
+                    <button 
+                      onClick={() => setOpenActionMenuId(openActionMenuId === item.id ? null : item.id)}
+                      className="text-[#555F6B] hover:text-[#003F87] p-1 rounded hover:bg-slate-100 transition-colors"
+                    >
+                      <MoreVertical size={18} />
+                    </button>
+                    {openActionMenuId === item.id && (
+                      <div className={`absolute right-[24px] ${index >= filteredData.length - 2 && filteredData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} w-[140px] bg-white border border-[#C2C6D4] shadow-lg rounded-[8px] z-50 overflow-hidden text-left flex flex-col`}>
+                        <button onClick={() => handleUpdateStatus(item.id, 'Present')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#008A2E] text-left border-b border-slate-100 transition-colors">Mark Present</button>
+                        <button onClick={() => handleUpdateStatus(item.id, 'Late')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#B26E00] text-left border-b border-slate-100 transition-colors">Mark Late</button>
+                        <button onClick={() => handleUpdateStatus(item.id, 'Absent')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#D80000] text-left border-b border-slate-100 transition-colors">Mark Absent</button>
+                        <button onClick={() => handleUpdateStatus(item.id, 'Leave')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#003F87] text-left border-b border-slate-100 transition-colors">Mark Leave</button>
+                        <button onClick={() => handleOpenEdit(item)} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 text-left transition-colors">Edit Times</button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               )) : (
@@ -207,11 +276,11 @@ const AttendanceContent = ({ courses = [] }) => {
               <CheckCircle size={24} />
             </div>
             <p className="text-[12px] font-bold text-[#555F6B] uppercase tracking-wide mb-1">OVERALL PRESENCE</p>
-            <h3 className="text-[36px] font-bold text-[#003F87] leading-none">94.2%</h3>
+            <h3 className="text-[36px] font-bold text-[#003F87] leading-none">{presencePercent}%</h3>
           </div>
           <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#008A2E]">
             <TrendingUp size={16} />
-            <span>+2.4% from last week</span>
+            <span>Calculated from visible data</span>
           </div>
         </div>
 
@@ -222,11 +291,11 @@ const AttendanceContent = ({ courses = [] }) => {
               <Clock size={24} />
             </div>
             <p className="text-[12px] font-bold text-[#555F6B] uppercase tracking-wide mb-1">AVERAGE LATENCY</p>
-            <h3 className="text-[36px] font-bold text-[#003F87] leading-none">12m</h3>
+            <h3 className="text-[36px] font-bold text-[#003F87] leading-none">{avgLatency}m</h3>
           </div>
           <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#B26E00]">
             <span className="w-3 border-b-[2px] border-current inline-block"></span>
-            <span>No change in 30 days</span>
+            <span>Based on late arrivals</span>
           </div>
         </div>
         
@@ -235,6 +304,55 @@ const AttendanceContent = ({ courses = [] }) => {
         <div className="border border-solid border-[#C2C6D4] rounded-[8px] h-[231px] bg-white hidden xl:block"></div>
       </div>
 
+      {editRecordId && (
+        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-800">Edit Attendance Record</h2>
+              <button onClick={() => setEditRecordId(null)} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none">&times;</button>
+            </div>
+            <form onSubmit={handleSaveEdit} className="p-6 flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+                <select 
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
+                >
+                  <option value="Present">Present</option>
+                  <option value="Late">Late</option>
+                  <option value="Absent">Absent</option>
+                  <option value="Leave">Leave</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">In Time</label>
+                  <input 
+                    type="time" 
+                    value={editForm.inTime}
+                    onChange={(e) => setEditForm({...editForm, inTime: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Out Time</label>
+                  <input 
+                    type="time" 
+                    value={editForm.outTime}
+                    onChange={(e) => setEditForm({...editForm, outTime: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" 
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-100">
+                <button type="button" onClick={() => setEditRecordId(null)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E]">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
