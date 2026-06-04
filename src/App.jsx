@@ -58,7 +58,7 @@ function App() {
         </div>
       </main>
       
-      <Fab />
+      
     </div>
   );
 }

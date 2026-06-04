@@ -1,5 +1,8 @@
 import React from 'react';
 import { Clock, Plus, CreditCard } from 'lucide-react';
+import {useState} from 'react';
+import AddStudentBtn from './AddBtn';
+import AddBtn from './AddBtn';
 
 const courses = [
   {
@@ -63,9 +66,7 @@ const CoursesContent = () => {
           <h2 className="text-[20px] font-bold text-[#003F87] leading-tight">Course Management</h2>
           <p className="text-[13px] text-[#555F6B] mt-1">Manage institutional academic offerings and mentor assignments.</p>
         </div>
-        <button className="bg-[#003F87] text-white px-[20px] py-[10px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors">
-          <Plus size={16} /> Add Course
-        </button>
+        <AddBtn title="Add Course" />
       </div>
 
       {/* Filter Section: 972 x 44 */}

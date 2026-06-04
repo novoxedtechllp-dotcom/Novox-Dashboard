@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, Bell, HelpCircle, User, UserPlus, Plus } from 'lucide-react';
+import AddBtn from './AddBtn';
 
 const Header = ({ activeTab }) => {
   return (
@@ -22,9 +23,7 @@ const Header = ({ activeTab }) => {
       {/* Header Actions */}
       <div className="flex items-center gap-5">
         {activeTab === 'students' && (
-          <button className="bg-[#003F87] text-white px-[16px] h-[36px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors">
-            <UserPlus size={16} /> Add Student
-          </button>
+          <AddBtn title="Add Student" />
         )}
         {activeTab === 'sales-crm' && (
           <button className="bg-[#003F87] text-white px-[16px] h-[36px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors">
