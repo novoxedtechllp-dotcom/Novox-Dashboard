@@ -112,7 +112,7 @@ function App() {
           {activeTab === 'dashboard' ? (
             <MainContent activeTab={activeTab} employees={employees} />
           ) : activeTab === 'attendance' ? (
-            <AttendanceContent />
+            <AttendanceContent employees={employees} courses={courses} />
           ) : activeTab === 'students' ? (
             <StudentsContent courses={courses} />
           ) : activeTab === 'employees' ? (

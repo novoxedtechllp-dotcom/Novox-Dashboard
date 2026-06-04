@@ -1,24 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Calendar, RefreshCcw, MoreVertical, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 
-const initialAttendanceData = [
-  { id: 1, type: 'Student', identifier: 'STU-1024', name: 'Jordan Belfort', initials: 'JB', course: 'Full Stack Web Engineering', status: 'Present', inTime: '08:45 AM', outTime: '04:30 PM', date: '2023-10-27' },
-  { id: 2, type: 'Student', identifier: 'STU-1025', name: 'Sarah Connor', initials: 'SC', course: 'Advanced Digital Strategy', status: 'Late', inTime: '09:15 AM', outTime: '-- : --', date: '2023-10-27', note: 'Transit delay due to rain' },
-  { id: 3, type: 'Student', identifier: 'STU-1026', name: 'Marcus Phoenix', initials: 'MP', course: 'UI/UX Design Masterclass', status: 'Absent', inTime: '-- : --', outTime: '-- : --', date: '2023-10-27' },
-  { id: 4, type: 'Student', identifier: 'STU-1027', name: 'Eleven Hopper', initials: 'EH', course: 'Data Science & Analytics', status: 'Leave', inTime: '-- : --', outTime: '-- : --', date: '2023-10-27' },
-  { id: 5, type: 'Employee', identifier: 'EMP-001', name: 'Walter White', initials: 'WW', course: 'N/A', status: 'Present', inTime: '08:00 AM', outTime: '05:00 PM', date: '2023-10-27' },
-  { id: 6, type: 'Employee', identifier: 'EMP-002', name: 'Jesse Pinkman', initials: 'JP', course: 'N/A', status: 'Late', inTime: '09:30 AM', outTime: '-- : --', date: '2023-10-27' }
-];
+const AttendanceContent = ({ employees = [], courses = [] }) => {
+  const [students, setStudents] = useState([]);
+  
+  // Database tables mock state
+  const [studentAttendance, setStudentAttendance] = useState([]);
+  const [employeeAttendance, setEmployeeAttendance] = useState([]);
 
-const AttendanceContent = ({ courses = [] }) => {
-  const [attendanceData, setAttendanceData] = useState(initialAttendanceData);
   const [activeTab, setActiveTab] = useState('Students');
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
-  const [editRecordId, setEditRecordId] = useState(null);
-  const [editForm, setEditForm] = useState({ status: 'Present', inTime: '', outTime: '' });
+  
+  const [editRecord, setEditRecord] = useState(null);
+  const [editForm, setEditForm] = useState({ status: 'PRESENT', check_in: '', check_out: '', remarks: '' });
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [courseFilter, setCourseFilter] = useState('All Categories');
   const [dateFilter, setDateFilter] = useState('');
+
+  // Fetch Students to map IDs to Names
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) {
+          // Fallback mock students if no real backend
+          setStudents([{ id: 1, student_code: 'STD-001', first_name: 'Alex', last_name: 'Thompson' }]);
+          return;
+        }
+        const response = await fetch('http://localhost:5000/api/students', {
+          headers: { 'Authorization': `Bearer ${userInfo.token}` }
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setStudents(data);
+        }
+      } catch (error) {
+        console.error('Error fetching students:', error);
+      }
+    };
+    fetchStudents();
+  }, []);
+
+  // Initialize mock data for the tables
+  useEffect(() => {
+    setStudentAttendance([
+      { id: 'uuid-sa-1', student_id: 1, attendance_date: '2024-10-27', check_in: '2024-10-27T08:45:00', check_out: '2024-10-27T16:30:00', status: 'PRESENT', remarks: '' },
+      { id: 'uuid-sa-2', student_id: 2, attendance_date: '2024-10-27', check_in: '2024-10-27T09:15:00', check_out: null, status: 'LATE', remarks: 'Transit delay due to rain' },
+      { id: 'uuid-sa-3', student_id: 3, attendance_date: '2024-10-27', check_in: null, check_out: null, status: 'ABSENT', remarks: '' },
+      { id: 'uuid-sa-4', student_id: 4, attendance_date: '2024-10-27', check_in: '2024-10-27T10:00:00', check_out: null, status: 'HALF_DAY', remarks: 'Left early for doctor' }
+    ]);
+    
+    setEmployeeAttendance([
+      { id: 'uuid-ea-1', employee_id: 1, attendance_date: '2024-10-27', check_in: '2024-10-27T08:00:00', check_out: '2024-10-27T17:00:00', status: 'PRESENT', remarks: '' },
+      { id: 'uuid-ea-2', employee_id: 2, attendance_date: '2024-10-27', check_in: '2024-10-27T09:30:00', check_out: null, status: 'LATE', remarks: 'Overslept' }
+    ]);
+  }, []);
 
   const handleRefresh = () => {
     setSearchQuery('');
@@ -27,77 +64,108 @@ const AttendanceContent = ({ courses = [] }) => {
   };
 
   const handleUpdateStatus = (id, newStatus) => {
-    const updated = attendanceData.map(item => {
+    const table = activeTab === 'Students' ? studentAttendance : employeeAttendance;
+    const setTable = activeTab === 'Students' ? setStudentAttendance : setEmployeeAttendance;
+    
+    const updated = table.map(item => {
       if (item.id === id) {
+        const now = new Date().toISOString();
         return { 
           ...item, 
           status: newStatus,
-          inTime: newStatus === 'Present' || newStatus === 'Late' ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-- : --',
-          note: newStatus === 'Late' ? 'Manually updated' : ''
+          check_in: newStatus === 'PRESENT' || newStatus === 'LATE' || newStatus === 'HALF_DAY' ? now : null,
+          remarks: newStatus === 'LATE' ? 'Manually updated' : item.remarks
         };
       }
       return item;
     });
-    setAttendanceData(updated);
+    setTable(updated);
     setOpenActionMenuId(null);
   };
 
   const handleOpenEdit = (item) => {
     setEditForm({
       status: item.status,
-      inTime: item.inTime !== '-- : --' ? item.inTime : '',
-      outTime: item.outTime !== '-- : --' ? item.outTime : ''
+      check_in: item.check_in ? item.check_in.substring(11, 16) : '', // 'HH:mm' for time input
+      check_out: item.check_out ? item.check_out.substring(11, 16) : '',
+      remarks: item.remarks || ''
     });
-    setEditRecordId(item.id);
+    setEditRecord(item);
     setOpenActionMenuId(null);
   };
 
   const handleSaveEdit = (e) => {
     e.preventDefault();
-    const updated = attendanceData.map(item => {
-      if (item.id === editRecordId) {
+    const table = activeTab === 'Students' ? studentAttendance : employeeAttendance;
+    const setTable = activeTab === 'Students' ? setStudentAttendance : setEmployeeAttendance;
+    
+    const updated = table.map(item => {
+      if (item.id === editRecord.id) {
+        // Construct full ISO strings from the time inputs for the current attendance date
+        const datePrefix = item.attendance_date;
         return { 
           ...item, 
           status: editForm.status,
-          inTime: editForm.inTime || '-- : --',
-          outTime: editForm.outTime || '-- : --',
-          note: editForm.status === 'Late' ? 'Manually updated times' : ''
+          check_in: editForm.check_in ? `${datePrefix}T${editForm.check_in}:00` : null,
+          check_out: editForm.check_out ? `${datePrefix}T${editForm.check_out}:00` : null,
+          remarks: editForm.remarks
         };
       }
       return item;
     });
-    setAttendanceData(updated);
-    setEditRecordId(null);
+    setTable(updated);
+    setEditRecord(null);
   };
 
-  const filteredData = attendanceData.filter(item => {
-    if (activeTab === 'Students' && item.type !== 'Student') return false;
-    if (activeTab === 'Employees' && item.type !== 'Employee') return false;
+  // Join data with respective Profiles
+  const getMappedData = () => {
+    if (activeTab === 'Students') {
+      return studentAttendance.map(sa => {
+        const student = students.find(s => (s.id || s._id) === sa.student_id);
+        const name = student ? `${student.first_name || ''} ${student.last_name || ''}`.trim() : `Unknown Student (ID: ${sa.student_id})`;
+        const initials = student && student.first_name ? `${student.first_name[0]}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() : '??';
+        return { ...sa, type: 'Student', identifier: student?.student_code || 'N/A', name, initials, course: 'Mapped from courses later' }; // Assuming course mapping isn't directly on attendance table
+      });
+    } else {
+      return employeeAttendance.map(ea => {
+        const employee = employees.find(e => e.id === ea.employee_id);
+        const name = employee ? employee.name : `Unknown Employee (ID: ${ea.employee_id})`;
+        const initials = name !== 'Unknown Employee' ? name.substring(0, 2).toUpperCase() : '??';
+        return { ...ea, type: 'Employee', identifier: employee?.eid || 'N/A', name, initials, course: employee?.department || 'N/A' };
+      });
+    }
+  };
 
+  const formattedTime = (isoString) => {
+    if (!isoString) return '-- : --';
+    const d = new Date(isoString);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const joinedData = getMappedData();
+
+  const filteredData = joinedData.filter(item => {
     if (searchQuery) {
       const term = searchQuery.toLowerCase();
       if (!item.name.toLowerCase().includes(term) && !item.identifier.toLowerCase().includes(term)) {
         return false;
       }
     }
-
     if (courseFilter !== 'All Categories' && item.course !== courseFilter) {
       return false;
     }
-
-    if (dateFilter && item.date !== dateFilter) {
+    if (dateFilter && item.attendance_date !== dateFilter) {
       return false;
     }
-
     return true;
   });
 
   const total = filteredData.length;
-  const presentCount = filteredData.filter(d => d.status === 'Present' || d.status === 'Late').length;
-  const lateCount = filteredData.filter(d => d.status === 'Late').length;
+  const presentCount = filteredData.filter(d => d.status === 'PRESENT' || d.status === 'LATE' || d.status === 'HALF_DAY').length;
+  const lateCount = filteredData.filter(d => d.status === 'LATE').length;
   
   const presencePercent = total === 0 ? 0 : (presentCount / total * 100).toFixed(1);
-  const avgLatency = total === 0 ? 0 : Math.round((lateCount * 15) / total);
+  const avgLatency = total === 0 ? 0 : Math.round((lateCount * 15) / total); // Mock calculation
 
   const uniqueCourses = ['All Categories', ...courses.map(c => c.title)];
 
@@ -107,7 +175,7 @@ const AttendanceContent = ({ courses = [] }) => {
       <div className="w-full flex justify-between items-center min-h-[52px]">
         <div>
           <h2 className="text-[20px] font-bold text-[#003F87] leading-tight">Attendance Management</h2>
-          <p className="text-[13px] text-[#555F6B] mt-1">Real-time tracking of institutional presence and engagement.</p>
+          <p className="text-[13px] text-[#555F6B] mt-1">Real-time tracking for {activeTab.toLowerCase()}.</p>
         </div>
         <div className="flex bg-[#F8FAFC] rounded-[4px] p-[4px] border border-[#C2C6D4]">
           <button 
@@ -127,13 +195,12 @@ const AttendanceContent = ({ courses = [] }) => {
 
       {/* Filter Section */}
       <div className="w-full bg-white border border-[#C2C6D4] rounded-[8px] p-[24px] flex flex-col md:flex-row items-end gap-[24px]">
-        {/* Search */}
         <div className="flex-1 w-full">
           <label className="block text-[11px] font-bold text-[#555F6B] uppercase tracking-wide mb-2">Search by Name/ID</label>
           <div className="flex items-center gap-2 bg-[#F8FAFC] border border-[#C2C6D4] px-[16px] py-[10px] rounded-[6px]">
             <input 
               type="text" 
-              placeholder="e.g. STU-001" 
+              placeholder="e.g. 001" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-transparent border-none outline-none text-[13px] w-full text-slate-800 placeholder:text-[#555F6B]" 
@@ -141,7 +208,8 @@ const AttendanceContent = ({ courses = [] }) => {
             <Search size={16} className="text-[#555F6B]" />
           </div>
         </div>
-        {/* Category */}
+        
+        {/* Category (Only relevant if mapping students to courses, handled loosely here) */}
         <div className="flex-1 w-full">
           <label className="block text-[11px] font-bold text-[#555F6B] uppercase tracking-wide mb-2">Category/Course</label>
           <select 
@@ -153,7 +221,7 @@ const AttendanceContent = ({ courses = [] }) => {
             {uniqueCourses.map(course => <option key={course} value={course}>{course}</option>)}
           </select>
         </div>
-        {/* Date Range */}
+        
         <div className="flex-[0.8] w-full">
           <label className="block text-[11px] font-bold text-[#555F6B] uppercase tracking-wide mb-2">Date Filter</label>
           <div className="flex items-center gap-2 bg-[#F8FAFC] border border-[#C2C6D4] px-[16px] py-[10px] rounded-[6px]">
@@ -165,7 +233,7 @@ const AttendanceContent = ({ courses = [] }) => {
             />
           </div>
         </div>
-        {/* Actions */}
+        
         <div className="flex items-center gap-[12px] w-full md:w-auto">
           <button className="flex-1 md:flex-none bg-[#003F87] text-white px-[24px] py-[10px] rounded-[6px] text-[13px] font-bold hover:bg-[#002B5E] transition-colors h-[42px] whitespace-nowrap">
             Apply Filters
@@ -188,10 +256,10 @@ const AttendanceContent = ({ courses = [] }) => {
               <tr className="border-b border-[#C2C6D4] bg-white">
                 <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[120px]">ID</th>
                 <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Name</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Course / Role</th>
+                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Course / Dept</th>
                 <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[200px]">Status</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">In Time</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Out Time</th>
+                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Check In</th>
+                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Check Out</th>
                 <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -214,28 +282,28 @@ const AttendanceContent = ({ courses = [] }) => {
                   </td>
                   <td className="py-[16px] px-[24px]">
                     <div className="flex flex-col items-start gap-1">
-                      <span className={`inline-flex items-center gap-2 px-[12px] py-[4px] rounded-full text-[12px] font-bold
-                        ${item.status === 'Present' ? 'bg-[#E5F7ED] text-[#008A2E]' : ''}
-                        ${item.status === 'Late' ? 'bg-[#FFF4E5] text-[#B26E00]' : ''}
-                        ${item.status === 'Absent' ? 'bg-[#FDE2E2] text-[#D80000]' : ''}
-                        ${item.status === 'Leave' ? 'bg-[#E5F0FF] text-[#003F87]' : ''}
+                      <span className={`inline-flex items-center gap-2 px-[12px] py-[4px] rounded-full text-[11px] font-bold tracking-wide
+                        ${item.status === 'PRESENT' ? 'bg-[#E5F7ED] text-[#008A2E]' : ''}
+                        ${item.status === 'LATE' ? 'bg-[#FFF4E5] text-[#B26E00]' : ''}
+                        ${item.status === 'ABSENT' ? 'bg-[#FDE2E2] text-[#D80000]' : ''}
+                        ${item.status === 'HALF_DAY' ? 'bg-[#E5F0FF] text-[#003F87]' : ''}
                       `}>
                         <span className={`w-[6px] h-[6px] rounded-full 
-                          ${item.status === 'Present' ? 'bg-[#008A2E]' : ''}
-                          ${item.status === 'Late' ? 'bg-[#B26E00]' : ''}
-                          ${item.status === 'Absent' ? 'bg-[#D80000]' : ''}
-                          ${item.status === 'Leave' ? 'bg-[#003F87]' : ''}
+                          ${item.status === 'PRESENT' ? 'bg-[#008A2E]' : ''}
+                          ${item.status === 'LATE' ? 'bg-[#B26E00]' : ''}
+                          ${item.status === 'ABSENT' ? 'bg-[#D80000]' : ''}
+                          ${item.status === 'HALF_DAY' ? 'bg-[#003F87]' : ''}
                         `}></span> 
-                        {item.status}
+                        {item.status.replace('_', ' ')}
                       </span>
-                      {item.note && <span className="text-[10px] text-[#B26E00] leading-tight max-w-[140px]">Note: {item.note}</span>}
+                      {item.remarks && <span className="text-[10px] text-[#B26E00] leading-tight max-w-[140px] truncate" title={item.remarks}>R: {item.remarks}</span>}
                     </div>
                   </td>
                   <td className="py-[16px] px-[24px]">
-                    <div className="text-[13px] font-medium text-slate-900 leading-tight">{item.inTime}</div>
+                    <div className="text-[13px] font-medium text-slate-900 leading-tight">{formattedTime(item.check_in)}</div>
                   </td>
                   <td className="py-[16px] px-[24px]">
-                    <div className="text-[13px] font-medium text-slate-900 leading-tight">{item.outTime}</div>
+                    <div className="text-[13px] font-medium text-slate-900 leading-tight">{formattedTime(item.check_out)}</div>
                   </td>
                   <td className="py-[16px] px-[24px] text-right relative">
                     <button 
@@ -246,11 +314,11 @@ const AttendanceContent = ({ courses = [] }) => {
                     </button>
                     {openActionMenuId === item.id && (
                       <div className={`absolute right-[24px] ${index >= filteredData.length - 2 && filteredData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} w-[140px] bg-white border border-[#C2C6D4] shadow-lg rounded-[8px] z-50 overflow-hidden text-left flex flex-col`}>
-                        <button onClick={() => handleUpdateStatus(item.id, 'Present')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#008A2E] text-left border-b border-slate-100 transition-colors">Mark Present</button>
-                        <button onClick={() => handleUpdateStatus(item.id, 'Late')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#B26E00] text-left border-b border-slate-100 transition-colors">Mark Late</button>
-                        <button onClick={() => handleUpdateStatus(item.id, 'Absent')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#D80000] text-left border-b border-slate-100 transition-colors">Mark Absent</button>
-                        <button onClick={() => handleUpdateStatus(item.id, 'Leave')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#003F87] text-left border-b border-slate-100 transition-colors">Mark Leave</button>
-                        <button onClick={() => handleOpenEdit(item)} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 text-left transition-colors">Edit Times</button>
+                        <button onClick={() => handleUpdateStatus(item.id, 'PRESENT')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#008A2E] text-left border-b border-slate-100 transition-colors">Mark Present</button>
+                        <button onClick={() => handleUpdateStatus(item.id, 'LATE')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#B26E00] text-left border-b border-slate-100 transition-colors">Mark Late</button>
+                        <button onClick={() => handleUpdateStatus(item.id, 'ABSENT')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#D80000] text-left border-b border-slate-100 transition-colors">Mark Absent</button>
+                        <button onClick={() => handleUpdateStatus(item.id, 'HALF_DAY')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#003F87] text-left border-b border-slate-100 transition-colors">Mark Half Day</button>
+                        <button onClick={() => handleOpenEdit(item)} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 text-left transition-colors">Edit Record</button>
                       </div>
                     )}
                   </td>
@@ -304,50 +372,60 @@ const AttendanceContent = ({ courses = [] }) => {
         <div className="border border-solid border-[#C2C6D4] rounded-[8px] h-[231px] bg-white hidden xl:block"></div>
       </div>
 
-      {editRecordId && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+      {editRecord && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-800">Edit Attendance Record</h2>
-              <button onClick={() => setEditRecordId(null)} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none">&times;</button>
+              <button onClick={() => setEditRecord(null)} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none">&times;</button>
             </div>
             <form onSubmit={handleSaveEdit} className="p-6 flex flex-col gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Status</label>
                 <select 
                   value={editForm.status}
                   onChange={(e) => setEditForm({...editForm, status: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm bg-white"
                 >
-                  <option value="Present">Present</option>
-                  <option value="Late">Late</option>
-                  <option value="Absent">Absent</option>
-                  <option value="Leave">Leave</option>
+                  <option value="PRESENT">PRESENT</option>
+                  <option value="LATE">LATE</option>
+                  <option value="ABSENT">ABSENT</option>
+                  <option value="HALF_DAY">HALF DAY</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">In Time</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Check In</label>
                   <input 
                     type="time" 
-                    value={editForm.inTime}
-                    onChange={(e) => setEditForm({...editForm, inTime: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" 
+                    value={editForm.check_in}
+                    onChange={(e) => setEditForm({...editForm, check_in: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm" 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Out Time</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Check Out</label>
                   <input 
                     type="time" 
-                    value={editForm.outTime}
-                    onChange={(e) => setEditForm({...editForm, outTime: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" 
+                    value={editForm.check_out}
+                    onChange={(e) => setEditForm({...editForm, check_out: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm" 
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Remarks</label>
+                <textarea 
+                  value={editForm.remarks}
+                  onChange={(e) => setEditForm({...editForm, remarks: e.target.value})}
+                  rows="2"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm resize-none" 
+                  placeholder="E.g. Transit delay..."
+                />
+              </div>
               <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setEditRecordId(null)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E]">Save Changes</button>
+                <button type="button" onClick={() => setEditRecord(null)} className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-lg text-sm font-semibold text-white hover:bg-[#002B5E]">Save Changes</button>
               </div>
             </form>
           </div>
