@@ -1,4 +1,4 @@
-import supabase from "../config/supabase.js";
+import { supabase } from "../config/supabase.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -15,10 +15,17 @@ const createStudent = asyncHandler(async (req, res) => {
     parent_phone,
     address,
     joining_date,
-    status
+    status,
   } = req.body;
 
-  if (!user_id || !student_code || !first_name || !last_name || !phone || !joining_date) {
+  if (
+    !user_id ||
+    !student_code ||
+    !first_name ||
+    !last_name ||
+    !phone ||
+    !joining_date
+  ) {
     throw new ApiError(400, "Please provide all required fields");
   }
 
@@ -34,7 +41,7 @@ const createStudent = asyncHandler(async (req, res) => {
         parent_phone,
         address,
         joining_date,
-        status: status || 'ACTIVE',
+        status: status || "ACTIVE",
       },
     ])
     .select();
