@@ -11,6 +11,7 @@ import attendanceRouter from "./routes/attendance.routes.js";
 import workReportRouter from "./routes/work-report.routes.js";
 import uploadRouter from "./routes/upload.routes.js";
 import profileRouter from "./routes/profile.routes.js";
+import galleryRouter from "./routes/gallery.routes.js";
 
 const app = express();
 
@@ -37,7 +38,7 @@ app.use(
 app.use(express.static("public"));
 app.use(cookieParser());
 
-//Routes
+// Routes
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/students", studentRouter);
 app.use("/api/v1/users", userRouter);
@@ -47,6 +48,7 @@ app.use("/api/v1/attendance", attendanceRouter);
 app.use("/api/v1/work-reports", workReportRouter);
 app.use("/api/v1/upload", uploadRouter);
 app.use("/api/v1/profile", profileRouter);
+app.use("/api/gallery", galleryRouter);
 
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
