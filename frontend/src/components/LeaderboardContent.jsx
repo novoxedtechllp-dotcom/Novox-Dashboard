@@ -11,6 +11,13 @@ const platforms = [
 ];
 
 const LeaderboardContent = () => {
+  const [toast, setToast] = useState(null);
+  const alert = (message) => {
+    const isError = typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error'));
+    setToast({ message, type: isError ? 'error' : 'success' });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const [leaderboardData, setLeaderboardData] = useState([]);
 
   useEffect(() => {
@@ -70,7 +77,12 @@ const LeaderboardContent = () => {
   const list = sortedData.slice(3, visibleCount);
 
   return (
-    <div className="p-[24px] flex flex-col gap-[24px] w-full overflow-y-auto" style={{scrollbarWidth: 'none'}}>
+    <div className="p-[24px] flex flex-col gap-[24px] w-full overflow-y-auto relative" style={{scrollbarWidth: 'none'}}>
+      {toast && (
+        <div className={`fixed top-4 right-4 z-[9999] px-6 py-3 rounded-lg shadow-xl font-bold text-sm transform transition-all duration-300 translate-y-0 opacity-100 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+          {toast.message}
+        </div>
+      )}
       
       {/* Header Area */}
       <div className="flex justify-between items-start">

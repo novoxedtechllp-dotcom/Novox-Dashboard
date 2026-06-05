@@ -7,8 +7,8 @@ DROP TABLE IF EXISTS
   salary_slips, payroll, 
   work_reports, project_members, projects, 
   automated_alerts_log, employee_attendance, student_attendance, 
-  student_courses, student_documents, students, 
-  course_schedules, course_instructors, course_modules, courses, 
+  student_tasks, student_courses, student_documents, students, 
+  course_tasks, course_submodules, course_schedules, course_instructors, course_modules, courses, 
   employee_documents, employee_profiles, employee_roles, 
   user_sessions, users 
 CASCADE;
@@ -19,7 +19,7 @@ DROP TYPE IF EXISTS
   STUDENT_STATUS, STUDENT_COURSE_STATUS, ATTENDANCE_STATUS, REPORT_TYPE, 
   APPROVAL_STATUS, PAYROLL_STATUS, PAYMENT_METHOD, CRM_STAGE, ACTIVITY_TYPE, 
   CAMPAIGN_STATUS, SENDER_TYPE, CANDIDATE_STATUS, INTERVIEW_RESULT, AUDIT_ACTION, 
-  PROJECT_STATUS, CONVERSATION_STATUS, PLATFORM_TYPE 
+  PROJECT_STATUS, CONVERSATION_STATUS, PLATFORM_TYPE, TASK_STATUS, TASK_TYPE
 CASCADE;
 
 -- Recreate Types
@@ -31,6 +31,8 @@ CREATE TYPE COURSE_STATUS AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
 CREATE TYPE STUDENT_STATUS AS ENUM ('ACTIVE', 'COMPLETED', 'DROPPED');
 CREATE TYPE STUDENT_COURSE_STATUS AS ENUM ('IN_PROGRESS', 'COMPLETED', 'DROPPED');
 CREATE TYPE ATTENDANCE_STATUS AS ENUM ('PRESENT', 'ABSENT', 'LATE', 'HALF_DAY');
+CREATE TYPE TASK_STATUS AS ENUM ('PENDING', 'SUBMITTED', 'GRADED');
+CREATE TYPE TASK_TYPE AS ENUM ('PRE_PLANNED', 'EXTRA');
 CREATE TYPE REPORT_TYPE AS ENUM ('DAILY', 'WEEKLY');
 CREATE TYPE APPROVAL_STATUS AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 CREATE TYPE PAYROLL_STATUS AS ENUM ('PENDING', 'PAID');
@@ -107,6 +109,26 @@ CREATE TABLE course_modules (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     sequence_order INTEGER NOT NULL
+);
+
+CREATE TABLE course_submodules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    module_id UUID NOT NULL REFERENCES course_modules(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    sequence_order INTEGER NOT NULL,
+    scheduled_date DATE
+);
+
+CREATE TABLE course_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    submodule_id UUID NOT NULL REFERENCES course_submodules(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    sequence_order INTEGER NOT NULL,
+    task_type TASK_TYPE DEFAULT 'PRE_PLANNED',
+    due_date DATE,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE course_instructors (
@@ -193,6 +215,18 @@ CREATE TABLE student_courses (
     progress_percentage DECIMAL(5,2) DEFAULT 0.00,
     completion_status STUDENT_COURSE_STATUS DEFAULT 'IN_PROGRESS',
     UNIQUE (student_id, course_id)
+);
+
+CREATE TABLE student_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES course_tasks(id) ON DELETE CASCADE,
+    status TASK_STATUS DEFAULT 'PENDING',
+    submission_url TEXT,
+    grade VARCHAR(50),
+    feedback TEXT,
+    submitted_at TIMESTAMP,
+    UNIQUE(student_id, task_id)
 );
 
 -- 4. ATTENDANCE MODULE

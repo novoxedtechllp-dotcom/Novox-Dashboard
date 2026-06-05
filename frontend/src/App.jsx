@@ -22,6 +22,7 @@ import SupportContent from './components/SupportContent';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Fab from './components/Fab';
+import DailyPlan from './components/DailyPlan';
 
 const initialEmployees = [
   {
@@ -231,24 +232,29 @@ function App() {
 
   if (userRole === 'STUDENT') {
     return (
-      <div className="flex h-screen w-screen bg-slate-50 items-center justify-center font-sans text-slate-800">
-        <div className="bg-white p-10 rounded-2xl shadow-xl max-w-lg text-center border border-slate-200">
-          <div className="w-20 h-20 bg-[#003F87] rounded-full flex items-center justify-center mx-auto mb-6 shadow-md">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
-              <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
-            </svg>
+      <div className="flex flex-col h-screen w-screen bg-slate-50 font-sans text-slate-800">
+        <header className="bg-white border-b border-slate-200 p-4 flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#003F87] rounded-full flex items-center justify-center shadow-md">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+              </svg>
+            </div>
+            <h1 className="text-xl font-bold text-[#003F87]">Novox Student Portal</h1>
           </div>
-          <h1 className="text-3xl font-bold text-[#003F87] mb-2">Welcome, {userInfo?.first_name || 'Student'}!</h1>
-          <p className="text-slate-600 mb-8">
-            Your student portal is currently being set up. Soon you'll be able to track your attendance, access your courses, and view your academic journey here.
-          </p>
-          <button 
-            onClick={handleLogout}
-            className="px-6 py-3 bg-[#003F87] text-white font-semibold rounded-lg hover:bg-[#002B5C] transition-colors shadow-sm"
-          >
-            Log Out Securely
-          </button>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-semibold text-slate-700">Welcome, {userInfo?.first_name || 'Student'}!</span>
+            <button 
+              onClick={handleLogout}
+              className="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-sm rounded hover:bg-slate-200 transition-colors"
+            >
+              Log Out
+            </button>
+          </div>
+        </header>
+        <div className="flex-1 overflow-hidden">
+          <DailyPlan userType="STUDENT" userId={userInfo?.student_profile_id || userInfo?.id} />
         </div>
       </div>
     );
@@ -264,7 +270,7 @@ function App() {
   const canViewBlog = userRole === 'ADMIN' || isMarketing;
   const canViewSeo = userRole === 'ADMIN' || isMarketing;
   const canViewFees = userRole === 'ADMIN' || isHR || isSales;
-  const canViewCourses = userRole === 'ADMIN' || isHR || isDesign || isDevelopment;
+  const canViewCourses = userRole === 'ADMIN' || userRole === 'EMPLOYEE';
   const canViewJourney = userRole === 'ADMIN' || isDevelopment || isDesign || isHR || isSales; // General
 
   return (
@@ -287,6 +293,7 @@ function App() {
             <Route path={basePath} element={<Navigate to={`${basePath}/dashboard`} replace />} />
             
             <Route path={`${basePath}/dashboard`} element={<MainContent activeTab="dashboard" employees={employees} />} />
+            <Route path={`${basePath}/daily-plan`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
             <Route path={`${basePath}/attendance`} element={<AttendanceContent employees={employees} courses={courses} />} />
             <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} />} />
             <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />

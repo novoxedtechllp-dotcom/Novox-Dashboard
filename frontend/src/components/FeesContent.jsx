@@ -4,6 +4,13 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 const FeesContent = () => {
+  const [toast, setToast] = useState(null);
+  const alert = (message) => {
+    const isError = typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error'));
+    setToast({ message, type: isError ? 'error' : 'success' });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const [feesList, setFeesList] = useState([]);
 
   useEffect(() => {
@@ -112,6 +119,11 @@ const FeesContent = () => {
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-[9999] px-6 py-3 rounded-lg shadow-xl font-bold text-sm transform transition-all duration-300 translate-y-0 opacity-100 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+          {toast.message}
+        </div>
+      )}
       {/* Header Container */}
       <div className="w-full flex justify-between items-end h-[60px]">
         <div className="flex flex-col justify-end">

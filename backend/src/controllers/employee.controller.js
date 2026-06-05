@@ -4,6 +4,47 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import bcrypt from "bcrypt";
 
+const parseDateOnly = (value) => {
+  const [year, month, day] = String(value || "").split("T")[0].split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
+const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
+
+const resolveEmployeeProfileId = async (employeeId) => {
+  const { data: profileById } = await supabase
+    .from("employee_profiles")
+    .select("id")
+    .eq("id", employeeId)
+    .single();
+
+  if (profileById?.id) return profileById.id;
+
+  const { data: profileByUserId } = await supabase
+    .from("employee_profiles")
+    .select("id")
+    .eq("user_id", employeeId)
+    .single();
+
+  return profileByUserId?.id || employeeId;
+};
+
+const getAssignedCourseIds = async (employeeId) => {
+  const instructorEmployeeId = await resolveEmployeeProfileId(employeeId);
+  const { data: assignments, error } = await supabase
+    .from("course_instructors")
+    .select("course_id")
+    .eq("employee_id", instructorEmployeeId);
+
+  if (error) throw new ApiError(500, "Failed to fetch employee courses");
+
+  return {
+    instructorEmployeeId,
+    courseIds: (assignments || []).map((assignment) => assignment.course_id),
+  };
+};
+
 // ==========================================
 // EMPLOYEE PROFILES
 // ==========================================
@@ -305,4 +346,116 @@ export const getEmployeeReport = asyncHandler(async (req, res) => {
     totalOnLeave,
     totalTerminated
   }, "Employee global report generated successfully"));
+});
+
+// @desc    Get Employee Daily Plan
+// @route   GET /api/v1/employees/:employeeId/daily-plan
+export const getEmployeeDailyPlan = asyncHandler(async (req, res) => {
+  const { employeeId } = req.params;
+  const { date } = req.query;
+
+  if (!date) throw new ApiError(400, "Please provide a date query parameter");
+
+  const { courseIds } = await getAssignedCourseIds(employeeId);
+
+  if (courseIds.length === 0) {
+    return res.status(200).json(new ApiResponse(200, [], "No courses assigned"));
+  }
+
+  // Fetch submodules for those courses scheduled on the given date
+  const { data, error } = await supabase
+    .from("course_submodules")
+    .select(`
+      *,
+      course_modules!inner(course_id, title, courses(name)),
+      course_tasks(*)
+    `)
+    .in("course_modules.course_id", courseIds)
+    .eq("scheduled_date", date)
+    .order("sequence_order", { ascending: true });
+
+  if (error) throw new ApiError(500, error.message || "Failed to fetch daily plan");
+
+  return res.status(200).json(new ApiResponse(200, data, "Daily plan fetched successfully"));
+});
+
+// @desc    Get extra topics an instructor can add to a selected day
+// @route   GET /api/v1/employees/:employeeId/available-topics
+export const getAvailableTeachingTopics = asyncHandler(async (req, res) => {
+  const { employeeId } = req.params;
+  const { date } = req.query;
+
+  if (!date) throw new ApiError(400, "Please provide a date query parameter");
+
+  const selectedDate = parseDateOnly(date);
+  if (!selectedDate) throw new ApiError(400, "Please provide a valid date");
+  if (isWeekend(selectedDate)) throw new ApiError(400, "Topics can only be added to Monday-Friday workdays");
+
+  const { courseIds } = await getAssignedCourseIds(employeeId);
+  if (courseIds.length === 0) {
+    return res.status(200).json(new ApiResponse(200, [], "No courses assigned"));
+  }
+
+  const { data, error } = await supabase
+    .from("course_submodules")
+    .select(`
+      id,
+      module_id,
+      title,
+      description,
+      sequence_order,
+      scheduled_date,
+      course_modules!inner(course_id, title, sequence_order, courses(name))
+    `)
+    .in("course_modules.course_id", courseIds)
+    .order("sequence_order", { ascending: true, foreignTable: "course_modules" })
+    .order("sequence_order", { ascending: true });
+
+  if (error) throw new ApiError(500, error.message || "Failed to fetch available topics");
+
+  const availableTopics = (data || []).filter((topic) => topic.scheduled_date !== date);
+
+  return res.status(200).json(new ApiResponse(200, availableTopics, "Available teaching topics fetched successfully"));
+});
+
+// @desc    Add or move an assigned course topic to a selected instructor workday
+// @route   PATCH /api/v1/employees/:employeeId/topics/:submoduleId/schedule
+export const scheduleTeachingTopic = asyncHandler(async (req, res) => {
+  const { employeeId, submoduleId } = req.params;
+  const { scheduled_date } = req.body;
+
+  if (!scheduled_date) throw new ApiError(400, "Please provide scheduled_date");
+
+  const selectedDate = parseDateOnly(scheduled_date);
+  if (!selectedDate) throw new ApiError(400, "Please provide a valid scheduled_date");
+  if (isWeekend(selectedDate)) throw new ApiError(400, "Topics can only be scheduled from Monday to Friday");
+
+  const { courseIds } = await getAssignedCourseIds(employeeId);
+  if (courseIds.length === 0) throw new ApiError(403, "No courses assigned to this instructor");
+
+  const { data: topic, error: topicError } = await supabase
+    .from("course_submodules")
+    .select("id, module_id, course_modules!inner(course_id)")
+    .eq("id", submoduleId)
+    .single();
+
+  if (topicError || !topic) throw new ApiError(404, "Topic not found");
+  if (!courseIds.includes(topic.course_modules.course_id)) {
+    throw new ApiError(403, "This topic is not assigned to this instructor");
+  }
+
+  const { data, error } = await supabase
+    .from("course_submodules")
+    .update({ scheduled_date })
+    .eq("id", submoduleId)
+    .select(`
+      *,
+      course_modules!inner(course_id, title, courses(name)),
+      course_tasks(*)
+    `)
+    .single();
+
+  if (error) throw new ApiError(500, error.message || "Failed to schedule topic");
+
+  return res.status(200).json(new ApiResponse(200, data, "Topic scheduled successfully"));
 });

@@ -64,9 +64,9 @@ const LowerContent = ({ employees = [], students = [] }) => {
 
   const visibleData = viewAllBtn ? displayData.slice(0, 4) : displayData;
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-[24px]">
-      {/* Attendance Overview (Takes 2 columns) */}
-      <div className="xl:col-span-2 bg-white border border-[#C2C6D4] rounded-[8px] flex flex-col h-full">
+    <div className="flex flex-col gap-[24px]">
+      {/* Attendance Overview (Full width) */}
+      <div className="w-full bg-white border border-[#C2C6D4] rounded-[8px] flex flex-col h-full">
         <div className="p-[24px] border-b border-[#C2C6D4] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
           <div>
             <h2 className="text-[16px] font-bold text-slate-800">Today's Attendance Overview</h2>
@@ -139,9 +139,8 @@ const LowerContent = ({ employees = [], students = [] }) => {
       </div>
 
 
-      {/* Widgets (Takes 1 column) */}
+      {/* Widgets (Takes 1 column) 
       <div className="xl:col-span-1 flex flex-col gap-[24px]">
-        {/* New Lead Widget */}
         <div className="bg-[#003F87] rounded-xl p-6 flex items-center justify-between shadow-sm cursor-pointer hover:bg-[#002B5E] transition-colors text-white">
           <div>
             <h3 className="text-[15px] font-bold">New Lead</h3>
@@ -150,7 +149,6 @@ const LowerContent = ({ employees = [], students = [] }) => {
           <ChevronRight size={20} />
         </div>
 
-        {/* SEO Widget */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex-1">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[14px] font-bold text-slate-800">SEO Agent Active</h3>
@@ -173,6 +171,7 @@ const LowerContent = ({ employees = [], students = [] }) => {
           </div>
         </div>
       </div>
+      */}
     </div>
   );
 };

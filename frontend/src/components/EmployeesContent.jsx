@@ -61,6 +61,13 @@ const mapEmployeeFromApi = (employee, avatar = null) => ({
 });
 
 const EmployeesContent = ({ employees = [], setEmployees }) => {
+  const [toast, setToast] = useState(null);
+  const alert = (message) => {
+    const isError = typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error'));
+    setToast({ message, type: isError ? 'error' : 'success' });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
@@ -174,6 +181,11 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-[9999] px-6 py-3 rounded-lg shadow-xl font-bold text-sm transform transition-all duration-300 translate-y-0 opacity-100 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+          {toast.message}
+        </div>
+      )}
       {/* Top Filter Container */}
       <div className="w-full bg-white border border-[#C2C6D4] rounded-[8px] p-[24px] flex flex-col sm:flex-row gap-[24px] h-auto sm:h-[108px] items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-[24px] w-full sm:w-auto flex-1">
