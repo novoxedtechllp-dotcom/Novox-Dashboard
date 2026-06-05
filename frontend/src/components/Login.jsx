@@ -295,13 +295,7 @@ export default function Login({ onLogin }) {
 
               {error && <div style={{color: 'red', fontSize: '14px', marginBottom: '15px'}}>{error}</div>}
 
-              <div className="checkbox-group">
-                <label className="checkbox-label">
-                  <input type="checkbox" />
-                  <span className="checkmark"></span>
-                  Keep me signed in for 30 days
-                </label>
-              </div>
+
 
               <button type="submit" className="submit-btn">
                 Sign In

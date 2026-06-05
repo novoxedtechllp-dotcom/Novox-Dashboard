@@ -15,13 +15,13 @@ const navItems = [
   { id: 'fees', label: 'Fees', icon: CreditCard },
   { id: 'payroll', label: 'Payroll', icon: Wallet },
   { id: 'work-reports', label: 'Work Reports', icon: FileText },
-  { id: 'whatsapp-automation', label: 'WhatsApp Automation', icon: MessageSquare },
-  { id: 'sales-crm', label: 'Sales CRM', icon: Handshake },
-  { id: 'recruitment', label: 'Recruitment', icon: Users },
-  { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
-  { id: 'journey', label: 'Academic Journey', icon: GraduationCap },
-  { id: 'blog', label: 'Blog Automation', icon: FileText },
-  { id: 'seo', label: 'SEO Agent', icon: Globe },
+  // { id: 'whatsapp-automation', label: 'WhatsApp Automation', icon: MessageSquare },
+  // { id: 'sales-crm', label: 'Sales CRM', icon: Handshake },
+  // { id: 'recruitment', label: 'Recruitment', icon: Users },
+  // { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
+  // { id: 'journey', label: 'Academic Journey', icon: GraduationCap },
+  // { id: 'blog', label: 'Blog Automation', icon: FileText },
+  // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
 const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, basePath = '/admin' }) => {
