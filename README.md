@@ -219,15 +219,6 @@ The application provides role-based routing and access control.
 
 ---
 
-## 👨‍💻 Contributors
-
-| Name         | Role                 |
-| ------------ | -------------------- |
-| Sneha Sooraj | Frontend Development |
-| Rohith M B   | Backend Development  |
-
----
-
 ## 📄 License
 
 This project is developed for educational and organizational management purposes.
