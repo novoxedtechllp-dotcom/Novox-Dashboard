@@ -1,5 +1,64 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil } from 'lucide-react';
+
+const getAuthHeaders = () => {
+  const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+  if (!userInfo?.token) return null;
+
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${userInfo.token}`
+  };
+};
+
+const parseApiResponse = async (response) => {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || 'Employee request failed');
+  return data;
+};
+
+const statusToApi = (status) => {
+  if (status === 'On Leave') return 'ON_LEAVE';
+  if (status === 'Terminated') return 'TERMINATED';
+  return 'ACTIVE';
+};
+
+const statusFromApi = (status) => {
+  if (status === 'ON_LEAVE') return 'On Leave';
+  if (status === 'TERMINATED') return 'Terminated';
+  return 'Active';
+};
+
+const departmentToApi = (department) => {
+  if (department === 'Engineering') return 'DEVELOPMENT';
+  if (department === 'Support') return 'HR';
+  return department.toUpperCase();
+};
+
+const departmentFromApi = (department) => {
+  if (department === 'DEVELOPMENT') return 'Engineering';
+  if (department === 'HR') return 'HR';
+  return department ? department.charAt(0) + department.slice(1).toLowerCase() : 'Engineering';
+};
+
+const splitName = (name) => {
+  const parts = name.trim().split(/\s+/);
+  return {
+    first_name: parts[0] || '',
+    last_name: parts.slice(1).join(' ') || parts[0] || ''
+  };
+};
+
+const mapEmployeeFromApi = (employee, avatar = null) => ({
+  id: employee.id,
+  eid: employee.employee_code || `EMP-${String(employee.id).slice(0, 4)}`,
+  name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim(),
+  department: departmentFromApi(employee.employee_roles?.role_name || employee.department || employee.employee_role || employee.designation),
+  phone: employee.phone || '',
+  status: statusFromApi(employee.status),
+  joinDate: employee.joining_date ? new Date(employee.joining_date).toLocaleDateString() : '',
+  avatar
+});
 
 const EmployeesContent = ({ employees = [], setEmployees }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,40 +84,85 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
     }
   };
 
-  const handleAddEmployee = (e) => {
+  const handleAddEmployee = async (e) => {
     e.preventDefault();
     if (!newEmployee.name) return;
 
-    const newId = employees.length ? Math.max(...employees.map(emp => emp.id)) + 1 : 1;
-    const addedEmployee = {
-      id: newId,
-      eid: `EMP${newId.toString().padStart(3, '0')}`,
-      name: newEmployee.name,
-      department: newEmployee.department,
-      phone: newEmployee.phone || '+91 98765 43210',
-      status: newEmployee.status,
-      joinDate: newEmployee.joinDate,
-      avatar: newEmployee.avatarUrl || null
-    };
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+      const { first_name, last_name } = splitName(newEmployee.name);
 
-    setEmployees([addedEmployee, ...employees]);
-    setIsModalOpen(false);
-    setNewEmployee({ name: '', department: 'Engineering', phone: '', status: 'Active', joinDate: 'January 2024', avatarUrl: null });
+      const response = await fetch('/api/v1/employees', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          first_name,
+          last_name,
+          phone: newEmployee.phone,
+          employee_role: departmentToApi(newEmployee.department),
+          designation: newEmployee.department,
+          status: statusToApi(newEmployee.status)
+        })
+      });
+      const resData = await parseApiResponse(response);
+      const addedEmployee = mapEmployeeFromApi(resData.data, newEmployee.avatarUrl || null);
+
+      setEmployees([addedEmployee, ...employees]);
+      setIsModalOpen(false);
+      setNewEmployee({ name: '', department: 'Engineering', phone: '', status: 'Active', joinDate: 'January 2024', avatarUrl: null });
+    } catch (error) {
+      console.error('Error adding employee:', error);
+      alert(error.message || 'Failed to add employee');
+    }
   };
 
-  const handleDeleteEmployee = (id) => {
-    setEmployees(employees.filter(emp => emp.id !== id));
+  const handleDeleteEmployee = async (id) => {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(`/api/v1/employees/${id}`, {
+        method: 'DELETE',
+        headers
+      });
+      await parseApiResponse(response);
+
+      setEmployees(employees.filter(emp => emp.id !== id));
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      alert(error.message || 'Failed to delete employee');
+    }
   };
 
-  const handleUpdateEmployee = (e) => {
+  const handleUpdateEmployee = async (e) => {
     e.preventDefault();
-    setEmployees(employees.map(emp => {
-      if (emp.id === employeeToEdit.id) {
-        return { ...emp, ...employeeToEdit };
-      }
-      return emp;
-    }));
-    setEmployeeToEdit(null);
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+      const { first_name, last_name } = splitName(employeeToEdit.name);
+
+      const response = await fetch(`/api/v1/employees/${employeeToEdit.id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          first_name,
+          last_name,
+          phone: employeeToEdit.phone,
+          department: departmentToApi(employeeToEdit.department),
+          designation: employeeToEdit.department,
+          status: statusToApi(employeeToEdit.status)
+        })
+      });
+      const resData = await parseApiResponse(response);
+      const updatedEmployee = mapEmployeeFromApi(resData.data, employeeToEdit.avatar || null);
+
+      setEmployees(employees.map(emp => emp.id === employeeToEdit.id ? updatedEmployee : emp));
+      setEmployeeToEdit(null);
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      alert(error.message || 'Failed to update employee');
+    }
   };
 
   const filteredEmployees = useMemo(() => {

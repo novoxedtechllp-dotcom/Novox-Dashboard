@@ -8,7 +8,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 // ==========================================
 
 export const createCourse = asyncHandler(async (req, res) => {
-  const { name, description, track, duration_months, capacity, status } = req.body;
+  const { name, description, track, duration_months, capacity, status, instructor_id, employee_id } = req.body;
 
   if (!name || !track || !duration_months || !capacity) {
     throw new ApiError(400, "Please provide name, track, duration_months, and capacity");
@@ -21,13 +21,25 @@ export const createCourse = asyncHandler(async (req, res) => {
 
   if (error) throw new ApiError(500, error.message || "Failed to create course");
 
+  const assignedInstructorId = instructor_id || employee_id;
+  if (assignedInstructorId) {
+    const { error: instructorError } = await supabase
+      .from("course_instructors")
+      .insert([{ course_id: data[0].id, employee_id: assignedInstructorId }]);
+
+    if (instructorError) {
+      await supabase.from("courses").delete().eq("id", data[0].id);
+      throw new ApiError(500, instructorError.message || "Failed to assign course instructor");
+    }
+  }
+
   return res.status(201).json(new ApiResponse(201, data[0], "Course created successfully"));
 });
 
 export const getCourses = asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from("courses")
-    .select(`*, student_courses(count), course_instructors(employee_profiles(first_name, last_name))`);
+    .select(`*, student_courses(count), course_instructors(employee_profiles(id, first_name, last_name))`);
 
   if (error) throw new ApiError(500, error.message || "Failed to fetch courses");
 
@@ -57,7 +69,7 @@ export const getCourseById = asyncHandler(async (req, res) => {
 
 export const updateCourse = asyncHandler(async (req, res) => {
   const { courseId } = req.params;
-  const { name, description, track, duration_months, capacity, status } = req.body;
+  const { name, description, track, duration_months, capacity, status, instructor_id, employee_id } = req.body;
 
   const updates = {};
   if (name !== undefined) updates.name = name;
@@ -65,6 +77,7 @@ export const updateCourse = asyncHandler(async (req, res) => {
   if (track !== undefined) updates.track = track;
   if (duration_months !== undefined) updates.duration_months = duration_months;
   if (capacity !== undefined) updates.capacity = capacity;
+  if (status !== undefined) updates.status = status;
 
   const { data, error } = await supabase
     .from("courses")
@@ -74,6 +87,19 @@ export const updateCourse = asyncHandler(async (req, res) => {
 
   if (error) throw new ApiError(500, error.message || "Failed to update course");
   if (!data || data.length === 0) throw new ApiError(404, "Course not found");
+
+  const assignedInstructorId = instructor_id || employee_id;
+  if (assignedInstructorId !== undefined) {
+    await supabase.from("course_instructors").delete().eq("course_id", courseId);
+
+    if (assignedInstructorId) {
+      const { error: instructorError } = await supabase
+        .from("course_instructors")
+        .insert([{ course_id: courseId, employee_id: assignedInstructorId }]);
+
+      if (instructorError) throw new ApiError(500, instructorError.message || "Failed to update course instructor");
+    }
+  }
 
   return res.status(200).json(new ApiResponse(200, data[0], "Course updated successfully"));
 });

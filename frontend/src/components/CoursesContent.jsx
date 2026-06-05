@@ -1,10 +1,55 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 
 const formatPrice = (price) => {
   const numStr = String(price).replace(/[^\d.]/g, '');
   return numStr ? `₹${numStr}/-` : 'Free';
 };
 import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers } from 'lucide-react';
+
+const getAuthHeaders = () => {
+  const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+  if (!userInfo?.token) return null;
+
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${userInfo.token}`
+  };
+};
+
+const parseApiResponse = async (response) => {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || 'Course request failed');
+  return data;
+};
+
+const getInstructorProfile = (course) => {
+  const instructor = course.course_instructors?.[0];
+  return instructor?.employee_profiles || null;
+};
+
+const getInitials = (name) => {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return 'U';
+  return words.length > 1 ? `${words[0][0]}${words[1][0]}`.toUpperCase() : words[0][0].toUpperCase();
+};
+
+const mapCourseFromApi = (course, fallback = {}) => {
+  const instructorProfile = getInstructorProfile(course);
+  const mentorName = instructorProfile
+    ? `${instructorProfile.first_name || ''} ${instructorProfile.last_name || ''}`.trim()
+    : fallback.mentorName || 'Unassigned';
+
+  return {
+    ...course,
+    title: course.name || course.title || '',
+    category: course.track || course.category || 'DEVELOPMENT',
+    price: fallback.price || course.price || '₹0.00',
+    mentorId: instructorProfile?.id || fallback.mentorId || '',
+    mentorName,
+    mentorInitials: getInitials(mentorName),
+    imgUrl: fallback.imgUrl || course.imgUrl || null
+  };
+};
 
 const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -16,34 +61,6 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   
   const [modules, setModules] = useState([]);
   const [schedules, setSchedules] = useState([]);
-
-  useEffect(() => {
-    const fetchCourseData = async () => {
-      try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
-        
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
-        
-        const [modRes, schedRes] = await Promise.all([
-          fetch('/api/v1/course-modules', { headers }),
-          fetch('/api/v1/course-schedules', { headers })
-        ]);
-
-        if (modRes.ok) {
-          const mData = await modRes.json();
-          setModules(mData.data?.modules || mData.data || []);
-        }
-        if (schedRes.ok) {
-          const sData = await schedRes.json();
-          setSchedules(sData.data?.schedules || sData.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching course data:', error);
-      }
-    };
-    fetchCourseData();
-  }, []);
   
   const [activeTab, setActiveTab] = useState('overview'); // overview, modules, schedule
 
@@ -63,16 +80,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   const [newSchedule, setNewSchedule] = useState({ start_date: '', end_date: '', days_of_week: '', start_time: '', end_time: '' });
 
   const getMentorName = (mentorId) => {
-    const emp = employees.find(e => e.id === Number(mentorId));
+    const emp = employees.find(e => String(e.id) === String(mentorId));
     return emp ? emp.name : 'Unassigned';
-  };
-
-  const getMentorInitials = (mentorName) => {
-    const words = mentorName.trim().split(' ');
-    if (words.length === 0 || !words[0]) return 'U';
-    return words.length > 1 
-      ? (words[0][0] + words[1][0]).toUpperCase() 
-      : words[0][0].toUpperCase();
   };
 
   const handleImageUpload = (e) => {
@@ -83,87 +92,181 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
     }
   };
 
-  const handleAddCourse = (e) => {
+  const handleAddCourse = async (e) => {
     e.preventDefault();
     if (!newCourse.title || !newCourse.mentorId) return;
 
-    const newId = courses.length ? Math.max(...courses.map(c => c.id)) + 1 : 1;
-    const mentorName = getMentorName(newCourse.mentorId);
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
 
-    const addedCourse = {
-      id: newId,
-      title: newCourse.title,
-      description: newCourse.description,
-      category: newCourse.category,
-      duration_months: Number(newCourse.duration_months),
-      capacity: Number(newCourse.capacity),
-      price: newCourse.price || '₹0.00',
-      mentorId: Number(newCourse.mentorId),
-      mentorName: mentorName,
-      mentorInitials: getMentorInitials(mentorName),
-      status: newCourse.status,
-      imgUrl: newCourse.imgUrl || null
-    };
+      const response = await fetch('/api/v1/courses', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          name: newCourse.title,
+          description: newCourse.description,
+          track: newCourse.category,
+          duration_months: Number(newCourse.duration_months),
+          capacity: Number(newCourse.capacity),
+          status: newCourse.status,
+          instructor_id: newCourse.mentorId
+        })
+      });
+      const resData = await parseApiResponse(response);
+      const mentorName = getMentorName(newCourse.mentorId);
+      const addedCourse = mapCourseFromApi(resData.data, {
+        price: newCourse.price || '₹0.00',
+        mentorId: newCourse.mentorId,
+        mentorName,
+        imgUrl: newCourse.imgUrl || null
+      });
 
-    setCourses([...courses, addedCourse]);
-    setIsModalOpen(false);
-    setNewCourse({ title: '', description: '', category: 'DEVELOPMENT', duration_months: 1, capacity: 20, price: '', mentorId: employees[0]?.id || '', status: 'DRAFT', imgUrl: null });
+      setCourses([...courses, addedCourse]);
+      setIsModalOpen(false);
+      setNewCourse({ title: '', description: '', category: 'DEVELOPMENT', duration_months: 1, capacity: 20, price: '', mentorId: employees[0]?.id || '', status: 'DRAFT', imgUrl: null });
+    } catch (error) {
+      console.error('Error adding course:', error);
+      alert(error.message || 'Failed to add course');
+    }
   };
 
-  const handleDeleteCourse = (id) => {
-    setCourses(courses.filter(c => c.id !== id));
-    setSelectedCourse(null);
+  const handleDeleteCourse = async (id) => {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(`/api/v1/courses/${id}`, {
+        method: 'DELETE',
+        headers
+      });
+      await parseApiResponse(response);
+
+      setCourses(courses.filter(c => c.id !== id));
+      setSelectedCourse(null);
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      alert(error.message || 'Failed to delete course');
+    }
   };
 
-  const handleUpdateCourse = (e) => {
+  const handleUpdateCourse = async (e) => {
     e.preventDefault();
-    setCourses(courses.map(c => {
-      if (c.id === courseToEdit.id) {
-        const mentorName = getMentorName(courseToEdit.mentorId);
-        return { 
-          ...c, 
-          ...courseToEdit, 
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(`/api/v1/courses/${courseToEdit.id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          name: courseToEdit.title,
+          description: courseToEdit.description,
+          track: courseToEdit.category,
           duration_months: Number(courseToEdit.duration_months),
           capacity: Number(courseToEdit.capacity),
-          mentorId: Number(courseToEdit.mentorId),
-          mentorName, 
-          mentorInitials: getMentorInitials(mentorName) 
-        };
-      }
-      return c;
-    }));
-    setCourseToEdit(null);
+          status: courseToEdit.status,
+          instructor_id: courseToEdit.mentorId
+        })
+      });
+      const resData = await parseApiResponse(response);
+      const mentorName = getMentorName(courseToEdit.mentorId);
+      const updatedCourse = mapCourseFromApi(resData.data, {
+        ...courseToEdit,
+        mentorName,
+        mentorId: courseToEdit.mentorId
+      });
+
+      setCourses(courses.map(c => c.id === courseToEdit.id ? updatedCourse : c));
+      if (selectedCourse?.id === courseToEdit.id) setSelectedCourse(updatedCourse);
+      setCourseToEdit(null);
+    } catch (error) {
+      console.error('Error updating course:', error);
+      alert(error.message || 'Failed to update course');
+    }
   };
 
-  const handleAddModule = (e) => {
+  const handleAddModule = async (e) => {
     e.preventDefault();
     if(!newModule.title) return;
-    const addedModule = {
-      id: Date.now(),
-      course_id: selectedCourse.id,
-      title: newModule.title,
-      description: newModule.description,
-      sequence_order: Number(newModule.sequence_order)
-    };
-    setModules([...modules, addedModule].sort((a,b) => a.sequence_order - b.sequence_order));
-    setNewModule({ title: '', description: '', sequence_order: modules.filter(m => m.course_id === selectedCourse.id).length + 2 });
+
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          title: newModule.title,
+          description: newModule.description,
+          sequence_order: Number(newModule.sequence_order)
+        })
+      });
+      const resData = await parseApiResponse(response);
+      const addedModule = resData.data;
+
+      setModules([...modules, addedModule].sort((a,b) => a.sequence_order - b.sequence_order));
+      setNewModule({ title: '', description: '', sequence_order: modules.filter(m => m.course_id === selectedCourse.id).length + 2 });
+    } catch (error) {
+      console.error('Error adding module:', error);
+      alert(error.message || 'Failed to add module');
+    }
   };
 
-  const handleAddSchedule = (e) => {
+  const handleAddSchedule = async (e) => {
     e.preventDefault();
-    if(!newSchedule.start_date || !newSchedule.end_date) return;
-    const addedSchedule = {
-      id: Date.now(),
-      course_id: selectedCourse.id,
-      ...newSchedule
-    };
-    setSchedules([...schedules, addedSchedule]);
-    setNewSchedule({ start_date: '', end_date: '', days_of_week: '', start_time: '', end_time: '' });
+    if(!newSchedule.start_date || !newSchedule.end_date || !newSchedule.days_of_week || !newSchedule.start_time || !newSchedule.end_time) return;
+
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/schedules`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(newSchedule)
+      });
+      const resData = await parseApiResponse(response);
+
+      setSchedules([...schedules, resData.data]);
+      setNewSchedule({ start_date: '', end_date: '', days_of_week: '', start_time: '', end_time: '' });
+    } catch (error) {
+      console.error('Error adding schedule:', error);
+      alert(error.message || 'Failed to add schedule');
+    }
+  };
+
+  const openCourseDetails = async (course) => {
+    setSelectedCourse(course);
+    setActiveTab('overview');
+
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(`/api/v1/courses/${course.id}`, { headers });
+      const resData = await parseApiResponse(response);
+      const detailedCourse = mapCourseFromApi(resData.data, course);
+
+      setSelectedCourse(detailedCourse);
+      setModules(prev => [
+        ...prev.filter(m => m.course_id !== course.id),
+        ...(resData.data.course_modules || [])
+      ]);
+      setSchedules(prev => [
+        ...prev.filter(s => s.course_id !== course.id),
+        ...(resData.data.course_schedules || [])
+      ]);
+    } catch (error) {
+      console.error('Error fetching course details:', error);
+    }
   };
 
   const filteredCourses = useMemo(() => {
-    if (categoryFilter === 'All Categories') return courses;
-    return courses.filter(c => c.category === categoryFilter);
+    const normalizedCourses = courses.map(course => mapCourseFromApi(course));
+    if (categoryFilter === 'All Categories') return normalizedCourses;
+    return normalizedCourses.filter(c => c.category === categoryFilter);
   }, [courses, categoryFilter]);
 
   const uniqueCategories = ['All Categories', 'DEVELOPMENT', 'MARKETING', 'DESIGN'];
@@ -239,7 +342,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                 Price: <span className="font-bold text-[#008A2E]">{formatPrice(course.price)}</span>
               </div>
               <button 
-                onClick={() => { setSelectedCourse(course); setActiveTab('overview'); }}
+                onClick={() => openCourseDetails(course)}
                 className="text-[11px] text-[#003F87] font-bold hover:underline"
               >
                 View Details

@@ -108,6 +108,53 @@ const initialCourses = [
   }
 ];
 
+const employeeStatusFromApi = (status) => {
+  if (status === 'ON_LEAVE') return 'On Leave';
+  if (status === 'TERMINATED') return 'Terminated';
+  return 'Active';
+};
+
+const employeeDepartmentFromApi = (department) => {
+  if (department === 'DEVELOPMENT') return 'Engineering';
+  if (department === 'HR') return 'HR';
+  return department ? department.charAt(0) + department.slice(1).toLowerCase() : 'Staff';
+};
+
+const getInitials = (name) => {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return 'U';
+  return words.length > 1 ? `${words[0][0]}${words[1][0]}`.toUpperCase() : words[0][0].toUpperCase();
+};
+
+const mapEmployeeFromApi = (d) => ({
+  id: d.id,
+  eid: d.employee_code || `EMP-${String(d.id).slice(0, 4)}`,
+  name: `${d.first_name || ''} ${d.last_name || ''}`.trim(),
+  department: employeeDepartmentFromApi(d.employee_roles?.role_name),
+  phone: d.phone,
+  status: employeeStatusFromApi(d.status),
+  joinDate: d.joining_date ? new Date(d.joining_date).toLocaleDateString() : '',
+  avatar: null
+});
+
+const mapCourseFromApi = (d) => {
+  const instructorProfile = d.course_instructors?.[0]?.employee_profiles;
+  const mentorName = instructorProfile
+    ? `${instructorProfile.first_name || ''} ${instructorProfile.last_name || ''}`.trim()
+    : 'Unassigned';
+
+  return {
+    ...d,
+    title: d.name || d.title || '',
+    category: d.track || d.category || 'DEVELOPMENT',
+    mentorId: instructorProfile?.id || '',
+    mentorName,
+    mentorInitials: getInitials(mentorName),
+    price: d.price || '₹0.00',
+    imgUrl: d.imgUrl || null
+  };
+};
+
 function App() {
   const userInfoStr = sessionStorage.getItem('userInfo');
   const initialUserInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
@@ -126,7 +173,7 @@ function App() {
       fetch('/api/v1/courses', { headers })
         .then(res => res.json())
         .then(resData => {
-          if (resData?.data) setCourses(resData.data);
+          if (resData?.data) setCourses(resData.data.map(mapCourseFromApi));
         })
         .catch(console.error);
 
@@ -135,17 +182,7 @@ function App() {
         .then(res => res.json())
         .then(resData => {
           if (resData?.data) {
-            const mappedEmployees = resData.data.map(d => ({
-              id: d.id,
-              eid: d.employee_code || `EMP-${d.id.substring(0,4)}`,
-              name: `${d.first_name} ${d.last_name}`,
-              department: d.employee_roles?.role_name || 'Staff',
-              phone: d.phone,
-              status: d.status,
-              joinDate: new Date(d.joining_date).toLocaleDateString(),
-              avatar: null
-            }));
-            setEmployees(mappedEmployees);
+            setEmployees(resData.data.map(mapEmployeeFromApi));
           }
         })
         .catch(console.error);
@@ -277,4 +314,3 @@ function App() {
 }
 
 export default App;
-

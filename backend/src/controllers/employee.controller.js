@@ -2,6 +2,7 @@ import { supabase } from "../config/supabase.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import bcrypt from "bcrypt";
 
 // ==========================================
 // EMPLOYEE PROFILES
@@ -12,6 +13,8 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 export const createEmployee = asyncHandler(async (req, res) => {
   const {
     user_id,
+    email,
+    password,
     employee_code,
     first_name,
     last_name,
@@ -19,36 +22,75 @@ export const createEmployee = asyncHandler(async (req, res) => {
     joining_date,
     designation,
     role_id,
+    employee_role,
+    department,
     salary,
     status
   } = req.body;
 
-  if (!user_id || !employee_code || !first_name || !last_name || !joining_date || !designation || !role_id || !salary) {
+  if (!first_name || !last_name) {
     throw new ApiError(400, "Please provide all required fields");
   }
 
-  const { data: userExists } = await supabase.from("users").select("id").eq("id", user_id).single();
-  if (!userExists) throw new ApiError(400, "User not found");
+  let employeeUserId = user_id;
+  let employeeRoleId = role_id;
+  let createdUserId = null;
+  const roleName = employee_role || department || "DEVELOPMENT";
+  const employeeCode = employee_code || `EMP-${Date.now()}`;
+
+  if (!employeeRoleId) {
+    const { data: roleData, error: roleError } = await supabase
+      .from("employee_roles")
+      .select("id")
+      .eq("role_name", roleName)
+      .single();
+
+    if (roleError || !roleData) throw new ApiError(400, `Invalid employee role specified: ${roleName}`);
+    employeeRoleId = roleData.id;
+  }
+
+  if (employeeUserId) {
+    const { data: userExists } = await supabase.from("users").select("id").eq("id", employeeUserId).single();
+    if (!userExists) throw new ApiError(400, "User not found");
+  } else {
+    const loginEmail = email || `${employeeCode.toLowerCase()}@employees.novox.local`;
+    const loginPassword = password || `${employeeCode}@123`;
+    const hashedPassword = await bcrypt.hash(loginPassword, 10);
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .insert([{ email: loginEmail, password_hash: hashedPassword, role: "EMPLOYEE", status: "ACTIVE" }])
+      .select("id")
+      .single();
+
+    if (userError) throw new ApiError(500, userError.message || "Failed to create employee user");
+
+    employeeUserId = user.id;
+    createdUserId = user.id;
+  }
 
   const { data, error } = await supabase
     .from("employee_profiles")
     .insert([
       {
-        user_id,
-        employee_code,
+        user_id: employeeUserId,
+        employee_code: employeeCode,
         first_name,
         last_name,
         phone,
-        joining_date,
-        designation,
-        role_id,
-        salary,
+        joining_date: joining_date || new Date().toISOString().split("T")[0],
+        designation: designation || roleName,
+        role_id: employeeRoleId,
+        salary: salary || 0,
         status: status || 'ACTIVE',
       },
     ])
     .select();
 
-  if (error) throw new ApiError(500, error.message || "Failed to create employee");
+  if (error) {
+    if (createdUserId) await supabase.from("users").delete().eq("id", createdUserId);
+    throw new ApiError(500, error.message || "Failed to create employee");
+  }
 
   return res.status(201).json(new ApiResponse(201, data[0], "Employee created successfully"));
 });
@@ -95,7 +137,7 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/employees/:id
 export const updateEmployee = asyncHandler(async (req, res) => {
   const { employeeId } = req.params;
-  const { first_name, last_name, phone, designation, status, joining_date } = req.body;
+  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary } = req.body;
 
   const updates = {};
   if (first_name !== undefined) updates.first_name = first_name;
@@ -104,6 +146,20 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   if (designation !== undefined) updates.designation = designation;
   if (status !== undefined) updates.status = status;
   if (joining_date !== undefined) updates.joining_date = joining_date;
+  if (salary !== undefined) updates.salary = salary;
+  if (role_id !== undefined) updates.role_id = role_id;
+
+  if (role_id === undefined && (employee_role !== undefined || department !== undefined)) {
+    const roleName = employee_role || department;
+    const { data: roleData, error: roleError } = await supabase
+      .from("employee_roles")
+      .select("id")
+      .eq("role_name", roleName)
+      .single();
+
+    if (roleError || !roleData) throw new ApiError(400, `Invalid employee role specified: ${roleName}`);
+    updates.role_id = roleData.id;
+  }
 
   const { data, error } = await supabase
     .from("employee_profiles")
@@ -122,6 +178,12 @@ export const updateEmployee = asyncHandler(async (req, res) => {
 export const deleteEmployee = asyncHandler(async (req, res) => {
   const { employeeId } = req.params;
 
+  const { data: employee } = await supabase
+    .from("employee_profiles")
+    .select("user_id")
+    .eq("id", employeeId)
+    .single();
+
   const { data, error } = await supabase
     .from("employee_profiles")
     .delete()
@@ -130,6 +192,8 @@ export const deleteEmployee = asyncHandler(async (req, res) => {
 
   if (error) throw new ApiError(500, error.message || "Failed to delete employee");
   if (!data || data.length === 0) throw new ApiError(404, "Employee not found");
+
+  if (employee?.user_id) await supabase.from("users").delete().eq("id", employee.user_id);
 
   return res.status(200).json(new ApiResponse(200, {}, "Employee deleted successfully"));
 });
