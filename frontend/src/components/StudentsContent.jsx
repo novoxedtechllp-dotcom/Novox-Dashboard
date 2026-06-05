@@ -1,8 +1,25 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Download, Briefcase } from 'lucide-react';
 
+const getAuthHeaders = () => {
+  const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+  if (!userInfo?.token) return null;
+
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${userInfo.token}`
+  };
+};
+
+const parseApiResponse = async (response) => {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || 'Student request failed');
+  }
+  return data;
+};
+
 const StudentsContent = ({ searchQuery = '', courses = [] }) => {
-  // DB Tables (Mocked)
   const [students, setStudents] = useState([]);
   const [studentCourses, setStudentCourses] = useState([]);
   const [studentDocuments, setStudentDocuments] = useState([]);
@@ -34,22 +51,17 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const [newEnrollment, setNewEnrollment] = useState('');
   const [newDocName, setNewDocName] = useState('');
 
-  // Initial Fetch (Mocked with local state generation instead of backend to respect the "have the details from the backend" but making sure it works robustly with the new schema)
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      if (!userInfo || !userInfo.token) {
+      const headers = getAuthHeaders();
+      if (!headers) {
         setLoading(false);
         return;
       }
 
       const response = await fetch('/api/v1/students', {
-        headers: { 'Authorization': `Bearer ${userInfo.token}` }
+        headers
       });
       const resData = await response.json();
       if (response.ok) {
@@ -74,7 +86,15 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const loadTimer = setTimeout(() => {
+      fetchStudents();
+    }, 0);
+
+    return () => clearTimeout(loadTimer);
+  }, [fetchStudents]);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -84,63 +104,144 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     }
   };
 
-  const handleAddStudent = (e) => {
+  const handleAddStudent = async (e) => {
     e.preventDefault();
     if (!newStudent.first_name || !newStudent.last_name || !newStudent.student_code) return;
 
-    const newId = students.length ? Math.max(...students.map(s => s.id)) + 1 : 1;
-    const addedStudent = {
-      id: newId,
-      student_code: newStudent.student_code,
-      first_name: newStudent.first_name,
-      last_name: newStudent.last_name,
-      phone: newStudent.phone,
-      parent_phone: newStudent.parent_phone,
-      address: newStudent.address,
-      joining_date: newStudent.joining_date || new Date().toISOString().split('T')[0],
-      status: newStudent.status,
-      avatar: newStudent.avatarUrl
-    };
-    
-    setStudents([addedStudent, ...students]);
-    setIsAddModalOpen(false);
-    setNewStudent({
-      first_name: '', last_name: '', student_code: '', phone: '', parent_phone: '', address: '', joining_date: '', status: 'ACTIVE', avatarUrl: null
-    });
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const payload = {
+        student_code: newStudent.student_code,
+        first_name: newStudent.first_name,
+        last_name: newStudent.last_name,
+        phone: newStudent.phone,
+        parent_phone: newStudent.parent_phone,
+        address: newStudent.address,
+        joining_date: newStudent.joining_date || new Date().toISOString().split('T')[0],
+        status: newStudent.status
+      };
+
+      const response = await fetch('/api/v1/students', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      const resData = await parseApiResponse(response);
+      const addedStudent = {
+        ...resData.data,
+        avatar: newStudent.avatarUrl
+      };
+
+      setStudents([addedStudent, ...students]);
+      setIsAddModalOpen(false);
+      setNewStudent({
+        first_name: '', last_name: '', student_code: '', phone: '', parent_phone: '', address: '', joining_date: '', status: 'ACTIVE', avatarUrl: null
+      });
+    } catch (error) {
+      console.error('Error adding student:', error);
+      alert(error.message || 'Failed to add student');
+    }
   };
 
-  const handleDeleteStudent = (id) => {
-    setStudents(students.filter(s => s.id !== id));
-    setStudentCourses(studentCourses.filter(sc => sc.student_id !== id));
-    setStudentDocuments(studentDocuments.filter(sd => sd.student_id !== id));
+  const handleDeleteStudent = async (id) => {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(`/api/v1/students/${id}`, {
+        method: 'DELETE',
+        headers
+      });
+      await parseApiResponse(response);
+
+      setStudents(students.filter(s => s.id !== id));
+      setStudentCourses(studentCourses.filter(sc => sc.student_id !== id));
+      setStudentDocuments(studentDocuments.filter(sd => sd.student_id !== id));
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      alert(error.message || 'Failed to delete student');
+    }
   };
 
-  // Mappings Logic
-  const handleEnrollCourse = () => {
+  const fetchStudentSubResources = async (studentId) => {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const [progressResponse, documentsResponse] = await Promise.all([
+        fetch(`/api/v1/students/${studentId}/progress`, { headers }),
+        fetch(`/api/v1/students/${studentId}/documents`, { headers })
+      ]);
+
+      const progressData = await parseApiResponse(progressResponse);
+      const documentsData = await parseApiResponse(documentsResponse);
+
+      setStudentCourses(prev => [
+        ...prev.filter(sc => sc.student_id !== studentId),
+        ...(progressData.data || []).map(sc => ({ ...sc, student_id: studentId }))
+      ]);
+      setStudentDocuments(prev => [
+        ...prev.filter(sd => sd.student_id !== studentId),
+        ...(documentsData.data || []).map(sd => ({ ...sd, student_id: studentId }))
+      ]);
+    } catch (error) {
+      console.error('Error fetching student details:', error);
+    }
+  };
+
+  const openStudentDetails = (student) => {
+    setActiveStudent(student);
+    setDetailsTab('overview');
+    fetchStudentSubResources(student.id);
+  };
+
+  const handleEnrollCourse = async () => {
     if(!newEnrollment) return;
-    const scId = studentCourses.length ? Math.max(...studentCourses.map(sc => sc.id)) + 1 : 1;
-    setStudentCourses([...studentCourses, {
-      id: scId,
-      student_id: activeStudent.id,
-      course_id: parseInt(newEnrollment),
-      enrolled_at: new Date().toISOString().split('T')[0],
-      progress_percentage: '0.00',
-      completion_status: 'IN_PROGRESS'
-    }]);
-    setNewEnrollment('');
+
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(`/api/v1/students/${activeStudent.id}/courses`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ course_id: newEnrollment })
+      });
+      const resData = await parseApiResponse(response);
+
+      setStudentCourses([...studentCourses, { ...resData.data, student_id: activeStudent.id }]);
+      setNewEnrollment('');
+    } catch (error) {
+      console.error('Error enrolling course:', error);
+      alert(error.message || 'Failed to enroll course');
+    }
   };
 
-  const handleAddDocument = () => {
+  const handleAddDocument = async () => {
     if(!newDocName) return;
-    const sdId = studentDocuments.length ? Math.max(...studentDocuments.map(sd => sd.id)) + 1 : 1;
-    setStudentDocuments([...studentDocuments, {
-      id: sdId,
-      student_id: activeStudent.id,
-      document_type: newDocName,
-      document_url: `/docs/mock_${Date.now()}.pdf`,
-      uploaded_at: new Date().toISOString().split('T')[0]
-    }]);
-    setNewDocName('');
+
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(`/api/v1/students/${activeStudent.id}/documents`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          document_type: newDocName,
+          document_url: `/docs/student_${activeStudent.id}_${Date.now()}.pdf`
+        })
+      });
+      const resData = await parseApiResponse(response);
+
+      setStudentDocuments([...studentDocuments, { ...resData.data, student_id: activeStudent.id }]);
+      setNewDocName('');
+    } catch (error) {
+      console.error('Error adding document:', error);
+      alert(error.message || 'Failed to add document');
+    }
   };
 
   const filteredStudents = useMemo(() => {
@@ -241,7 +342,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               
               <div className="border-t border-[#C2C6D4] pt-4 mt-auto">
                 <button 
-                  onClick={() => { setActiveStudent(student); setDetailsTab('overview'); }}
+                  onClick={() => openStudentDetails(student)}
                   className="w-full text-center py-2 bg-slate-50 text-[#003F87] text-[13px] font-bold rounded-md hover:bg-[#E5F0FF] transition-colors border border-transparent hover:border-[#003F87]"
                 >
                   View Details
@@ -525,7 +626,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                                 <GraduationCap size={20} />
                               </div>
                               <div>
-                                <h4 className="text-[15px] font-bold text-slate-900">{courseData ? courseData.title : 'Unknown Course'}</h4>
+                                <h4 className="text-[15px] font-bold text-slate-900">{courseData?.title || courseData?.name || sc.courses?.name || 'Unknown Course'}</h4>
                                 <div className="flex items-center gap-3 text-xs font-medium text-slate-500 mt-1">
                                   <span>Enrolled: {new Date(sc.enrolled_at).toLocaleDateString()}</span>
                                   <span>•</span>
@@ -624,4 +725,3 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 };
 
 export default StudentsContent;
-

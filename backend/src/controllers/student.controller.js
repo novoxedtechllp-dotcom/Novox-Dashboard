@@ -2,6 +2,7 @@ import { supabase } from "../config/supabase.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import bcrypt from "bcrypt";
 
 const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, address, joining_date, status, created_at";
 
@@ -14,6 +15,8 @@ const studentSelectFields = "id, student_code, first_name, last_name, phone, par
 const createStudent = asyncHandler(async (req, res) => {
   const {
     user_id,
+    email,
+    password,
     student_code,
     first_name,
     last_name,
@@ -24,22 +27,50 @@ const createStudent = asyncHandler(async (req, res) => {
     status,
   } = req.body;
 
-  if (!user_id || !student_code || !first_name || !last_name || !phone || !joining_date) {
+  if (!student_code || !first_name || !last_name || !phone || !joining_date) {
     throw new ApiError(400, "Please provide all required fields");
   }
 
-  const { data: userExists } = await supabase.from("users").select("id").eq("id", user_id).single();
-  if (!userExists) throw new ApiError(400, "User not found");
+  let studentUserId = user_id;
+  let createdUserId = null;
+
+  if (studentUserId) {
+    const { data: userExists } = await supabase.from("users").select("id").eq("id", studentUserId).single();
+    if (!userExists) throw new ApiError(400, "User not found");
+  } else {
+    const loginEmail = email || `${student_code.toLowerCase()}@students.novox.local`;
+    const loginPassword = password || `${student_code}@123`;
+    const hashedPassword = await bcrypt.hash(loginPassword, 10);
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .insert([{
+        email: loginEmail,
+        password_hash: hashedPassword,
+        role: "STUDENT",
+        status: "ACTIVE",
+      }])
+      .select("id")
+      .single();
+
+    if (userError) throw new ApiError(500, userError.message || "Failed to create student user");
+
+    studentUserId = user.id;
+    createdUserId = user.id;
+  }
 
   const { data, error } = await supabase
     .from("students")
     .insert([{
-      user_id, student_code, first_name, last_name, phone, parent_phone,
+      user_id: studentUserId, student_code, first_name, last_name, phone, parent_phone,
       address, joining_date, status: status || "ACTIVE",
     }])
     .select(studentSelectFields);
 
-  if (error) throw new ApiError(500, error.message || "Failed to create student");
+  if (error) {
+    if (createdUserId) await supabase.from("users").delete().eq("id", createdUserId);
+    throw new ApiError(500, error.message || "Failed to create student");
+  }
 
   return res.status(201).json(new ApiResponse(201, data[0], "Student created successfully"));
 });
@@ -192,7 +223,7 @@ const getStudentProgress = asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from("student_courses")
     .select(`
-      id, progress_percentage, completion_status, enrolled_at,
+      id, course_id, progress_percentage, completion_status, enrolled_at,
       courses(name, track)
     `)
     .eq("student_id", studentId);
@@ -210,12 +241,12 @@ const getStudentProgress = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/students/reports
 const getStudentReports = asyncHandler(async (req, res) => {
   const { count: totalActive } = await supabase.from("students").select("*", { count: 'exact', head: true }).eq("status", "ACTIVE");
-  const { count: totalGraduated } = await supabase.from("students").select("*", { count: 'exact', head: true }).eq("status", "GRADUATED");
+  const { count: totalCompleted } = await supabase.from("students").select("*", { count: 'exact', head: true }).eq("status", "COMPLETED");
   const { count: totalDropped } = await supabase.from("students").select("*", { count: 'exact', head: true }).eq("status", "DROPPED");
   
   return res.status(200).json(new ApiResponse(200, {
     totalActive,
-    totalGraduated,
+    totalCompleted,
     totalDropped
   }, "Student reports fetched successfully"));
 });
