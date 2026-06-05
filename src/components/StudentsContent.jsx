@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, Pencil, Calendar, MapPin, CheckCircle, FileText, Download, Briefcase } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Download, Briefcase } from 'lucide-react';
 
 const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   // DB Tables (Mocked)

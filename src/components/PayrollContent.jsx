@@ -13,10 +13,10 @@ const generateMockPayroll = () => {
     employee_name: `Employee ${String.fromCharCode(65 + (i % 26))}`,
     month: (i % 12) + 1,
     year: 2023,
-    basic_salary: 4000 + (i * 100),
-    bonus: i % 3 === 0 ? 500 : 0,
-    deductions: 200,
-    net_salary: (4000 + (i * 100)) + (i % 3 === 0 ? 500 : 0) - 200,
+    basic_salary: 50000 + (i * 2000),
+    bonus: i % 3 === 0 ? 5000 : 0,
+    deductions: 2000,
+    net_salary: (50000 + (i * 2000)) + (i % 3 === 0 ? 5000 : 0) - 2000,
     payment_date: `2023-${String((i % 12) + 1).padStart(2, '0')}-28`,
     status: i < 10 ? 'PAID' : 'PENDING'
   }));
@@ -39,11 +39,30 @@ const PayrollContent = () => {
     deductions: 0
   });
 
-  // Pagination
+  const [sortBy, setSortBy] = useState('Newest');
+
+  // Pagination & Sorting
+  const sortedData = useMemo(() => {
+    let data = [...payrollData];
+    switch (sortBy) {
+      case 'Highest Salary':
+        return data.sort((a, b) => Number(b.net_salary) - Number(a.net_salary));
+      case 'Lowest Salary':
+        return data.sort((a, b) => Number(a.net_salary) - Number(b.net_salary));
+      case 'A-Z':
+        return data.sort((a, b) => a.employee_name.localeCompare(b.employee_name));
+      case 'Z-A':
+        return data.sort((a, b) => b.employee_name.localeCompare(a.employee_name));
+      case 'Newest':
+      default:
+        return data; // Default is order of addition (newest first based on handleGeneratePayroll)
+    }
+  }, [payrollData, sortBy]);
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
-  const totalPages = Math.ceil(payrollData.length / itemsPerPage);
-  const paginatedData = payrollData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+  const paginatedData = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const calculateNet = (basic, bonus, deductions) => {
     return (Number(basic) || 0) + (Number(bonus) || 0) - (Number(deductions) || 0);
@@ -144,11 +163,26 @@ const PayrollContent = () => {
       {/* Main Container */}
       <div className="w-full bg-white border border-[#C2C6D4] rounded-[16px] flex flex-col overflow-hidden shadow-sm">
         
-        {/* Tabs */}
-        <div className="flex items-center h-[61px] border-b border-[#C2C6D4] px-[24px]">
-          <button className="h-full flex items-center gap-2 text-[#003F87] font-bold text-[14px] border-b-[3px] border-[#003F87] px-[8px] mr-[32px]">
+        {/* Tabs & Filters */}
+        <div className="flex justify-between items-center h-[61px] border-b border-[#C2C6D4] px-[24px]">
+          <button className="h-full flex items-center gap-2 text-[#003F87] font-bold text-[14px] border-b-[3px] border-[#003F87] px-[8px]">
             <Briefcase size={18} /> Payroll History
           </button>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-semibold text-slate-500">Sort by:</span>
+            <select 
+              value={sortBy} 
+              onChange={(e) => setSortBy(e.target.value)} 
+              className="bg-[#F8FAFC] border border-[#E2E8F0] text-slate-700 text-[12px] rounded-md px-2 py-1 outline-none font-medium cursor-pointer"
+            >
+              <option value="Newest">Newest First</option>
+              <option value="Highest Salary">Highest Salary</option>
+              <option value="Lowest Salary">Lowest Salary</option>
+              <option value="A-Z">Name (A-Z)</option>
+              <option value="Z-A">Name (Z-A)</option>
+            </select>
+          </div>
         </div>
 
         {/* Stats Grid */}

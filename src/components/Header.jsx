@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Search, Bell, HelpCircle, User, UserPlus, Plus, LogOut, Settings } from 'lucide-react';
-import AddBtn from './AddBtn';
+import { Search, Bell, HelpCircle, User, LogOut, Settings } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 
 const Header = ({ onLogout }) => {

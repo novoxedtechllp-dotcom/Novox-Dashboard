@@ -5,11 +5,11 @@ import {
 } from 'lucide-react';
 
 const employeeNavItems = [
-  { id: 'employee-dashboard', label: 'My Dashboard', icon: LayoutDashboard },
-  { id: 'employee-attendance', label: 'My Attendance', icon: Calendar },
-  { id: 'employee-tasks', label: 'My Tasks', icon: CheckSquare },
-  { id: 'employee-leaves', label: 'Leave Requests', icon: Clock },
-  { id: 'employee-profile', label: 'My Profile', icon: User },
+  { id: 'employee-dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'employee-attendance', label: 'Attendance', icon: Calendar },
+  { id: 'employee-tasks', label: 'Tasks', icon: CheckSquare },
+  { id: 'employee-leaves', label: 'Leaves', icon: Clock },
+  { id: 'employee-profile', label: 'Profile', icon: User },
 ];
 
 const EmployeeSidebar = ({ activeTab, setActiveTab }) => {

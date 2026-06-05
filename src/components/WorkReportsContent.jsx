@@ -1,32 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, XCircle, Clock, Plus, Search, Calendar, Briefcase } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle, XCircle, Plus, Search, Briefcase } from 'lucide-react';
 
 const WorkReportsContent = () => {
-  const [reports, setReports] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [employees, setEmployees] = useState([]);
+  const [reports, setReports] = useState([
+    { id: 'wr-1', employee_id: 'emp-1', project_id: 'proj-1', report_type: 'DAILY', work_done: 'Completed React components.', blockers: 'None', submitted_at: new Date().toISOString(), approval_status: 'PENDING' },
+    { id: 'wr-2', employee_id: 'emp-2', project_id: 'proj-2', report_type: 'WEEKLY', work_done: 'Analyzed user behavior.', blockers: 'Waiting on data team.', submitted_at: new Date(Date.now() - 86400000).toISOString(), approval_status: 'APPROVED' }
+  ]);
+  const [projects, setProjects] = useState([
+    { id: 'proj-1', name: 'Frontend Refactor', status: 'ACTIVE' },
+    { id: 'proj-2', name: 'Database Migration', status: 'ACTIVE' }
+  ]);
+  const [employees, setEmployees] = useState([
+    { id: 'emp-1', name: 'Alice Johnson', department: 'Engineering' },
+    { id: 'emp-2', name: 'Bob Smith', department: 'Marketing' }
+  ]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [newReport, setNewReport] = useState({ employee_id: '', project_id: '', report_type: 'DAILY', work_done: '', blockers: '' });
-
-  useEffect(() => {
-    // Mock Fetch Data
-    setProjects([
-      { id: 'proj-1', name: 'Frontend Refactor', status: 'ACTIVE' },
-      { id: 'proj-2', name: 'Database Migration', status: 'ACTIVE' }
-    ]);
-    
-    setEmployees([
-      { id: 'emp-1', name: 'Alice Johnson', department: 'Engineering' },
-      { id: 'emp-2', name: 'Bob Smith', department: 'Marketing' }
-    ]);
-
-    setReports([
-      { id: 'wr-1', employee_id: 'emp-1', project_id: 'proj-1', report_type: 'DAILY', work_done: 'Completed React components.', blockers: 'None', submitted_at: new Date().toISOString(), approval_status: 'PENDING' },
-      { id: 'wr-2', employee_id: 'emp-2', project_id: 'proj-2', report_type: 'WEEKLY', work_done: 'Analyzed user behavior.', blockers: 'Waiting on data team.', submitted_at: new Date(Date.now() - 86400000).toISOString(), approval_status: 'APPROVED' }
-    ]);
-  }, []);
 
   const handleStatusChange = (id, newStatus) => {
     setReports(reports.map(r => r.id === id ? { ...r, approval_status: newStatus } : r));

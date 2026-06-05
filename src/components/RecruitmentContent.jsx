@@ -1,18 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Search, Calendar, FileText, CheckCircle, Video, Play, Phone } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, FileText, Phone } from 'lucide-react';
 
 const RecruitmentContent = () => {
-  const [candidates, setCandidates] = useState([]);
+  const [candidates, setCandidates] = useState([
+    { id: 'c-1', full_name: 'John Doe', email: 'john@example.com', phone: '123-456-7890', source_platform: 'INDEED', status: 'APPLIED', resume_url: '/docs/resume1.pdf' },
+    { id: 'c-2', full_name: 'Jane Smith', email: 'jane@example.com', phone: '098-765-4321', source_platform: 'NAUKRI', status: 'SCREENED', resume_url: '/docs/resume2.pdf' },
+    { id: 'c-3', full_name: 'Sam Wilson', email: 'sam@example.com', phone: '555-555-5555', source_platform: 'OTHER', status: 'SCHEDULED', resume_url: '/docs/resume3.pdf' }
+  ]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newCandidate, setNewCandidate] = useState({ full_name: '', email: '', phone: '', source_platform: 'INDEED' });
-  
-  useEffect(() => {
-    setCandidates([
-      { id: 'c-1', full_name: 'John Doe', email: 'john@example.com', phone: '123-456-7890', source_platform: 'INDEED', status: 'APPLIED', resume_url: '/docs/resume1.pdf' },
-      { id: 'c-2', full_name: 'Jane Smith', email: 'jane@example.com', phone: '098-765-4321', source_platform: 'NAUKRI', status: 'SCREENED', resume_url: '/docs/resume2.pdf' },
-      { id: 'c-3', full_name: 'Sam Wilson', email: 'sam@example.com', phone: '555-555-5555', source_platform: 'OTHER', status: 'SCHEDULED', resume_url: '/docs/resume3.pdf' }
-    ]);
-  }, []);
 
   const stages = ['APPLIED', 'SCREENED', 'SCHEDULED', 'HIRED', 'REJECTED'];
 

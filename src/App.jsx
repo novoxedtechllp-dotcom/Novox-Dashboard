@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import MainContent from './components/MainContent';
@@ -108,10 +108,21 @@ const initialCourses = [
 ];
 
 function App() {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const [courses, setCourses] = useState(initialCourses);
   const [employees, setEmployees] = useState(initialEmployees);
+
+  const handleLogin = (role) => {
+    setIsAuthenticated(true);
+    setUserRole(role);
+    if (role === 'Employee') {
+      navigate('/employee/dashboard');
+    } else {
+      navigate('/dashboard');
+    }
+  };
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'light';
@@ -123,7 +134,7 @@ function App() {
   }, []);
 
   if (!isAuthenticated) {
-    return <Login onLogin={(role) => { setIsAuthenticated(true); setUserRole(role); }} />;
+    return <Login onLogin={handleLogin} />;
   }
 
   if (userRole === 'Employee') {

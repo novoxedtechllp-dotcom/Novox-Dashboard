@@ -1,25 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { Phone, Mail, MessageSquare, Plus, Search, Calendar, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Phone, Mail, MessageSquare, Plus, ChevronRight } from 'lucide-react';
 
 const SalesCrmContent = () => {
-  const [leads, setLeads] = useState([]);
-  const [sources, setSources] = useState([]);
-  const [activities, setActivities] = useState([]);
+  const [leads, setLeads] = useState([
+    { id: 'lead-1', name: 'Mark Taylor', phone: '123-456', email: 'mark@mail.com', source_id: 'src-1', stage: 'NEW', created_at: new Date().toISOString() },
+    { id: 'lead-2', name: 'Lisa Ray', phone: '987-654', email: 'lisa@mail.com', source_id: 'src-2', stage: 'CONTACTED', created_at: new Date().toISOString() },
+    { id: 'lead-3', name: 'Paul Adams', phone: '555-444', email: 'paul@mail.com', source_id: 'src-1', stage: 'FOLLOWUP', created_at: new Date().toISOString() }
+  ]);
+  const [sources, setSources] = useState([
+    { id: 'src-1', source_name: 'Meta Ads' },
+    { id: 'src-2', source_name: 'Website' }
+  ]);
   
   const stages = ['NEW', 'CONTACTED', 'FOLLOWUP', 'COUNSELLING', 'ENROLLED', 'LOST'];
-
-  useEffect(() => {
-    setSources([
-      { id: 'src-1', source_name: 'Meta Ads' },
-      { id: 'src-2', source_name: 'Website' }
-    ]);
-
-    setLeads([
-      { id: 'lead-1', name: 'Mark Taylor', phone: '123-456', email: 'mark@mail.com', source_id: 'src-1', stage: 'NEW', created_at: new Date().toISOString() },
-      { id: 'lead-2', name: 'Lisa Ray', phone: '987-654', email: 'lisa@mail.com', source_id: 'src-2', stage: 'CONTACTED', created_at: new Date().toISOString() },
-      { id: 'lead-3', name: 'Paul Adams', phone: '555-444', email: 'paul@mail.com', source_id: 'src-1', stage: 'FOLLOWUP', created_at: new Date().toISOString() }
-    ]);
-  }, []);
 
   const getSourceName = (id) => {
     const s = sources.find(src => src.id === id);
