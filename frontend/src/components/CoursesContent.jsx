@@ -51,6 +51,15 @@ const mapCourseFromApi = (course, fallback = {}) => {
   };
 };
 
+const formatDateToDDMMYYYY = (dateStr) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateStr;
+};
+
 const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   const [toast, setToast] = useState(null);
   const alert = (message) => {
@@ -736,13 +745,39 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                       </button>
                     </div>
                     <div className="flex gap-4 items-end border-t border-slate-200 pt-4">
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Target Topic ID</label>
-                        <input type="text" value={moveTopic.submoduleId} onChange={e => setMoveTopic({...moveTopic, submoduleId: e.target.value})} placeholder="ID" className="w-[80px] px-3 py-2 border rounded text-sm" />
+                      <div className="flex-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Target Topic</label>
+                        <select 
+                          value={moveTopic.submoduleId} 
+                          onChange={e => setMoveTopic({...moveTopic, submoduleId: e.target.value})} 
+                          className="w-full max-w-[250px] px-3 py-2 border border-slate-200 rounded text-sm bg-white outline-none focus:border-[#003F87]"
+                        >
+                          <option value="">Select Topic</option>
+                          {modules
+                            .filter(m => m.course_id === selectedCourse.id)
+                            .sort((a, b) => a.sequence_order - b.sequence_order)
+                            .map(m => {
+                              const moduleSubmodules = submodules
+                                .filter(sm => sm.module_id === m.id)
+                                .sort((a, b) => a.sequence_order - b.sequence_order);
+                              
+                              if (moduleSubmodules.length === 0) return null;
+
+                              return (
+                                <optgroup key={m.id} label={`${m.sequence_order}. ${m.title}`}>
+                                  {moduleSubmodules.map(sm => (
+                                    <option key={sm.id} value={sm.id}>
+                                      {m.sequence_order}.{sm.sequence_order} {sm.title}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              );
+                            })}
+                        </select>
                       </div>
                       <div>
                         <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">New Date</label>
-                        <input type="date" value={moveTopic.targetDate} onChange={e => setMoveTopic({...moveTopic, targetDate: e.target.value})} className="w-[150px] px-3 py-2 border rounded text-sm" />
+                        <input type="date" value={moveTopic.targetDate} onChange={e => setMoveTopic({...moveTopic, targetDate: e.target.value})} className="w-[150px] px-3 py-2 border rounded text-sm outline-none focus:border-[#003F87]" />
                       </div>
                       <button onClick={handleMoveTopic} className="px-4 py-2 bg-[#003F87] text-white text-sm font-bold rounded">
                         Move Topic
@@ -813,9 +848,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                                           <div>
                                             <div className="font-semibold text-slate-800 flex gap-2 items-center">
                                               {sm.title}
-                                              <span className="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">ID: {sm.id}</span>
                                             </div>
-                                            {sm.scheduled_date && <div className="text-[10px] font-bold bg-green-100 text-green-800 px-2 py-0.5 mt-1 rounded inline-block">Scheduled: {sm.scheduled_date}</div>}
+                                            {sm.scheduled_date && <div className="text-[10px] font-bold bg-green-100 text-green-800 px-2 py-0.5 mt-1 rounded inline-block">Scheduled: {formatDateToDDMMYYYY(sm.scheduled_date)}</div>}
                                           </div>
                                         </div>
                                         <div className="text-slate-400 font-bold text-xs">
