@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Search, Bell, HelpCircle, User, LogOut, Settings } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 
-const Header = ({ onLogout, isHR, isDesign, isDevelopment, userInfo, basePath = '/admin' }) => {
+const Header = ({ onLogout, userInfo, basePath = '/admin' }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -23,6 +23,25 @@ const Header = ({ onLogout, isHR, isDesign, isDevelopment, userInfo, basePath = 
   const profileRef = useClickOutside(() => setIsDropdownOpen(false));
   const notifRef = useClickOutside(() => setIsNotifOpen(false));
 
+  let displayName = 'User';
+  if (userInfo?.first_name) {
+    displayName = `${userInfo.first_name} ${userInfo.last_name || ''}`;
+  } else if (userInfo?.name) {
+    displayName = userInfo.name;
+  } else if (userInfo?.email) {
+    displayName = userInfo.email.split('@')[0];
+    displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+  } else {
+    displayName = userInfo?.role === 'ADMIN' ? 'Admin User' : 'User';
+  }
+  const displayEmail = userInfo?.email || 'admin@novoxedtech.com';
+  let roleTitle = 'Super Admin';
+  if (userInfo?.role === 'EMPLOYEE') {
+    roleTitle = userInfo?.designation || 'Employee';
+  } else if (userInfo?.role === 'STUDENT') {
+    roleTitle = 'Student';
+  }
+
   return (
     <header className="h-[64px] min-h-[64px] bg-white border-b border-[#C2C6D4] px-[24px] flex items-center justify-between">
       {/* Search Bar & Title */}
@@ -38,92 +57,118 @@ const Header = ({ onLogout, isHR, isDesign, isDevelopment, userInfo, basePath = 
       </div>
       
       {/* Header Actions */}
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-[16px]">
+        {/* Settings Button */}
+        <Link to={`${basePath}/settings`} className="p-[8px] text-[#555F6B] hover:text-[#003F87] transition-colors rounded-full hover:bg-slate-50 cursor-pointer">
+          <Settings size={20} />
+        </Link>
+        
+        {/* Notifications */}
         <div className="relative" ref={notifRef}>
-          <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative text-[#555F6B] hover:text-[#003F87] transition-colors p-2">
+          <div 
+            className="p-[8px] text-[#555F6B] hover:text-[#003F87] transition-colors rounded-full hover:bg-slate-50 cursor-pointer relative"
+            onClick={() => setIsNotifOpen(!isNotifOpen)}
+          >
             <Bell size={20} />
-            {hasUnread && <span className="absolute top-[4px] right-[4px] w-[6px] h-[6px] bg-red-500 rounded-full"></span>}
-          </button>
+            {hasUnread && (
+              <span className="absolute top-[6px] right-[8px] w-2 h-2 bg-[#D80000] border border-white rounded-full"></span>
+            )}
+          </div>
           
+          {/* Notification Dropdown */}
           {isNotifOpen && (
-            <div className="absolute right-0 top-[40px] w-[300px] bg-white border border-[#C2C6D4] rounded-md shadow-lg overflow-hidden z-50">
-              <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-                <h3 className="font-bold text-sm text-slate-800">Notifications</h3>
+            <div className="absolute right-0 top-[110%] w-[380px] bg-white border border-[#C2C6D4] rounded-lg shadow-lg z-50 overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="px-4 py-3 border-b border-[#E0E0E0] flex justify-between items-center bg-[#F8FAFC]">
+                <h3 className="font-bold text-[#1A202C] text-[14px]">Notifications</h3>
                 {hasUnread && (
-                  <button onClick={markAllRead} className="text-xs text-[#003F87] font-semibold hover:underline">Mark all read</button>
+                  <button onClick={markAllRead} className="text-[#003F87] text-[12px] font-semibold hover:underline">
+                    Mark all as read
+                  </button>
                 )}
               </div>
-              <div className="max-h-[300px] overflow-y-auto">
-                {notifications.slice(0, 2).map(notif => (
-                  <div key={notif.id} onClick={() => markAsRead(notif.id)} className="px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800">{notif.title}</p>
-                        <p className="text-xs text-slate-500 mt-1">{notif.shortMessage}</p>
-                        <span className="text-[10px] text-slate-400 mt-2 block">{notif.time}</span>
-                      </div>
-                      <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${notif.isUnread ? 'bg-red-500' : 'bg-green-500'}`}></div>
+              
+              {/* Notif List */}
+              <div className="flex-1 overflow-y-auto max-h-[320px] scrollbar-thin scrollbar-thumb-slate-200">
+                {(showAllNotifications ? notifications : notifications.slice(0, 3)).map(notif => (
+                  <div 
+                    key={notif.id} 
+                    className={`p-4 border-b border-[#F0F0F0] cursor-pointer transition-colors ${notif.isUnread ? 'bg-[#F0F7FF] hover:bg-[#E6F3FF]' : 'hover:bg-[#F8FAFC]'}`}
+                    onClick={() => markAsRead(notif.id)}
+                  >
+                    <div className="flex justify-between items-start mb-1">
+                      <h4 className={`text-[13px] ${notif.isUnread ? 'font-bold text-[#003F87]' : 'font-semibold text-slate-800'}`}>
+                        {notif.title}
+                      </h4>
+                      <span className="text-[11px] text-[#555F6B] whitespace-nowrap ml-2">{notif.time}</span>
                     </div>
+                    <p className="text-[12px] text-[#555F6B] leading-snug">
+                      {notif.isUnread ? notif.message : notif.shortMessage}
+                    </p>
                   </div>
                 ))}
               </div>
-              <div className="px-4 py-2 bg-slate-50 text-center border-t border-slate-200">
+              
+              {/* Footer */}
+              <div className="px-4 py-3 border-t border-[#E0E0E0] bg-[#F8FAFC] text-center">
                 <button 
-                  onClick={() => { setIsNotifOpen(false); setShowAllNotifications(true); }}
-                  className="text-xs text-[#003F87] font-bold hover:underline"
+                  onClick={() => setShowAllNotifications(!showAllNotifications)}
+                  className="text-[#003F87] text-[13px] font-semibold hover:underline"
                 >
-                  View All Notifications
+                  {showAllNotifications ? 'Show Less' : 'View All Notifications'}
                 </button>
               </div>
             </div>
           )}
         </div>
-        <Link to={`${basePath}/support`} className="text-[#555F6B] hover:text-[#003F87] transition-colors p-2">
+
+        {/* Support Divider */}
+        <div className="w-[1px] h-[24px] bg-[#C2C6D4] mx-[4px]"></div>
+        
+        {/* Support Link */}
+        <Link to={`${basePath}/support`} className="p-[8px] text-[#555F6B] hover:text-[#003F87] transition-colors rounded-full hover:bg-slate-50 cursor-pointer">
           <HelpCircle size={20} />
         </Link>
-        <div className="h-[24px] w-[1px] bg-[#C2C6D4]"></div>
         
-        {/* Profile Dropdown */}
+        {/* Profile */}
         <div className="relative" ref={profileRef}>
           <div 
-            className="flex items-center gap-[12px] cursor-pointer hover:bg-[#F8FAFC] p-2 rounded-md transition-colors"
+            className="flex items-center gap-[12px] ml-[8px] cursor-pointer hover:bg-slate-50 p-[4px] rounded-md transition-colors"
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
             <div className="text-right">
-              <div className="text-[14px] font-bold text-slate-900 leading-tight">
-                {(isHR || isDesign || isDevelopment) ? (userInfo?.name || 'User') : 'Admin User'}
+              <div className="text-[13px] font-bold text-slate-800 leading-none">
+                {displayName}
               </div>
-              <div className="text-[12px] text-[#555F6B]">
-                {isHR ? 'Human Resources' : isDesign ? 'Design Team' : isDevelopment ? 'Development Team' : 'Super Admin'}
+              <div className="text-[11px] text-[#555F6B] mt-[2px] font-semibold">
+                {roleTitle}
               </div>
             </div>
-            <div className="w-[36px] h-[36px] bg-white rounded-full border border-[#003F87] flex items-center justify-center text-[#003F87]">
-              <User size={18} />
+            <div className="w-[36px] h-[36px] rounded-full bg-slate-200 flex items-center justify-center shrink-0 border border-slate-300">
+              <User size={18} className="text-slate-500" />
             </div>
           </div>
           
+          {/* Dropdown Menu */}
           {isDropdownOpen && (
-            <div className="absolute right-0 top-[48px] w-48 bg-white border border-[#C2C6D4] rounded-md shadow-lg overflow-hidden z-50 flex flex-col py-1">
-              <div className="px-4 py-2 border-b border-slate-100 mb-1">
-                <p className="text-xs text-slate-500">Signed in as</p>
-                <p className="text-sm font-bold text-slate-800 truncate">
-                  {(isHR || isDesign || isDevelopment) ? (userInfo?.email || 'user@novoxedtech.com') : 'admin@novoxedtech.com'}
-                </p>
+            <div className="absolute right-0 top-[110%] w-[240px] bg-white border border-[#C2C6D4] rounded-lg shadow-lg py-[8px] z-50">
+              <div className="px-[16px] py-[8px] border-b border-[#E0E0E0] mb-[4px]">
+                <div className="text-[14px] font-bold text-slate-800">{displayName}</div>
+                <div className="text-[12px] text-[#555F6B]">{displayEmail}</div>
               </div>
-              <Link 
-                to={`${basePath}/settings`}
-                onClick={() => setIsDropdownOpen(false)}
-                className="w-full text-left px-4 py-2 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
-              >
-                <Settings size={16} className="text-slate-400" /> Settings
+              <Link to={`${basePath}/settings`} className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#555F6B] hover:bg-[#F8FAFC] hover:text-[#003F87] transition-colors cursor-pointer text-[13px] font-semibold" onClick={() => setIsDropdownOpen(false)}>
+                <User size={16} /> My Profile
               </Link>
-              <div className="border-t border-slate-100 my-1"></div>
-              <button 
+              <Link to={`${basePath}/settings`} className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#555F6B] hover:bg-[#F8FAFC] hover:text-[#003F87] transition-colors cursor-pointer text-[13px] font-semibold" onClick={() => setIsDropdownOpen(false)}>
+                <Settings size={16} /> Preferences
+              </Link>
+              <div className="border-t border-[#E0E0E0] my-[4px]"></div>
+              <div 
+                className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#D80000] hover:bg-[#FFF0F0] transition-colors cursor-pointer text-[13px] font-semibold"
                 onClick={onLogout}
-                className="w-full text-left px-4 py-2 text-[13px] font-semibold text-[#D80000] hover:bg-slate-50 transition-colors flex items-center gap-2"
               >
-                <LogOut size={16} /> Logout
-              </button>
+                <LogOut size={16} /> Log Out
+              </div>
             </div>
           )}
         </div>

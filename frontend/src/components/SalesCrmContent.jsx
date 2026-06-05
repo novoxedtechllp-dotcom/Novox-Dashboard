@@ -22,17 +22,31 @@ const SalesCrmContent = () => {
   const stages = ['NEW', 'CONTACTED', 'FOLLOWUP', 'COUNSELLING', 'ENROLLED', 'LOST'];
 
   useEffect(() => {
-    setSources([
-      { id: 'src-1', source_name: 'Meta Ads' },
-      { id: 'src-2', source_name: 'Website' },
-      { id: 'src-3', source_name: 'Referral' }
-    ]);
+    const fetchData = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        
+        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+        
+        const [leadsRes, sourcesRes] = await Promise.all([
+          fetch('/api/v1/leads', { headers }),
+          fetch('/api/v1/lead-sources', { headers })
+        ]);
 
-    setLeads([
-      { id: 'lead-1', name: 'Mark Taylor', phone: '+91 98765 43210', email: 'mark@mail.com', source_id: 'src-1', stage: 'NEW', created_at: new Date().toISOString() },
-      { id: 'lead-2', name: 'Lisa Ray', phone: '+91 98765 43211', email: 'lisa@mail.com', source_id: 'src-2', stage: 'CONTACTED', created_at: new Date().toISOString() },
-      { id: 'lead-3', name: 'Paul Adams', phone: '+91 98765 43212', email: 'paul@mail.com', source_id: 'src-1', stage: 'FOLLOWUP', created_at: new Date().toISOString() }
-    ]);
+        if (leadsRes.ok) {
+          const lData = await leadsRes.json();
+          setLeads(lData.data?.leads || lData.data || []);
+        }
+        if (sourcesRes.ok) {
+          const sData = await sourcesRes.json();
+          setSources(sData.data?.sources || sData.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching sales CRM data:', error);
+      }
+    };
+    fetchData();
   }, []);
   const getSourceName = (id) => {
     const s = sources.find(src => src.id === id);

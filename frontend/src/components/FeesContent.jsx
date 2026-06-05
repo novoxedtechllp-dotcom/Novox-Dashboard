@@ -1,30 +1,31 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
-// Generate 15 mock items for pagination testing
-const baseFeesData = [
-  { initials: 'JD', name: 'John Doe', course: 'Advanced Cloud Architecture', type: 'Monthly', amount: '₹1,200.00', status: 'Full Paid', statusColor: 'green' },
-  { initials: 'SA', name: 'Sarah Adams', course: 'Full Stack Bootcamp', type: 'Full', amount: '₹4,500.00', status: 'Partially Paid', statusColor: 'yellow' },
-  { initials: 'MK', name: 'Michael K.', course: 'Data Science Masterclass', type: 'Monthly', amount: '₹1,200.00', status: 'Pending', statusColor: 'red' },
-  { initials: 'EL', name: 'Emma Lee', course: 'UI/UX Design Path', type: 'Monthly', amount: '₹950.00', status: 'Full Paid', statusColor: 'green' },
-  { initials: 'RJ', name: 'Ryan Jones', course: 'AI Foundations', type: 'Monthly', amount: '₹1,100.00', status: 'Full Paid', statusColor: 'green' }
-];
-
-const feesData = Array.from({ length: 15 }, (_, i) => {
-  const base = baseFeesData[i % baseFeesData.length];
-  const dateObj = new Date(2023, 9, 24 - i);
-  return {
-    ...base,
-    id: i + 1,
-    name: `${base.name.split(' ')[0]} ${String.fromCharCode(65 + (i % 26))}.`,
-    date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  };
-});
-
 const FeesContent = () => {
-  const [feesList, setFeesList] = useState(feesData);
+  const [feesList, setFeesList] = useState([]);
+
+  useEffect(() => {
+    const fetchFees = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        
+        const response = await fetch('/api/v1/fees', {
+          headers: { 'Authorization': `Bearer ${userInfo.token}` }
+        });
+        const resData = await response.json();
+        if (response.ok) {
+          const feesArray = resData.data?.fees || resData.data || [];
+          setFeesList(feesArray);
+        }
+      } catch (error) {
+        console.error('Error fetching fees:', error);
+      }
+    };
+    fetchFees();
+  }, []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [viewItem, setViewItem] = useState(null);

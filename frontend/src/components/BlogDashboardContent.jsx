@@ -5,10 +5,24 @@ const BlogDashboardContent = () => {
   const [blogs, setBlogs] = useState([]);
   
   useEffect(() => {
-    setBlogs([
-      { id: 'b-1', title: 'Top 10 EdTech Trends in 2024', publish_date: '2024-05-10T10:00:00', views: 12500, engagement_score: '85.5', source_platform: 'Website', clicks: 3400, shares: 120 },
-      { id: 'b-2', title: 'How to Master ReactJS', publish_date: '2024-05-12T14:30:00', views: 8900, engagement_score: '72.0', source_platform: 'Medium', clicks: 2100, shares: 85 }
-    ]);
+    const fetchBlogs = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        
+        const response = await fetch('/api/v1/blogs', {
+          headers: { 'Authorization': `Bearer ${userInfo.token}` }
+        });
+        const resData = await response.json();
+        if (response.ok) {
+          const bArray = resData.data?.blogs || resData.data || [];
+          setBlogs(bArray);
+        }
+      } catch (error) {
+        console.error('Error fetching blogs:', error);
+      }
+    };
+    fetchBlogs();
   }, []);
 
   return (

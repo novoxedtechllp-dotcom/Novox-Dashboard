@@ -135,15 +135,16 @@
 .login-right-panel {
   flex: 1;
   background-color: var(--white);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: block;
+  overflow-y: auto;
+  height: 100vh;
 }
 
 .login-wrapper .login-box {
   width: 100%;
   max-width: 448px;
   padding: 2rem;
+  margin: 10vh auto 4vh auto;
 }
 
 .login-wrapper .login-header {
@@ -241,19 +242,62 @@
   height: 16px;
 }
 
-.login-wrapper .input-wrapper input {
+.login-wrapper .input-wrapper input,
+.login-wrapper .input-wrapper select {
   width: 100%;
   padding: 0.625rem 1rem 0.625rem 2.25rem;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 0.875rem;
   color: var(--text-dark);
+  background-color: var(--white);
   transition: border-color 0.2s ease;
 }
 
-.login-wrapper .input-wrapper input:focus {
+.login-wrapper .input-wrapper input:focus,
+.login-wrapper .input-wrapper select:focus {
   outline: none;
   border-color: #003F87;
+}
+
+/* Phone Input Wrapper */
+.login-wrapper .phone-input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--white);
+  transition: border-color 0.2s ease;
+}
+
+.login-wrapper .phone-input-wrapper:focus-within {
+  border-color: #003F87;
+}
+
+.login-wrapper .phone-input-wrapper select {
+  border: none;
+  background: transparent;
+  padding: 0.625rem 0.25rem 0.625rem 0.5rem;
+  color: var(--text-dark);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  border-right: 1px solid var(--border-color);
+  border-radius: 0;
+  width: auto;
+}
+
+.login-wrapper .phone-input-wrapper input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.625rem 1rem 0.625rem 0.75rem;
+  color: var(--text-dark);
+  font-size: 0.875rem;
+  outline: none;
+  border-radius: 0;
+  width: 100%;
 }
 
 .login-wrapper .input-wrapper input::placeholder {

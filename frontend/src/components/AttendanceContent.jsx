@@ -24,27 +24,17 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) {
-          // Fallback mock students if no real backend
-          setStudents([{ id: 1, student_code: 'STD-001', first_name: 'Alex', last_name: 'Thompson' }]);
-          
-          setStudentAttendance([
-            { id: 'uuid-sa-1', student_id: 1, attendance_date: '2024-10-27', check_in: '2024-10-27T08:45:00', check_out: '2024-10-27T16:30:00', status: 'PRESENT', remarks: '' },
-            { id: 'uuid-sa-2', student_id: 2, attendance_date: '2024-10-27', check_in: '2024-10-27T09:15:00', check_out: null, status: 'LATE', remarks: 'Transit delay due to rain' },
-          ]);
-          setEmployeeAttendance([
-            { id: 'uuid-ea-1', employee_id: 1, attendance_date: '2024-10-27', check_in: '2024-10-27T08:00:00', check_out: '2024-10-27T17:00:00', status: 'PRESENT', remarks: '' },
-          ]);
           return;
         }
 
         const headers = { 'Authorization': `Bearer ${userInfo.token}` };
 
         // Fetch students
-        const stdRes = await fetch('http://localhost:5000/api/v1/students', { headers });
+        const stdRes = await fetch('/api/v1/students', { headers });
         if (stdRes.ok) setStudents(await stdRes.json());
 
         // Fetch attendance (V2 API uses a single endpoint for all attendance)
-        const attRes = await fetch('http://localhost:5000/api/v1/attendance', { headers });
+        const attRes = await fetch('/api/v1/attendance', { headers });
         if (attRes.ok) {
           const attendanceData = await attRes.json();
           // Assuming the backend returns mixed data or we filter it here

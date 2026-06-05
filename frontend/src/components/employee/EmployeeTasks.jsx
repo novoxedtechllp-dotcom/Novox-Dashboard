@@ -1,16 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, Eye, CheckCircle, Edit2, X, Paperclip, MessageSquare } from 'lucide-react';
 
-const initialTasks = [
-  { id: 1, title: 'Update Course Materials', description: 'Review and update the slides for Week 3 of the React course. Ensure all code examples are using React 18 syntax.', assignedBy: 'Sarah Mitchell', due: '2023-10-24', priority: 'High', status: 'In Progress' },
-  { id: 2, title: 'Review Student Assignments', description: 'Grade the final projects for the Web Dev cohort.', assignedBy: 'David Chen', due: '2023-10-25', priority: 'Medium', status: 'To Do' },
-  { id: 3, title: 'Prepare Monthly Report', description: 'Compile the student attendance and performance report.', assignedBy: 'Admin User', due: '2023-11-01', priority: 'Low', status: 'To Do' },
-  { id: 4, title: 'Team Meeting Prep', description: 'Prepare discussion points for the Q3 planning meeting.', assignedBy: 'Sarah Mitchell', due: '2023-10-20', priority: 'Medium', status: 'Completed' },
-  { id: 5, title: 'Fix Auth Bug', description: 'Investigate the intermittent logout issue on the mobile app.', assignedBy: 'Tech Lead', due: '2023-10-26', priority: 'High', status: 'Blocked' },
-];
-
 const EmployeeTasks = () => {
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState([]);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        
+        const response = await fetch('/api/v1/tasks', {
+          headers: { 'Authorization': `Bearer ${userInfo.token}` }
+        });
+        const resData = await response.json();
+        if (response.ok) {
+          const tasksArray = resData.data?.tasks || resData.data || [];
+          setTasks(tasksArray);
+        }
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    };
+    fetchTasks();
+  }, []);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [priorityFilter, setPriorityFilter] = useState('All');

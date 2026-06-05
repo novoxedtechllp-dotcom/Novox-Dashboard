@@ -44,39 +44,18 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     try {
       const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
       if (!userInfo || !userInfo.token) {
-        // Mock data if no real backend
-        const mockStudents = [
-          {
-            id: 1,
-            student_code: 'STD-001',
-            first_name: 'Alex',
-            last_name: 'Thompson',
-            phone: '+91 98765 43210',
-            parent_phone: '+91 98765 43211',
-            address: '123 Main St, Tech City',
-            joining_date: '2024-01-15',
-            status: 'ACTIVE',
-            avatar: null
-          }
-        ];
-        setStudents(mockStudents);
-        setStudentCourses([
-          { id: 101, student_id: 1, course_id: courses[0]?.id, enrolled_at: '2024-01-16', progress_percentage: '45.00', completion_status: 'IN_PROGRESS' }
-        ]);
-        setStudentDocuments([
-          { id: 201, student_id: 1, document_type: 'ID Proof', document_url: '/docs/id.pdf', uploaded_at: '2024-01-15' }
-        ]);
         setLoading(false);
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/v1/students', {
+      const response = await fetch('/api/v1/students', {
         headers: { 'Authorization': `Bearer ${userInfo.token}` }
       });
-      const data = await response.json();
+      const resData = await response.json();
       if (response.ok) {
+        const studentsList = resData.data?.students || resData.data || [];
         // Map old data to new schema if necessary, or assume backend is updated
-        const mappedData = data.map(d => ({
+        const mappedData = studentsList.map(d => ({
           id: d.id || d._id,
           student_code: d.student_code || d.sid || `STD-${Math.floor(Math.random()*1000)}`,
           first_name: d.first_name || (d.name ? d.name.split(' ')[0] : 'Unknown'),
