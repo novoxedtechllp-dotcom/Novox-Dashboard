@@ -42,7 +42,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
       if (!userInfo || !userInfo.token) {
         // Mock data if no real backend
         const mockStudents = [
@@ -645,3 +645,4 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 };
 
 export default StudentsContent;
+

@@ -13,7 +13,7 @@ const LowerContent = ({ employees = [], students = [] }) => {
       // Fetch students from backend just for dashboard if not lifted
       const fetchStudents = async () => {
         try {
-          const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+          const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
           if (!userInfo || !userInfo.token) return;
           const response = await fetch('http://localhost:5000/api/v1/students', {
             headers: { 'Authorization': `Bearer ${userInfo.token}` }
@@ -174,3 +174,4 @@ const LowerContent = ({ employees = [], students = [] }) => {
 };
 
 export default LowerContent;
+

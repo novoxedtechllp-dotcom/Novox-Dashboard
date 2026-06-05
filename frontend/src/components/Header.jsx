@@ -3,9 +3,9 @@ import { useLocation, Link } from 'react-router-dom';
 import { Search, Bell, HelpCircle, User, LogOut, Settings } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 
-const Header = ({ onLogout, isHR, userInfo }) => {
+const Header = ({ onLogout, isHR, isDesign, isDevelopment, userInfo, basePath = '/admin' }) => {
   const location = useLocation();
-  const activeTab = location.pathname.substring(1) || 'dashboard';
+  const activeTab = location.pathname.split('/').pop() || 'dashboard';
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
@@ -78,7 +78,7 @@ const Header = ({ onLogout, isHR, userInfo }) => {
             </div>
           )}
         </div>
-        <Link to="/support" className="text-[#555F6B] hover:text-[#003F87] transition-colors p-2">
+        <Link to={`${basePath}/support`} className="text-[#555F6B] hover:text-[#003F87] transition-colors p-2">
           <HelpCircle size={20} />
         </Link>
         <div className="h-[24px] w-[1px] bg-[#C2C6D4]"></div>
@@ -91,10 +91,10 @@ const Header = ({ onLogout, isHR, userInfo }) => {
           >
             <div className="text-right">
               <div className="text-[14px] font-bold text-slate-900 leading-tight">
-                {isHR ? userInfo?.name || 'HR User' : 'Admin User'}
+                {(isHR || isDesign || isDevelopment) ? (userInfo?.name || 'User') : 'Admin User'}
               </div>
               <div className="text-[12px] text-[#555F6B]">
-                {isHR ? 'Human Resources' : 'Super Admin'}
+                {isHR ? 'Human Resources' : isDesign ? 'Design Team' : isDevelopment ? 'Development Team' : 'Super Admin'}
               </div>
             </div>
             <div className="w-[36px] h-[36px] bg-white rounded-full border border-[#003F87] flex items-center justify-center text-[#003F87]">
@@ -107,11 +107,11 @@ const Header = ({ onLogout, isHR, userInfo }) => {
               <div className="px-4 py-2 border-b border-slate-100 mb-1">
                 <p className="text-xs text-slate-500">Signed in as</p>
                 <p className="text-sm font-bold text-slate-800 truncate">
-                  {isHR ? userInfo?.email || 'hr@novoxedtech.com' : 'admin@novoxedtech.com'}
+                  {(isHR || isDesign || isDevelopment) ? (userInfo?.email || 'user@novoxedtech.com') : 'admin@novoxedtech.com'}
                 </p>
               </div>
               <Link 
-                to="/settings"
+                to={`${basePath}/settings`}
                 onClick={() => setIsDropdownOpen(false)}
                 className="w-full text-left px-4 py-2 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
               >

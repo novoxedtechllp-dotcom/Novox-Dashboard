@@ -22,7 +22,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) {
           // Fallback mock students if no real backend
           setStudents([{ id: 1, student_code: 'STD-001', first_name: 'Alex', last_name: 'Thompson' }]);
@@ -439,3 +439,4 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
 };
 
 export default AttendanceContent;
+

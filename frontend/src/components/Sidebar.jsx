@@ -24,11 +24,17 @@ const navItems = [
   { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
-const Sidebar = ({ isHR }) => {
+const Sidebar = ({ isHR, isDesign, isDevelopment, basePath = '/admin' }) => {
   const location = useLocation();
-  const activeTab = location.pathname.substring(1) || 'dashboard';
+  const activeTab = location.pathname.split('/').pop() || 'dashboard';
   
-  const visibleNavItems = isHR ? navItems.filter(item => item.id !== 'blog' && item.id !== 'seo') : navItems;
+  let visibleNavItems = navItems;
+  if (isHR) {
+    visibleNavItems = navItems.filter(item => item.id !== 'blog' && item.id !== 'seo');
+  } else if (isDesign || isDevelopment) {
+    const hiddenForDesign = ['employees', 'courses', 'whatsapp-automation', 'sales-crm', 'blog', 'payroll', 'seo'];
+    visibleNavItems = navItems.filter(item => !hiddenForDesign.includes(item.id));
+  }
 
   return (
     <aside className="w-[260px] min-w-[260px] h-screen bg-white border-r border-[#C2C6D4] flex flex-col pl-[16px] py-[24px] z-10">
@@ -48,7 +54,7 @@ const Sidebar = ({ isHR }) => {
           return (
             <Link
               key={item.id}
-              to={`/${item.id}`}
+              to={`${basePath}/${item.id}`}
               className={`flex items-center gap-[12px] px-[12px] py-[8px] rounded-[4px] transition-colors text-left w-full h-[36px] shrink-0
                 ${isActive 
                   ? 'bg-[#D9E3F1] text-[#003F87] font-semibold' 
@@ -65,7 +71,7 @@ const Sidebar = ({ isHR }) => {
       {/* Bottom Nav Container - pt-[32px] */}
       <div className="w-[227px] pt-[32px] mt-auto border-t border-[#C2C6D4] flex flex-col gap-[12px]">
         <Link 
-          to="/settings"
+          to={`${basePath}/settings`}
           className={`flex items-center gap-[12px] px-[12px] py-[8px] rounded-[4px] font-medium transition-colors w-full text-left h-[36px] ${
             activeTab === 'settings' ? 'bg-[#D9E3F1] text-[#003F87] font-semibold' : 'text-[#555F6B] hover:bg-slate-50'
           }`}
@@ -74,7 +80,7 @@ const Sidebar = ({ isHR }) => {
           <span className="text-[14px] leading-none">Settings</span>
         </Link>
         <Link 
-          to="/support"
+          to={`${basePath}/support`}
           className={`flex items-center gap-[12px] px-[12px] py-[8px] rounded-[4px] font-medium transition-colors w-full text-left h-[36px] ${
             activeTab === 'support' ? 'bg-[#D9E3F1] text-[#003F87] font-semibold' : 'text-[#555F6B] hover:bg-slate-50'
           }`}

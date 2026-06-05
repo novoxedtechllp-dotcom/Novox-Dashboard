@@ -49,7 +49,7 @@ export default function Login({ onLogin }) {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('userInfo', JSON.stringify(data));
+        sessionStorage.setItem('userInfo', JSON.stringify(data));
         if (onLogin) onLogin(data.role);
       } else {
         setError(data.message || 'Login failed');
@@ -59,6 +59,8 @@ export default function Login({ onLogin }) {
       const emailLower = email.toLowerCase();
       let subRole = 'Staff';
       if (emailLower.includes('hr')) subRole = 'HR';
+      else if (emailLower.includes('design')) subRole = 'Design';
+      else if (emailLower.includes('dev')) subRole = 'Development';
       else if (emailLower.includes('manager')) subRole = 'Manager';
 
       const mockData = {
@@ -68,7 +70,7 @@ export default function Login({ onLogin }) {
         subRole: subRole,
         token: "mock-token-123"
       };
-      localStorage.setItem('userInfo', JSON.stringify(mockData));
+      sessionStorage.setItem('userInfo', JSON.stringify(mockData));
       if (onLogin) onLogin(role);
     }
   };
@@ -306,3 +308,4 @@ export default function Login({ onLogin }) {
     </div>
   );
 }
+

@@ -108,20 +108,26 @@ const initialCourses = [
 ];
 
 function App() {
+  const userInfoStr = sessionStorage.getItem('userInfo');
+  const initialUserInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
+
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(!!initialUserInfo);
+  const [userRole, setUserRole] = useState(initialUserInfo ? initialUserInfo.role : null);
   const [courses, setCourses] = useState(initialCourses);
   const [employees, setEmployees] = useState(initialEmployees);
 
   const handleLogin = (role) => {
     setIsAuthenticated(true);
     setUserRole(role);
-    if (role === 'Employee') {
-      navigate('/employee/dashboard');
-    } else {
-      navigate('/dashboard');
-    }
+    navigate('/');
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setUserRole(null);
+    sessionStorage.removeItem('userInfo');
+    navigate('/');
   };
 
   useEffect(() => {
@@ -134,19 +140,28 @@ function App() {
   }, []);
 
   if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <Routes>
+        <Route path="/login" element={<Login onLogin={handleLogin} />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
   }
 
-  const userInfoStr = localStorage.getItem('userInfo');
-  const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
+  // We already parsed userInfo at the top of App
+  const userInfo = initialUserInfo;
   const isHR = userRole === 'Employee' && userInfo?.subRole === 'HR';
+  const isDesign = userRole === 'Employee' && userInfo?.subRole === 'Design';
+  const isDevelopment = userRole === 'Employee' && userInfo?.subRole === 'Development';
 
-  if (userRole === 'Employee' && !isHR) {
+  const basePath = isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : '/admin';
+
+  if (userRole === 'Employee' && !isHR && !isDesign && !isDevelopment) {
     return (
       <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
         <EmployeeSidebar />
         <main className="flex-1 flex flex-col h-full overflow-hidden bg-white min-w-0">
-          <EmployeeHeader onLogout={() => setIsAuthenticated(false)} />
+          <EmployeeHeader onLogout={handleLogout} />
           <div className="flex-1 overflow-y-auto">
             <Routes>
               <Route path="/" element={<Navigate to="/employee/dashboard" replace />} />
@@ -165,31 +180,32 @@ function App() {
 
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
-      <Sidebar isHR={isHR} />
+      <Sidebar isHR={isHR} isDesign={isDesign} isDevelopment={isDevelopment} basePath={basePath} />
       
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-white min-w-0">
-        <Header onLogout={() => setIsAuthenticated(false)} isHR={isHR} userInfo={userInfo} />
+        <Header onLogout={handleLogout} isHR={isHR} isDesign={isDesign} isDevelopment={isDevelopment} userInfo={userInfo} basePath={basePath} />
         <div className="flex-1 overflow-y-auto">
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<MainContent activeTab="dashboard" employees={employees} />} />
-            <Route path="/attendance" element={<AttendanceContent employees={employees} courses={courses} />} />
-            <Route path="/students" element={<StudentsContent courses={courses} />} />
-            <Route path="/employees" element={<EmployeesContent employees={employees} setEmployees={setEmployees} />} />
-            <Route path="/courses" element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} />} />
-            <Route path="/fees" element={<FeesContent />} />
-            <Route path="/payroll" element={<PayrollContent />} />
-            <Route path="/work-reports" element={<WorkReportsContent />} />
-            <Route path="/sales-crm" element={<SalesCrmContent courses={courses} />} />
-            <Route path="/recruitment" element={<RecruitmentContent />} />
-            <Route path="/whatsapp-automation" element={<WhatsappContent />} />
-            <Route path="/leaderboard" element={<LeaderboardContent />} />
-            <Route path="/journey" element={<AcademicJourneyContent />} />
-            {!isHR && <Route path="/seo" element={<SeoAgentContent />} />}
-            <Route path="/settings" element={<SettingsContent />} />
-            <Route path="/support" element={<SupportContent />} />
-            {!isHR && <Route path="/blog" element={<BlogDashboardContent />} />}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to={`${basePath}/dashboard`} replace />} />
+            <Route path={basePath} element={<Navigate to={`${basePath}/dashboard`} replace />} />
+            <Route path={`${basePath}/dashboard`} element={<MainContent activeTab="dashboard" employees={employees} />} />
+            <Route path={`${basePath}/attendance`} element={<AttendanceContent employees={employees} courses={courses} />} />
+            <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} />} />
+            {!(isDesign || isDevelopment) && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} />} />}
+            {!(isDesign || isDevelopment) && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} />} />}
+            <Route path={`${basePath}/fees`} element={<FeesContent />} />
+            {!(isDesign || isDevelopment) && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
+            <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
+            {!(isDesign || isDevelopment) && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} />} />}
+            <Route path={`${basePath}/recruitment`} element={<RecruitmentContent />} />
+            {!(isDesign || isDevelopment) && <Route path={`${basePath}/whatsapp-automation`} element={<WhatsappContent />} />}
+            <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
+            <Route path={`${basePath}/journey`} element={<AcademicJourneyContent />} />
+            {!(isHR || isDesign || isDevelopment) && <Route path={`${basePath}/seo`} element={<SeoAgentContent />} />}
+            <Route path={`${basePath}/settings`} element={<SettingsContent />} />
+            <Route path={`${basePath}/support`} element={<SupportContent />} />
+            {!(isHR || isDesign || isDevelopment) && <Route path={`${basePath}/blog`} element={<BlogDashboardContent />} />}
+            <Route path="*" element={<Navigate to={`${basePath}/dashboard`} replace />} />
           </Routes>
         </div>
       </main>
@@ -200,3 +216,4 @@ function App() {
 }
 
 export default App;
+
