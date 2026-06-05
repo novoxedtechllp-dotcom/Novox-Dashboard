@@ -1,0 +1,13 @@
+export const ROLES = {
+  ADMIN: "ADMIN",
+  EMPLOYEE: "EMPLOYEE",
+  STUDENT: "STUDENT",
+};
+
+export const EMPLOYEE_ROLES = {
+  SALES: "SALES",
+  MARKETING: "MARKETING",
+  HR: "HR",
+  DEVELOPMENT: "DEVELOPMENT",
+  DESIGN: "DESIGN",
+};
