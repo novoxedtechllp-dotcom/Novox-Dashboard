@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Download, Briefcase } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Download, Briefcase, ListTodo, CheckCircle } from 'lucide-react';
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -20,9 +20,17 @@ const parseApiResponse = async (response) => {
 };
 
 const StudentsContent = ({ searchQuery = '', courses = [] }) => {
+  const [toast, setToast] = useState(null);
+  const alert = (message) => {
+    const isError = typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error'));
+    setToast({ message, type: isError ? 'error' : 'success' });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const [students, setStudents] = useState([]);
   const [studentCourses, setStudentCourses] = useState([]);
   const [studentDocuments, setStudentDocuments] = useState([]);
+  const [studentTasks, setStudentTasks] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -159,6 +167,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       setStudents(students.filter(s => s.id !== id));
       setStudentCourses(studentCourses.filter(sc => sc.student_id !== id));
       setStudentDocuments(studentDocuments.filter(sd => sd.student_id !== id));
+      setStudentTasks(studentTasks.filter(st => st.student_id !== id));
     } catch (error) {
       console.error('Error deleting student:', error);
       alert(error.message || 'Failed to delete student');
@@ -170,13 +179,15 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       const headers = getAuthHeaders();
       if (!headers) return;
 
-      const [progressResponse, documentsResponse] = await Promise.all([
+      const [progressResponse, documentsResponse, tasksResponse] = await Promise.all([
         fetch(`/api/v1/students/${studentId}/progress`, { headers }),
-        fetch(`/api/v1/students/${studentId}/documents`, { headers })
+        fetch(`/api/v1/students/${studentId}/documents`, { headers }),
+        fetch(`/api/v1/students/${studentId}/tasks`, { headers })
       ]);
 
       const progressData = await parseApiResponse(progressResponse);
       const documentsData = await parseApiResponse(documentsResponse);
+      const tasksData = await parseApiResponse(tasksResponse);
 
       setStudentCourses(prev => [
         ...prev.filter(sc => sc.student_id !== studentId),
@@ -185,6 +196,10 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       setStudentDocuments(prev => [
         ...prev.filter(sd => sd.student_id !== studentId),
         ...(documentsData.data || []).map(sd => ({ ...sd, student_id: studentId }))
+      ]);
+      setStudentTasks(prev => [
+        ...prev.filter(st => st.student_id !== studentId),
+        ...(tasksData.data || []).map(st => ({ ...st, student_id: studentId }))
       ]);
     } catch (error) {
       console.error('Error fetching student details:', error);
@@ -244,6 +259,32 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     }
   };
 
+  const handleUpdateTaskStatus = async (taskId, currentStatus, newGrade, newFeedback) => {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+      
+      let payload = {};
+      if (newGrade !== undefined) {
+        payload = { status: 'GRADED', grade: newGrade, feedback: newFeedback };
+      } else if (currentStatus === 'PENDING') {
+        payload = { status: 'SUBMITTED', submission_url: 'https://example.com/submission' };
+      }
+
+      const response = await fetch(`/api/v1/students/${activeStudent.id}/tasks/${taskId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      const resData = await parseApiResponse(response);
+
+      setStudentTasks(studentTasks.map(t => t.id === taskId ? { ...t, ...resData.data } : t));
+    } catch (error) {
+      console.error('Error updating task:', error);
+      alert(error.message || 'Failed to update task');
+    }
+  };
+
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
       const matchStatus = statusFilter === 'All Statuses' || student.status === statusFilter;
@@ -265,6 +306,11 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-[9999] px-6 py-3 rounded-lg shadow-xl font-bold text-sm transform transition-all duration-300 translate-y-0 opacity-100 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+          {toast.message}
+        </div>
+      )}
       {/* Top Filter Container */}
       <div className="w-full bg-white border border-[#C2C6D4] rounded-[8px] p-[24px] flex flex-col sm:flex-row gap-[24px] items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-[24px] w-full sm:w-auto flex-1">
@@ -537,6 +583,13 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 <FileText size={16} /> Documents
                 <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] ml-1">{studentDocuments.filter(d => d.student_id === activeStudent.id).length}</span>
               </button>
+              <button 
+                onClick={() => setDetailsTab('tasks')} 
+                className={`py-4 px-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${detailsTab === 'tasks' ? 'border-[#003F87] text-[#003F87]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              >
+                <ListTodo size={16} /> Tasks
+                <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] ml-1">{studentTasks.filter(t => t.student_id === activeStudent.id).length}</span>
+              </button>
             </div>
 
             {/* Modal Content Area */}
@@ -713,6 +766,66 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                       ))
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* Tasks Tab */}
+              {detailsTab === 'tasks' && (
+                <div className="space-y-6 animate-fadeIn">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Assigned Tasks</h3>
+                  {studentTasks.filter(st => st.student_id === activeStudent.id).length === 0 ? (
+                    <div className="text-center py-10 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
+                      <ListTodo size={32} className="mx-auto text-slate-300 mb-2" />
+                      <p className="text-slate-500 font-medium">No tasks assigned yet.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      {studentTasks.filter(st => st.student_id === activeStudent.id).map(task => (
+                        <div key={task.id} className="bg-white border border-slate-200 rounded-xl p-5 hover:border-[#003F87] transition-all">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <div className="text-xs font-bold text-[#003F87] bg-[#E5F0FF] inline-block px-2 py-0.5 rounded mb-1">{task.course_tasks?.course_modules?.courses?.name} - {task.course_tasks?.course_modules?.title}</div>
+                              <h4 className="text-[15px] font-bold text-slate-900">{task.course_tasks?.title}</h4>
+                            </div>
+                            <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${task.status === 'GRADED' ? 'bg-green-100 text-green-700' : task.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>
+                              {task.status}
+                            </span>
+                          </div>
+                          
+                          <p className="text-sm text-slate-600 mb-4">{task.course_tasks?.description}</p>
+                          
+                          <div className="flex flex-wrap gap-4 items-center border-t border-slate-100 pt-4">
+                            {task.status === 'PENDING' && (
+                              <button onClick={() => handleUpdateTaskStatus(task.id, task.status)} className="px-4 py-1.5 bg-[#003F87] text-white text-xs font-bold rounded hover:bg-[#002B5E] transition-colors">
+                                Mark as Submitted
+                              </button>
+                            )}
+                            
+                            {task.status === 'SUBMITTED' && (
+                              <div className="flex gap-2 items-center flex-1">
+                                <input id={`grade-${task.id}`} type="text" placeholder="Grade (e.g. A, 90/100)" className="px-3 py-1.5 border border-slate-300 rounded text-sm w-32 focus:border-[#003F87] outline-none" />
+                                <input id={`feedback-${task.id}`} type="text" placeholder="Feedback" className="px-3 py-1.5 border border-slate-300 rounded text-sm flex-1 focus:border-[#003F87] outline-none" />
+                                <button onClick={() => {
+                                  const g = document.getElementById(`grade-${task.id}`).value;
+                                  const f = document.getElementById(`feedback-${task.id}`).value;
+                                  if (g) handleUpdateTaskStatus(task.id, task.status, g, f);
+                                }} className="px-4 py-1.5 bg-[#008A2E] text-white text-xs font-bold rounded flex items-center gap-1 hover:bg-[#007025] transition-colors">
+                                  <CheckCircle size={14} /> Grade
+                                </button>
+                              </div>
+                            )}
+
+                            {task.status === 'GRADED' && (
+                              <div className="flex gap-4 w-full bg-slate-50 p-3 rounded text-sm">
+                                <div><span className="font-bold text-slate-700">Grade:</span> <span className="text-[#008A2E] font-bold">{task.grade}</span></div>
+                                {task.feedback && <div><span className="font-bold text-slate-700">Feedback:</span> {task.feedback}</div>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -58,77 +58,9 @@ const Header = ({ onLogout, userInfo, basePath = '/admin' }) => {
       
       {/* Header Actions */}
       <div className="flex items-center gap-[16px]">
-        {/* Settings Button */}
-        <Link to={`${basePath}/settings`} className="p-[8px] text-[#555F6B] hover:text-[#003F87] transition-colors rounded-full hover:bg-slate-50 cursor-pointer">
-          <Settings size={20} />
-        </Link>
-        
-        {/* Notifications */}
-        <div className="relative" ref={notifRef}>
-          <div 
-            className="p-[8px] text-[#555F6B] hover:text-[#003F87] transition-colors rounded-full hover:bg-slate-50 cursor-pointer relative"
-            onClick={() => setIsNotifOpen(!isNotifOpen)}
-          >
-            <Bell size={20} />
-            {hasUnread && (
-              <span className="absolute top-[6px] right-[8px] w-2 h-2 bg-[#D80000] border border-white rounded-full"></span>
-            )}
-          </div>
-          
-          {/* Notification Dropdown */}
-          {isNotifOpen && (
-            <div className="absolute right-0 top-[110%] w-[380px] bg-white border border-[#C2C6D4] rounded-lg shadow-lg z-50 overflow-hidden flex flex-col">
-              {/* Header */}
-              <div className="px-4 py-3 border-b border-[#E0E0E0] flex justify-between items-center bg-[#F8FAFC]">
-                <h3 className="font-bold text-[#1A202C] text-[14px]">Notifications</h3>
-                {hasUnread && (
-                  <button onClick={markAllRead} className="text-[#003F87] text-[12px] font-semibold hover:underline">
-                    Mark all as read
-                  </button>
-                )}
-              </div>
-              
-              {/* Notif List */}
-              <div className="flex-1 overflow-y-auto max-h-[320px] scrollbar-thin scrollbar-thumb-slate-200">
-                {(showAllNotifications ? notifications : notifications.slice(0, 3)).map(notif => (
-                  <div 
-                    key={notif.id} 
-                    className={`p-4 border-b border-[#F0F0F0] cursor-pointer transition-colors ${notif.isUnread ? 'bg-[#F0F7FF] hover:bg-[#E6F3FF]' : 'hover:bg-[#F8FAFC]'}`}
-                    onClick={() => markAsRead(notif.id)}
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className={`text-[13px] ${notif.isUnread ? 'font-bold text-[#003F87]' : 'font-semibold text-slate-800'}`}>
-                        {notif.title}
-                      </h4>
-                      <span className="text-[11px] text-[#555F6B] whitespace-nowrap ml-2">{notif.time}</span>
-                    </div>
-                    <p className="text-[12px] text-[#555F6B] leading-snug">
-                      {notif.isUnread ? notif.message : notif.shortMessage}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Footer */}
-              <div className="px-4 py-3 border-t border-[#E0E0E0] bg-[#F8FAFC] text-center">
-                <button 
-                  onClick={() => setShowAllNotifications(!showAllNotifications)}
-                  className="text-[#003F87] text-[13px] font-semibold hover:underline"
-                >
-                  {showAllNotifications ? 'Show Less' : 'View All Notifications'}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* Support Divider */}
-        <div className="w-[1px] h-[24px] bg-[#C2C6D4] mx-[4px]"></div>
-        
-        {/* Support Link */}
-        <Link to={`${basePath}/support`} className="p-[8px] text-[#555F6B] hover:text-[#003F87] transition-colors rounded-full hover:bg-slate-50 cursor-pointer">
-          <HelpCircle size={20} />
-        </Link>
+
+
         
         {/* Profile */}
         <div className="relative" ref={profileRef}>

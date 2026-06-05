@@ -8,6 +8,7 @@ import {
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'daily-plan', label: 'Daily Plan', icon: BookOpen },
   { id: 'students', label: 'Students', icon: Users },
   { id: 'employees', label: 'Employees', icon: Briefcase },
   { id: 'courses', label: 'Courses', icon: BookOpen },
@@ -41,9 +42,6 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
     }
     if (!(isHR || isSales)) {
       hiddenItems.push('fees');
-    }
-    if (!(isHR || isDesign || isDevelopment)) {
-      hiddenItems.push('courses');
     }
     if (!(isSales || isMarketing)) {
       hiddenItems.push('whatsapp-automation');
@@ -87,7 +85,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
         })}
       </nav>
 
-      {/* Bottom Nav Container - pt-[32px] */}
+      {/* Bottom Nav Container - pt-[32px]
       <div className="w-[227px] pt-[32px] mt-auto border-t border-[#C2C6D4] flex flex-col gap-[12px]">
         <Link 
           to={`${basePath}/settings`}
@@ -108,6 +106,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
           <span className="text-[14px] leading-none">Support</span>
         </Link>
       </div>
+      */}
     </aside>
   );
 };

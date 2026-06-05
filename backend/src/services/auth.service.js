@@ -91,12 +91,14 @@ export const loginUserService = async (email, password) => {
     .select(`
       *,
       employee_profiles(
+        id,
         first_name,
         last_name,
         designation,
         employee_roles(role_name)
       ),
       students(
+        id,
         first_name,
         last_name
       )
@@ -112,11 +114,13 @@ export const loginUserService = async (email, password) => {
   if (user.role === 'EMPLOYEE' && user.employee_profiles && user.employee_profiles.length > 0) {
     const profile = user.employee_profiles[0];
     user.employee_role = profile.employee_roles?.role_name;
+    user.employee_profile_id = profile.id;
     user.first_name = profile.first_name;
     user.last_name = profile.last_name;
     user.designation = profile.designation;
   } else if (user.role === 'STUDENT' && user.students && user.students.length > 0) {
     const profile = user.students[0];
+    user.student_profile_id = profile.id;
     user.first_name = profile.first_name;
     user.last_name = profile.last_name;
   }

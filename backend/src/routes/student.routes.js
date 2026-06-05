@@ -10,7 +10,10 @@ import {
   getStudentReports,
   addStudentDocument,
   getStudentDocuments,
-  deleteStudentDocument
+  deleteStudentDocument,
+  getStudentTasks,
+  updateStudentTask,
+  getStudentDailyPlan
 } from "../controllers/student.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -32,6 +35,7 @@ router.route("/reports").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] })
 router.route("/").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), getStudents);
 
 router.route("/:studentId").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT] }), getStudentById);
+router.route("/:studentId/daily-plan").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT] }), getStudentDailyPlan);
 
 // Write
 router.route("/").post(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), createStudent);
@@ -46,6 +50,9 @@ const readAuth = authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT]
 
 router.route("/:studentId/courses").post(writeAuth, assignCourse);
 router.route("/:studentId/progress").get(readAuth, getStudentProgress);
+
+router.route("/:studentId/tasks").get(readAuth, getStudentTasks);
+router.route("/:studentId/tasks/:taskId").put(readAuth, updateStudentTask);
 
 router.route("/:studentId/documents")
   .get(readAuth, getStudentDocuments)

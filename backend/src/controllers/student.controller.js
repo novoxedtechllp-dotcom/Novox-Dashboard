@@ -212,6 +212,29 @@ const assignCourse = asyncHandler(async (req, res) => {
 
   if (error) throw new ApiError(500, error.message || "Failed to assign course");
 
+  // Auto-assign existing tasks for this course
+  const { data: modulesTasks } = await supabase
+    .from("course_modules")
+    .select('id, course_submodules(id, course_tasks(id))')
+    .eq('course_id', course_id);
+
+  if (modulesTasks && modulesTasks.length > 0) {
+    const tasksToAssign = modulesTasks.flatMap(m => 
+      m.course_submodules.flatMap(sm => 
+        sm.course_tasks.map(t => ({
+          student_id: studentId,
+          task_id: t.id,
+          status: 'PENDING'
+        }))
+      )
+    );
+
+    if (tasksToAssign.length > 0) {
+      const { error: taskError } = await supabase.from("student_tasks").insert(tasksToAssign);
+      if (taskError) console.error("Failed to auto-assign tasks:", taskError);
+    }
+  }
+
   return res.status(201).json(new ApiResponse(201, data[0], "Course assigned successfully"));
 });
 
@@ -231,6 +254,53 @@ const getStudentProgress = asyncHandler(async (req, res) => {
   if (error) throw new ApiError(500, error.message || "Failed to fetch student progress");
 
   return res.status(200).json(new ApiResponse(200, data, "Student progress fetched successfully"));
+});
+
+// @desc    Get student tasks
+// @route   GET /api/v1/students/:studentId/tasks
+const getStudentTasks = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+
+  const { data, error } = await supabase
+    .from("student_tasks")
+    .select(`
+      id, student_id, task_id, status, submission_url, grade, feedback, submitted_at,
+      course_tasks(title, description, sequence_order, submodule_id, due_date, task_type, course_submodules(title, scheduled_date, module_id, course_modules(title, course_id, courses(name))))
+    `)
+    .eq("student_id", studentId);
+
+  if (error) throw new ApiError(500, error.message || "Failed to fetch student tasks");
+
+  return res.status(200).json(new ApiResponse(200, data, "Student tasks fetched successfully"));
+});
+
+// @desc    Update student task (submit or grade)
+// @route   PUT /api/v1/students/:studentId/tasks/:taskId
+const updateStudentTask = asyncHandler(async (req, res) => {
+  const { studentId, taskId } = req.params;
+  const { status, submission_url, grade, feedback } = req.body;
+
+  const updates = {};
+  if (status !== undefined) updates.status = status;
+  if (submission_url !== undefined) updates.submission_url = submission_url;
+  if (grade !== undefined) updates.grade = grade;
+  if (feedback !== undefined) updates.feedback = feedback;
+
+  if (status === 'SUBMITTED' && !updates.submitted_at) {
+    updates.submitted_at = new Date().toISOString();
+  }
+
+  const { data, error } = await supabase
+    .from("student_tasks")
+    .update(updates)
+    .eq("id", taskId)
+    .eq("student_id", studentId)
+    .select();
+
+  if (error) throw new ApiError(500, error.message || "Failed to update student task");
+  if (!data || data.length === 0) throw new ApiError(404, "Student task not found");
+
+  return res.status(200).json(new ApiResponse(200, data[0], "Student task updated successfully"));
 });
 
 // ==========================================
@@ -305,6 +375,44 @@ const deleteStudentDocument = asyncHandler(async (req, res) => {
 
   return res.status(200).json(new ApiResponse(200, {}, "Document deleted successfully"));
 });
+// @desc    Get Student Daily Plan
+// @route   GET /api/v1/students/:studentId/daily-plan
+const getStudentDailyPlan = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const { date } = req.query;
+
+  if (!date) throw new ApiError(400, "Please provide a date query parameter");
+
+  // Fetch courses this student is enrolled in
+  const { data: enrollments, error: enrollError } = await supabase
+    .from("student_courses")
+    .select("course_id")
+    .eq("student_id", studentId);
+
+  if (enrollError) throw new ApiError(500, "Failed to fetch student courses");
+
+  if (!enrollments || enrollments.length === 0) {
+    return res.status(200).json(new ApiResponse(200, [], "No courses enrolled"));
+  }
+
+  const courseIds = enrollments.map(e => e.course_id);
+
+  // Fetch submodules for those courses scheduled on the given date
+  const { data, error } = await supabase
+    .from("course_submodules")
+    .select(`
+      *,
+      course_modules!inner(course_id, title, courses(name)),
+      course_tasks(*)
+    `)
+    .in("course_modules.course_id", courseIds)
+    .eq("scheduled_date", date)
+    .order("sequence_order", { ascending: true });
+
+  if (error) throw new ApiError(500, error.message || "Failed to fetch daily plan");
+
+  return res.status(200).json(new ApiResponse(200, data, "Daily plan fetched successfully"));
+});
 
 export {
   createStudent,
@@ -317,5 +425,8 @@ export {
   getStudentReports,
   addStudentDocument,
   getStudentDocuments,
-  deleteStudentDocument
+  deleteStudentDocument,
+  getStudentTasks,
+  updateStudentTask,
+  getStudentDailyPlan
 };
