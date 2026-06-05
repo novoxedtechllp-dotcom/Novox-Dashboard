@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="https://via.placeholder.com/150/003F87/FFFFFF?text=Novox" alt="Novox Logo" width="120" />
+<img src="https://raw.githubusercontent.com/novoxedtechllp-dotcom/Novox-Dashboard/main/frontend/src/assets/Screenshot%202026-06-05%20130238.png" alt="Novox Logo" width="180" />
 
 ### Your all-in-one hub for educational management, administration, and student operations.
 
