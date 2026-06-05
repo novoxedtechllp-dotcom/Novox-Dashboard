@@ -1,6 +1,6 @@
 -- Drop existing tables to ensure a clean slate
 DROP TABLE IF EXISTS 
-  audit_logs, notifications, blog_statistics, blogs, candidate_evaluations, interviews, candidates, 
+  gallery_images, audit_logs, notifications, blog_statistics, blogs, candidate_evaluations, interviews, candidates, 
   whatsapp_messages, whatsapp_conversations, whatsapp_campaigns, whatsapp_templates, 
   followups, lead_activities, leads, lead_sources, 
   fee_payments, student_fee_plans, 
@@ -391,6 +391,17 @@ CREATE TABLE audit_logs (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- 14. GALLERY MODULE
+CREATE TABLE gallery_images (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    image_url TEXT NOT NULL,
+    source VARCHAR(20) NOT NULL,
+    category VARCHAR(50) NOT NULL DEFAULT 'Uncategorized',
+    image_hash TEXT UNIQUE NOT NULL,
+    gmb_media_key VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX idx_leads_stage ON leads(stage);
 CREATE INDEX idx_student_attendance_date ON student_attendance(attendance_date);
@@ -401,3 +412,5 @@ CREATE INDEX idx_fee_payments_date ON fee_payments(paid_at);
 CREATE INDEX idx_work_reports_date ON work_reports(submitted_at);
 CREATE INDEX idx_notifications_user_unread ON notifications(user_id) WHERE is_read = FALSE;
 CREATE INDEX idx_audit_logs_created ON audit_logs(created_at DESC);
+CREATE INDEX idx_gallery_images_hash ON gallery_images(image_hash);
+CREATE INDEX idx_gallery_images_category ON gallery_images(category);
