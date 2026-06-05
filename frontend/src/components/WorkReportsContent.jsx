@@ -1,19 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Plus, Search, Briefcase } from 'lucide-react';
 
 const WorkReportsContent = () => {
-  const [reports, setReports] = useState([
-    { id: 'wr-1', employee_id: 'emp-1', project_id: 'proj-1', report_type: 'DAILY', work_done: 'Completed React components.', blockers: 'None', submitted_at: new Date().toISOString(), approval_status: 'PENDING' },
-    { id: 'wr-2', employee_id: 'emp-2', project_id: 'proj-2', report_type: 'WEEKLY', work_done: 'Analyzed user behavior.', blockers: 'Waiting on data team.', submitted_at: new Date(Date.now() - 86400000).toISOString(), approval_status: 'APPROVED' }
-  ]);
-  const [projects, setProjects] = useState([
-    { id: 'proj-1', name: 'Frontend Refactor', status: 'ACTIVE' },
-    { id: 'proj-2', name: 'Database Migration', status: 'ACTIVE' }
-  ]);
-  const [employees, setEmployees] = useState([
-    { id: 'emp-1', name: 'Alice Johnson', department: 'Engineering' },
-    { id: 'emp-2', name: 'Bob Smith', department: 'Marketing' }
-  ]);
+  const [reports, setReports] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [employees, setEmployees] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        
+        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+        
+        const [repRes, projRes, empRes] = await Promise.all([
+          fetch('/api/v1/work-reports', { headers }),
+          fetch('/api/v1/projects', { headers }),
+          fetch('/api/v1/employees', { headers })
+        ]);
+
+        if (repRes.ok) {
+          const resData = await repRes.json();
+          setReports(resData.data?.reports || resData.data || []);
+        }
+        if (projRes.ok) {
+          const pData = await projRes.json();
+          setProjects(pData.data?.projects || pData.data || []);
+        }
+        if (empRes.ok) {
+          const eData = await empRes.json();
+          setEmployees(eData.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching work reports data:', error);
+      }
+    };
+    fetchData();
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);

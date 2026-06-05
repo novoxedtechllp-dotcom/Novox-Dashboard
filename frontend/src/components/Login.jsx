@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Login.css';
 
 export default function Login({ onLogin }) {
+  const navigate = useNavigate();
   const [role, setRole] = useState('Admin');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [fullName, setFullName] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -38,7 +39,7 @@ export default function Login({ onLogin }) {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+      const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -49,29 +50,30 @@ export default function Login({ onLogin }) {
       const data = await response.json();
 
       if (response.ok) {
-        sessionStorage.setItem('userInfo', JSON.stringify(data));
-        if (onLogin) onLogin(data.role);
+        const userInfoToSave = { ...data.data.user, token: data.data.accessToken };
+        
+        // Enforce login panel restriction
+        if (role === 'Admin' && userInfoToSave.role !== 'ADMIN') {
+          setError('Invalid login panel. You do not have Admin privileges.');
+          return;
+        }
+        if (role === 'Employee' && userInfoToSave.role !== 'EMPLOYEE') {
+          setError('Invalid login panel. Please use the Employee panel.');
+          return;
+        }
+        if (role === 'Student' && userInfoToSave.role !== 'STUDENT') {
+          setError('Invalid login panel. Please use the Student panel.');
+          return;
+        }
+
+        sessionStorage.setItem('userInfo', JSON.stringify(userInfoToSave));
+        if (onLogin) onLogin(userInfoToSave.role);
       } else {
         setError(data.message || 'Login failed');
       }
     } catch (err) {
-      console.warn("Backend not running, falling back to local mock login");
-      const emailLower = email.toLowerCase();
-      let subRole = 'Staff';
-      if (emailLower.includes('hr')) subRole = 'HR';
-      else if (emailLower.includes('design')) subRole = 'Design';
-      else if (emailLower.includes('dev')) subRole = 'Development';
-      else if (emailLower.includes('manager')) subRole = 'Manager';
-
-      const mockData = {
-        name: fullName || "Mock User",
-        email: email || "user@novox.com",
-        role: role,
-        subRole: subRole,
-        token: "mock-token-123"
-      };
-      sessionStorage.setItem('userInfo', JSON.stringify(mockData));
-      if (onLogin) onLogin(role);
+      console.error("Backend connection failed:", err);
+      setError("Failed to connect to the server. Please ensure the backend is running.");
     }
   };
 
@@ -140,7 +142,7 @@ export default function Login({ onLogin }) {
                 <button 
                   type="button"
                   className={`toggle-btn ${role === 'Admin' ? 'active' : ''}`}
-                  onClick={() => { setRole('Admin'); setIsSignUp(false); }}
+                  onClick={() => setRole('Admin')}
                 >
                   Admin
                 </button>
@@ -150,6 +152,13 @@ export default function Login({ onLogin }) {
                   onClick={() => setRole('Employee')}
                 >
                   Employee
+                </button>
+                <button 
+                  type="button"
+                  className={`toggle-btn ${role === 'Student' ? 'active' : ''}`}
+                  onClick={() => setRole('Student')}
+                >
+                  Student
                 </button>
               </div>
             )}
@@ -183,13 +192,45 @@ export default function Login({ onLogin }) {
                       <div className="form-group">
                         <label>New Password</label>
                         <div className="input-wrapper">
-                          <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                          <input 
+                            type={showPassword ? "text" : "password"} 
+                            placeholder="••••••••" 
+                            value={password} 
+                            onChange={(e) => setPassword(e.target.value)} 
+                            required 
+                          />
+                          <button 
+                            type="button" 
+                            className="show-pwd-btn"
+                            onClick={() => setShowPassword(!showPassword)}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          </button>
                         </div>
                       </div>
                       <div className="form-group">
                         <label>Confirm Password</label>
                         <div className="input-wrapper">
-                          <input type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                          <input 
+                            type={showConfirmPassword ? "text" : "password"} 
+                            placeholder="••••••••" 
+                            value={confirmPassword} 
+                            onChange={(e) => setConfirmPassword(e.target.value)} 
+                            required 
+                          />
+                          <button 
+                            type="button" 
+                            className="show-pwd-btn"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                              <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                          </button>
                         </div>
                       </div>
                     </>
@@ -207,19 +248,6 @@ export default function Login({ onLogin }) {
                 </>
               ) : (
                 <>
-                  {role === 'Employee' && isSignUp && (
-                <div className="form-group">
-                  <label>Full Name</label>
-                  <div className="input-wrapper">
-                    <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                    <input type="text" placeholder="John Doe" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-                  </div>
-                </div>
-              )}
-
               <div className="form-group">
                 <label>Email or Username</label>
                 <div className="input-wrapper">
@@ -258,7 +286,7 @@ export default function Login({ onLogin }) {
                     </svg>
                   </button>
                 </div>
-                {role === 'Employee' && !isSignUp && (
+                {(role === 'Employee' || role === 'Student') && (
                   <div style={{textAlign: 'right', marginTop: '8px'}}>
                     <a href="#" onClick={(e) => { e.preventDefault(); setIsForgotPassword(true); }} className="forgot-link" style={{color: '#003F87', textDecoration: 'none', fontSize: '13px', fontWeight: '500'}}>Forgot Password?</a>
                   </div>
@@ -276,18 +304,18 @@ export default function Login({ onLogin }) {
               </div>
 
               <button type="submit" className="submit-btn">
-                {role === 'Employee' && isSignUp ? 'Sign Up' : 'Sign In'}
+                Sign In
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginLeft: '8px'}}>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                   <polyline points="12 5 19 12 12 19"></polyline>
                 </svg>
               </button>
 
-              {role === 'Employee' && (
+              {role !== 'Admin' && (
                 <div style={{textAlign: 'center', marginTop: '20px', fontSize: '14px', color: '#555F6B'}}>
-                  {isSignUp ? "Already an employee? " : "New Employee? "}
-                  <a href="#" onClick={(e) => { e.preventDefault(); setIsSignUp(!isSignUp); }} style={{color: '#003F87', fontWeight: 'bold', textDecoration: 'none', marginLeft: '5px'}}>
-                    {isSignUp ? "Sign In" : "Sign Up"}
+                  Don't have an account? 
+                  <a href="#" onClick={(e) => { e.preventDefault(); navigate('/signup'); }} style={{color: '#003F87', fontWeight: 'bold', textDecoration: 'none', marginLeft: '5px'}}>
+                    Sign Up
                   </a>
                 </div>
               )}

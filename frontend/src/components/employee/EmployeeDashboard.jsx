@@ -9,6 +9,37 @@ const EmployeeDashboard = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   
+  const [recentTasks, setRecentTasks] = useState([]);
+  const [recentPayslips, setRecentPayslips] = useState([]);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        
+        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+        
+        const tasksRes = await fetch('/api/v1/tasks', { headers });
+        if (tasksRes.ok) {
+          const resData = await tasksRes.json();
+          const tasksArray = resData.data?.tasks || resData.data || [];
+          setRecentTasks(tasksArray.slice(0, 2));
+        }
+
+        const prRes = await fetch('/api/v1/payroll', { headers });
+        if (prRes.ok) {
+          const resData = await prRes.json();
+          const prArray = resData.data?.payroll || resData.data || [];
+          setRecentPayslips(prArray.slice(0, 2));
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      }
+    };
+    fetchData();
+  }, []);
+  
   const handleCheckInOut = () => {
     setIsCheckedIn(!isCheckedIn);
     setToastMessage(isCheckedIn ? "You have successfully checked out." : "You have successfully checked in for the day at " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
@@ -98,20 +129,19 @@ const EmployeeDashboard = () => {
             </Link>
           </div>
           <div className="flex flex-col gap-4">
-            <div className="flex justify-between items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
-              <div>
-                <p className="font-semibold text-slate-800">Update Course Materials</p>
-                <p className="text-xs text-slate-500 mt-1">Due: Today</p>
-              </div>
-              <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-md">In Progress</span>
-            </div>
-            <div className="flex justify-between items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
-              <div>
-                <p className="font-semibold text-slate-800">Review Student Assignments</p>
-                <p className="text-xs text-slate-500 mt-1">Due: Tomorrow</p>
-              </div>
-              <span className="px-2 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-md">To Do</span>
-            </div>
+            {recentTasks.length === 0 ? (
+              <p className="text-sm text-slate-500">No recent tasks found.</p>
+            ) : (
+              recentTasks.map((task, i) => (
+                <div key={i} className="flex justify-between items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
+                  <div>
+                    <p className="font-semibold text-slate-800">{task.title}</p>
+                    <p className="text-xs text-slate-500 mt-1">Due: {task.due}</p>
+                  </div>
+                  <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-md">{task.status}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -124,20 +154,19 @@ const EmployeeDashboard = () => {
             </Link>
           </div>
           <div className="flex flex-col gap-4">
-            <div className="flex justify-between items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
-              <div>
-                <p className="font-semibold text-slate-800">September 2023</p>
-                <p className="text-xs text-slate-500 mt-1">Processed on Oct 1</p>
-              </div>
-              <button onClick={() => handleDownloadPDF('September 2023')} className="text-sm font-bold text-[#003F87] hover:underline">Download PDF</button>
-            </div>
-            <div className="flex justify-between items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
-              <div>
-                <p className="font-semibold text-slate-800">August 2023</p>
-                <p className="text-xs text-slate-500 mt-1">Processed on Sep 1</p>
-              </div>
-              <button onClick={() => handleDownloadPDF('August 2023')} className="text-sm font-bold text-[#003F87] hover:underline">Download PDF</button>
-            </div>
+            {recentPayslips.length === 0 ? (
+              <p className="text-sm text-slate-500">No recent payslips found.</p>
+            ) : (
+              recentPayslips.map((ps, i) => (
+                <div key={i} className="flex justify-between items-center p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
+                  <div>
+                    <p className="font-semibold text-slate-800">{ps.monthName}</p>
+                    <p className="text-xs text-slate-500 mt-1">Processed on {ps.processedDate}</p>
+                  </div>
+                  <button onClick={() => handleDownloadPDF(ps.monthName)} className="text-sm font-bold text-[#003F87] hover:underline">Download PDF</button>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

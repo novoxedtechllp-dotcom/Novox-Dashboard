@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
@@ -16,24 +16,31 @@ const AcademicJourneyContent = () => {
   const [newModuleTitle, setNewModuleTitle] = useState('');
   const [newModuleDuration, setNewModuleDuration] = useState('');
   const [curriculumData, setCurriculumData] = useState({
-    'Web Development': [
-      { id: 1, title: 'HTML & CSS Basics', duration: '2 weeks' },
-      { id: 2, title: 'JavaScript Fundamentals', duration: '3 weeks' },
-      { id: 3, title: 'React JS', duration: '4 weeks' },
-    ],
-    'Mobile Development': [
-      { id: 4, title: 'Dart Programming', duration: '2 weeks' },
-      { id: 5, title: 'Flutter UI', duration: '3 weeks' },
-    ],
-    'Design': [
-      { id: 6, title: 'Color Theory', duration: '1 week' },
-      { id: 7, title: 'Figma Prototyping', duration: '3 weeks' },
-    ],
-    'Marketing': [
-      { id: 8, title: 'SEO Basics', duration: '2 weeks' },
-      { id: 9, title: 'Social Media Strategy', duration: '3 weeks' },
-    ]
+    'Web Development': [],
+    'Mobile Development': [],
+    'Design': [],
+    'Marketing': []
   });
+
+  useEffect(() => {
+    const fetchCurriculum = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        
+        const response = await fetch('/api/v1/curriculum', {
+          headers: { 'Authorization': `Bearer ${userInfo.token}` }
+        });
+        const resData = await response.json();
+        if (response.ok && resData.data && resData.data.curriculum) {
+          setCurriculumData(resData.data.curriculum);
+        }
+      } catch (error) {
+        console.error('Error fetching curriculum data:', error);
+      }
+    };
+    fetchCurriculum();
+  }, []);
 
   const handleAddModule = () => {
     if (!newModuleTitle.trim()) return;

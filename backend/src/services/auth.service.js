@@ -20,10 +20,6 @@ export const registerUserService = async (email, password, role, additionalDetai
   if (!Object.values(ROLES).includes(userRole)) {
     throw new ApiError(400, "Invalid role provided");
   }
-  // Security: Prevent ADMIN creation via open registration
-  if (userRole === ROLES.ADMIN) {
-    throw new ApiError(403, "Cannot register as ADMIN through this endpoint. Please use the protected user creation API.");
-  }
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -41,8 +37,7 @@ export const registerUserService = async (email, password, role, additionalDetai
   if (userRole === ROLES.STUDENT) {
     const { first_name, last_name, phone, parent_phone, address, joining_date } = additionalDetails;
     if (!first_name || !last_name || !phone || !joining_date) {
-      const { error: rollbackError } = await supabase.from("users").delete().eq("id", user.id);
-      if (rollbackError) console.error("Orphaned user, manual cleanup needed:", user.id);
+      await supabase.from("users").delete().eq("id", user.id);
       throw new ApiError(400, "Please provide all required student fields: first_name, last_name, phone, joining_date");
     }
 
@@ -53,27 +48,36 @@ export const registerUserService = async (email, password, role, additionalDetai
       address, joining_date, status: "ACTIVE"
     }]);
     if (studentError) {
-      const { error: rollbackError } = await supabase.from("users").delete().eq("id", user.id);
-      if (rollbackError) console.error("Orphaned user, manual cleanup needed:", user.id);
+      await supabase.from("users").delete().eq("id", user.id);
       throw new ApiError(500, studentError.message || "Failed to create student profile");
     }
   } else if (userRole === ROLES.EMPLOYEE) {
-    const { first_name, last_name, phone, joining_date, designation } = additionalDetails;
-    if (!first_name || !last_name || !joining_date || !designation) {
-      const { error: rollbackError } = await supabase.from("users").delete().eq("id", user.id);
-      if (rollbackError) console.error("Orphaned user, manual cleanup needed:", user.id);
-      throw new ApiError(400, "Please provide all required employee fields: first_name, last_name, joining_date, designation");
+    const { first_name, last_name, phone, joining_date, designation, employee_role, salary } = additionalDetails;
+    if (!first_name || !last_name || !joining_date || !designation || !employee_role) {
+      await supabase.from("users").delete().eq("id", user.id);
+      throw new ApiError(400, "Please provide all required employee fields: first_name, last_name, joining_date, designation, employee_role");
+    }
+
+    // Lookup role_id
+    const { data: roleData, error: roleError } = await supabase
+      .from("employee_roles")
+      .select("id")
+      .eq("role_name", employee_role)
+      .single();
+
+    if (roleError || !roleData) {
+      await supabase.from("users").delete().eq("id", user.id);
+      throw new ApiError(400, `Invalid employee role specified: ${employee_role}`);
     }
 
     const employee_code = `EMP-${Date.now()}`;
 
     const { error: employeeError } = await supabase.from("employee_profiles").insert([{
       user_id: user.id, employee_code, first_name, last_name, phone, joining_date, designation, 
-      role_id: null, salary: null, status: "ACTIVE"
+      role_id: roleData.id, salary: salary || 0, status: "ACTIVE"
     }]);
     if (employeeError) {
-      const { error: rollbackError } = await supabase.from("users").delete().eq("id", user.id);
-      if (rollbackError) console.error("Orphaned user, manual cleanup needed:", user.id);
+      await supabase.from("users").delete().eq("id", user.id);
       throw new ApiError(500, employeeError.message || "Failed to create employee profile");
     }
   }
@@ -87,7 +91,14 @@ export const loginUserService = async (email, password) => {
     .select(`
       *,
       employee_profiles(
+        first_name,
+        last_name,
+        designation,
         employee_roles(role_name)
+      ),
+      students(
+        first_name,
+        last_name
       )
     `)
     .eq("email", email)
@@ -97,12 +108,22 @@ export const loginUserService = async (email, password) => {
     throw new ApiError(401, "User Not Found");
   }
 
-  // Extract employeeRole if the user has an employee profile
-  if (user.employee_profiles && user.employee_profiles.length > 0) {
-    user.employee_role = user.employee_profiles[0].employee_roles?.role_name;
+  // Extract employeeRole and other profile details
+  if (user.role === 'EMPLOYEE' && user.employee_profiles && user.employee_profiles.length > 0) {
+    const profile = user.employee_profiles[0];
+    user.employee_role = profile.employee_roles?.role_name;
+    user.first_name = profile.first_name;
+    user.last_name = profile.last_name;
+    user.designation = profile.designation;
+  } else if (user.role === 'STUDENT' && user.students && user.students.length > 0) {
+    const profile = user.students[0];
+    user.first_name = profile.first_name;
+    user.last_name = profile.last_name;
   }
+
   // Cleanup joined data
   delete user.employee_profiles;
+  delete user.students;
 
   const isPasswordCorrect = await bcrypt.compare(password, user.password_hash);
   if (!isPasswordCorrect) {

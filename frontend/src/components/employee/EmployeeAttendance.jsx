@@ -1,15 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, Filter, Eye, X, ChevronLeft, ChevronRight, UserCheck, UserX, AlertTriangle, UserMinus } from 'lucide-react';
 
-const attendanceData = [
-  { id: 1, date: '2023-10-24', checkIn: '09:00 AM', checkOut: '05:30 PM', hours: '8.5', status: 'Present' },
-  { id: 2, date: '2023-10-23', checkIn: '09:15 AM', checkOut: '05:30 PM', hours: '8.25', status: 'Late' },
-  { id: 3, date: '2023-10-22', checkIn: '09:00 AM', checkOut: '01:00 PM', hours: '4.0', status: 'Half Day' },
-  { id: 4, date: '2023-10-21', checkIn: '-', checkOut: '-', hours: '-', status: 'Absent' },
-  { id: 5, date: '2023-10-20', checkIn: '08:50 AM', checkOut: '05:10 PM', hours: '8.33', status: 'Present' },
-];
-
 const EmployeeAttendance = () => {
+  const [attendanceData, setAttendanceData] = useState([]);
+
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        
+        const response = await fetch('/api/v1/attendance', {
+          headers: { 'Authorization': `Bearer ${userInfo.token}` }
+        });
+        const resData = await response.json();
+        if (response.ok) {
+          const attArray = resData.data?.attendance || resData.data || [];
+          setAttendanceData(attArray);
+        }
+      } catch (error) {
+        console.error('Error fetching attendance:', error);
+      }
+    };
+    fetchAttendance();
+  }, []);
+
   const [viewRecord, setViewRecord] = useState(null);
   const [month, setMonth] = useState('October');
   const [year, setYear] = useState('2023');

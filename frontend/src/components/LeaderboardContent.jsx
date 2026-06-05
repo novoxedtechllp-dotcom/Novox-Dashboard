@@ -1,47 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronRight, Star, GitMerge, Users, Code, Layers, MoreHorizontal, Filter, Share2, X, Award, ExternalLink, User, Loader2 } from 'lucide-react';
-
-const baseStudents = [
-  { name: 'Sarah Jenkins', course: 'Advanced UI/UX Design', avatar: 'sarah', baseScore: 3125, trend: '↗ +150 this week', trendColor: 'text-[#008A2E]', location: 'North America', department: 'Design' },
-  { name: 'Ethan Wright', course: 'Full Stack Development', avatar: 'ethan', baseScore: 2840, trend: '↗ +120 this week', trendColor: 'text-[#008A2E]', location: 'Europe', department: 'Development' },
-  { name: 'Aarav Patel', course: 'Cloud Architecture', avatar: 'aarav', baseScore: 2610, trend: '— No change', trendColor: 'text-[#555F6B]', location: 'Asia', department: 'Development' },
-  { name: 'Maya Rodriguez', course: 'Digital Marketing Professional', avatar: 'maya', baseScore: 2450, trend: '↗ +142 this week', trendColor: 'text-[#008A2E]', location: 'North America', department: 'Marketing' },
-  { name: 'Lucas Bennett', course: 'Data Science Immersion', avatar: 'lucas', baseScore: 2280, trend: '— No change', trendColor: 'text-[#555F6B]', location: 'Europe', department: 'Development' },
-  { name: 'Elena Kozlova', course: 'Cyber Security Specialist', avatar: 'elena', baseScore: 2115, trend: '↘ -1 rank', trendColor: 'text-[#D80000]', location: 'Europe', department: 'Development' },
-  { name: 'David Kim', course: 'Frontend Engineering', avatar: 'david', baseScore: 2050, trend: '↗ +50 this week', trendColor: 'text-[#008A2E]', location: 'Asia', department: 'Development' },
-  { name: 'Sophie Chen', course: 'Marketing Analytics', avatar: 'sophie', baseScore: 1980, trend: '— No change', trendColor: 'text-[#555F6B]', location: 'Asia', department: 'Marketing' },
-  { name: 'James Wilson', course: 'HR Management', avatar: 'james', baseScore: 1850, trend: '↘ -2 rank', trendColor: 'text-[#D80000]', location: 'North America', department: 'HR' },
-  { name: 'Olivia Davis', course: 'Mobile App Development', avatar: 'olivia', baseScore: 1720, trend: '↗ +80 this week', trendColor: 'text-[#008A2E]', location: 'North America', department: 'Development' },
-  { name: 'Liam Martinez', course: 'DevOps Engineering', avatar: 'liam', baseScore: 1650, trend: '— No change', trendColor: 'text-[#555F6B]', location: 'Europe', department: 'Development' },
-  { name: 'Isabella Taylor', course: 'Database Administration', avatar: 'isabella', baseScore: 1580, trend: '↗ +30 this week', trendColor: 'text-[#008A2E]', location: 'North America', department: 'Development' },
-  { name: 'Noah Thomas', course: 'Blockchain Development', avatar: 'noah', baseScore: 1510, trend: '— No change', trendColor: 'text-[#555F6B]', location: 'Europe', department: 'Development' },
-  { name: 'Mia White', course: 'Game Design', avatar: 'mia', baseScore: 1450, trend: '↘ -1 rank', trendColor: 'text-[#D80000]', location: 'Asia', department: 'Design' },
-  { name: 'William Lee', course: 'Software Testing', avatar: 'william', baseScore: 1390, trend: '↗ +20 this week', trendColor: 'text-[#008A2E]', location: 'North America', department: 'Development' }
-];
-
-const mockData = baseStudents.map((s, i) => {
-  const multipliers = { 'GitHub': 0.8, 'LinkedIn': 0.6, 'Behance': 0.5, 'LeetCode': 0.9, 'Other': 0.3 };
-  const timeMultipliers = { 'All Time': 1, 'Monthly': 0.15, 'Weekly': 0.04 };
-  
-  const scores = {};
-  ['All Time', 'Monthly', 'Weekly'].forEach(time => {
-    scores[time] = {};
-    ['Internal', 'GitHub', 'LinkedIn', 'Behance', 'LeetCode', 'Other'].forEach(plat => {
-      const platMult = plat === 'Internal' ? 1 : multipliers[plat];
-      const timeMult = timeMultipliers[time];
-      const randomJitter = (i * 7 + plat.length * 11 + time.length * 13) % 20 - 10;
-      scores[time][plat] = Math.max(0, Math.floor(s.baseScore * platMult * timeMult) + randomJitter);
-    });
-  });
-  
-  return {
-    id: i + 1,
-    ...s,
-    avatar: `https://i.pravatar.cc/150?u=${s.avatar}`,
-    coursesCompleted: 18 - Math.floor(i / 2),
-    scores
-  };
-});
 
 const platforms = [
   { id: 'Internal', label: 'Internal', sub: 'Coursework', Icon: Star, color: '#003F87' },
@@ -53,6 +11,29 @@ const platforms = [
 ];
 
 const LeaderboardContent = () => {
+  const [leaderboardData, setLeaderboardData] = useState([]);
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        
+        const response = await fetch('/api/v1/leaderboard', {
+          headers: { 'Authorization': `Bearer ${userInfo.token}` }
+        });
+        const resData = await response.json();
+        if (response.ok) {
+          const lbArray = resData.data?.leaderboard || resData.data || [];
+          setLeaderboardData(lbArray);
+        }
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+      }
+    };
+    fetchLeaderboard();
+  }, []);
+
   const [timeframe, setTimeframe] = useState('All Time');
   const [platform, setPlatform] = useState('Internal');
   const [visibleCount, setVisibleCount] = useState(6);
@@ -79,11 +60,11 @@ const LeaderboardContent = () => {
   };
 
   const sortedData = useMemo(() => {
-    return [...mockData]
+    return [...leaderboardData]
       .filter(s => filterLocation === 'Global' || s.location === filterLocation)
       .filter(s => filterDepartment === 'All Departments' || s.department === filterDepartment)
-      .sort((a, b) => b.scores[timeframe][platform] - a.scores[timeframe][platform]);
-  }, [timeframe, platform, filterLocation, filterDepartment]);
+      .sort((a, b) => (b.scores?.[timeframe]?.[platform] || 0) - (a.scores?.[timeframe]?.[platform] || 0));
+  }, [leaderboardData, timeframe, platform, filterLocation, filterDepartment]);
 
   const podium = sortedData.slice(0, 3);
   const list = sortedData.slice(3, visibleCount);

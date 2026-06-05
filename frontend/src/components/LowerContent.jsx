@@ -15,12 +15,13 @@ const LowerContent = ({ employees = [], students = [] }) => {
         try {
           const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
           if (!userInfo || !userInfo.token) return;
-          const response = await fetch('http://localhost:5000/api/v1/students', {
+          const response = await fetch('/api/v1/students', {
             headers: { 'Authorization': `Bearer ${userInfo.token}` }
           });
-          const data = await response.json();
+          const resData = await response.json();
           if (response.ok) {
-            setDashboardStudents(data);
+            const studs = resData.data?.students || resData.data || [];
+            setDashboardStudents(studs);
           }
         } catch (error) {
           console.error('Error fetching students for dashboard:', error);
@@ -37,16 +38,19 @@ const LowerContent = ({ employees = [], students = [] }) => {
   };
 
   const displayData = attendanceTab === 'Students' 
-    ? dashboardStudents.map(s => ({
-        id: s.id || s._id,
-        name: s.name,
-        subtitle: s.course,
-        initials: s.name.substring(0, 2).toUpperCase(),
-        time: s.attendance === '100%' ? '08:15 AM' : '--:--',
-        status: s.attendance === '100%' ? 'Present' : 'Absent',
-        statusColor: s.attendance === '100%' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600',
-        dotColor: s.attendance === '100%' ? 'bg-green-500' : 'bg-slate-400'
-      }))
+    ? dashboardStudents.map(s => {
+        const fullName = s.first_name ? `${s.first_name} ${s.last_name || ''}` : (s.name || 'Unknown');
+        return {
+          id: s.id || s._id,
+          name: fullName,
+          subtitle: s.course || 'Enrolled',
+          initials: fullName.substring(0, 2).toUpperCase(),
+          time: s.status === 'ACTIVE' ? '08:15 AM' : '--:--',
+          status: s.status === 'ACTIVE' ? 'Present' : 'Absent',
+          statusColor: s.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600',
+          dotColor: s.status === 'ACTIVE' ? 'bg-green-500' : 'bg-slate-400'
+        };
+      })
     : employees.map(e => ({
         id: e.id,
         name: e.name,

@@ -1,19 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers } from 'lucide-react';
-
-const initialModules = [
-  { id: 1, course_id: 1, title: 'Introduction to Web', description: 'Basics of HTML, CSS', sequence_order: 1 },
-  { id: 2, course_id: 1, title: 'Javascript Deep Dive', description: 'Advanced JS concepts', sequence_order: 2 }
-];
-
-const initialSchedules = [
-  { id: 1, course_id: 1, start_date: '2024-01-10', end_date: '2024-06-10', days_of_week: 'Mon, Wed, Fri', start_time: '10:00', end_time: '12:00' }
-];
+import React, { useState, useMemo, useEffect } from 'react';
 
 const formatPrice = (price) => {
   const numStr = String(price).replace(/[^\d.]/g, '');
   return numStr ? `₹${numStr}/-` : 'Free';
 };
+import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers } from 'lucide-react';
 
 const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,8 +14,36 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
   
-  const [modules, setModules] = useState(initialModules);
-  const [schedules, setSchedules] = useState(initialSchedules);
+  const [modules, setModules] = useState([]);
+  const [schedules, setSchedules] = useState([]);
+
+  useEffect(() => {
+    const fetchCourseData = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        
+        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+        
+        const [modRes, schedRes] = await Promise.all([
+          fetch('/api/v1/course-modules', { headers }),
+          fetch('/api/v1/course-schedules', { headers })
+        ]);
+
+        if (modRes.ok) {
+          const mData = await modRes.json();
+          setModules(mData.data?.modules || mData.data || []);
+        }
+        if (schedRes.ok) {
+          const sData = await schedRes.json();
+          setSchedules(sData.data?.schedules || sData.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching course data:', error);
+      }
+    };
+    fetchCourseData();
+  }, []);
   
   const [activeTab, setActiveTab] = useState('overview'); // overview, modules, schedule
 

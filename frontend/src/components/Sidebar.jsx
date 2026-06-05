@@ -24,16 +24,35 @@ const navItems = [
   { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
-const Sidebar = ({ isHR, isDesign, isDevelopment, basePath = '/admin' }) => {
+const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, basePath = '/admin' }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   
   let visibleNavItems = navItems;
-  if (isHR) {
-    visibleNavItems = navItems.filter(item => item.id !== 'blog' && item.id !== 'seo');
-  } else if (isDesign || isDevelopment) {
-    const hiddenForDesign = ['employees', 'courses', 'whatsapp-automation', 'sales-crm', 'blog', 'payroll', 'seo'];
-    visibleNavItems = navItems.filter(item => !hiddenForDesign.includes(item.id));
+  if (userRole !== 'ADMIN') {
+    const hiddenItems = [];
+    
+    // Evaluate hidden items based on role
+    if (!isHR) {
+      hiddenItems.push('employees', 'payroll', 'recruitment');
+    }
+    if (!isSales) {
+      hiddenItems.push('sales-crm');
+    }
+    if (!(isHR || isSales)) {
+      hiddenItems.push('fees');
+    }
+    if (!(isHR || isDesign || isDevelopment)) {
+      hiddenItems.push('courses');
+    }
+    if (!(isSales || isMarketing)) {
+      hiddenItems.push('whatsapp-automation');
+    }
+    if (!isMarketing) {
+      hiddenItems.push('seo', 'blog');
+    }
+    
+    visibleNavItems = navItems.filter(item => !hiddenItems.includes(item.id));
   }
 
   return (

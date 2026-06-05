@@ -1,29 +1,33 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Download, Plus, FileText, CheckCircle, TrendingUp, MoreVertical, Eye, Calendar, DollarSign, Briefcase } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
-// Mock Data Generation
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-const generateMockPayroll = () => {
-  return Array.from({ length: 12 }, (_, i) => ({
-    id: `pay-${i + 1}`,
-    employee_id: `emp-${100 + i}`,
-    employee_name: `Employee ${String.fromCharCode(65 + (i % 26))}`,
-    month: (i % 12) + 1,
-    year: 2023,
-    basic_salary: 50000 + (i * 2000),
-    bonus: i % 3 === 0 ? 5000 : 0,
-    deductions: 2000,
-    net_salary: (50000 + (i * 2000)) + (i % 3 === 0 ? 5000 : 0) - 2000,
-    payment_date: `2023-${String((i % 12) + 1).padStart(2, '0')}-28`,
-    status: i < 10 ? 'PAID' : 'PENDING'
-  }));
-};
-
 const PayrollContent = () => {
-  const [payrollData, setPayrollData] = useState(generateMockPayroll());
+  const [payrollData, setPayrollData] = useState([]);
+
+  useEffect(() => {
+    const fetchPayroll = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        
+        const response = await fetch('/api/v1/payroll', {
+          headers: { 'Authorization': `Bearer ${userInfo.token}` }
+        });
+        const resData = await response.json();
+        if (response.ok) {
+          const prArray = resData.data?.payroll || resData.data || [];
+          setPayrollData(prArray);
+        }
+      } catch (error) {
+        console.error('Error fetching payroll:', error);
+      }
+    };
+    fetchPayroll();
+  }, []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [viewItem, setViewItem] = useState(null);
