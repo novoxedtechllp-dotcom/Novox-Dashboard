@@ -47,6 +47,18 @@ export default function Login({ onLogin }) {
         body: JSON.stringify({ email, password })
       });
 
+      if (!response.ok) {
+        let errorMsg = 'Login failed';
+        try {
+          const errData = await response.json();
+          errorMsg = errData.message || errorMsg;
+        } catch(e) {
+          errorMsg = `Server error: ${response.status}`;
+        }
+        setError(errorMsg);
+        return;
+      }
+
       const data = await response.json();
 
       if (response.ok) {

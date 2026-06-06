@@ -18,6 +18,7 @@ const LowerContent = ({ employees = [], students = [] }) => {
           const response = await fetch('/api/v1/students', {
             headers: { 'Authorization': `Bearer ${userInfo.token}` }
           });
+          if (!response.ok) throw new Error(`Students API error: ${response.status}`);
           const resData = await response.json();
           if (response.ok) {
             const studs = resData.data?.students || resData.data || [];

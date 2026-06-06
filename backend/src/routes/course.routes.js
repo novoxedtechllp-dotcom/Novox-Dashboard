@@ -45,7 +45,7 @@ router.route("/:courseId/employees").get(authorize({ roles: [ROLES.ADMIN, ROLES.
 
 // Write (Admin and specific Employees)
 const writeAuth = authorize({ 
-  roles: [ROLES.ADMIN, ROLES.EMPLOYEE],
+  roles: [ROLES.ADMIN],
   employeeRoles: [
     EMPLOYEE_ROLES.HR,
     EMPLOYEE_ROLES.DEVELOPMENT,

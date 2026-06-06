@@ -248,6 +248,12 @@ const updateStudent = asyncHandler(async (req, res) => {
 const deleteStudent = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
 
+  const { data: student } = await supabase
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .single();
+
   const { data, error } = await supabase
     .from("students")
     .delete()
@@ -256,6 +262,8 @@ const deleteStudent = asyncHandler(async (req, res) => {
 
   if (error) throw new ApiError(500, error.message || "Failed to delete student");
   if (!data || data.length === 0) throw new ApiError(404, "Student not found");
+
+  if (student?.user_id) await supabase.from("users").delete().eq("id", student.user_id);
 
   return res.status(200).json(new ApiResponse(200, {}, "Student deleted successfully"));
 });
@@ -360,6 +368,18 @@ const getStudentTasks = asyncHandler(async (req, res) => {
 const updateStudentTask = asyncHandler(async (req, res) => {
   const { studentId, taskId } = req.params;
   const { status, submission_url, grade, feedback } = req.body;
+
+  const isStudentRole = req.user.role === 'STUDENT';
+
+  // Students can only submit — they cannot grade themselves
+  if (isStudentRole) {
+    if (grade !== undefined || feedback !== undefined) {
+      throw new ApiError(403, "Students cannot grade or provide feedback on their own tasks");
+    }
+    if (status !== undefined && status !== 'SUBMITTED') {
+      throw new ApiError(403, "Students can only set task status to SUBMITTED");
+    }
+  }
 
   const updates = {};
   if (status !== undefined) updates.status = status;

@@ -186,21 +186,27 @@ function App() {
       
       // Fetch courses
       fetch('/api/v1/courses', { headers })
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error(`Courses API error: ${res.status}`);
+          return res.json();
+        })
         .then(resData => {
           if (resData?.data) setCourses(resData.data.map(mapCourseFromApi));
         })
-        .catch(console.error);
+        .catch(err => console.error('Failed to fetch courses:', err));
 
       // Fetch employees
       fetch('/api/v1/employees', { headers })
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error(`Employees API error: ${res.status}`);
+          return res.json();
+        })
         .then(resData => {
           if (resData?.data) {
             setEmployees(resData.data.map(mapEmployeeFromApi));
           }
         })
-        .catch(console.error);
+        .catch(err => console.error('Failed to fetch employees:', err));
     }
   }, [isAuthenticated]);
 

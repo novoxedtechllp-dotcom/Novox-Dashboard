@@ -36,8 +36,13 @@ const register = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Email and password are required");
   }
 
-  // Temporary: allow setting role via registration body for initial setup
-  const user = await registerUserService(email, password, role, additionalDetails);
+  // Public registration only allows STUDENT role.
+  // Admin and Employee accounts must be created through their respective management endpoints.
+  if (role && role !== 'STUDENT') {
+    throw new ApiError(403, "Public registration is only available for Student accounts");
+  }
+
+  const user = await registerUserService(email, password, 'STUDENT', additionalDetails);
 
   return res
     .status(201)
@@ -50,6 +55,12 @@ const logout = asyncHandler(async (req, res) => {
     secure: false,
     sameSite: "lax",
   };
+
+  if (req.user?.id) {
+    // Need to import supabase for this to work
+    const { supabase } = await import("../config/supabase.js");
+    await supabase.from("users").update({ refresh_token: null }).eq("id", req.user.id);
+  }
 
   return res
     .status(200)

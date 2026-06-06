@@ -31,7 +31,6 @@ const statusFromApi = (status) => {
 
 const departmentToApi = (department) => {
   if (department === 'Development') return 'DEVELOPMENT';
-  if (department === 'Support') return 'HR';
   return department.toUpperCase();
 };
 
@@ -203,7 +202,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
     return employees.filter(emp => emp.department === deptFilter);
   }, [employees, deptFilter]);
 
-  const uniqueDepts = ['All Departments', 'Development', 'Marketing', 'Sales', 'HR', 'Support'];
+  const uniqueDepts = ['All Departments', 'Development', 'Marketing', 'Sales', 'HR'];
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative">
@@ -266,7 +265,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
                 ) : (
                   <User size={24} className="text-slate-400" />
                 )}
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#008A2E] border-[2px] border-white rounded-full"></div>
+                <div className={`absolute bottom-0 right-0 w-3 h-3 border-[2px] border-white rounded-full ${emp.status === 'Active' ? 'bg-[#008A2E]' : emp.status === 'On Leave' ? 'bg-[#B26E00]' : 'bg-red-500'}`}></div>
               </div>
               <div>
                 <span className="inline-block bg-[#E5F0FF] text-[#003F87] text-[10px] font-bold px-1.5 py-0.5 rounded-[4px] mb-1">EID: {emp.eid}</span>

@@ -75,6 +75,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       const response = await fetch('/api/v1/students', {
         headers
       });
+      if (!response.ok) throw new Error(`Students API error: ${response.status}`);
       const resData = await response.json();
       if (response.ok) {
         const studentsList = resData.data?.students || resData.data || [];
