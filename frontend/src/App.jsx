@@ -238,7 +238,7 @@ function App() {
             <Route path="/" element={<Navigate to={`${basePath}/dashboard`} replace />} />
             <Route path={basePath} element={<Navigate to={`${basePath}/dashboard`} replace />} />
             
-            <Route path={`${basePath}/dashboard`} element={<MainContent activeTab="dashboard" employees={employees} />} />
+            <Route path={`${basePath}/dashboard`} element={userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />} />
             <Route path={`${basePath}/daily-plan`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
             {/* <Route path={`${basePath}/attendance`} element={<AttendanceContent employees={employees} courses={courses} />} /> */}
             <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} />} />
