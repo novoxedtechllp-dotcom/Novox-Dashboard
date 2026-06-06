@@ -25,29 +25,6 @@ import Signup from './components/Signup';
 import Fab from './components/Fab';
 import DailyPlan from './components/DailyPlan';
 
-const initialEmployees = [
-  {
-    id: 1,
-    eid: 'EMP001',
-    name: 'Alice Johnson',
-    department: 'Development',
-    phone: '+1 (555) 123-4567',
-    status: 'Active',
-    joinDate: 'Jan 2023',
-    avatar: null
-  },
-  {
-    id: 2,
-    eid: 'EMP002',
-    name: 'Bob Smith',
-    department: 'Marketing',
-    phone: '+1 (555) 987-6543',
-    status: 'On Leave',
-    joinDate: 'Mar 2023',
-    avatar: null
-  }
-];
-
 // Employee Components
 import EmployeeSidebar from './components/employee/EmployeeSidebar';
 import EmployeeHeader from './components/employee/EmployeeHeader';
@@ -57,58 +34,7 @@ import EmployeeAttendance from './components/employee/EmployeeAttendance';
 import EmployeePayroll from './components/employee/EmployeePayroll';
 import EmployeeSettings from './components/employee/EmployeeSettings';
 
-const initialCourses = [
-  {
-    id: 1,
-    category: 'DEVELOPMENT',
-    title: 'Full Stack Web Engineering',
-    duration: '24 Weeks',
-    price: '$1,200.00',
-    mentorName: 'Sarah Mitchell',
-    mentorInitials: 'SM',
-    imgUrl: null
-  },
-  {
-    id: 2,
-    category: 'MARKETING',
-    title: 'Advanced Digital Strategy',
-    duration: '12 Weeks',
-    price: '$850.00',
-    mentorName: 'David Chen',
-    mentorInitials: 'DC',
-    imgUrl: null
-  },
-  {
-    id: 3,
-    category: 'DESIGN',
-    title: 'UI/UX Design Masterclass',
-    duration: '16 Weeks',
-    price: '$990.00',
-    mentorName: 'Elena Lopez',
-    mentorInitials: 'EL',
-    imgUrl: null
-  },
-  {
-    id: 4,
-    category: 'HR',
-    title: 'Strategic HR Management',
-    duration: '8 Weeks',
-    price: '$600.00',
-    mentorName: 'James Baxter',
-    mentorInitials: 'JB',
-    imgUrl: null
-  },
-  {
-    id: 5,
-    category: 'DEVELOPMENT',
-    title: 'Data Science & Analytics',
-    duration: '20 Weeks',
-    price: '$1,450.00',
-    mentorName: 'Rajiv Kapoor',
-    mentorInitials: 'RK',
-    imgUrl: null
-  }
-];
+// Mock data removed
 
 const employeeStatusFromApi = (status) => {
   if (status === 'ON_LEAVE') return 'On Leave';
@@ -181,8 +107,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated && initialUserInfo?.token) {
-      const headers = { Authorization: `Bearer ${initialUserInfo.token}` };
+    if (isAuthenticated && userInfo?.token) {
+      const headers = { Authorization: `Bearer ${userInfo.token}` };
       
       // Fetch courses
       fetch('/api/v1/courses', { headers })
@@ -208,7 +134,7 @@ function App() {
         })
         .catch(err => console.error('Failed to fetch employees:', err));
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userInfo]);
 
   const handleLogin = (role) => {
     setIsAuthenticated(true);
@@ -220,6 +146,7 @@ function App() {
     setIsAuthenticated(false);
     setUserRole(null);
     sessionStorage.removeItem('userInfo');
+    localStorage.removeItem('userInfo');
     navigate('/');
   };
 

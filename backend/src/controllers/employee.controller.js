@@ -114,12 +114,13 @@ export const createEmployee = asyncHandler(async (req, res) => {
     employeeRoleId = roleData.id;
   }
 
+  let loginPassword = null;
   if (employeeUserId) {
     const { data: userExists } = await supabase.from("users").select("id").eq("id", employeeUserId).single();
     if (!userExists) throw new ApiError(400, "User not found");
   } else {
     const loginEmail = email || `${employeeCode.toLowerCase()}@employees.novox.local`;
-    const loginPassword = password || `${employeeCode}@123`;
+    loginPassword = password || `${employeeCode}@123`;
     const hashedPassword = await bcrypt.hash(loginPassword, 10);
 
     const { data: user, error: userError } = await supabase
@@ -158,7 +159,13 @@ export const createEmployee = asyncHandler(async (req, res) => {
     throw new ApiError(500, error.message || "Failed to create employee");
   }
 
-  return res.status(201).json(new ApiResponse(201, data[0], "Employee created successfully"));
+  // Return the default password if one was auto-generated
+  const responseData = { ...data[0] };
+  if (!password && loginPassword) {
+    responseData._defaultPassword = loginPassword;
+  }
+
+  return res.status(201).json(new ApiResponse(201, responseData, "Employee created successfully"));
 });
 
 // @desc    Get all employees
@@ -267,16 +274,16 @@ export const deleteEmployee = asyncHandler(async (req, res) => {
 
   const { data, error } = await supabase
     .from("employee_profiles")
-    .delete()
+    .update({ status: 'TERMINATED' })
     .eq("id", employeeId)
     .select();
 
   if (error) throw new ApiError(500, error.message || "Failed to delete employee");
   if (!data || data.length === 0) throw new ApiError(404, "Employee not found");
 
-  if (employee?.user_id) await supabase.from("users").delete().eq("id", employee.user_id);
+  if (employee?.user_id) await supabase.from("users").update({ status: 'INACTIVE' }).eq("id", employee.user_id);
 
-  return res.status(200).json(new ApiResponse(200, {}, "Employee deleted successfully"));
+  return res.status(200).json(new ApiResponse(200, {}, "Employee deleted successfully (soft delete)"));
 });
 
 // ==========================================

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Download, Briefcase, ListTodo, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Download, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Pencil } from 'lucide-react';
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -39,6 +39,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   // "View Details" Modal State
   const [activeStudent, setActiveStudent] = useState(null);
   const [detailsTab, setDetailsTab] = useState('overview'); // overview, courses, documents
+  const [selectedDocFile, setSelectedDocFile] = useState(null);
 
   // Filter States
   const [statusFilter, setStatusFilter] = useState('All Statuses');
@@ -90,7 +91,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
           address: d.address || 'N/A',
           joining_date: d.joining_date || new Date().toISOString().split('T')[0],
           status: d.status || 'ACTIVE',
-          avatar: d.avatar || null
+          avatar: d.avatar_url || null
         }));
         setStudents(mappedData);
       }
@@ -239,46 +240,134 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   };
 
   const handleEnrollCourse = async () => {
-    if(!newEnrollment) return;
-
+    if (!newEnrollment || !activeStudent) return;
     try {
       const headers = getAuthHeaders();
-      if (!headers) return;
-
       const response = await fetch(`/api/v1/students/${activeStudent.id}/courses`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ course_id: newEnrollment })
       });
-      const resData = await parseApiResponse(response);
-
-      setStudentCourses([...studentCourses, { ...resData.data, student_id: activeStudent.id }]);
-      setNewEnrollment('');
+      const resData = await response.json();
+      if (response.ok) {
+        setStudentCourses([...studentCourses, { ...resData.data, student_id: activeStudent.id }]);
+        setNewEnrollment('');
+      } else {
+        alert(resData.message || 'Failed to enroll course');
+      }
     } catch (error) {
       console.error('Error enrolling course:', error);
       alert(error.message || 'Failed to enroll course');
     }
   };
 
-  const handleAddDocument = async () => {
-    if(!newDocName) return;
-
+  const handleUpdateCourseProgress = async (studentId, courseId, currentProgress, currentStatus) => {
+    const newProgress = window.prompt("Enter new progress percentage (0-100):", currentProgress);
+    if (newProgress === null) return;
+    const numProgress = parseInt(newProgress);
+    if (isNaN(numProgress) || numProgress < 0 || numProgress > 100) {
+      alert("Invalid progress value");
+      return;
+    }
+    const newStatus = window.prompt("Enter completion status (IN_PROGRESS, COMPLETED, DROPPED):", currentStatus);
+    if (!['IN_PROGRESS', 'COMPLETED', 'DROPPED'].includes(newStatus)) {
+      alert("Invalid status");
+      return;
+    }
+  
     try {
       const headers = getAuthHeaders();
-      if (!headers) return;
+      const response = await fetch(`/api/v1/students/${studentId}/courses/${courseId}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ progress_percentage: numProgress, completion_status: newStatus })
+      });
+      const resData = await response.json();
+      if (response.ok) {
+        setStudentCourses(studentCourses.map(sc => 
+          (sc.student_id === studentId && sc.course_id === courseId) ? { ...sc, progress_percentage: numProgress, completion_status: newStatus } : sc
+        ));
+      } else {
+        alert(resData.message || "Failed to update");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  
+  const handleRemoveCourse = async (studentId, courseId) => {
+    if (!window.confirm("Are you sure you want to remove this course from the student?")) return;
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`/api/v1/students/${studentId}/courses/${courseId}`, {
+        method: 'DELETE',
+        headers
+      });
+      if (response.ok) {
+        setStudentCourses(studentCourses.filter(sc => !(sc.student_id === studentId && sc.course_id === courseId)));
+      } else {
+        alert("Failed to remove course");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteDocument = async (studentId, docId) => {
+    if(!window.confirm("Are you sure you want to delete this document?")) return;
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`/api/v1/students/${studentId}/documents/${docId}`, {
+        method: 'DELETE',
+        headers
+      });
+      if (response.ok) {
+        setStudentDocuments(studentDocuments.filter(sd => sd.id !== docId));
+      } else {
+        alert("Failed to delete document");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleAddDocument = async () => {
+    if(!newDocName || !selectedDocFile) {
+      alert("Please select a document type and a file to upload.");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedDocFile);
+      const headers = getAuthHeaders();
+      let uploadHeaders = { ...headers };
+      delete uploadHeaders['Content-Type'];
+      
+      const uploadRes = await fetch('/api/v1/upload', {
+        method: 'POST',
+        headers: uploadHeaders,
+        body: formData
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok || !uploadData.data?.url) {
+        throw new Error(uploadData.message || 'File upload failed');
+      }
 
       const response = await fetch(`/api/v1/students/${activeStudent.id}/documents`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           document_type: newDocName,
-          document_url: `/docs/student_${activeStudent.id}_${Date.now()}.pdf`
+          document_url: uploadData.data.url
         })
       });
-      const resData = await parseApiResponse(response);
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.message || 'Failed to add document');
 
       setStudentDocuments([...studentDocuments, { ...resData.data, student_id: activeStudent.id }]);
       setNewDocName('');
+      setSelectedDocFile(null);
     } catch (error) {
       console.error('Error adding document:', error);
       alert(error.message || 'Failed to add document');
@@ -738,13 +827,20 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                                 </div>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Progress</div>
-                              <div className="flex items-center gap-3">
-                                <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                  <div className="h-full bg-[#003F87]" style={{ width: `${sc.progress_percentage}%` }}></div>
+                            <div className="text-right flex items-center gap-4">
+                              <div>
+                                <div className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Progress</div>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-[#003F87]" style={{ width: `${sc.progress_percentage}%` }}></div>
+                                  </div>
+                                  <span className="text-sm font-bold text-slate-800 w-10">{sc.progress_percentage}%</span>
                                 </div>
-                                <span className="text-sm font-bold text-slate-800 w-10">{sc.progress_percentage}%</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => handleRemoveCourse(activeStudent.id, sc.course_id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                  <Trash2 size={16} />
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -774,16 +870,16 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                           <option value="Other">Other</option>
                         </select>
                         <div className="flex-1 relative">
-                          <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                          <input type="file" onChange={(e) => setSelectedDocFile(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                           <div className="w-full px-4 py-2.5 border border-slate-300 border-dashed rounded-lg text-sm text-slate-500 bg-white flex items-center gap-2">
-                            <Upload size={16} /> Choose File...
+                            <Upload size={16} /> {selectedDocFile ? selectedDocFile.name : 'Choose File...'}
                           </div>
                         </div>
                       </div>
                     </div>
                     <button 
                       onClick={handleAddDocument}
-                      disabled={!newDocName}
+                      disabled={!newDocName || !selectedDocFile}
                       className="px-6 py-2.5 bg-[#003F87] text-white rounded-lg text-sm font-bold hover:bg-[#002B5E] disabled:opacity-50 transition-colors shadow-sm"
                     >
                       Upload
@@ -808,9 +904,14 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                               <div className="text-xs font-medium text-slate-500 mt-0.5">Uploaded {new Date(sd.uploaded_at).toLocaleDateString()}</div>
                             </div>
                           </div>
-                          <button className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-[#003F87] hover:bg-[#003F87] hover:text-white transition-colors border border-slate-200 hover:border-transparent">
-                            <Download size={14} />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => window.open(sd.document_url, '_blank')} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-[#003F87] hover:bg-[#003F87] hover:text-white transition-colors border border-slate-200 hover:border-transparent">
+                              <Eye size={14} />
+                            </button>
+                            <button onClick={() => handleDeleteDocument(activeStudent.id, sd.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors border border-slate-200 hover:border-transparent">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}

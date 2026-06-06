@@ -10,11 +10,11 @@ export const uploadFile = asyncHandler(async (req, res) => {
 
   const uploadResult = await uploadOnCloudinary(req.file.path);
   
-  if (!uploadResult?.url) {
+  if (!uploadResult?.secure_url && !uploadResult?.url) {
     throw new ApiError(500, "Error uploading file to Cloudinary");
   }
 
   return res.status(200).json(
-    new ApiResponse(200, { url: uploadResult.url }, "File uploaded successfully")
+    new ApiResponse(200, { url: uploadResult.secure_url || uploadResult.url }, "File uploaded successfully")
   );
 });

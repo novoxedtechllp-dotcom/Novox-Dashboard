@@ -6,6 +6,8 @@ import {
   updateStudent,
   deleteStudent,
   assignCourse,
+  updateStudentCourse,
+  removeStudentCourse,
   getStudentProgress,
   getStudentReports,
   addStudentDocument,
@@ -50,6 +52,9 @@ const writeAuth = authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] });
 const readAuth = authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT] });
 
 router.route("/:studentId/courses").post(writeAuth, assignCourse);
+router.route("/:studentId/courses/:courseId")
+  .put(writeAuth, updateStudentCourse)
+  .delete(writeAuth, removeStudentCourse);
 router.route("/:studentId/progress").get(readAuth, getStudentProgress);
 
 router.route("/:studentId/tasks").get(readAuth, getStudentTasks);
