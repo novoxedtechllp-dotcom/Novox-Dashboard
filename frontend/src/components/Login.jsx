@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './Login.css';
+import { Mail, Lock, Eye, EyeOff, LayoutDashboard, ShieldCheck, ArrowRight, CheckSquare } from 'lucide-react';
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate();
@@ -14,6 +14,7 @@ export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,6 +39,7 @@ export default function Login({ onLogin }) {
       return;
     }
 
+    setLoading(true);
     try {
       const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
@@ -56,6 +58,7 @@ export default function Login({ onLogin }) {
           errorMsg = `Server error: ${response.status}`;
         }
         setError(errorMsg);
+        setLoading(false);
         return;
       }
 
@@ -67,14 +70,17 @@ export default function Login({ onLogin }) {
         // Enforce login panel restriction
         if (role === 'Admin' && userInfoToSave.role !== 'ADMIN') {
           setError('Invalid login panel. You do not have Admin privileges.');
+          setLoading(false);
           return;
         }
         if (role === 'Employee' && userInfoToSave.role !== 'EMPLOYEE') {
           setError('Invalid login panel. Please use the Employee panel.');
+          setLoading(false);
           return;
         }
         if (role === 'Student' && userInfoToSave.role !== 'STUDENT') {
           setError('Invalid login panel. Please use the Student panel.');
+          setLoading(false);
           return;
         }
 
@@ -86,252 +92,279 @@ export default function Login({ onLogin }) {
     } catch (err) {
       console.error("Backend connection failed:", err);
       setError("Failed to connect to the server. Please ensure the backend is running.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="login-wrapper">
-      <div className="login-layout">
-        {/* Left Panel */}
-        <div className="login-left-panel">
-          <div className="left-content">
-            <div className="logo-section">
-              <div className="logo-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 3 L2 8 L12 13 L22 8 Z" />
-                  <path d="M4.5 10.75 L12 14.5 L19.5 10.75 V 15.5 L12 19.25 L4.5 15.5 Z" />
-                  <path d="M20.5 8.75 V 17 H 22 V 8 Z" />
-                </svg>
-              </div>
-              <h2 className="logo-text">Novox Edtech</h2>
-            </div>
-
-            <div className="hero-text">
-              <h1>Manage Everything with Novox Edtech</h1>
-              <p>
-                Your all-in-one hub for students, employees, attendance, courses, 
-                and more. Streamline your institution's operations with our 
-                advanced administrative suite.
-              </p>
-            </div>
-
-            <div className="features">
-              <div className="feature-card">
-                <div className="feature-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="8" height="10" />
-                    <rect x="3" y="16" width="8" height="5" />
-                    <rect x="14" y="3" width="7" height="5" />
-                    <rect x="14" y="11" width="7" height="10" />
-                  </svg>
-                </div>
-                <span>Real-time Analytics</span>
-              </div>
-              <div className="feature-card">
-                <div className="feature-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2.5L5 5v6c0 4.5 3.5 8 7 9.5 3.5-1.5 7-5 7-9.5V5l-7-2.5z" stroke="currentColor" strokeWidth="2"/>
-                    <path d="M12 5l-5 1.8v5.2h5V5z" fill="currentColor"/>
-                    <path d="M12 12h5c0 3.5-2.5 6.5-5 7.8V12z" fill="currentColor"/>
-                  </svg>
-                </div>
-                <span>Secure Protocols</span>
-              </div>
-            </div>
-          </div>
+    <div className="flex flex-col lg:flex-row min-h-screen w-full bg-[#FAFBFC] font-sans selection:bg-blue-200">
+      
+      {/* Left Panel - Branding */}
+      <div className="lg:w-1/2 bg-gradient-to-br from-[#001D4A] via-[#003F87] to-[#0056B3] text-white p-8 md:p-16 flex flex-col justify-center relative overflow-hidden hidden md:flex">
+        {/* Abstract Background Elements */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-400 opacity-10 blur-3xl"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-cyan-400 opacity-10 blur-3xl"></div>
+          <div className="absolute top-[40%] right-[10%] w-[30%] h-[30%] rounded-full bg-white opacity-5 blur-2xl"></div>
         </div>
 
-        {/* Right Panel */}
-        <div className="login-right-panel">
-          <div className="login-box">
-            <div className="login-header">
-              <h2>{isForgotPassword ? 'Reset Password' : 'Welcome Back'}</h2>
-              <p>{isForgotPassword ? (otpSent ? 'Enter the OTP sent to your email and your new password.' : 'Enter your email to receive a password reset OTP.') : 'Enter your credentials to access the management portal.'}</p>
+        <div className="relative z-10 max-w-lg mx-auto w-full">
+          {/* Logo */}
+          <div className="flex items-center gap-3 mb-16">
+            <div className="w-10 h-10 bg-white text-[#003F87] rounded-xl flex items-center justify-center shadow-lg">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 3 L2 8 L12 13 L22 8 Z" />
+                <path d="M4.5 10.75 L12 14.5 L19.5 10.75 V 15.5 L12 19.25 L4.5 15.5 Z" />
+                <path d="M20.5 8.75 V 17 H 22 V 8 Z" />
+              </svg>
             </div>
+            <span className="text-2xl font-black tracking-tight">Novox Edtech</span>
+          </div>
 
-            {!isForgotPassword && (
-              <div className="role-toggle">
-                <button 
-                  type="button"
-                  className={`toggle-btn ${role === 'Admin' ? 'active' : ''}`}
-                  onClick={() => setRole('Admin')}
-                >
-                  Admin
-                </button>
-                <button 
-                  type="button"
-                  className={`toggle-btn ${role === 'Employee' ? 'active' : ''}`}
-                  onClick={() => setRole('Employee')}
-                >
-                  Employee
-                </button>
-                <button 
-                  type="button"
-                  className={`toggle-btn ${role === 'Student' ? 'active' : ''}`}
-                  onClick={() => setRole('Student')}
-                >
-                  Student
-                </button>
+          <h1 className="text-4xl lg:text-5xl font-black leading-tight mb-6 text-transparent bg-clip-text bg-gradient-to-r from-white to-blue-100">
+            Manage Everything<br/>with Novox Edtech
+          </h1>
+          <p className="text-blue-100/80 text-lg leading-relaxed mb-12 font-medium max-w-md">
+            Your all-in-one hub for students, employees, attendance, courses, and more. Streamline your institution's operations with our advanced administrative suite.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-start gap-4 hover:bg-white/20 transition-all cursor-default">
+              <div className="bg-white/20 p-2 rounded-lg shrink-0">
+                <LayoutDashboard className="text-white" size={20} />
               </div>
-            )}
-
-            <form className="login-form" onSubmit={handleSubmit}>
-              {isForgotPassword ? (
-                <>
-                  <div className="form-group">
-                    <label>Email Address</label>
-                    <div className="input-wrapper">
-                      <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                        <polyline points="22,6 12,13 2,6"></polyline>
-                      </svg>
-                      <input type="email" placeholder="name@novox-edtech.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={otpSent} />
-                    </div>
-                  </div>
-
-                  {otpSent && (
-                    <>
-                      <div className="form-group">
-                        <label>OTP Code</label>
-                        <div className="input-wrapper">
-                          <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                          </svg>
-                          <input type="text" placeholder="123456" value={otp} onChange={(e) => setOtp(e.target.value)} required />
-                        </div>
-                      </div>
-                      <div className="form-group">
-                        <label>New Password</label>
-                        <div className="input-wrapper">
-                          <input 
-                            type={showPassword ? "text" : "password"} 
-                            placeholder="••••••••" 
-                            value={password} 
-                            onChange={(e) => setPassword(e.target.value)} 
-                            required 
-                          />
-                          <button 
-                            type="button" 
-                            className="show-pwd-btn"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                              <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                      <div className="form-group">
-                        <label>Confirm Password</label>
-                        <div className="input-wrapper">
-                          <input 
-                            type={showConfirmPassword ? "text" : "password"} 
-                            placeholder="••••••••" 
-                            value={confirmPassword} 
-                            onChange={(e) => setConfirmPassword(e.target.value)} 
-                            required 
-                          />
-                          <button 
-                            type="button" 
-                            className="show-pwd-btn"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                              <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {error && <div style={{color: 'red', fontSize: '14px', marginBottom: '15px'}}>{error}</div>}
-
-                  <button type="submit" className="submit-btn" style={{marginTop: '10px'}}>
-                    {otpSent ? 'Reset Password' : 'Send OTP'}
-                  </button>
-
-                  <div style={{textAlign: 'center', marginTop: '20px', fontSize: '14px'}}>
-                    <a href="#" onClick={(e) => { e.preventDefault(); setIsForgotPassword(false); setOtpSent(false); }} style={{color: '#555F6B', textDecoration: 'none'}}>Back to Login</a>
-                  </div>
-                </>
-              ) : (
-                <>
-              <div className="form-group">
-                <label>Email or Username</label>
-                <div className="input-wrapper">
-                  <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                  </svg>
-                  <input type="email" placeholder="name@novox-edtech.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                </div>
+              <div>
+                <h4 className="font-bold text-white text-sm">Real-time Analytics</h4>
+                <p className="text-xs text-blue-200 mt-1 font-medium">Monitor all operations</p>
               </div>
-
-              <div className="form-group">
-                <div className="label-row">
-                  <label>Password</label>
-                </div>
-                <div className="input-wrapper">
-                  <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                  </svg>
-                  <input 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="••••••••" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                  <button 
-                    type="button" 
-                    className="show-pwd-btn"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                      <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                  </button>
-                </div>
-                {(role === 'Employee' || role === 'Student') && (
-                  <div style={{textAlign: 'right', marginTop: '8px'}}>
-                    <a href="#" onClick={(e) => { e.preventDefault(); setIsForgotPassword(true); }} className="forgot-link" style={{color: '#003F87', textDecoration: 'none', fontSize: '13px', fontWeight: '500'}}>Forgot Password?</a>
-                  </div>
-                )}
+            </div>
+            
+            <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-start gap-4 hover:bg-white/20 transition-all cursor-default">
+              <div className="bg-white/20 p-2 rounded-lg shrink-0">
+                <ShieldCheck className="text-white" size={20} />
               </div>
-
-              {error && <div style={{color: 'red', fontSize: '14px', marginBottom: '15px'}}>{error}</div>}
-
-
-
-              <button type="submit" className="submit-btn">
-                Sign In
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginLeft: '8px'}}>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                  <polyline points="12 5 19 12 12 19"></polyline>
-                </svg>
-              </button>
-
-                            </>
-            )}
-            </form>
-
-            <div className="footer">
-              <span className="copyright">© 2024 Novox Edtech. All rights reserved.</span>
-              <div className="footer-links">
-                <a href="#">Privacy Policy</a>
-                <a href="#">Terms of Service</a>
+              <div>
+                <h4 className="font-bold text-white text-sm">Secure Protocols</h4>
+                <p className="text-xs text-blue-200 mt-1 font-medium">Enterprise grade safety</p>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Right Panel - Form */}
+      <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 bg-white lg:rounded-l-3xl relative z-10 lg:-ml-6 shadow-[-20px_0_40px_rgba(0,0,0,0.1)]">
+        <div className="w-full max-w-md">
+          
+          <div className="mb-10 text-center lg:text-left">
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">
+              {isForgotPassword ? 'Reset Password' : 'Welcome Back'}
+            </h2>
+            <p className="text-slate-500 font-medium text-sm">
+              {isForgotPassword 
+                ? (otpSent ? 'Enter the OTP sent to your email and your new password.' : 'Enter your email to receive a password reset OTP.') 
+                : 'Enter your credentials to access the management portal.'}
+            </p>
+          </div>
+
+          {!isForgotPassword && (
+            <div className="bg-slate-100 p-1.5 rounded-2xl flex mb-8">
+              {['Admin', 'Employee', 'Student'].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRole(r)}
+                  className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${
+                    role === r 
+                      ? 'bg-white text-[#003F87] shadow-sm' 
+                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {isForgotPassword ? (
+              <>
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input 
+                      type="email" 
+                      placeholder="name@novox-edtech.com" 
+                      value={email} 
+                      onChange={(e) => setEmail(e.target.value)} 
+                      required 
+                      disabled={otpSent}
+                      className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400 disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                {otpSent && (
+                  <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div>
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">OTP Code</label>
+                      <div className="relative">
+                        <CheckSquare className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input 
+                          type="text" 
+                          placeholder="123456" 
+                          value={otp} 
+                          onChange={(e) => setOtp(e.target.value)} 
+                          required 
+                          className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400 tracking-widest"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">New Password</label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input 
+                          type={showPassword ? "text" : "password"} 
+                          placeholder="••••••••" 
+                          value={password} 
+                          onChange={(e) => setPassword(e.target.value)} 
+                          required 
+                          className="w-full pl-11 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Confirm Password</label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input 
+                          type={showConfirmPassword ? "text" : "password"} 
+                          placeholder="••••••••" 
+                          value={confirmPassword} 
+                          onChange={(e) => setConfirmPassword(e.target.value)} 
+                          required 
+                          className="w-full pl-11 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email or Username</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input 
+                      type="email" 
+                      placeholder="name@novox-edtech.com" 
+                      value={email} 
+                      onChange={(e) => setEmail(e.target.value)} 
+                      required 
+                      className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-2 px-1">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Password</label>
+                    {(role === 'Employee' || role === 'Student') && (
+                      <button 
+                        type="button" 
+                        onClick={() => setIsForgotPassword(true)} 
+                        className="text-[11px] font-bold text-[#003F87] hover:underline"
+                      >
+                        Forgot Password?
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      placeholder="••••••••" 
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="w-full pl-11 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400 tracking-widest"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {error && (
+              <div className="bg-rose-50 border border-rose-100 text-rose-600 text-sm font-bold p-4 rounded-xl flex items-center gap-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                {error}
+              </div>
+            )}
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-[#003F87] text-white py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95 disabled:opacity-70 mt-6"
+            >
+              {loading ? (
+                <span>Please wait...</span>
+              ) : isForgotPassword ? (
+                otpSent ? 'Reset Password' : 'Send OTP'
+              ) : (
+                <>Sign In <ArrowRight size={18} /></>
+              )}
+            </button>
+
+            {isForgotPassword && (
+              <div className="text-center mt-6">
+                <button 
+                  type="button" 
+                  onClick={() => { setIsForgotPassword(false); setOtpSent(false); }}
+                  className="text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
+                >
+                  Back to Login
+                </button>
+              </div>
+            )}
+          </form>
+
+          <div className="mt-12 pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-medium text-slate-400">
+            <span>© 2024 Novox Edtech. All rights reserved.</span>
+            <div className="flex gap-4">
+              <a href="#" className="hover:text-[#003F87] transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-[#003F87] transition-colors">Terms of Service</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }
-

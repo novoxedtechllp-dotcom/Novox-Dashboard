@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil } from 'lucide-react';
+import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle } from 'lucide-react';
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -143,6 +143,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
       setEmployees([addedEmployee, ...employees]);
       setIsModalOpen(false);
       setNewEmployee({ name: '', email: '', password: '', department: 'Development', phone: '', status: 'Active', joinDate: 'January 2024', avatarUrl: null });
+      alert('Employee added successfully!');
     } catch (error) {
       console.error('Error adding employee:', error);
       alert(error.message || 'Failed to add employee');
@@ -161,6 +162,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
       await parseApiResponse(response);
 
       setEmployees(employees.filter(emp => emp.id !== id));
+      alert('Employee deleted successfully!');
     } catch (error) {
       console.error('Error deleting employee:', error);
       alert(error.message || 'Failed to delete employee');
@@ -191,6 +193,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
       setEmployees(employees.map(emp => emp.id === employeeToEdit.id ? updatedEmployee : emp));
       setEmployeeToEdit(null);
+      alert('Employee updated successfully!');
     } catch (error) {
       console.error('Error updating employee:', error);
       alert(error.message || 'Failed to update employee');
@@ -204,210 +207,235 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
   const uniqueDepts = ['All Departments', 'Development', 'Marketing', 'Sales', 'HR'];
 
+  const getStatusColor = (status) => {
+    if(status === 'Active') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    if(status === 'On Leave') return 'bg-amber-50 text-amber-700 border-amber-200';
+    if(status === 'Terminated') return 'bg-rose-50 text-rose-700 border-rose-200';
+    return 'bg-slate-50 text-slate-700 border-slate-200';
+  };
+
+  const getStatusDotColor = (status) => {
+    if(status === 'Active') return 'bg-emerald-500';
+    if(status === 'On Leave') return 'bg-amber-500';
+    if(status === 'Terminated') return 'bg-rose-500';
+    return 'bg-slate-400';
+  };
+
   return (
-    <div className="p-[24px] flex flex-col gap-[24px] w-full relative">
+    <div className="p-6 md:p-8 flex flex-col gap-8 w-full relative bg-[#FAFBFC] min-h-full">
       {toast && (
-        <div className={`fixed top-4 right-4 z-[9999] px-6 py-3 rounded-lg shadow-xl font-bold text-sm transform transition-all duration-300 translate-y-0 opacity-100 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+        <div className={`fixed bottom-8 right-8 z-[9999] px-6 py-4 rounded-xl shadow-2xl font-bold text-sm transform transition-all duration-300 flex items-center gap-3 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-slate-800 text-white'}`}>
+          {toast.type === 'error' ? <X size={18} /> : <CheckCircle size={18} className="text-green-400" />}
           {toast.message}
         </div>
       )}
-      {/* Top Filter Container */}
-      <div className="w-full bg-white border border-[#C2C6D4] rounded-[8px] p-[24px] flex flex-col sm:flex-row gap-[24px] h-auto sm:h-[108px] items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-[24px] w-full sm:w-auto flex-1">
-          <div className="flex-1 w-full max-w-none sm:max-w-[240px]">
-            <label className="block text-[11px] font-bold text-[#555F6B] uppercase tracking-wide mb-2">Department</label>
+
+      {/* Top Header / Actions Bar */}
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Department</span>
             <select 
               value={deptFilter}
               onChange={(e) => setDeptFilter(e.target.value)}
-              className="w-full bg-[#F8FAFC] border border-[#C2C6D4] px-[16px] py-[10px] rounded-[6px] text-[13px] text-slate-800 outline-none appearance-none"
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none appearance-none pr-8 cursor-pointer relative w-full sm:w-auto"
+              style={{ background: `url('data:image/svg+xml;utf8,<svg fill="none" viewBox="0 0 24 24" stroke="%2364748B" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>') no-repeat right center / 16px` }}
             >
               {uniqueDepts.map(dept => <option key={dept} value={dept}>{dept}</option>)}
             </select>
           </div>
         </div>
-        <div className="shrink-0 mt-4 sm:mt-0">
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-[#003F87] text-white px-[20px] py-[10px] rounded-[6px] text-[13px] font-bold flex items-center gap-[8px] hover:bg-[#002B5E] transition-colors"
-          >
-            <Plus size={16} /> Add Employee
-          </button>
-        </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="w-full sm:w-auto bg-[#003F87] text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95"
+        >
+          <Plus size={18} /> Add Employee
+        </button>
       </div>
 
       {/* Grid Container */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[24px]">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         
         {filteredEmployees.map(emp => (
-          <div key={emp.id} className="bg-white rounded-[8px] border border-[#C2C6D4] p-[24px] flex flex-col h-[247px] relative group hover:border-[#003F87] transition-colors">
+          <div key={emp.id} className="bg-white rounded-2xl p-4 flex items-center gap-4 relative group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 border border-slate-100/60 shadow-sm cursor-pointer">
             
-            <div className="absolute top-[16px] right-[16px] flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+            {/* Action Buttons */}
+            <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-10 bg-white/90 backdrop-blur-sm pl-2">
               <button 
                 onClick={(e) => { e.stopPropagation(); setEmployeeToEdit(emp); }}
-                className="text-slate-400 hover:text-[#003F87]"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                 title="Edit Employee"
               >
-                <Pencil size={16} />
+                <Pencil size={14} />
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); setEmployeeToDelete(emp.id); }}
-                className="text-slate-400 hover:text-[#D80000]"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                 title="Delete Employee"
               >
-                <Trash2 size={16} />
+                <Trash2 size={14} />
               </button>
             </div>
 
-            <div className="flex items-start gap-4 mb-auto">
-              <div className="relative w-[48px] h-[48px] rounded-full overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center">
+            {/* Profile Info */}
+            <div className="relative shrink-0">
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shadow-inner">
                 {emp.avatar ? (
                   <img src={emp.avatar} alt={emp.name} className="w-full h-full object-cover" />
                 ) : (
-                  <User size={24} className="text-slate-400" />
+                  <User size={20} className="text-slate-300" />
                 )}
-                <div className={`absolute bottom-0 right-0 w-3 h-3 border-[2px] border-white rounded-full ${emp.status === 'Active' ? 'bg-[#008A2E]' : emp.status === 'On Leave' ? 'bg-[#B26E00]' : 'bg-red-500'}`}></div>
               </div>
-              <div>
-                <span className="inline-block bg-[#E5F0FF] text-[#003F87] text-[10px] font-bold px-1.5 py-0.5 rounded-[4px] mb-1">EID: {emp.eid}</span>
-                <h3 className="text-[16px] font-bold text-slate-900 leading-tight">{emp.name}</h3>
+              <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full shadow-sm ${getStatusDotColor(emp.status)}`}></div>
+            </div>
+            
+            {/* Details */}
+            <div className="flex flex-col flex-1 min-w-0 pr-16">
+              <div className="flex items-center gap-2 mb-0.5">
+                <h3 className="text-[15px] font-bold text-slate-800 leading-tight truncate">{emp.name}</h3>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${getStatusColor(emp.status)}`}>
+                  {emp.status}
+                </span>
+              </div>
+              <div className="text-[12px] font-medium text-slate-500 truncate flex items-center gap-1.5">
+                <Briefcase size={12} className="text-slate-400" /> {emp.department}
+              </div>
+              <div className="text-[11px] font-semibold text-slate-400 truncate mt-1 flex items-center gap-1.5">
+                <Phone size={10} /> {emp.phone} • EID: {emp.eid}
               </div>
             </div>
             
-            <div className="flex flex-col gap-2 mt-4 mb-4">
-              <div className="flex items-center gap-2 text-[#555F6B] text-[12px]">
-                <Briefcase size={14} /> {emp.department}
-              </div>
-              <div className="flex items-center gap-2 text-[#555F6B] text-[12px]">
-                <Phone size={14} /> {emp.phone}
-              </div>
-            </div>
-            
-            <div className="border-t border-dashed border-[#C2C6D4] pt-4 flex flex-col gap-2">
-              <div className="flex justify-between items-center">
-                <div className="text-[11px] font-semibold text-[#555F6B]">
-                  Status: <span className={`font-bold ${emp.status === 'Active' ? 'text-[#008A2E]' : 'text-[#B26E00]'}`}>{emp.status}</span>
-                </div>
-                <div className="text-[11px] font-semibold text-[#555F6B]">
-                  Joined: <span className="text-[#003F87] font-bold">{emp.joinDate}</span>
-                </div>
-              </div>
-            </div>
           </div>
         ))}
 
         {/* Add Employee Card */}
-        <div 
+        <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-white rounded-[8px] border border-dashed border-[#C2C6D4] p-[24px] flex flex-col items-center justify-center h-[247px] cursor-pointer hover:bg-slate-50 transition-colors text-center"
+          className="bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200 p-4 flex items-center gap-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group min-h-[80px]"
         >
-          <div className="w-[40px] h-[40px] rounded-full bg-[#F8FAFC] flex items-center justify-center text-[#555F6B] mb-3">
+          <div className="w-12 h-12 rounded-full bg-white shadow-sm text-blue-500 flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300 border border-slate-100">
             <Plus size={20} />
           </div>
-          <h3 className="text-[14px] font-bold text-slate-900 leading-tight">Add New Employee</h3>
-          <p className="text-[11px] text-[#555F6B] mt-1 max-w-[180px]">Onboard a new team member</p>
-        </div>
-      </div>
-
-      <div className="w-full flex justify-between items-center pt-[8px]">
-        <div className="text-[13px] text-[#555F6B] font-medium">Showing all {filteredEmployees.length} employees</div>
+          <div className="flex flex-col text-left">
+            <h3 className="text-[14px] font-bold text-slate-700 mb-0.5">Add New Employee</h3>
+            <p className="text-[11px] font-medium text-slate-500">Click to onboard a new member</p>
+          </div>
+        </button>
       </div>
 
       {/* Add Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
-              <h2 className="text-lg font-bold text-slate-800">Add New Employee</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                <X size={20} />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg my-8 flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <h2 className="text-xl font-black text-slate-800">Add New Employee</h2>
+              <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
+                <X size={18} />
               </button>
             </div>
             
-            <form onSubmit={handleAddEmployee} className="p-6 flex flex-col gap-4 overflow-y-auto">
-              <div className="flex items-center gap-4">
-                <div className="w-[64px] h-[64px] rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+            <form onSubmit={handleAddEmployee} className="p-8 flex flex-col gap-6">
+              <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="w-20 h-20 rounded-full bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-sm relative group cursor-pointer">
                   {newEmployee.avatarUrl ? (
                     <img src={newEmployee.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
                   ) : (
-                    <User size={32} className="text-slate-400" />
+                    <User size={32} className="text-slate-300" />
                   )}
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Upload size={20} className="text-white" />
+                  </div>
+                  <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Profile Picture</label>
-                  <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-1.5 px-3 rounded inline-flex items-center gap-2 transition-colors border border-slate-200">
-                    <Upload size={14} /> Upload Image
+                  <h4 className="text-sm font-bold text-slate-800 mb-1">Profile Photo</h4>
+                  <p className="text-xs font-medium text-slate-500 mb-3">Upload a square image (JPG, PNG).</p>
+                  <label className="cursor-pointer bg-white border border-slate-200 hover:border-blue-300 text-slate-700 text-xs font-bold py-2 px-4 rounded-xl inline-flex items-center gap-2 transition-colors shadow-sm">
+                    <Upload size={14} /> Browse Files
                     <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                   </label>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Full Name</label>
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name *</label>
                 <input 
                   type="text" required value={newEmployee.name}
                   onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                  placeholder="John Doe"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Email <span className="text-slate-400 normal-case font-normal">(optional)</span></label>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email <span className="text-slate-300 normal-case font-normal">(optional)</span></label>
                   <input 
                     type="email" value={newEmployee.email}
                     onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
-                    placeholder="employee@example.com"
+                    placeholder="john@example.com"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Password <span className="text-slate-400 normal-case font-normal">(optional)</span></label>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Password <span className="text-slate-300 normal-case font-normal">(optional)</span></label>
                   <input 
                     type="text" value={newEmployee.password}
                     onChange={(e) => setNewEmployee({...newEmployee, password: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
-                    placeholder="Auto-generated if empty"
+                    placeholder="Auto-generated"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Department</label>
-                <select 
-                  value={newEmployee.department}
-                  onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
-                >
-                  {uniqueDepts.slice(1).map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
+                <div className="relative">
+                  <select 
+                    value={newEmployee.department}
+                    onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all appearance-none cursor-pointer"
+                  >
+                    {uniqueDepts.slice(1).map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Phone Number</label>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
                   <input 
                     type="text" required value={newEmployee.phone}
                     onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                    placeholder="+1 (555) 000-0000"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Status</label>
-                  <select 
-                    value={newEmployee.status}
-                    onChange={(e) => setNewEmployee({...newEmployee, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="On Leave">On Leave</option>
-                    <option value="Terminated">Terminated</option>
-                  </select>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Status</label>
+                  <div className="relative">
+                    <select 
+                      value={newEmployee.status}
+                      onChange={(e) => setNewEmployee({...newEmployee, status: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="On Leave">On Leave</option>
+                      <option value="Terminated">Terminated</option>
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E]">Add Employee</button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-end mt-4 pt-6 border-t border-slate-100">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-6 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors">Cancel</button>
+                <button type="submit" className="w-full sm:w-auto px-6 py-3 bg-[#003F87] text-white rounded-xl text-sm font-bold hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95">Add Employee</button>
               </div>
             </form>
           </div>
@@ -416,62 +444,72 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
       {/* Edit Modal */}
       {employeeToEdit && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
-              <h2 className="text-lg font-bold text-slate-800">Edit Employee</h2>
-              <button onClick={() => setEmployeeToEdit(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                <X size={20} />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg my-8 flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <h2 className="text-xl font-black text-slate-800">Edit Employee</h2>
+              <button onClick={() => setEmployeeToEdit(null)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
+                <X size={18} />
               </button>
             </div>
             
-            <form onSubmit={handleUpdateEmployee} className="p-6 flex flex-col gap-4 overflow-y-auto">
+            <form onSubmit={handleUpdateEmployee} className="p-8 flex flex-col gap-6">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Full Name</label>
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name</label>
                 <input 
                   type="text" required value={employeeToEdit.name}
                   onChange={(e) => setEmployeeToEdit({...employeeToEdit, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                 />
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Department</label>
-                <select 
-                  value={employeeToEdit.department}
-                  onChange={(e) => setEmployeeToEdit({...employeeToEdit, department: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
-                >
-                  {uniqueDepts.slice(1).map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
+                <div className="relative">
+                  <select 
+                    value={employeeToEdit.department}
+                    onChange={(e) => setEmployeeToEdit({...employeeToEdit, department: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all appearance-none cursor-pointer"
+                  >
+                    {uniqueDepts.slice(1).map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Phone Number</label>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number</label>
                   <input 
                     type="text" required value={employeeToEdit.phone}
                     onChange={(e) => setEmployeeToEdit({...employeeToEdit, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Status</label>
-                  <select 
-                    value={employeeToEdit.status}
-                    onChange={(e) => setEmployeeToEdit({...employeeToEdit, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="On Leave">On Leave</option>
-                    <option value="Terminated">Terminated</option>
-                  </select>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Status</label>
+                  <div className="relative">
+                    <select 
+                      value={employeeToEdit.status}
+                      onChange={(e) => setEmployeeToEdit({...employeeToEdit, status: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="On Leave">On Leave</option>
+                      <option value="Terminated">Terminated</option>
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200">
-                <button type="button" onClick={() => setEmployeeToEdit(null)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E]">Save Changes</button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-end mt-4 pt-6 border-t border-slate-100">
+                <button type="button" onClick={() => setEmployeeToEdit(null)} className="w-full sm:w-auto px-6 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors">Cancel</button>
+                <button type="submit" className="w-full sm:w-auto px-6 py-3 bg-[#003F87] text-white rounded-xl text-sm font-bold hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95">Save Changes</button>
               </div>
             </form>
           </div>
@@ -480,22 +518,25 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
       {/* Delete Confirmation Modal */}
       {employeeToDelete && (
-        <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4">
-            <h3 className="text-lg font-bold text-slate-900">Confirm Deletion</h3>
-            <p className="text-sm text-slate-600">Are you sure you want to delete this employee? This action cannot be undone.</p>
-            <div className="flex gap-3 justify-end mt-2">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 flex flex-col gap-5 text-center items-center">
+            <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-2">
+              <Trash2 size={28} />
+            </div>
+            <h3 className="text-xl font-black text-slate-900">Delete Employee?</h3>
+            <p className="text-slate-500 font-medium text-sm">This action cannot be undone. All data associated with this employee will be permanently removed.</p>
+            <div className="flex w-full gap-3 mt-4">
               <button 
                 onClick={() => setEmployeeToDelete(null)} 
-                className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                className="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
               <button 
                 onClick={() => { handleDeleteEmployee(employeeToDelete); setEmployeeToDelete(null); }} 
-                className="px-4 py-2 bg-[#D80000] text-white rounded-md text-sm font-semibold hover:bg-red-700 transition-colors"
+                className="flex-1 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold hover:bg-rose-700 shadow-md shadow-rose-900/10 transition-all active:scale-95"
               >
-                Delete
+                Yes, Delete
               </button>
             </div>
           </div>

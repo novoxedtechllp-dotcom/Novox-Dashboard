@@ -137,6 +137,10 @@ function App() {
   }, [isAuthenticated, userInfo]);
 
   const handleLogin = (role) => {
+    const updatedUserInfoStr = sessionStorage.getItem('userInfo');
+    if (updatedUserInfoStr) {
+      setUserInfo(JSON.parse(updatedUserInfoStr));
+    }
     setIsAuthenticated(true);
     setUserRole(role);
     navigate('/');
@@ -145,6 +149,7 @@ function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUserRole(null);
+    setUserInfo(null);
     sessionStorage.removeItem('userInfo');
     localStorage.removeItem('userInfo');
     navigate('/');
