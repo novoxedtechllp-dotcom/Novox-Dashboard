@@ -368,70 +368,81 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         
         {/* Enroll Card */}
-        <div 
+        <button 
           onClick={() => setIsAddModalOpen(true)}
-          className="bg-blue-50/40 rounded-2xl border-2 border-dashed border-blue-200 p-6 flex flex-col items-center justify-center h-[280px] cursor-pointer hover:bg-blue-50/80 hover:border-[#003F87]/40 transition-all group shadow-sm hover:shadow-md"
+          className="bg-transparent rounded-[24px] border-2 border-dashed border-slate-200 p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group min-h-[260px]"
         >
-          <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center text-blue-400 group-hover:text-[#003F87] group-hover:scale-110 mb-4 transition-all">
-            <Plus size={28} />
+          <div className="w-14 h-14 rounded-[16px] bg-white shadow-sm text-blue-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300 border border-slate-100">
+            <Plus size={24} />
           </div>
-          <h3 className="text-lg font-black text-slate-800 leading-tight">Enroll Student</h3>
-          <p className="text-xs font-medium text-slate-500 mt-2 text-center px-4 leading-relaxed">Click here to register a new student profile in the system.</p>
-        </div>
+          <h3 className="text-lg font-black text-slate-800 mb-1">Enroll Student</h3>
+          <p className="text-xs font-medium text-slate-500 leading-relaxed px-4">Click here to register a new student profile in the system.</p>
+        </button>
 
         {filteredStudents.map(student => {
           const studentEnrolledCourses = studentCourses.filter(sc => sc.student_id === student.id);
           
           return (
-            <div key={student.id} className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col relative group hover:border-blue-200 transition-all shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-xl h-[280px] overflow-hidden">
+            <div key={student.id} className="bg-white rounded-[24px] border border-slate-100/60 flex flex-col relative group shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 overflow-hidden min-h-[260px]">
               
-              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-10 translate-x-2 group-hover:translate-x-0">
+              {/* Floating Status Badge */}
+              <div className={`absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${getStatusColor(student.status)}`}>
+                {student.status}
+              </div>
+
+              {/* Main Content Area */}
+              <div className="p-6 relative flex flex-col h-full">
+                
+                {/* Profile Header */}
+                <div className="flex flex-col mb-auto">
+                  <div className="relative w-16 h-16 mb-4">
+                    <div className="w-full h-full rounded-[16px] overflow-hidden bg-slate-100 flex items-center justify-center shadow-inner">
+                      {student.avatar ? (
+                        <img src={student.avatar} alt={student.first_name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[#003F87] font-black text-2xl">{student.first_name[0]}{student.last_name[0]}</span>
+                      )}
+                    </div>
+                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 border-[3px] border-white rounded-full shadow-sm ${getStatusDotColor(student.status)}`}></div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mb-1.5 mt-1">
+                    <span className="inline-block bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+                      {student.student_code}
+                    </span>
+                  </div>
+                  
+                  <h3 className="text-lg font-black text-slate-800 leading-tight tracking-tight truncate pr-2 mb-1">{student.first_name} {student.last_name}</h3>
+                  
+                  <div className="flex flex-col gap-1.5 mt-2">
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                      <Phone size={14} className="text-slate-400" /> <span className="truncate">{student.phone || 'No phone'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                      <GraduationCap size={14} className="text-slate-400" /> <span>{studentEnrolledCourses.length} Courses</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Actions Footer */}
+              <div className="p-3 bg-slate-50/50 mt-auto flex items-center gap-2 border-t border-slate-50">
+                <button 
+                  onClick={() => openStudentDetails(student)}
+                  className="flex-1 flex items-center justify-center gap-1.5 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-3 rounded-[12px] transition-all"
+                >
+                  <FileText size={14} /> Full Details
+                </button>
                 <button 
                   onClick={(e) => { e.stopPropagation(); setStudentToDelete(student.id); }}
-                  className="w-8 h-8 rounded-full bg-white shadow-sm border border-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-600 hover:border-red-200 flex items-center justify-center transition-all"
-                  title="Delete Student"
+                  className="flex shrink-0 items-center justify-center w-12 h-10 text-rose-500 bg-rose-50 hover:bg-rose-100 hover:text-rose-600 rounded-[12px] transition-all"
+                  title="Remove Student"
                 >
                   <Trash2 size={14} />
                 </button>
               </div>
 
-              <div className="flex flex-col items-center text-center mb-auto pt-2">
-                <div className="relative w-20 h-20 rounded-full overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center mb-4 shadow-sm border-4 border-white">
-                  {student.avatar ? (
-                    <img src={student.avatar} alt={student.first_name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-[#003F87] font-black text-2xl">{student.first_name[0]}{student.last_name[0]}</span>
-                  )}
-                  <div className={`absolute bottom-1 right-1 w-4 h-4 border-[3px] border-white rounded-full ${getStatusDotColor(student.status)}`}></div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 leading-tight truncate px-2">{student.first_name} {student.last_name}</h3>
-                  <div className="flex items-center justify-center gap-2 mt-1.5">
-                    <span className="inline-block bg-slate-100 text-slate-500 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">{student.student_code}</span>
-                    <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${getStatusColor(student.status)}`}>
-                      {student.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex flex-col gap-2.5 mt-4 mb-4 px-2 w-full">
-                <div className="flex items-center gap-3 text-slate-500 text-[13px] font-medium bg-slate-50 py-1.5 px-3 rounded-lg w-full">
-                  <Phone size={14} className="text-slate-400" /> <span className="truncate">{student.phone || 'No phone'}</span>
-                </div>
-                <div className="flex items-center gap-3 text-slate-500 text-[13px] font-medium bg-slate-50 py-1.5 px-3 rounded-lg w-full">
-                  <GraduationCap size={14} className="text-slate-400" /> <span>{studentEnrolledCourses.length} Courses</span>
-                </div>
-              </div>
-              
-              <div className="pt-2 mt-auto">
-                <button 
-                  onClick={() => openStudentDetails(student)}
-                  className="w-full text-center py-2.5 bg-slate-50 text-[#003F87] text-[13px] font-bold rounded-xl group-hover:bg-[#003F87] group-hover:text-white transition-colors duration-300 shadow-sm"
-                >
-                  View Full Details
-                </button>
-              </div>
             </div>
           );
         })}
