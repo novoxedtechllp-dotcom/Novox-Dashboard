@@ -145,7 +145,7 @@ const createStudent = asyncHandler(async (req, res) => {
 // @desc    Get all students with filters
 // @route   GET /api/v1/students
 const getStudents = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, courseId, status, search } = req.query;
+  const { page = 1, limit = 20, courseId, instructorId, status, search } = req.query;
 
   const pageNum = parseInt(page, 10);
   const limitNum = parseInt(limit, 10);
@@ -158,6 +158,11 @@ const getStudents = asyncHandler(async (req, res) => {
       ${studentSelectFields},
       student_courses!inner(course_id)
     `, { count: "exact" }).eq("student_courses.course_id", courseId);
+  } else if (instructorId) {
+    query = supabase.from("students").select(`
+      ${studentSelectFields},
+      student_courses!inner(courses!inner(instructor_id))
+    `, { count: "exact" }).eq("student_courses.courses.instructor_id", instructorId);
   } else {
     query = supabase.from("students").select(studentSelectFields, { count: "exact" });
   }
@@ -174,7 +179,7 @@ const getStudents = asyncHandler(async (req, res) => {
 
   if (error) throw new ApiError(500, error.message || "Failed to fetch students");
 
-  const formattedData = courseId ? data.map(s => {
+  const formattedData = (courseId || instructorId) ? data.map(s => {
     const { student_courses, ...rest } = s;
     return rest;
   }) : data;

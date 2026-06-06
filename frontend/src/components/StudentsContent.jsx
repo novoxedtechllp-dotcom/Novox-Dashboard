@@ -55,8 +55,9 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   const [newEnrollment, setNewEnrollment] = useState('');
   const [newDocName, setNewDocName] = useState('');
+  const [ownershipFilter, setOwnershipFilter] = useState('All Students');
 
-  const fetchStudents = useCallback(async () => {
+  const fetchStudents = useCallback(async (currentOwnershipFilter) => {
     setLoading(true);
     try {
       const headers = getAuthHeaders();
@@ -65,7 +66,17 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         return;
       }
 
-      const response = await fetch('/api/v1/students', { headers });
+      let url = '/api/v1/students';
+      if (currentOwnershipFilter === 'My Students') {
+        const profRes = await fetch('/api/v1/profile/me', { headers });
+        const profData = await profRes.json();
+        const empId = profData?.data?.employeeProfile?.id;
+        if (empId) {
+          url += `?instructorId=${empId}`;
+        }
+      }
+
+      const response = await fetch(url, { headers });
       if (!response.ok) throw new Error(`Students API error: ${response.status}`);
       const resData = await response.json();
       if (response.ok) {
@@ -92,9 +103,9 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   }, []);
 
   useEffect(() => {
-    const loadTimer = setTimeout(() => { fetchStudents(); }, 0);
+    const loadTimer = setTimeout(() => { fetchStudents(ownershipFilter); }, 0);
     return () => clearTimeout(loadTimer);
-  }, [fetchStudents]);
+  }, [fetchStudents, ownershipFilter]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -317,7 +328,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Filter By</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -325,6 +336,18 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               style={{ background: `url('data:image/svg+xml;utf8,<svg fill="none" viewBox="0 0 24 24" stroke="%2364748B" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>') no-repeat right center / 16px` }}
             >
               {uniqueStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Ownership</span>
+            <select 
+              value={ownershipFilter}
+              onChange={(e) => setOwnershipFilter(e.target.value)}
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none appearance-none pr-8 cursor-pointer relative"
+              style={{ background: `url('data:image/svg+xml;utf8,<svg fill="none" viewBox="0 0 24 24" stroke="%2364748B" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>') no-repeat right center / 16px` }}
+            >
+              <option value="All Students">All Students</option>
+              <option value="My Students">My Students</option>
             </select>
           </div>
         </div>

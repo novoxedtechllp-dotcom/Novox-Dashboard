@@ -378,11 +378,25 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
     }
   };
 
+  const [ownershipFilter, setOwnershipFilter] = useState('All Courses');
+
   const filteredCourses = useMemo(() => {
-    const normalizedCourses = courses.map(course => mapCourseFromApi(course));
-    if (categoryFilter === 'All Categories') return normalizedCourses;
-    return normalizedCourses.filter(c => c.category === categoryFilter);
-  }, [courses, categoryFilter]);
+    let normalizedCourses = courses.map(course => mapCourseFromApi(course));
+    
+    if (categoryFilter !== 'All Categories') {
+      normalizedCourses = normalizedCourses.filter(c => c.category === categoryFilter);
+    }
+    
+    if (ownershipFilter === 'My Courses') {
+      const currentUserEmail = JSON.parse(sessionStorage.getItem('userInfo') || '{}')?.email;
+      const currentEmployee = employees.find(e => e.email === currentUserEmail);
+      if (currentEmployee) {
+        normalizedCourses = normalizedCourses.filter(c => String(c.mentorId) === String(currentEmployee.id));
+      }
+    }
+    
+    return normalizedCourses;
+  }, [courses, categoryFilter, ownershipFilter, employees]);
 
   const uniqueCategories = ['All Categories', 'DEVELOPMENT', 'MARKETING', 'DESIGN'];
 
@@ -399,7 +413,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
       <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Filter By</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Category</span>
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
@@ -407,6 +421,19 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
               style={{ background: `url('data:image/svg+xml;utf8,<svg fill="none" viewBox="0 0 24 24" stroke="%2364748B" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>') no-repeat right center / 16px` }}
             >
               {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Ownership</span>
+            <select
+              value={ownershipFilter}
+              onChange={(e) => setOwnershipFilter(e.target.value)}
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none appearance-none pr-8 cursor-pointer relative"
+              style={{ background: `url('data:image/svg+xml;utf8,<svg fill="none" viewBox="0 0 24 24" stroke="%2364748B" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>') no-repeat right center / 16px` }}
+            >
+              <option value="All Courses">All Courses</option>
+              <option value="My Courses">My Courses</option>
             </select>
           </div>
         </div>
