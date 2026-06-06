@@ -1171,60 +1171,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col md:flex-row gap-8">
-                  <div className="w-full md:w-[40%] shrink-0">
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                      <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><Calendar size={16} /> Add Schedule</h3>
-                      <form onSubmit={handleAddSchedule} className="flex flex-col gap-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Start Date</label>
-                            <input type="date" required value={newSchedule.start_date} onChange={e => setNewSchedule({ ...newSchedule, start_date: e.target.value })} className="w-full text-xs p-2 border rounded" />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">End Date</label>
-                            <input type="date" required value={newSchedule.end_date} onChange={e => setNewSchedule({ ...newSchedule, end_date: e.target.value })} className="w-full text-xs p-2 border rounded" />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-500 uppercase">Days of Week (e.g. Mon, Wed)</label>
-                          <input type="text" value={newSchedule.days_of_week} onChange={e => setNewSchedule({ ...newSchedule, days_of_week: e.target.value })} className="w-full text-xs p-2 border rounded" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Start Time</label>
-                            <input type="time" value={newSchedule.start_time} onChange={e => setNewSchedule({ ...newSchedule, start_time: e.target.value })} className="w-full text-xs p-2 border rounded" />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">End Time</label>
-                            <input type="time" value={newSchedule.end_time} onChange={e => setNewSchedule({ ...newSchedule, end_time: e.target.value })} className="w-full text-xs p-2 border rounded" />
-                          </div>
-                        </div>
-                        <button type="submit" className="w-full py-2 bg-[#003F87] text-white text-xs font-bold rounded mt-2">Save Schedule</button>
-                      </form>
-                    </div>
-                  </div>
-                  <div className="flex-1 flex flex-col gap-3">
-                    <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">Active Schedules</h3>
-                    {schedules.filter(s => s.course_id === selectedCourse.id).length === 0 ? (
-                      <p className="text-sm text-slate-500 italic">No schedules defined.</p>
-                    ) : (
-                      <div className="grid gap-3">
-                        {schedules.filter(s => s.course_id === selectedCourse.id).map(s => (
-                          <div key={s.id} className="p-4 border border-slate-200 rounded-lg flex flex-col gap-2">
-                            <div className="flex items-center gap-2 text-sm font-bold text-[#003F87]">
-                              <Calendar size={16} /> {new Date(s.start_date).toLocaleDateString()} — {new Date(s.end_date).toLocaleDateString()}
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-slate-600 font-semibold mt-1">
-                              <div>Days: <span className="text-slate-800">{s.days_of_week || 'N/A'}</span></div>
-                              <div>Time: <span className="text-slate-800">{s.start_time || 'N/A'} to {s.end_time || 'N/A'}</span></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+
                 </div>
               )}
             </div>
