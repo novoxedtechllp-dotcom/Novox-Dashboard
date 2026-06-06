@@ -57,7 +57,7 @@ const mapEmployeeFromApi = (employee, avatar = null) => ({
   phone: employee.phone || '',
   status: statusFromApi(employee.status),
   joinDate: employee.joining_date ? new Date(employee.joining_date).toLocaleDateString() : '',
-  avatar
+  avatar: avatar || employee.avatar_url || null
 });
 
 const EmployeesContent = ({ employees = [], setEmployees }) => {

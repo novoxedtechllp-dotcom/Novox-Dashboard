@@ -18,6 +18,7 @@ import WorkReportsContent from './components/WorkReportsContent';
 import RecruitmentContent from './components/RecruitmentContent';
 import BlogDashboardContent from './components/BlogDashboardContent';
 import SettingsContent from './components/SettingsContent';
+import EmployeeProfile from './components/EmployeeProfile';
 import SupportContent from './components/SupportContent';
 import Login from './components/Login';
 import Signup from './components/Signup';
@@ -135,7 +136,7 @@ const mapEmployeeFromApi = (d) => ({
   phone: d.phone,
   status: employeeStatusFromApi(d.status),
   joinDate: d.joining_date ? new Date(d.joining_date).toLocaleDateString() : '',
-  avatar: null
+  avatar: d.avatar_url || null
 });
 
 const mapCourseFromApi = (d) => {
@@ -163,8 +164,20 @@ function App() {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(!!initialUserInfo);
   const [userRole, setUserRole] = useState(initialUserInfo ? initialUserInfo.role : null);
+  const [userInfo, setUserInfo] = useState(initialUserInfo);
   const [courses, setCourses] = useState([]);
   const [employees, setEmployees] = useState([]);
+
+  useEffect(() => {
+    const handleUserInfoUpdate = () => {
+      const updatedUserInfoStr = sessionStorage.getItem('userInfo');
+      if (updatedUserInfoStr) {
+        setUserInfo(JSON.parse(updatedUserInfoStr));
+      }
+    };
+    window.addEventListener('userInfoUpdated', handleUserInfoUpdate);
+    return () => window.removeEventListener('userInfoUpdated', handleUserInfoUpdate);
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated && initialUserInfo?.token) {
@@ -222,8 +235,7 @@ function App() {
     );
   }
 
-  // We already parsed userInfo at the top of App
-  const userInfo = initialUserInfo;
+  // We use userInfo state now
   const isHR = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'HR';
   const isDesign = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'DESIGN';
   const isDevelopment = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'DEVELOPMENT';
@@ -299,6 +311,7 @@ function App() {
             <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
             <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
             <Route path={`${basePath}/settings`} element={<SettingsContent />} />
+            <Route path={`${basePath}/profile`} element={<EmployeeProfile />} />
             <Route path={`${basePath}/support`} element={<SupportContent />} />
 
             {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} />} />}

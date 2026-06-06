@@ -76,8 +76,12 @@ const Header = ({ onLogout, userInfo, basePath = '/admin' }) => {
                 {roleTitle}
               </div>
             </div>
-            <div className="w-[36px] h-[36px] rounded-full bg-slate-200 flex items-center justify-center shrink-0 border border-slate-300">
-              <User size={18} className="text-slate-500" />
+            <div className="w-[36px] h-[36px] rounded-full bg-slate-200 flex items-center justify-center shrink-0 border border-slate-300 overflow-hidden">
+              {userInfo?.avatar_url ? (
+                <img src={userInfo.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <User size={18} className="text-slate-500" />
+              )}
             </div>
           </div>
           
@@ -88,7 +92,7 @@ const Header = ({ onLogout, userInfo, basePath = '/admin' }) => {
                 <div className="text-[14px] font-bold text-slate-800">{displayName}</div>
                 <div className="text-[12px] text-[#555F6B]">{displayEmail}</div>
               </div>
-              <Link to={`${basePath}/settings`} className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#555F6B] hover:bg-[#F8FAFC] hover:text-[#003F87] transition-colors cursor-pointer text-[13px] font-semibold" onClick={() => setIsDropdownOpen(false)}>
+              <Link to={`${basePath}/profile`} className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#555F6B] hover:bg-[#F8FAFC] hover:text-[#003F87] transition-colors cursor-pointer text-[13px] font-semibold" onClick={() => setIsDropdownOpen(false)}>
                 <User size={16} /> My Profile
               </Link>
               <Link to={`${basePath}/settings`} className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#555F6B] hover:bg-[#F8FAFC] hover:text-[#003F87] transition-colors cursor-pointer text-[13px] font-semibold" onClick={() => setIsDropdownOpen(false)}>
