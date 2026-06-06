@@ -114,11 +114,30 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
     return emp ? emp.name : 'Unassigned';
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setNewCourse({ ...newCourse, imgUrl: url });
+      const previewUrl = URL.createObjectURL(file);
+      setNewCourse({ ...newCourse, imgUrl: previewUrl });
+      
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const headers = getAuthHeaders();
+        delete headers['Content-Type'];
+        
+        const response = await fetch('/api/v1/upload', {
+          method: 'POST',
+          headers,
+          body: formData
+        });
+        const resData = await response.json();
+        if (response.ok && resData.data?.url) {
+          setNewCourse(prev => ({ ...prev, imgUrl: resData.data.url }));
+        }
+      } catch (err) {
+        console.error('Upload failed', err);
+      }
     }
   };
 
@@ -140,7 +159,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
           duration_months: Number(newCourse.duration_months),
           capacity: Number(newCourse.capacity),
           status: newCourse.status,
-          instructor_id: newCourse.mentorId
+          instructor_id: newCourse.mentorId,
+          thumbnail_url: newCourse.imgUrl?.startsWith('http') ? newCourse.imgUrl : null
         })
       });
       const resData = await parseApiResponse(response);

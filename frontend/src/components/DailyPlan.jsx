@@ -195,7 +195,7 @@ const DailyPlan = ({ userType, userId }) => {
       <div className="w-full md:w-64 shrink-0 bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-fit">
         <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
           <CalendarIcon size={20} className="text-[#003F87]" />
-          Daily Plan
+          Daily Schedule
         </h2>
         <div className="flex flex-col gap-2">
           <label className="text-xs font-bold text-slate-500 uppercase">Select Date</label>

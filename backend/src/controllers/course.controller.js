@@ -48,7 +48,7 @@ export const createCourse = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Please provide name, track, duration_months, and capacity");
   }
 
-  let thumbnailUrl = null;
+  let thumbnailUrl = thumbnail_url || null;
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);
     if (uploadResult?.url) thumbnailUrl = uploadResult.url;
@@ -109,7 +109,7 @@ export const getCourseById = asyncHandler(async (req, res) => {
 
 export const updateCourse = asyncHandler(async (req, res) => {
   const { courseId } = req.params;
-  const { name, description, track, duration_months, capacity, status, instructor_id, employee_id } = req.body;
+  const { name, description, track, duration_months, capacity, status, instructor_id, employee_id, thumbnail_url } = req.body;
 
   const updates = {};
   if (name !== undefined) updates.name = name;
@@ -118,6 +118,7 @@ export const updateCourse = asyncHandler(async (req, res) => {
   if (duration_months !== undefined) updates.duration_months = duration_months;
   if (capacity !== undefined) updates.capacity = capacity;
   if (status !== undefined) updates.status = status;
+  if (thumbnail_url !== undefined) updates.thumbnail_url = thumbnail_url;
 
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);

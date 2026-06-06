@@ -85,11 +85,30 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
     avatarUrl: null
   });
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setNewEmployee({ ...newEmployee, avatarUrl: url });
+      const previewUrl = URL.createObjectURL(file);
+      setNewEmployee({ ...newEmployee, avatarUrl: previewUrl });
+      
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const headers = getAuthHeaders();
+        delete headers['Content-Type']; // Let browser set boundary
+        
+        const response = await fetch('/api/v1/upload', {
+          method: 'POST',
+          headers,
+          body: formData
+        });
+        const resData = await response.json();
+        if (response.ok && resData.data?.url) {
+          setNewEmployee(prev => ({ ...prev, avatarUrl: resData.data.url }));
+        }
+      } catch (err) {
+        console.error('Upload failed', err);
+      }
     }
   };
 
@@ -108,7 +127,8 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
           phone: newEmployee.phone,
           employee_role: departmentToApi(newEmployee.department),
           designation: newEmployee.department,
-          status: statusToApi(newEmployee.status)
+          status: statusToApi(newEmployee.status),
+          avatar_url: newEmployee.avatarUrl?.startsWith('http') ? newEmployee.avatarUrl : null
         };
         if (newEmployee.email) payload.email = newEmployee.email;
         if (newEmployee.password) payload.password = newEmployee.password;

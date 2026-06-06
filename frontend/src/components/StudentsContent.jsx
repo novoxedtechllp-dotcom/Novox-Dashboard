@@ -53,6 +53,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     parent_phone: '',
     address: '',
     joining_date: '',
+    course_id: '',
     avatarUrl: null
   });
 
@@ -104,11 +105,30 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     return () => clearTimeout(loadTimer);
   }, [fetchStudents]);
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setNewStudent({ ...newStudent, avatarUrl: url });
+      const previewUrl = URL.createObjectURL(file);
+      setNewStudent({ ...newStudent, avatarUrl: previewUrl });
+      
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const headers = getAuthHeaders();
+        delete headers['Content-Type'];
+        
+        const response = await fetch('/api/v1/upload', {
+          method: 'POST',
+          headers,
+          body: formData
+        });
+        const resData = await response.json();
+        if (response.ok && resData.data?.url) {
+          setNewStudent(prev => ({ ...prev, avatarUrl: resData.data.url }));
+        }
+      } catch (err) {
+        console.error('Upload failed', err);
+      }
     }
   };
 
@@ -127,9 +147,11 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         parent_phone: newStudent.parent_phone,
         address: newStudent.address,
         joining_date: newStudent.joining_date || new Date().toISOString().split('T')[0],
+        avatar_url: newStudent.avatarUrl?.startsWith('http') ? newStudent.avatarUrl : null
       };
       if (newStudent.email) payload.email = newStudent.email;
       if (newStudent.password) payload.password = newStudent.password;
+      if (newStudent.course_id) payload.course_id = newStudent.course_id;
 
       const response = await fetch('/api/v1/students', {
         method: 'POST',
@@ -145,7 +167,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       setStudents([addedStudent, ...students]);
       setIsAddModalOpen(false);
       setNewStudent({
-        first_name: '', last_name: '', email: '', password: '', phone: '', parent_phone: '', address: '', joining_date: '', avatarUrl: null
+        first_name: '', last_name: '', email: '', password: '', phone: '', parent_phone: '', address: '', joining_date: '', course_id: '', avatarUrl: null
       });
     } catch (error) {
       console.error('Error adding student:', error);
@@ -487,9 +509,19 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 <textarea rows="2" value={newStudent.address} onChange={(e) => setNewStudent({...newStudent, address: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm resize-none" placeholder="123 Street Name, City, Country" />
               </div>
 
-
-
-              <div className="flex gap-3 justify-end mt-2 pt-6 border-t border-slate-200">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Course Enrollment <span className="text-slate-400 normal-case font-medium">(optional)</span></label>
+                <select 
+                  value={newStudent.course_id}
+                  onChange={(e) => setNewStudent({...newStudent, course_id: e.target.value})}
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm bg-white"
+                >
+                  <option value="" disabled>Select a course to enroll upon registration...</option>
+                  {courses.map(c => (
+                    <option key={c.id} value={c.id}>{c.title || c.name} ({c.category || 'Course'})</option>
+                  ))}
+                </select>
+              </div>              <div className="flex gap-3 justify-end mt-2 pt-6 border-t border-slate-200">
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-6 py-2.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
                   Cancel
                 </button>

@@ -41,13 +41,15 @@ const createStudent = asyncHandler(async (req, res) => {
     parent_phone,
     address,
     joining_date,
+    course_id,
+    avatar_url
   } = req.body;
 
   if (!first_name || !last_name || !phone || !joining_date) {
     throw new ApiError(400, "Please provide all required fields");
   }
 
-  let avatarUrl = null;
+  let avatarUrl = avatar_url || null;
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);
     if (uploadResult?.url) avatarUrl = uploadResult.url;
@@ -96,7 +98,48 @@ const createStudent = asyncHandler(async (req, res) => {
     throw new ApiError(500, error.message || "Failed to create student");
   }
 
-  return res.status(201).json(new ApiResponse(201, data[0], "Student created successfully"));
+  const newStudent = data[0];
+
+  if (course_id) {
+    // Assign course
+    const { error: courseError } = await supabase
+      .from("student_courses")
+      .insert([{ 
+        student_id: newStudent.id, 
+        course_id, 
+        progress_percentage: 0,
+        completion_status: 'IN_PROGRESS'
+      }]);
+
+    if (!courseError) {
+      // Auto-assign existing tasks for this course
+      const { data: modulesTasks } = await supabase
+        .from("course_modules")
+        .select('id, course_submodules(id, course_tasks(id))')
+        .eq('course_id', course_id);
+
+      if (modulesTasks && modulesTasks.length > 0) {
+        const tasksToAssign = [];
+        modulesTasks.forEach(module => {
+          module.course_submodules?.forEach(sub => {
+            sub.course_tasks?.forEach(task => {
+              tasksToAssign.push({
+                student_id: newStudent.id,
+                task_id: task.id,
+                status: 'PENDING'
+              });
+            });
+          });
+        });
+
+        if (tasksToAssign.length > 0) {
+          await supabase.from("student_tasks").insert(tasksToAssign);
+        }
+      }
+    }
+  }
+
+  return res.status(201).json(new ApiResponse(201, newStudent, "Student created successfully"));
 });
 
 // @desc    Get all students with filters
@@ -162,9 +205,9 @@ const getStudentById = asyncHandler(async (req, res) => {
 
 // @desc    Update student
 // @route   PUT /api/v1/students/:id
-const updateStudent = asyncHandler(async (req, res) => {
+export const updateStudent = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
-  const { first_name, last_name, phone, parent_phone, address, status } = req.body;
+  const { first_name, last_name, phone, parent_phone, address, status, avatar_url } = req.body;
 
   const updates = {};
   if (first_name !== undefined) updates.first_name = first_name;
@@ -173,6 +216,7 @@ const updateStudent = asyncHandler(async (req, res) => {
   if (parent_phone !== undefined) updates.parent_phone = parent_phone;
   if (address !== undefined) updates.address = address;
   if (status !== undefined) updates.status = status;
+  if (avatar_url !== undefined) updates.avatar_url = avatar_url;
 
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);

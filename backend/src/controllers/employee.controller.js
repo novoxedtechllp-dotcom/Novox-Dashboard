@@ -83,14 +83,15 @@ export const createEmployee = asyncHandler(async (req, res) => {
     employee_role,
     department,
     salary,
-    status
+    status,
+    avatar_url
   } = req.body;
 
   if (!first_name || !last_name) {
     throw new ApiError(400, "Please provide all required fields");
   }
 
-  let avatarUrl = null;
+  let avatarUrl = avatar_url || null;
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);
     if (uploadResult?.url) avatarUrl = uploadResult.url;
@@ -202,7 +203,7 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/employees/:id
 export const updateEmployee = asyncHandler(async (req, res) => {
   const { employeeId } = req.params;
-  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary } = req.body;
+  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url } = req.body;
 
   const updates = {};
   if (first_name !== undefined) updates.first_name = first_name;
@@ -213,6 +214,7 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   if (joining_date !== undefined) updates.joining_date = joining_date;
   if (salary !== undefined) updates.salary = salary;
   if (role_id !== undefined) updates.role_id = role_id;
+  if (avatar_url !== undefined) updates.avatar_url = avatar_url;
 
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);
