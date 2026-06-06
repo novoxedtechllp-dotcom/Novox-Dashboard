@@ -39,8 +39,8 @@ router.route("/:studentId").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE,
 router.route("/:studentId/daily-plan").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT] }), getStudentDailyPlan);
 
 // Write
-router.route("/").post(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), upload.single("avatar"), createStudent);
-router.route("/:studentId").put(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), upload.single("avatar"), updateStudent);
+router.route("/").post(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), createStudent);
+router.route("/:studentId").put(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), updateStudent);
 router.route("/:studentId").delete(authorize({ roles: [ROLES.ADMIN] }), deleteStudent);
 
 // ==========================================

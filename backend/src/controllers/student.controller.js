@@ -205,7 +205,7 @@ const getStudentById = asyncHandler(async (req, res) => {
 
 // @desc    Update student
 // @route   PUT /api/v1/students/:id
-export const updateStudent = asyncHandler(async (req, res) => {
+const updateStudent = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
   const { first_name, last_name, phone, parent_phone, address, status, avatar_url } = req.body;
 

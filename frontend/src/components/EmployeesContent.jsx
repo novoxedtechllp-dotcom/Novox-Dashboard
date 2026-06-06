@@ -245,14 +245,14 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
             <div className="absolute top-[16px] right-[16px] flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
               <button 
                 onClick={(e) => { e.stopPropagation(); setEmployeeToEdit(emp); }}
-                className="text-[#C2C6D4] hover:text-[#003F87]"
+                className="text-slate-400 hover:text-[#003F87]"
                 title="Edit Employee"
               >
                 <Pencil size={16} />
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); setEmployeeToDelete(emp.id); }}
-                className="text-[#C2C6D4] hover:text-[#D80000]"
+                className="text-slate-400 hover:text-[#D80000]"
                 title="Delete Employee"
               >
                 <Trash2 size={16} />

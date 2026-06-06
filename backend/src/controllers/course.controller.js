@@ -42,7 +42,7 @@ const addOneWorkday = (date) => {
 // ==========================================
 
 export const createCourse = asyncHandler(async (req, res) => {
-  const { name, description, track, duration_months, capacity, status, instructor_id, employee_id } = req.body;
+  const { name, description, track, duration_months, capacity, status, instructor_id, employee_id, thumbnail_url } = req.body;
 
   if (!name || !track || !duration_months || !capacity) {
     throw new ApiError(400, "Please provide name, track, duration_months, and capacity");

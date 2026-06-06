@@ -476,10 +476,10 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
           <div key={course.id} className="bg-white rounded-[8px] border border-[#C2C6D4] p-[24px] flex flex-col h-[260px] relative group hover:border-[#003F87] transition-colors">
 
             <div className="absolute top-[16px] right-[16px] flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-              <button onClick={(e) => { e.stopPropagation(); setCourseToEdit(course); }} className="text-[#C2C6D4] hover:text-[#003F87]">
+              <button onClick={(e) => { e.stopPropagation(); setCourseToEdit(course); }} className="text-slate-400 hover:text-[#003F87]">
                 <Pencil size={16} />
               </button>
-              <button onClick={(e) => { e.stopPropagation(); setCourseToDelete(course.id); }} className="text-[#C2C6D4] hover:text-[#D80000]">
+              <button onClick={(e) => { e.stopPropagation(); setCourseToDelete(course.id); }} className="text-slate-400 hover:text-[#D80000]">
                 <Trash2 size={16} />
               </button>
             </div>

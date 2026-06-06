@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Download, Briefcase, ListTodo, CheckCircle } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Download, Briefcase, ListTodo, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -42,6 +42,9 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   // Filter States
   const [statusFilter, setStatusFilter] = useState('All Statuses');
+  
+  // Password Visibility
+  const [showPassword, setShowPassword] = useState(false);
 
   // Form States
   const [newStudent, setNewStudent] = useState({
@@ -484,7 +487,22 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Password <span className="text-slate-400 normal-case font-medium">(optional)</span></label>
-                  <input type="text" value={newStudent.password} onChange={(e) => setNewStudent({...newStudent, password: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm" placeholder="Auto-generated if empty" />
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      value={newStudent.password} 
+                      onChange={(e) => setNewStudent({...newStudent, password: e.target.value})} 
+                      className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm pr-10" 
+                      placeholder="Auto-generated if empty" 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
