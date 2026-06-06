@@ -2,9 +2,10 @@ import { supabase } from "../config/supabase.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { uploadOnCloudinary, extractPublicIdFromUrl, deleteFromCloudinary } from "../utils/cloudinary.js";
 import bcrypt from "bcrypt";
 
-const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, address, joining_date, status, created_at";
+const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, address, joining_date, status, avatar_url, created_at";
 
 // ==========================================
 // CORE STUDENT CRUD
@@ -46,6 +47,12 @@ const createStudent = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Please provide all required fields");
   }
 
+  let avatarUrl = null;
+  if (req.file) {
+    const uploadResult = await uploadOnCloudinary(req.file.path);
+    if (uploadResult?.url) avatarUrl = uploadResult.url;
+  }
+
   const finalStudentCode = student_code || await generateNextStudentCode();
 
   let studentUserId = user_id;
@@ -80,7 +87,7 @@ const createStudent = asyncHandler(async (req, res) => {
     .from("students")
     .insert([{
       user_id: studentUserId, student_code: finalStudentCode, first_name, last_name, phone, parent_phone,
-      address, joining_date, status: "ACTIVE",
+      address, joining_date, status: "ACTIVE", avatar_url: avatarUrl
     }])
     .select(studentSelectFields);
 
@@ -166,6 +173,19 @@ const updateStudent = asyncHandler(async (req, res) => {
   if (parent_phone !== undefined) updates.parent_phone = parent_phone;
   if (address !== undefined) updates.address = address;
   if (status !== undefined) updates.status = status;
+
+  if (req.file) {
+    const uploadResult = await uploadOnCloudinary(req.file.path);
+    if (uploadResult?.url) {
+      updates.avatar_url = uploadResult.url;
+
+      const { data: oldStudent } = await supabase.from("students").select("avatar_url").eq("id", studentId).single();
+      if (oldStudent?.avatar_url) {
+        const publicId = extractPublicIdFromUrl(oldStudent.avatar_url);
+        if (publicId) await deleteFromCloudinary(publicId);
+      }
+    }
+  }
 
   const { data, error } = await supabase
     .from("students")

@@ -31,6 +31,7 @@ import {
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/authorize.middleware.js";
 import { ROLES, EMPLOYEE_ROLES } from "../constants/roles.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 router.use(verifyJWT);
@@ -54,8 +55,8 @@ const writeAuth = authorize({
   ]
 });
 
-router.route("/").post(writeAuth, createCourse);
-router.route("/:courseId").put(writeAuth, updateCourse).delete(writeAuth, deleteCourse);
+router.route("/").post(writeAuth, upload.single("thumbnail"), createCourse);
+router.route("/:courseId").put(writeAuth, upload.single("thumbnail"), updateCourse).delete(writeAuth, deleteCourse);
 
 router.route("/:courseId/publish").patch(writeAuth, publishCourse);
 router.route("/:courseId/archive").patch(writeAuth, archiveCourse);

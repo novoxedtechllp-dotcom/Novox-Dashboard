@@ -18,6 +18,7 @@ import {
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/authorize.middleware.js";
 import { ROLES, EMPLOYEE_ROLES } from "../constants/roles.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 router.use(verifyJWT);
@@ -33,8 +34,8 @@ router.route("/:employeeId/topics/:submoduleId/schedule").patch(authorize({ role
 // Only Admin / HR can create, update, delete
 const writeAuth = authorize({ roles: [ROLES.ADMIN], employeeRoles: [EMPLOYEE_ROLES.HR] });
 
-router.route("/").post(writeAuth, createEmployee);
-router.route("/:employeeId").put(writeAuth, updateEmployee).delete(writeAuth, deleteEmployee);
+router.route("/").post(writeAuth, upload.single("avatar"), createEmployee);
+router.route("/:employeeId").put(writeAuth, upload.single("avatar"), updateEmployee).delete(writeAuth, deleteEmployee);
 
 router.route("/:employeeId/documents").post(writeAuth, addEmployeeDocument);
 router.route("/:employeeId/documents/:docId").delete(writeAuth, deleteEmployeeDocument);

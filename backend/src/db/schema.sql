@@ -80,6 +80,7 @@ CREATE TABLE employee_profiles (
     role_id UUID NOT NULL REFERENCES employee_roles(id),
     salary NUMERIC(12,2) NOT NULL,
     status EMPLOYEE_STATUS DEFAULT 'ACTIVE',
+    avatar_url TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -100,6 +101,7 @@ CREATE TABLE courses (
     duration_months INTEGER NOT NULL,
     capacity INTEGER NOT NULL,
     status COURSE_STATUS DEFAULT 'DRAFT',
+    thumbnail_url TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -196,6 +198,7 @@ CREATE TABLE students (
     address TEXT,
     joining_date DATE NOT NULL,
     status STUDENT_STATUS DEFAULT 'ACTIVE',
+    avatar_url TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
