@@ -5,7 +5,7 @@ import { LayoutDashboard, CheckSquare, Calendar, Wallet, Settings } from 'lucide
 const navItems = [
   { id: 'dashboard', label: 'My Dashboard', icon: LayoutDashboard },
   { id: 'tasks', label: 'My Tasks', icon: CheckSquare },
-  { id: 'attendance', label: 'My Attendance', icon: Calendar },
+  // { id: 'attendance', label: 'My Attendance', icon: Calendar },
   { id: 'payroll', label: 'My Payroll', icon: Wallet },
 ];
 

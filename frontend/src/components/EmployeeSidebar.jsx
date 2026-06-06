@@ -6,7 +6,7 @@ import {
 
 const employeeNavItems = [
   { id: 'employee-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'employee-attendance', label: 'Attendance', icon: Calendar },
+  // { id: 'employee-attendance', label: 'Attendance', icon: Calendar },
   { id: 'employee-tasks', label: 'Tasks', icon: CheckSquare },
   { id: 'employee-leaves', label: 'Leaves', icon: Clock },
   { id: 'employee-profile', label: 'Profile', icon: User },

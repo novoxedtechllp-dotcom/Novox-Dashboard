@@ -294,7 +294,7 @@ function App() {
             
             <Route path={`${basePath}/dashboard`} element={<MainContent activeTab="dashboard" employees={employees} />} />
             <Route path={`${basePath}/daily-plan`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
-            <Route path={`${basePath}/attendance`} element={<AttendanceContent employees={employees} courses={courses} />} />
+            {/* <Route path={`${basePath}/attendance`} element={<AttendanceContent employees={employees} courses={courses} />} /> */}
             <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} />} />
             <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
             <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
