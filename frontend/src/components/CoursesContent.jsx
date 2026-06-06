@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
+import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers, Eye, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 
 const formatPrice = (price) => {
   const numStr = String(price).replace(/[^\d.]/g, '');
   return numStr ? `₹${numStr}/-` : 'Free';
 };
-import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers, Eye, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -82,15 +82,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   const [activeTab, setActiveTab] = useState('overview'); // overview, modules, schedule
 
   const [newCourse, setNewCourse] = useState({
-    title: '',
-    description: '',
-    category: 'DEVELOPMENT',
-    duration_months: 1,
-    capacity: 20,
-    price: '',
-    mentorId: employees[0]?.id || '',
-    status: 'DRAFT',
-    imgUrl: null
+    title: '', description: '', category: 'DEVELOPMENT', duration_months: 1, capacity: 20, price: '', mentorId: employees[0]?.id || '', status: 'DRAFT', imgUrl: null
   });
 
   const [newModule, setNewModule] = useState({ title: '', description: '', sequence_order: 1 });
@@ -157,47 +149,32 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
 
   const handleAddCourse = async (e) => {
     e.preventDefault();
-    if (!newCourse.title) {
-      alert("Course title is required.");
-      return;
-    }
-    if (!newCourse.mentorId) {
-      alert("Please select an instructor/mentor for this course.");
-      return;
-    }
+    if (!newCourse.title) return alert("Course title is required.");
+    if (!newCourse.mentorId) return alert("Please select an instructor/mentor for this course.");
 
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
 
       const response = await fetch('/api/v1/courses', {
-        method: 'POST',
-        headers,
+        method: 'POST', headers,
         body: JSON.stringify({
-          name: newCourse.title,
-          description: newCourse.description,
-          track: newCourse.category,
-          duration_months: Number(newCourse.duration_months),
-          capacity: Number(newCourse.capacity),
-          status: newCourse.status,
-          instructor_id: newCourse.mentorId,
+          name: newCourse.title, description: newCourse.description, track: newCourse.category,
+          duration_months: Number(newCourse.duration_months), capacity: Number(newCourse.capacity),
+          status: newCourse.status, instructor_id: newCourse.mentorId,
           thumbnail_url: newCourse.imgUrl?.startsWith('http') ? newCourse.imgUrl : null
         })
       });
       const resData = await parseApiResponse(response);
       const mentorName = getMentorName(newCourse.mentorId);
       const addedCourse = mapCourseFromApi(resData.data, {
-        price: newCourse.price || '₹0.00',
-        mentorId: newCourse.mentorId,
-        mentorName,
-        imgUrl: newCourse.imgUrl || null
+        price: newCourse.price || '₹0.00', mentorId: newCourse.mentorId, mentorName, imgUrl: newCourse.imgUrl || null
       });
 
       setCourses([...courses, addedCourse]);
       setIsModalOpen(false);
       setNewCourse({ title: '', description: '', category: 'DEVELOPMENT', duration_months: 1, capacity: 20, price: '', mentorId: employees[0]?.id || '', status: 'DRAFT', imgUrl: null });
     } catch (error) {
-      console.error('Error adding course:', error);
       alert(error.message || 'Failed to add course');
     }
   };
@@ -206,17 +183,11 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
-
-      const response = await fetch(`/api/v1/courses/${id}`, {
-        method: 'DELETE',
-        headers
-      });
+      const response = await fetch(`/api/v1/courses/${id}`, { method: 'DELETE', headers });
       await parseApiResponse(response);
-
       setCourses(courses.filter(c => c.id !== id));
       setSelectedCourse(null);
     } catch (error) {
-      console.error('Error deleting course:', error);
       alert(error.message || 'Failed to delete course');
     }
   };
@@ -226,34 +197,22 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
-
       const response = await fetch(`/api/v1/courses/${courseToEdit.id}`, {
-        method: 'PUT',
-        headers,
+        method: 'PUT', headers,
         body: JSON.stringify({
-          name: courseToEdit.title,
-          description: courseToEdit.description,
-          track: courseToEdit.category,
-          duration_months: Number(courseToEdit.duration_months),
-          capacity: Number(courseToEdit.capacity),
-          status: courseToEdit.status,
-          instructor_id: courseToEdit.mentorId,
+          name: courseToEdit.title, description: courseToEdit.description, track: courseToEdit.category,
+          duration_months: Number(courseToEdit.duration_months), capacity: Number(courseToEdit.capacity),
+          status: courseToEdit.status, instructor_id: courseToEdit.mentorId,
           thumbnail_url: courseToEdit.imgUrl?.startsWith('http') ? courseToEdit.imgUrl : null
         })
       });
       const resData = await parseApiResponse(response);
       const mentorName = getMentorName(courseToEdit.mentorId);
-      const updatedCourse = mapCourseFromApi(resData.data, {
-        ...courseToEdit,
-        mentorName,
-        mentorId: courseToEdit.mentorId
-      });
-
+      const updatedCourse = mapCourseFromApi(resData.data, { ...courseToEdit, mentorName, mentorId: courseToEdit.mentorId });
       setCourses(courses.map(c => c.id === courseToEdit.id ? updatedCourse : c));
       if (selectedCourse?.id === courseToEdit.id) setSelectedCourse(updatedCourse);
       setCourseToEdit(null);
     } catch (error) {
-      console.error('Error updating course:', error);
       alert(error.message || 'Failed to update course');
     }
   };
@@ -261,66 +220,29 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   const handleAddModule = async (e) => {
     e.preventDefault();
     if (!newModule.title) return;
-
     try {
       const headers = getAuthHeaders();
-      if (!headers) return;
-
       const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          title: newModule.title,
-          description: newModule.description,
-          sequence_order: Number(newModule.sequence_order)
-        })
+        method: 'POST', headers,
+        body: JSON.stringify({ title: newModule.title, description: newModule.description, sequence_order: Number(newModule.sequence_order) })
       });
       const resData = await parseApiResponse(response);
-      const addedModule = resData.data;
-
-      setModules([...modules, addedModule].sort((a, b) => a.sequence_order - b.sequence_order));
+      setModules([...modules, resData.data].sort((a, b) => a.sequence_order - b.sequence_order));
       setNewModule({ title: '', description: '', sequence_order: modules.filter(m => m.course_id === selectedCourse.id).length + 2 });
     } catch (error) {
-      console.error('Error adding module:', error);
       alert(error.message || 'Failed to add module');
-    }
-  };
-
-  const handleAddSchedule = async (e) => {
-    e.preventDefault();
-    if (!newSchedule.start_date || !newSchedule.end_date || !newSchedule.days_of_week || !newSchedule.start_time || !newSchedule.end_time) return;
-
-    try {
-      const headers = getAuthHeaders();
-      if (!headers) return;
-
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/schedules`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(newSchedule)
-      });
-      const resData = await parseApiResponse(response);
-
-      setSchedules([...schedules, resData.data]);
-      setNewSchedule({ start_date: '', end_date: '', days_of_week: '', start_time: '', end_time: '' });
-    } catch (error) {
-      console.error('Error adding schedule:', error);
-      alert(error.message || 'Failed to add schedule');
     }
   };
 
   const openCourseDetails = async (course) => {
     setSelectedCourse(course);
     setActiveTab('overview');
-
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
-
       const response = await fetch(`/api/v1/courses/${course.id}`, { headers });
       const resData = await parseApiResponse(response);
       const detailedCourse = mapCourseFromApi(resData.data, course);
-
       setSelectedCourse(detailedCourse);
       
       const fetchedModules = resData.data.course_modules || [];
@@ -431,7 +353,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
       });
       await parseApiResponse(response);
       alert('Plan rescheduled successfully');
-      openCourseDetails(selectedCourse); // Refresh
+      openCourseDetails(selectedCourse); 
     } catch (error) {
       alert(error.message || 'Failed to reschedule plan');
     }
@@ -449,7 +371,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
       });
       await parseApiResponse(response);
       alert('Topic moved successfully');
-      openCourseDetails(selectedCourse); // Refresh
+      openCourseDetails(selectedCourse); 
       setMoveTopic({ submoduleId: '', targetDate: '' });
     } catch (error) {
       alert(error.message || 'Failed to move topic');
@@ -465,205 +387,214 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   const uniqueCategories = ['All Categories', 'DEVELOPMENT', 'MARKETING', 'DESIGN'];
 
   return (
-    <div className="p-[24px] flex flex-col gap-[24px] w-full relative">
+    <div className="p-6 md:p-8 flex flex-col gap-8 w-full relative bg-[#FAFBFC] min-h-full">
       {toast && (
-        <div className={`absolute top-[24px] right-[24px] z-[100] px-6 py-3 rounded shadow-lg font-bold text-sm ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
+        <div className={`fixed bottom-8 right-8 z-[9999] px-6 py-4 rounded-xl shadow-2xl font-bold text-sm transform transition-all duration-300 flex items-center gap-3 ${toast.type === 'error' ? 'bg-rose-500 text-white' : 'bg-slate-800 text-white'}`}>
+          {toast.type === 'error' ? <X size={18} /> : <Zap size={18} className="text-emerald-400" />}
           {toast.message}
         </div>
       )}
       
-      {/* Top Filter */}
-      <div className="w-full bg-white border border-[#C2C6D4] rounded-[8px] p-[24px] flex flex-col sm:flex-row gap-[24px] items-center justify-between">
-        <div className="flex-1 w-full max-w-[240px]">
-          <label className="block text-[11px] font-bold text-[#555F6B] uppercase tracking-wide mb-2">Category Filter</label>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-full bg-[#F8FAFC] border border-[#C2C6D4] px-[16px] py-[10px] rounded-[6px] text-[13px] text-slate-800 outline-none"
-          >
-            {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
+      {/* Top Filter Bar */}
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Filter By</span>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none appearance-none pr-8 cursor-pointer relative"
+              style={{ background: `url('data:image/svg+xml;utf8,<svg fill="none" viewBox="0 0 24 24" stroke="%2364748B" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>') no-repeat right center / 16px` }}
+            >
+              {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-[#003F87] text-white px-[20px] py-[10px] rounded-[6px] text-[13px] font-bold flex items-center gap-[8px] hover:bg-[#002B5E] transition-colors"
+          className="w-full sm:w-auto bg-[#003F87] text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95"
         >
-          <Plus size={16} /> Add Course
+          <Plus size={18} /> Add Course
         </button>
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[24px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        
+        {/* Create Course Card */}
+        <div 
+          onClick={() => setIsModalOpen(true)} 
+          className="bg-blue-50/40 rounded-2xl border-2 border-dashed border-blue-200 p-6 flex flex-col items-center justify-center h-[280px] cursor-pointer hover:bg-blue-50/80 hover:border-[#003F87]/40 transition-all group shadow-sm hover:shadow-md"
+        >
+          <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center text-blue-400 group-hover:text-[#003F87] group-hover:scale-110 mb-4 transition-all">
+            <Plus size={28} />
+          </div>
+          <h3 className="text-lg font-black text-slate-800 leading-tight">Create New Course</h3>
+          <p className="text-xs font-medium text-slate-500 mt-2 text-center px-4 leading-relaxed">Add a new training program to the curriculum.</p>
+        </div>
+
         {filteredCourses.map(course => (
-          <div key={course.id} className="bg-white rounded-[8px] border border-[#C2C6D4] p-[24px] flex flex-col h-[260px] relative group hover:border-[#003F87] transition-colors">
+          <div key={course.id} className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col h-[280px] relative group hover:border-blue-200 transition-all shadow-sm hover:shadow-xl overflow-hidden">
 
-            <div className="absolute top-[16px] right-[16px] flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-              <button onClick={(e) => { e.stopPropagation(); setCourseToEdit(course); }} className="text-slate-400 hover:text-[#003F87]">
-                <Pencil size={16} />
+            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-10 translate-x-2 group-hover:translate-x-0">
+              <button onClick={(e) => { e.stopPropagation(); setCourseToEdit(course); }} className="w-8 h-8 rounded-full bg-white shadow-sm border border-slate-100 text-slate-400 hover:bg-blue-50 hover:text-[#003F87] hover:border-blue-200 flex items-center justify-center transition-all" title="Edit Course">
+                <Pencil size={14} />
               </button>
-              <button onClick={(e) => { e.stopPropagation(); setCourseToDelete(course.id); }} className="text-slate-400 hover:text-[#D80000]">
-                <Trash2 size={16} />
+              <button onClick={(e) => { e.stopPropagation(); setCourseToDelete(course.id); }} className="w-8 h-8 rounded-full bg-white shadow-sm border border-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 flex items-center justify-center transition-all" title="Delete Course">
+                <Trash2 size={14} />
               </button>
             </div>
 
-            <div className="flex items-start gap-4 mb-auto">
-              <div className="relative w-[48px] h-[48px] rounded-full overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center">
-                {course.imgUrl ? (
-                  <img src={course.imgUrl} alt={course.title} className="w-full h-full object-cover" />
-                ) : (
-                  <BookOpen size={24} className="text-slate-400" />
-                )}
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#003F87] border-[2px] border-white rounded-full"></div>
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="inline-block bg-[#E5F0FF] text-[#003F87] text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] uppercase">{course.category}</span>
-                  <span className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-[4px] uppercase ${course.status === 'PUBLISHED' ? 'bg-[#E5F6EB] text-[#008A2E]' : course.status === 'ARCHIVED' ? 'bg-slate-200 text-slate-600' : 'bg-[#FFF4E5] text-[#B26E00]'}`}>{course.status || 'DRAFT'}</span>
+            <div className="flex flex-col mb-auto pt-2">
+              <div className="flex gap-4 items-center mb-5">
+                <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-slate-100 shrink-0 flex items-center justify-center shadow-sm border border-slate-200">
+                  {course.imgUrl ? (
+                    <img src={course.imgUrl} alt={course.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <BookOpen size={24} className="text-slate-400" />
+                  )}
                 </div>
-                <h3 className="text-[16px] font-bold text-slate-900 leading-tight line-clamp-2">{course.title}</h3>
+                <div className="flex-1 pr-4">
+                  <h3 className="text-lg font-black text-slate-900 leading-tight line-clamp-1 mb-1.5">{course.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-block bg-[#E5F0FF] text-[#003F87] text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">{course.category}</span>
+                    <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${course.status === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700' : course.status === 'ARCHIVED' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{course.status || 'DRAFT'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 px-1">
+                <div className="flex items-center gap-3 text-slate-500 text-[13px] font-medium">
+                  <Clock size={16} className="text-slate-400 shrink-0" /> <span>{course.duration_months ? `${course.duration_months} Months` : course.duration}</span>
+                </div>
+                <div className="flex items-center gap-3 text-slate-500 text-[13px] font-medium">
+                  <User size={16} className="text-slate-400 shrink-0" /> <span className="truncate">{course.mentorName}</span>
+                </div>
+                <div className="flex items-center gap-3 text-slate-500 text-[13px] font-medium">
+                  <Layers size={16} className="text-slate-400 shrink-0" /> <span><span className="font-bold text-slate-700">{course.enrollmentCount}</span> / {course.capacity || 'N/A'} Enrolled</span>
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5 mt-4 mb-4">
-              <div className="flex items-center gap-2 text-[#555F6B] text-[12px]">
-                <Clock size={14} /> Duration: {course.duration_months ? `${course.duration_months} Months` : course.duration}
-              </div>
-              <div className="flex items-center gap-2 text-[#555F6B] text-[12px]">
-                <User size={14} /> Instructor: {course.mentorName}
-              </div>
-              <div className="flex items-center gap-2 text-[#555F6B] text-[12px]">
-                <Layers size={14} /> Capacity: <span className="font-semibold">{course.enrollmentCount}</span> / {course.capacity || 'N/A'} Enrolled
-              </div>
-            </div>
-
-            <div className="border-t border-dashed border-[#C2C6D4] pt-4 flex justify-between items-center">
-              <div className="text-[11px] font-semibold text-[#555F6B]">
-                Price: <span className="font-bold text-[#008A2E]">{formatPrice(course.price)}</span>
-              </div>
+            <div className="pt-4 mt-auto flex items-center justify-between border-t border-slate-100 relative z-20">
+              <span className="font-black text-[#008A2E] text-[15px]">{formatPrice(course.price)}</span>
               <button
-                onClick={() => openCourseDetails(course)}
-                className="text-[11px] text-[#003F87] font-bold hover:underline"
+                onClick={(e) => { e.stopPropagation(); openCourseDetails(course); }}
+                className="px-4 py-2 bg-blue-50 text-[#003F87] text-[12px] font-bold rounded-lg group-hover:bg-[#003F87] group-hover:text-white transition-colors duration-300 shadow-sm"
               >
-                View Details
+                Manage
               </button>
             </div>
           </div>
         ))}
-
-        <div onClick={() => setIsModalOpen(true)} className="bg-white rounded-[8px] border border-dashed border-[#C2C6D4] p-[24px] flex flex-col items-center justify-center h-[260px] cursor-pointer hover:bg-slate-50 text-center">
-          <div className="w-[40px] h-[40px] rounded-full bg-[#F8FAFC] flex items-center justify-center text-[#555F6B] mb-3"><Plus size={20} /></div>
-          <h3 className="text-[14px] font-bold text-slate-900">Create New Course</h3>
-        </div>
       </div>
 
-      {/* Add Course Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0 bg-slate-50">
+      {/* Add / Edit Course Modal */}
+      {(isModalOpen || courseToEdit) && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
               <div>
-                <h2 className="text-lg font-bold text-slate-800">Create New Course</h2>
-                <p className="text-[13px] text-slate-500">Fill in the details below to add a new course.</p>
+                <h2 className="text-2xl font-black text-slate-800">{courseToEdit ? 'Edit Course' : 'Create New Course'}</h2>
+                <p className="text-sm font-medium text-slate-500 mt-1">{courseToEdit ? 'Update the details for this course.' : 'Provide the necessary information to create a new curriculum.'}</p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 bg-white border border-slate-200 rounded p-1.5"><X size={18} /></button>
+              <button onClick={() => { setIsModalOpen(false); setCourseToEdit(null); }} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors">
+                <X size={20} />
+              </button>
             </div>
             
-            <form onSubmit={handleAddCourse} className="flex flex-col overflow-hidden h-full">
-              <div className="p-6 flex flex-col gap-6 overflow-y-auto flex-1">
-                
-                {/* Image Upload Section */}
-                <div className="flex flex-col sm:flex-row gap-6 items-start bg-slate-50 p-4 rounded-lg border border-slate-200">
-                  <div className="w-[120px] h-[100px] rounded-lg bg-white border-2 border-dashed border-slate-300 overflow-hidden shrink-0 flex items-center justify-center relative">
-                    {newCourse.imgUrl ? (
-                      <img src={newCourse.imgUrl} className={`w-full h-full object-cover transition-opacity ${isUploading ? 'opacity-50' : ''}`} />
-                    ) : (
-                      <BookOpen size={32} className="text-slate-300" />
-                    )}
-                    {isUploading && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60">
-                        <div className="w-5 h-5 border-2 border-[#003F87] border-t-transparent rounded-full animate-spin mb-1"></div>
-                        <span className="text-[10px] font-bold text-[#003F87]">Uploading...</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-bold text-slate-800 mb-1">Course Thumbnail</h3>
-                    <p className="text-xs text-slate-500 mb-3">Upload a 16:9 high-resolution image to make your course stand out.</p>
-                    <label className={`cursor-pointer bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-2 px-4 rounded-md inline-flex items-center gap-2 border border-slate-300 shadow-sm transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <Upload size={14} /> {newCourse.imgUrl ? 'Change Image' : 'Upload Image'}
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, false)} disabled={isUploading} />
-                    </label>
-                  </div>
+            <form onSubmit={courseToEdit ? handleUpdateCourse : handleAddCourse} className="p-8 flex flex-col gap-8 overflow-y-auto bg-slate-50/50">
+              
+              {/* Thumbnail Section */}
+              <div className="flex flex-col sm:flex-row gap-6 items-center bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <div className="w-32 h-20 rounded-xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shrink-0 relative group">
+                  {(courseToEdit ? courseToEdit.imgUrl : newCourse.imgUrl) ? (
+                    <img src={courseToEdit ? courseToEdit.imgUrl : newCourse.imgUrl} className={`w-full h-full object-cover transition-opacity ${isUploading ? 'opacity-50' : ''}`} />
+                  ) : (
+                    <BookOpen size={32} className="text-slate-300" />
+                  )}
+                  {isUploading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/60">
+                      <div className="w-5 h-5 border-2 border-[#003F87] border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
                 </div>
-
-                {/* Basic Details */}
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Basic Details</h3>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Title</label>
-                      <input type="text" required placeholder="e.g., Advanced Full Stack Development" value={newCourse.title} onChange={e => setNewCourse({ ...newCourse, title: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Description</label>
-                      <textarea rows="3" placeholder="Describe what students will learn..." value={newCourse.description} onChange={e => setNewCourse({ ...newCourse, description: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
-                    </div>
-                  </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-slate-800 mb-1">Course Thumbnail</h3>
+                  <p className="text-sm font-medium text-slate-500 mb-3">Upload a 16:9 high-resolution image to make your course stand out visually.</p>
+                  <label className={`cursor-pointer bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-2 px-4 rounded-lg inline-flex items-center gap-2 border border-slate-200 shadow-sm transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <Upload size={14} /> {(courseToEdit ? courseToEdit.imgUrl : newCourse.imgUrl) ? 'Change Image' : 'Upload Image'}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, !!courseToEdit)} disabled={isUploading} />
+                  </label>
                 </div>
-
-                {/* Configuration */}
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Course Configuration</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Track/Category</label>
-                      <select value={newCourse.category} onChange={e => setNewCourse({ ...newCourse, category: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
-                        <option value="DEVELOPMENT">DEVELOPMENT</option>
-                        <option value="MARKETING">MARKETING</option>
-                        <option value="DESIGN">DESIGN</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Status</label>
-                      <select value={newCourse.status} onChange={e => setNewCourse({ ...newCourse, status: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
-                        <option value="DRAFT">DRAFT</option>
-                        <option value="PUBLISHED">PUBLISHED</option>
-                        <option value="ARCHIVED">ARCHIVED</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Duration (Months)</label>
-                      <input type="number" min="1" value={newCourse.duration_months} onChange={e => setNewCourse({ ...newCourse, duration_months: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Capacity Limit</label>
-                      <input type="number" min="1" value={newCourse.capacity} onChange={e => setNewCourse({ ...newCourse, capacity: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Assignment & Pricing */}
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Assignment & Pricing</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Instructor</label>
-                      <select value={newCourse.mentorId} onChange={e => setNewCourse({ ...newCourse, mentorId: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
-                        {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.designation || emp.department})</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Price (e.g., ₹500)</label>
-                      <input type="text" value={newCourse.price} onChange={e => setNewCourse({ ...newCourse, price: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" placeholder="₹0.00" />
-                    </div>
-                  </div>
-                </div>
-
               </div>
-              <div className="flex justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-200 shrink-0">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-slate-300 bg-white rounded-md text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">Cancel</button>
-                <button type="submit" disabled={isUploading} className="px-5 py-2 bg-[#003F87] hover:bg-[#002B5E] transition-colors rounded-md text-sm font-bold text-white disabled:opacity-60 flex items-center gap-2">
-                  <Plus size={16} /> Create Course
+
+              {/* Core Details */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><BookOpen size={16} className="text-[#003F87]" /> Core Identity</h3>
+                <div className="grid grid-cols-1 gap-5 mb-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Course Title *</label>
+                    <input type="text" required placeholder="e.g., Advanced Full Stack Development" value={courseToEdit ? courseToEdit.title : newCourse.title} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, title: e.target.value }) : setNewCourse({ ...newCourse, title: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Description</label>
+                    <textarea rows="3" placeholder="Describe the curriculum..." value={courseToEdit ? (courseToEdit.description || '') : newCourse.description} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, description: e.target.value }) : setNewCourse({ ...newCourse, description: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all resize-none" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Category</label>
+                    <select value={courseToEdit ? courseToEdit.category : newCourse.category} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, category: e.target.value }) : setNewCourse({ ...newCourse, category: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all appearance-none">
+                      <option value="DEVELOPMENT">DEVELOPMENT</option>
+                      <option value="MARKETING">MARKETING</option>
+                      <option value="DESIGN">DESIGN</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Status</label>
+                    <select value={courseToEdit ? (courseToEdit.status || 'DRAFT') : newCourse.status} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, status: e.target.value }) : setNewCourse({ ...newCourse, status: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all appearance-none">
+                      <option value="DRAFT">DRAFT</option>
+                      <option value="PUBLISHED">PUBLISHED</option>
+                      <option value="ARCHIVED">ARCHIVED</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Logistics */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><LayoutList size={16} className="text-[#003F87]" /> Logistics & Pricing</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Duration (Months)</label>
+                    <input type="number" min="1" value={courseToEdit ? (courseToEdit.duration_months || 1) : newCourse.duration_months} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, duration_months: e.target.value }) : setNewCourse({ ...newCourse, duration_months: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Capacity</label>
+                    <input type="number" min="1" value={courseToEdit ? (courseToEdit.capacity || 20) : newCourse.capacity} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, capacity: e.target.value }) : setNewCourse({ ...newCourse, capacity: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Instructor *</label>
+                    <select value={courseToEdit ? (courseToEdit.mentorId || employees[0]?.id) : newCourse.mentorId} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, mentorId: e.target.value }) : setNewCourse({ ...newCourse, mentorId: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all appearance-none">
+                      {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.designation || emp.department})</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Price (e.g. ₹500.00)</label>
+                    <input type="text" value={courseToEdit ? courseToEdit.price : newCourse.price} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, price: e.target.value }) : setNewCourse({ ...newCourse, price: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="Leave blank for free" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 justify-end mt-2">
+                <button type="button" onClick={() => { setIsModalOpen(false); setCourseToEdit(null); }} className="px-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={isUploading} className="px-8 py-3 bg-[#003F87] rounded-xl text-sm font-bold text-white hover:bg-[#002B5E] shadow-md shadow-blue-900/10 active:scale-95 transition-all disabled:opacity-50">
+                  {courseToEdit ? 'Save Changes' : 'Create Course'}
                 </button>
               </div>
             </form>
@@ -671,310 +602,257 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
         </div>
       )}
 
-      {/* Edit Course Modal */}
-      {courseToEdit && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0 bg-slate-50">
-              <div>
-                <h2 className="text-lg font-bold text-slate-800">Edit Course</h2>
-                <p className="text-[13px] text-slate-500">Update the course details below.</p>
-              </div>
-              <button onClick={() => setCourseToEdit(null)} className="text-slate-400 hover:text-slate-600 bg-white border border-slate-200 rounded p-1.5"><X size={18} /></button>
-            </div>
-            
-            <form onSubmit={handleUpdateCourse} className="flex flex-col overflow-hidden h-full">
-              <div className="p-6 flex flex-col gap-6 overflow-y-auto flex-1">
-                
-                {/* Image Upload Section */}
-                <div className="flex flex-col sm:flex-row gap-6 items-start bg-slate-50 p-4 rounded-lg border border-slate-200">
-                  <div className="w-[120px] h-[100px] rounded-lg bg-white border-2 border-dashed border-slate-300 overflow-hidden shrink-0 flex items-center justify-center relative">
-                    {courseToEdit.imgUrl ? (
-                      <img src={courseToEdit.imgUrl} className={`w-full h-full object-cover transition-opacity ${isUploading ? 'opacity-50' : ''}`} />
-                    ) : (
-                      <BookOpen size={32} className="text-slate-300" />
-                    )}
-                    {isUploading && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60">
-                        <div className="w-5 h-5 border-2 border-[#003F87] border-t-transparent rounded-full animate-spin mb-1"></div>
-                        <span className="text-[10px] font-bold text-[#003F87]">Uploading...</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-bold text-slate-800 mb-1">Course Thumbnail</h3>
-                    <p className="text-xs text-slate-500 mb-3">Update the course image. Use a high-quality 16:9 picture.</p>
-                    <label className={`cursor-pointer bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-2 px-4 rounded-md inline-flex items-center gap-2 border border-slate-300 shadow-sm transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <Upload size={14} /> Change Image
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, true)} disabled={isUploading} />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Basic Details */}
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Basic Details</h3>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Title</label>
-                      <input type="text" required value={courseToEdit.title} onChange={e => setCourseToEdit({ ...courseToEdit, title: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Description</label>
-                      <textarea rows="3" value={courseToEdit.description || ''} onChange={e => setCourseToEdit({ ...courseToEdit, description: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Configuration */}
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Course Configuration</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Track/Category</label>
-                      <select value={courseToEdit.category} onChange={e => setCourseToEdit({ ...courseToEdit, category: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
-                        <option value="DEVELOPMENT">DEVELOPMENT</option>
-                        <option value="MARKETING">MARKETING</option>
-                        <option value="DESIGN">DESIGN</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Status</label>
-                      <select value={courseToEdit.status || 'DRAFT'} onChange={e => setCourseToEdit({ ...courseToEdit, status: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
-                        <option value="DRAFT">DRAFT</option>
-                        <option value="PUBLISHED">PUBLISHED</option>
-                        <option value="ARCHIVED">ARCHIVED</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Duration (Months)</label>
-                      <input type="number" min="1" value={courseToEdit.duration_months || 1} onChange={e => setCourseToEdit({ ...courseToEdit, duration_months: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Capacity Limit</label>
-                      <input type="number" min="1" value={courseToEdit.capacity || 20} onChange={e => setCourseToEdit({ ...courseToEdit, capacity: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Assignment & Pricing */}
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Assignment & Pricing</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Instructor</label>
-                      <select value={courseToEdit.mentorId || employees[0]?.id} onChange={e => setCourseToEdit({ ...courseToEdit, mentorId: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
-                        {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.designation || emp.department})</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Price</label>
-                      <input type="text" value={courseToEdit.price} onChange={e => setCourseToEdit({ ...courseToEdit, price: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-              <div className="flex justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-200 shrink-0">
-                <button type="button" onClick={() => setCourseToEdit(null)} className="px-4 py-2 border border-slate-300 bg-white rounded-md text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">Cancel</button>
-                <button type="submit" disabled={isUploading} className="px-5 py-2 bg-[#003F87] hover:bg-[#002B5E] transition-colors rounded-md text-sm font-bold text-white disabled:opacity-60 flex items-center gap-2">
-                  <Pencil size={16} /> Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation Modal */}
       {courseToDelete && (
-        <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-sm p-6 flex flex-col gap-4">
-            <h3 className="text-lg font-bold text-slate-900">Confirm Deletion</h3>
-            <p className="text-sm text-slate-600">Are you sure you want to delete this course?</p>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setCourseToDelete(null)} className="px-4 py-2 border rounded-md text-sm font-semibold">Cancel</button>
-              <button onClick={() => { handleDeleteCourse(courseToDelete); setCourseToDelete(null); }} className="px-4 py-2 bg-[#D80000] text-white rounded-md text-sm font-semibold">Delete</button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setCourseToDelete(null)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 flex flex-col gap-4 text-center animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="w-20 h-20 bg-rose-50 border-4 border-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Trash2 size={32} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900">Delete Course?</h3>
+            <p className="text-sm font-medium text-slate-500 leading-relaxed px-4">This permanently removes the course, all modules, and schedules. This cannot be undone.</p>
+            <div className="flex gap-3 justify-center mt-6">
+              <button onClick={() => setCourseToDelete(null)} className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors flex-1">
+                Cancel
+              </button>
+              <button onClick={() => { handleDeleteCourse(courseToDelete); setCourseToDelete(null); }} className="px-6 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold hover:bg-rose-700 shadow-md active:scale-95 transition-all flex-1">
+                Yes, Delete
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* View Details Command Center */}
+      {/* View Details Command Center Modal */}
       {selectedCourse && (
-        <div className="fixed inset-0 bg-slate-900/50 z-[40] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col h-[90vh]">
-            {/* Header */}
-            <div className="relative h-[120px] w-full shrink-0 bg-slate-100 flex items-end p-6 border-b border-slate-200">
-              <div className="absolute inset-0 z-0 opacity-20">
-                {selectedCourse.imgUrl ? <img src={selectedCourse.imgUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[#003F87]"></div>}
-              </div>
-              <div className="relative z-10 w-full flex justify-between items-end">
-                <div>
-                  <div className="flex gap-2 mb-2">
-                    <span className="bg-black/80 text-white text-[10px] font-bold px-[12px] py-[4px] rounded-full uppercase">{selectedCourse.category}</span>
-                    <span className="bg-white/80 text-slate-900 text-[10px] font-bold px-[12px] py-[4px] rounded-full uppercase">{selectedCourse.status || 'DRAFT'}</span>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[40] flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200" onClick={() => setSelectedCourse(null)}>
+          <div className="bg-[#FAFBFC] rounded-3xl shadow-2xl w-full max-w-5xl h-full sm:h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div className="bg-white px-8 py-8 border-b border-slate-100 flex items-start justify-between shrink-0 relative overflow-hidden">
+              <div className="absolute right-0 top-0 w-1/3 h-full bg-gradient-to-l from-blue-50/50 to-transparent pointer-events-none"></div>
+              
+              <div className="flex items-center gap-6 relative z-10 w-full pr-12">
+                <div className="w-24 h-24 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                  {selectedCourse.imgUrl ? (
+                    <img src={selectedCourse.imgUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                  ) : (
+                    <BookOpen size={40} className="text-[#003F87]" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    <span className="bg-[#E5F0FF] text-[#003F87] text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-widest">{selectedCourse.category}</span>
+                    <span className={`text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-widest ${selectedCourse.status === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700' : selectedCourse.status === 'ARCHIVED' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{selectedCourse.status || 'DRAFT'}</span>
                   </div>
-                  <h2 className="text-2xl font-bold text-slate-900 leading-tight">{selectedCourse.title}</h2>
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-2 line-clamp-1">{selectedCourse.title}</h2>
+                  <div className="flex items-center gap-4 text-sm font-medium text-slate-500">
+                    <div className="flex items-center gap-1.5"><Clock size={14} className="text-slate-400" /> <span>{selectedCourse.duration_months ? `${selectedCourse.duration_months} Months` : selectedCourse.duration}</span></div>
+                    <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+                    <div className="flex items-center gap-1.5"><User size={14} className="text-slate-400" /> <span>{selectedCourse.mentorName}</span></div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm font-bold text-slate-600">Price</div>
-                  <div className="text-xl font-black text-[#008A2E]">{formatPrice(selectedCourse.price)}</div>
+                <div className="text-right shrink-0 hidden sm:block">
+                  <div className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Price</div>
+                  <div className="text-2xl font-black text-[#008A2E]">{formatPrice(selectedCourse.price)}</div>
                 </div>
               </div>
-              <button onClick={() => setSelectedCourse(null)} className="absolute top-[16px] right-[16px] w-8 h-8 bg-black/20 text-slate-900 rounded-full flex items-center justify-center hover:bg-black/40 z-20">
-                <X size={16} />
+
+              <button onClick={() => setSelectedCourse(null)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 border border-slate-100 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors relative z-10">
+                <X size={20} />
               </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-slate-200 px-6 shrink-0 bg-slate-50">
-              {['overview', 'modules', 'schedule'].map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-3 text-sm font-bold uppercase tracking-wide border-b-2 transition-colors ${activeTab === tab ? 'border-[#003F87] text-[#003F87]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                >
-                  {tab}
-                </button>
-              ))}
+            {/* Pill Navigation Tabs */}
+            <div className="px-8 py-6 border-b border-slate-100 bg-white shrink-0 overflow-x-auto hide-scrollbar">
+              <div className="flex gap-2">
+                {[
+                  { id: 'overview', icon: <BookOpen size={16} />, label: 'Overview' },
+                  { id: 'modules', icon: <LayoutList size={16} />, label: 'Curriculum Builder' },
+                  { id: 'schedule', icon: <Calendar size={16} />, label: 'Master Schedule' }
+                ].map(tab => (
+                  <button 
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)} 
+                    className={`
+                      px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2.5 transition-all whitespace-nowrap
+                      ${activeTab === tab.id 
+                        ? 'bg-[#003F87] text-white shadow-md shadow-blue-900/10' 
+                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                      }
+                    `}
+                  >
+                    {tab.icon} {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-6 bg-white">
-
+            {/* Modal Content Area */}
+            <div className="p-8 overflow-y-auto flex-1">
+              
               {/* Overview Tab */}
               {activeTab === 'overview' && (
-                <div className="flex flex-col gap-6">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-800 mb-2">Description</h3>
-                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{selectedCourse.description || 'No description provided.'}</p>
+                <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300 fade-in">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Course Description</h3>
+                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{selectedCourse.description || 'No detailed description has been provided for this course yet.'}</p>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Duration</div>
-                      <div className="text-sm font-bold text-slate-800 flex items-center gap-2"><Clock size={16} className="text-[#003F87]" /> {selectedCourse.duration_months ? `${selectedCourse.duration_months} Months` : selectedCourse.duration}</div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#003F87] flex items-center justify-center shrink-0 border border-blue-100"><Clock size={20} /></div>
+                      <div>
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Duration</div>
+                        <div className="text-[15px] font-bold text-slate-800">{selectedCourse.duration_months ? `${selectedCourse.duration_months} Months` : selectedCourse.duration}</div>
+                      </div>
                     </div>
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Capacity</div>
-                      <div className="text-sm font-bold text-slate-800 flex items-center gap-2"><Layers size={16} className="text-[#003F87]" /> {selectedCourse.enrollmentCount} / {selectedCourse.capacity || 'N/A'} Enrolled</div>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100"><Layers size={20} /></div>
+                      <div>
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Capacity</div>
+                        <div className="text-[15px] font-bold text-slate-800"><span className="text-emerald-600 font-black">{selectedCourse.enrollmentCount}</span> / {selectedCourse.capacity || 'N/A'}</div>
+                      </div>
                     </div>
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 col-span-2">
-                      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Assigned Instructor</div>
-                      <div className="text-sm font-bold text-slate-800 flex items-center gap-2"><User size={16} className="text-[#003F87]" /> {selectedCourse.mentorName}</div>
+                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100"><User size={20} /></div>
+                      <div>
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Instructor</div>
+                        <div className="text-[15px] font-bold text-slate-800 truncate">{selectedCourse.mentorName}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Modules Tab */}
+              {/* Modules Tab - Curriculum Builder */}
               {activeTab === 'modules' && (
-                <div className="flex flex-col gap-6">
-
-                  <div className="flex flex-col md:flex-row gap-8">
-                    <div className="w-full md:w-1/3 shrink-0">
-                      <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                        <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><LayoutList size={16} /> Add Module</h3>
-                        <form onSubmit={handleAddModule} className="flex flex-col gap-3">
-                          <div><input type="text" placeholder="Module Title" required value={newModule.title} onChange={e => setNewModule({ ...newModule, title: e.target.value })} className="w-full text-xs p-2 border rounded" /></div>
-                          <div><textarea placeholder="Description" rows="2" value={newModule.description} onChange={e => setNewModule({ ...newModule, description: e.target.value })} className="w-full text-xs p-2 border rounded" /></div>
-                          <div><input type="number" placeholder="Sequence (e.g. 1)" required value={newModule.sequence_order} onChange={e => setNewModule({ ...newModule, sequence_order: e.target.value })} className="w-full text-xs p-2 border rounded" /></div>
-                          <button type="submit" className="w-full py-2 bg-[#003F87] text-white text-xs font-bold rounded">Save Module</button>
-                        </form>
-                      </div>
+                <div className="flex flex-col gap-8 animate-in slide-in-from-bottom-4 duration-300 fade-in">
+                  <div className="flex flex-col lg:flex-row gap-8 items-start">
+                    
+                    {/* Add Module Sidebar */}
+                    <div className="w-full lg:w-[320px] shrink-0 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm sticky top-0">
+                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><LayoutList size={18} className="text-[#003F87]" /> New Module</h3>
+                      <form onSubmit={handleAddModule} className="flex flex-col gap-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Module Title</label>
+                          <input type="text" required value={newModule.title} onChange={e => setNewModule({ ...newModule, title: e.target.value })} className="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 transition-all" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Description (Optional)</label>
+                          <textarea rows="2" value={newModule.description} onChange={e => setNewModule({ ...newModule, description: e.target.value })} className="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 transition-all resize-none" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Sequence Order</label>
+                          <input type="number" required value={newModule.sequence_order} onChange={e => setNewModule({ ...newModule, sequence_order: e.target.value })} className="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 transition-all" />
+                        </div>
+                        <button type="submit" className="w-full py-3 mt-2 bg-[#003F87] text-white text-sm font-bold rounded-xl hover:bg-[#002B5E] shadow-sm active:scale-95 transition-all">Create Module</button>
+                      </form>
                     </div>
-                    <div className="flex-1 flex flex-col gap-3">
-                      <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">Curriculum</h3>
+
+                    {/* Curriculum List */}
+                    <div className="flex-1 w-full flex flex-col gap-4">
                       {modules.filter(m => m.course_id === selectedCourse.id).length === 0 ? (
-                        <p className="text-sm text-slate-500 italic">No modules defined.</p>
+                        <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                          <LayoutList size={48} className="mx-auto text-slate-200 mb-4" />
+                          <h4 className="text-lg font-bold text-slate-700">Empty Curriculum</h4>
+                          <p className="text-sm text-slate-500 mt-1">Start building the course by adding modules from the left panel.</p>
+                        </div>
                       ) : (
                         modules.filter(m => m.course_id === selectedCourse.id).sort((a, b) => a.sequence_order - b.sequence_order).map(m => (
-                          <div key={m.id} className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden mb-2">
+                          <div key={m.id} className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden group">
+                            
+                            {/* Module Header */}
                             <div 
-                              className="flex justify-between items-center p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                              className="flex justify-between items-center p-5 cursor-pointer hover:bg-blue-50/30 transition-colors"
                               onClick={() => setExpandedModuleId(expandedModuleId === m.id ? null : m.id)}
                             >
-                              <div className="flex gap-4">
-                                <div className="w-[32px] h-[32px] rounded-full bg-[#E5F0FF] text-[#003F87] font-bold flex items-center justify-center shrink-0">{m.sequence_order}</div>
+                              <div className="flex gap-5 items-center">
+                                <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#003F87] font-black flex items-center justify-center shrink-0 border border-blue-100 text-lg group-hover:bg-[#003F87] group-hover:text-white transition-colors">{m.sequence_order}</div>
                                 <div>
-                                  <div className="text-sm font-bold text-slate-800">{m.title}</div>
-                                  <div className="text-xs text-slate-600 mt-1">{m.description}</div>
+                                  <div className="text-base font-black text-slate-900">{m.title}</div>
+                                  {m.description && <div className="text-xs font-medium text-slate-500 mt-0.5 line-clamp-1">{m.description}</div>}
                                 </div>
                               </div>
-                              <div className="text-slate-400 font-bold text-xs">
-                                {expandedModuleId === m.id ? 'CLOSE' : 'OPEN'}
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${expandedModuleId === m.id ? 'bg-[#003F87] text-white rotate-180' : 'bg-slate-50 text-slate-400 group-hover:bg-[#003F87] group-hover:text-white'}`}>
+                                <ChevronDown size={18} />
                               </div>
                             </div>
                             
+                            {/* Submodules Content */}
                             {expandedModuleId === m.id && (
-                              <div className="bg-slate-50 p-4 border-t border-slate-200 flex flex-col gap-3">
-                                {/* ADD SUBMODULE FORM */}
-                                <form onSubmit={(e) => handleAddSubmodule(e, m.id)} className="flex gap-2 items-start border-b border-slate-200 pb-3 mb-2">
-                                  <div className="flex-1 flex flex-col gap-2">
-                                    <input type="text" placeholder="Sub-module Title (Topic)" required value={newSubmodule.title} onChange={e => setNewSubmodule({...newSubmodule, title: e.target.value})} className="w-full text-xs p-2 border rounded" />
+                              <div className="bg-[#FAFBFC] border-t border-slate-100 p-5 pl-16">
+                                
+                                {/* Add Topic Inline Form */}
+                                <form onSubmit={(e) => handleAddSubmodule(e, m.id)} className="flex flex-wrap sm:flex-nowrap gap-3 items-center mb-6 bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
+                                  <input type="text" placeholder="New Topic Title..." required value={newSubmodule.title} onChange={e => setNewSubmodule({...newSubmodule, title: e.target.value})} className="flex-1 text-sm p-2 bg-transparent outline-none font-medium placeholder-slate-400" />
+                                  <div className="w-[80px] shrink-0 border-l border-slate-100 pl-3">
+                                    <input type="number" placeholder="Seq" required value={newSubmodule.sequence_order} onChange={e => setNewSubmodule({...newSubmodule, sequence_order: e.target.value})} className="w-full text-sm p-2 bg-transparent outline-none text-center font-bold text-[#003F87] placeholder-slate-400" />
                                   </div>
-                                  <div className="w-[80px]">
-                                    <input type="number" placeholder="Seq" required value={newSubmodule.sequence_order} onChange={e => setNewSubmodule({...newSubmodule, sequence_order: e.target.value})} className="w-full text-xs p-2 border rounded" />
-                                  </div>
-                                  <button type="submit" className="py-2 px-3 bg-[#003F87] text-white text-[11px] font-bold rounded cursor-pointer active:scale-95 transition-all duration-200">Add Topic</button>
+                                  <button type="submit" className="py-2.5 px-5 bg-[#003F87] text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-[#002B5E] shadow-sm active:scale-95 transition-all shrink-0"><Plus size={16} /></button>
                                 </form>
 
-                                {/* LIST OF SUBMODULES */}
-                                {submodules.filter(sm => sm.module_id === m.id).length === 0 ? (
-                                  <p className="text-xs text-slate-500 italic mb-2">No sub-modules added yet.</p>
-                                ) : (
-                                  submodules.filter(sm => sm.module_id === m.id).sort((a,b) => a.sequence_order - b.sequence_order).map(sm => (
-                                    <div key={sm.id} className="bg-white border border-slate-200 rounded text-sm mb-2 shadow-sm">
-                                      <div 
-                                        className="flex justify-between items-center p-3 cursor-pointer hover:bg-slate-50 transition-colors"
-                                        onClick={() => setExpandedSubmoduleId(expandedSubmoduleId === sm.id ? null : sm.id)}
-                                      >
-                                        <div className="flex gap-3 items-center">
-                                          <div className="text-[#003F87] font-bold w-6">{m.sequence_order}.{sm.sequence_order}</div>
-                                          <div>
-                                            <div className="font-semibold text-slate-800 flex gap-2 items-center">
+                                {/* Topics List */}
+                                <div className="flex flex-col gap-3">
+                                  {submodules.filter(sm => sm.module_id === m.id).length === 0 ? (
+                                    <p className="text-sm font-medium text-slate-400 italic py-2">No topics defined in this module yet.</p>
+                                  ) : (
+                                    submodules.filter(sm => sm.module_id === m.id).sort((a,b) => a.sequence_order - b.sequence_order).map(sm => (
+                                      <div key={sm.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-[0_2px_4px_rgba(0,0,0,0.01)] hover:border-blue-200 transition-colors">
+                                        <div 
+                                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors gap-3"
+                                          onClick={() => setExpandedSubmoduleId(expandedSubmoduleId === sm.id ? null : sm.id)}
+                                        >
+                                          <div className="flex gap-4 items-center flex-1">
+                                            <div className="text-[#003F87] font-black text-sm w-8 text-center bg-blue-50 py-1 rounded">{m.sequence_order}.{sm.sequence_order}</div>
+                                            <div className="font-bold text-slate-800 text-sm">
                                               {sm.title}
                                             </div>
-                                            {sm.scheduled_date && <div className="text-[10px] font-bold bg-green-100 text-green-800 px-2 py-0.5 mt-1 rounded inline-block">Scheduled: {formatDateToDDMMYYYY(sm.scheduled_date)}</div>}
+                                          </div>
+                                          <div className="flex items-center gap-4 justify-between sm:justify-end">
+                                            {sm.scheduled_date && <div className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-md uppercase tracking-wider">Plan: {formatDateToDDMMYYYY(sm.scheduled_date)}</div>}
+                                            <div className="text-[#003F87] font-bold text-[10px] uppercase tracking-widest flex items-center gap-1">
+                                              {expandedSubmoduleId === sm.id ? 'Hide Tasks' : 'Tasks'} <ChevronDown size={14} className={expandedSubmoduleId === sm.id ? 'rotate-180' : ''} />
+                                            </div>
                                           </div>
                                         </div>
-                                        <div className="text-slate-400 font-bold text-xs">
-                                          {expandedSubmoduleId === sm.id ? 'HIDE TASKS' : 'SHOW TASKS'}
-                                        </div>
-                                      </div>
-                                      
-                                      {/* TASKS INSIDE SUBMODULE */}
-                                      {expandedSubmoduleId === sm.id && (
-                                        <div className="p-3 border-t border-slate-100 bg-slate-50 flex flex-col gap-2">
-                                          <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tasks (Homework)</h5>
-                                          {tasks.filter(t => t.submodule_id === sm.id).length === 0 ? (
-                                            <p className="text-xs text-slate-400 italic">No tasks assigned.</p>
-                                          ) : (
-                                            <div className="flex flex-col gap-2 mb-2">
-                                              {tasks.filter(t => t.submodule_id === sm.id).sort((a,b) => a.sequence_order - b.sequence_order).map(t => (
-                                                <div key={t.id} className="bg-white border border-slate-200 p-2 rounded flex gap-2 items-center">
-                                                  <div className="text-slate-400 text-xs font-bold w-4">{t.sequence_order}.</div>
-                                                  <div className="flex-1 text-xs font-semibold text-slate-700">{t.title}</div>
-                                                  <div className="text-[9px] font-bold uppercase bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{t.task_type}</div>
-                                                </div>
-                                              ))}
+                                        
+                                        {/* Tasks Panel */}
+                                        {expandedSubmoduleId === sm.id && (
+                                          <div className="p-4 border-t border-slate-100 bg-[#FAFBFC] border-l-[3px] border-l-[#003F87]">
+                                            <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Homework & Tasks</h5>
+                                            
+                                            <div className="flex flex-col gap-2 mb-4">
+                                              {tasks.filter(t => t.submodule_id === sm.id).length === 0 ? (
+                                                <p className="text-xs font-medium text-slate-400 italic">No tasks assigned to this topic.</p>
+                                              ) : (
+                                                tasks.filter(t => t.submodule_id === sm.id).sort((a,b) => a.sequence_order - b.sequence_order).map(t => (
+                                                  <div key={t.id} className="bg-white border border-slate-200 py-2.5 px-4 rounded-lg flex gap-3 items-center">
+                                                    <div className="w-5 h-5 rounded bg-slate-100 text-slate-500 text-[10px] font-black flex items-center justify-center shrink-0">{t.sequence_order}</div>
+                                                    <div className="flex-1 text-sm font-semibold text-slate-700">{t.title}</div>
+                                                    <div className={`text-[9px] font-black uppercase px-2 py-1 rounded-md tracking-wider ${t.task_type === 'EXTRA' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#003F87]'}`}>{t.task_type === 'EXTRA' ? 'Bonus' : 'Required'}</div>
+                                                  </div>
+                                                ))
+                                              )}
                                             </div>
-                                          )}
-                                          
-                                          <form onSubmit={(e) => handleAddTask(e, m.id, sm.id)} className="flex gap-2 items-start mt-2">
-                                            <input type="text" placeholder="New Task" required value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="flex-1 text-[11px] p-1.5 border rounded outline-none focus:border-[#003F87]" />
-                                            <select value={newTask.task_type} onChange={e => setNewTask({...newTask, task_type: e.target.value})} className="w-[90px] text-[11px] p-1.5 border rounded outline-none focus:border-[#003F87]">
-                                              <option value="PRE_PLANNED">Planned</option>
-                                              <option value="EXTRA">Extra</option>
-                                            </select>
-                                            <input type="number" placeholder="Seq" required value={newTask.sequence_order} onChange={e => setNewTask({...newTask, sequence_order: e.target.value})} className="w-[50px] text-[11px] p-1.5 border rounded outline-none focus:border-[#003F87]" />
-                                            <button type="submit" className="py-1.5 px-2 bg-[#008A2E] text-white text-[11px] font-bold rounded cursor-pointer active:scale-95 transition-all duration-200">Add</button>
-                                          </form>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))
-                                )}
+                                            
+                                            <form onSubmit={(e) => handleAddTask(e, m.id, sm.id)} className="flex flex-wrap sm:flex-nowrap gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
+                                              <input type="text" placeholder="Add a new task..." required value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="flex-1 text-xs p-2 outline-none font-medium placeholder-slate-400" />
+                                              <div className="h-4 w-px bg-slate-200"></div>
+                                              <select value={newTask.task_type} onChange={e => setNewTask({...newTask, task_type: e.target.value})} className="w-[100px] text-xs p-2 outline-none text-slate-600 font-bold bg-transparent cursor-pointer">
+                                                <option value="PRE_PLANNED">Required</option>
+                                                <option value="EXTRA">Bonus</option>
+                                              </select>
+                                              <div className="h-4 w-px bg-slate-200"></div>
+                                              <input type="number" placeholder="Seq" required value={newTask.sequence_order} onChange={e => setNewTask({...newTask, sequence_order: e.target.value})} className="w-[50px] text-xs p-2 outline-none text-center font-bold text-[#003F87]" />
+                                              <button type="submit" className="py-2 px-4 bg-[#008A2E] text-white text-[10px] uppercase tracking-widest font-black rounded-md hover:bg-[#006E24] transition-colors shadow-sm"><Plus size={14} /></button>
+                                            </form>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -985,107 +863,109 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                 </div>
               )}
 
-              {/* Schedules Tab */}
+              {/* Schedules Tab - Master Plan */}
               {activeTab === 'schedule' && (
-                <div className="flex flex-col gap-6">
-                  {/* ⚡ Auto Schedule Command Center */}
-                  <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 p-5 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div className="w-8 h-8 rounded-lg bg-[#003F87] flex items-center justify-center">
-                        <Zap size={16} className="text-white" />
+                <div className="flex flex-col gap-8 animate-in slide-in-from-bottom-4 duration-300 fade-in">
+                  
+                  {/* Auto Schedule Command Center */}
+                  <div className="bg-gradient-to-br from-blue-50 to-white p-6 md:p-8 rounded-2xl border border-blue-100 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                      <Calendar size={120} />
+                    </div>
+                    
+                    <div className="flex items-center gap-3 mb-6 relative z-10">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-[#003F87] flex items-center justify-center shadow-md">
+                        <Zap size={20} className="text-white" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-slate-900">Auto Schedule</h3>
-                        <p className="text-[10px] text-slate-500">Topics are assigned in curriculum order (Module → Topic sequence)</p>
+                        <h3 className="text-lg font-black text-slate-900 leading-tight">Auto-Schedule Engine</h3>
+                        <p className="text-xs font-medium text-slate-500">Automatically map curriculum topics to dates sequentially.</p>
                       </div>
                     </div>
 
-                    {/* Stepper + Preview Button */}
-                    <div className="flex items-end gap-5 pb-5 border-b border-slate-200">
+                    <div className="flex flex-col md:flex-row md:items-end gap-6 pb-6 border-b border-blue-100 relative z-10">
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Topics Per Day</label>
-                        <div className="flex items-center gap-0">
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Pace: Topics Per Day</label>
+                        <div className="flex items-center shadow-sm rounded-xl overflow-hidden">
                           <button
                             type="button"
                             onClick={() => setTopicsPerDay(prev => Math.max(1, Number(prev) - 1))}
                             disabled={Number(topicsPerDay) <= 1}
-                            className="w-10 h-10 bg-white border border-slate-300 rounded-l-lg flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-bold text-lg active:scale-95"
+                            className="w-12 h-12 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all font-black text-xl flex items-center justify-center"
                           >−</button>
-                          <div className="w-14 h-10 bg-white border-y border-slate-300 flex items-center justify-center text-lg font-black text-[#003F87] select-none">
+                          <div className="w-16 h-12 bg-white border-y border-slate-200 flex items-center justify-center text-xl font-black text-[#003F87]">
                             {topicsPerDay}
                           </div>
                           <button
                             type="button"
                             onClick={() => setTopicsPerDay(prev => Math.min(10, Number(prev) + 1))}
                             disabled={Number(topicsPerDay) >= 10}
-                            className="w-10 h-10 bg-white border border-slate-300 rounded-r-lg flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-bold text-lg active:scale-95"
+                            className="w-12 h-12 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all font-black text-xl flex items-center justify-center"
                           >+</button>
                         </div>
-                        <div className="text-[9px] text-slate-400 mt-1 text-center">Range: 1 – 10</div>
                       </div>
                       <button
                         onClick={handlePreviewSchedule}
                         disabled={previewLoading}
-                        className="px-5 py-2.5 bg-white border-2 border-[#003F87] text-[#003F87] text-sm font-bold rounded-lg flex items-center gap-2 hover:bg-[#003F87] hover:text-white transition-all duration-200 disabled:opacity-50 active:scale-95"
+                        className="px-6 py-3.5 bg-white border-2 border-[#003F87] text-[#003F87] text-sm font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-[#003F87] hover:text-white transition-all shadow-sm active:scale-95 min-w-[200px]"
                       >
                         {previewLoading ? (
-                          <><div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full"></div> Generating...</>
+                          <><div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full"></div> Analyzing...</>
                         ) : (
-                          <><Eye size={16} /> Preview Schedule</>
+                          <><Eye size={18} /> Preview Master Plan</>
                         )}
                       </button>
                     </div>
 
                     {/* Preview Results */}
                     {schedulePreview && (
-                      <div className="mt-5">
-                        {/* Summary Stats */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Topics</div>
-                            <div className="text-xl font-black text-slate-900 mt-1">{schedulePreview.total_topics}</div>
+                      <div className="mt-6 animate-in fade-in relative z-10">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center">
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Topics</div>
+                            <div className="text-2xl font-black text-slate-900 mt-1">{schedulePreview.total_topics}</div>
                           </div>
-                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Days</div>
-                            <div className="text-xl font-black text-[#003F87] mt-1">{schedulePreview.total_days}</div>
+                          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center">
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Days Required</div>
+                            <div className="text-2xl font-black text-[#003F87] mt-1">{schedulePreview.total_days}</div>
                           </div>
-                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Starts</div>
-                            <div className="text-sm font-bold text-slate-800 mt-1">{schedulePreview.start_date ? formatDateToDDMMYYYY(schedulePreview.start_date) : '—'}</div>
+                          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Start</div>
+                            <div className="text-[13px] font-bold text-slate-800 mt-1">{schedulePreview.start_date ? formatDateToDDMMYYYY(schedulePreview.start_date) : '—'}</div>
                           </div>
-                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Ends</div>
-                            <div className="text-sm font-bold text-slate-800 mt-1">{schedulePreview.end_date ? formatDateToDDMMYYYY(schedulePreview.end_date) : '—'}</div>
+                          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target End</div>
+                            <div className="text-[13px] font-bold text-slate-800 mt-1">{schedulePreview.end_date ? formatDateToDDMMYYYY(schedulePreview.end_date) : '—'}</div>
                           </div>
                         </div>
 
-                        {/* Day-by-day Table */}
                         {schedulePreview.days && schedulePreview.days.length > 0 && (
-                          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mb-5">
-                            <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
-                              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Day-by-Day Breakdown</h4>
+                          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-6 shadow-sm">
+                            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
+                              <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">Day-by-Day Breakdown</h4>
                             </div>
-                            <div className="max-h-[280px] overflow-y-auto">
+                            <div className="max-h-[320px] overflow-y-auto">
                               {schedulePreview.days.map((day, dayIdx) => (
-                                <div key={day.date} className={`flex border-b border-slate-100 last:border-b-0 ${dayIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
-                                  <div className="w-[140px] shrink-0 p-3 border-r border-slate-100">
-                                    <div className="text-xs font-bold text-[#003F87]">Day {dayIdx + 1}</div>
-                                    <div className="text-[11px] font-semibold text-slate-700 mt-0.5">{formatDateToDDMMYYYY(day.date)}</div>
-                                    <div className="text-[10px] text-slate-500">{day.weekday}</div>
+                                <div key={day.date} className={`flex flex-col sm:flex-row border-b border-slate-100 last:border-b-0 ${dayIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                                  <div className="w-full sm:w-[160px] shrink-0 p-4 sm:border-r border-slate-100 flex sm:flex-col items-center sm:items-start justify-between sm:justify-start">
+                                    <div className="text-sm font-black text-[#003F87]">Day {dayIdx + 1}</div>
+                                    <div className="text-right sm:text-left mt-0 sm:mt-1">
+                                      <div className="text-xs font-bold text-slate-700">{formatDateToDDMMYYYY(day.date)}</div>
+                                      <div className="text-[10px] font-medium text-slate-400">{day.weekday}</div>
+                                    </div>
                                   </div>
-                                  <div className="flex-1 p-3">
-                                    <div className="flex flex-col gap-1.5">
+                                  <div className="flex-1 p-4">
+                                    <div className="flex flex-col gap-2">
                                       {day.topics.map((topic, topicIdx) => (
-                                        <div key={topic.id} className="flex items-center gap-2">
-                                          <div className="w-5 h-5 rounded-full bg-[#E5F0FF] text-[#003F87] text-[10px] font-bold flex items-center justify-center shrink-0">
+                                        <div key={topic.id} className="flex items-start gap-3 bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
+                                          <div className="w-6 h-6 rounded bg-blue-50 text-[#003F87] text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
                                             {topicIdx + 1}
                                           </div>
-                                          <div className="text-xs text-slate-800">
-                                            <span className="font-bold">{topic.module_sequence}.{topic.sequence_order}</span>
-                                            <span className="mx-1 text-slate-400">·</span>
-                                            <span className="text-slate-500 italic">{topic.module_title}</span>
-                                            <span className="mx-1 text-slate-400">→</span>
-                                            <span className="font-semibold">{topic.title}</span>
+                                          <div className="text-[13px] text-slate-800 leading-snug">
+                                            <span className="font-black text-[#003F87]">{topic.module_sequence}.{topic.sequence_order}</span>
+                                            <span className="mx-2 text-slate-300">|</span>
+                                            <span className="font-bold">{topic.title}</span>
+                                            <div className="text-[10px] font-medium text-slate-400 mt-0.5">{topic.module_title}</div>
                                           </div>
                                         </div>
                                       ))}
@@ -1097,21 +977,20 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                           </div>
                         )}
 
-                        {/* Action Buttons */}
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
                           <button
                             onClick={() => setSchedulePreview(null)}
-                            className="px-4 py-2 border border-slate-300 text-slate-600 text-sm font-bold rounded-lg hover:bg-slate-50 transition-colors"
-                          >Cancel</button>
+                            className="px-6 py-3 border border-slate-200 bg-white text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                          >Cancel Preview</button>
                           <button
                             onClick={handleAutoSchedule}
                             disabled={applyingSchedule}
-                            className="px-5 py-2.5 bg-[#008A2E] text-white text-sm font-bold rounded-lg flex items-center gap-2 hover:bg-[#006E24] transition-all duration-200 disabled:opacity-50 active:scale-95 shadow-sm"
+                            className="px-8 py-3 bg-[#008A2E] text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-[#006E24] shadow-md active:scale-95 transition-all w-full sm:w-auto"
                           >
                             {applyingSchedule ? (
-                              <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div> Applying...</>
+                              <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div> Applying Plan...</>
                             ) : (
-                              <><Zap size={16} /> Apply Schedule</>
+                              <><Zap size={18} /> Confirm & Apply Schedule</>
                             )}
                           </button>
                         </div>
@@ -1119,58 +998,72 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                     )}
                   </div>
 
-                  {/* Reschedule & Move Topic */}
-                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-col gap-4">
-                    <div className="flex gap-4 items-end">
-                      <div className="flex-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Reschedule from Date</label>
-                        <input type="date" value={holidayDate} onChange={e => setHolidayDate(e.target.value)} className="w-full max-w-[200px] px-3 py-2 border rounded text-sm" />
-                      </div>
-                      <button onClick={handleAddHoliday} className="px-4 py-2 bg-[#D80000] text-white text-sm font-bold rounded">
-                        Shift Schedule
-                      </button>
-                    </div>
-                    <div className="flex gap-4 items-end border-t border-slate-200 pt-4">
-                      <div className="flex-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Target Topic</label>
-                        <select 
-                          value={moveTopic.submoduleId} 
-                          onChange={e => setMoveTopic({...moveTopic, submoduleId: e.target.value})} 
-                          className="w-full max-w-[250px] px-3 py-2 border border-slate-200 rounded text-sm bg-white outline-none focus:border-[#003F87]"
-                        >
-                          <option value="">Select Topic</option>
-                          {modules
-                            .filter(m => m.course_id === selectedCourse.id)
-                            .sort((a, b) => a.sequence_order - b.sequence_order)
-                            .map(m => {
-                              const moduleSubmodules = submodules
-                                .filter(sm => sm.module_id === m.id)
-                                .sort((a, b) => a.sequence_order - b.sequence_order);
-                              
-                              if (moduleSubmodules.length === 0) return null;
-
-                              return (
-                                <optgroup key={m.id} label={`${m.sequence_order}. ${m.title}`}>
-                                  {moduleSubmodules.map(sm => (
-                                    <option key={sm.id} value={sm.id}>
-                                      {m.sequence_order}.{sm.sequence_order} {sm.title}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              );
-                            })}
-                        </select>
-                      </div>
+                  {/* Manual Overrides */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Reschedule Box */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">New Date</label>
-                        <input type="date" value={moveTopic.targetDate} onChange={e => setMoveTopic({...moveTopic, targetDate: e.target.value})} className="w-[150px] px-3 py-2 border rounded text-sm outline-none focus:border-[#003F87]" />
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Shift Schedule</h3>
+                        <p className="text-xs font-medium text-slate-500 mt-1">Push all dates forward starting from a holiday.</p>
                       </div>
-                      <button onClick={handleMoveTopic} className="px-4 py-2 bg-[#003F87] text-white text-sm font-bold rounded">
-                        Move Topic
-                      </button>
+                      <div className="flex gap-4 items-end mt-auto pt-4 border-t border-slate-50">
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Holiday Date</label>
+                          <input type="date" value={holidayDate} onChange={e => setHolidayDate(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#003F87] transition-all" />
+                        </div>
+                        <button onClick={handleAddHoliday} disabled={!holidayDate} className="px-6 py-2.5 bg-[#D80000] text-white text-sm font-bold rounded-xl hover:bg-[#B30000] disabled:opacity-50 transition-all shadow-sm">
+                          Shift Plan
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Move Topic Box */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Reschedule Single Topic</h3>
+                        <p className="text-xs font-medium text-slate-500 mt-1">Move a specific topic to a different date.</p>
+                      </div>
+                      <div className="flex flex-col gap-4 mt-auto pt-4 border-t border-slate-50">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Target Topic</label>
+                          <select 
+                            value={moveTopic.submoduleId} 
+                            onChange={e => setMoveTopic({...moveTopic, submoduleId: e.target.value})} 
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#003F87] transition-all appearance-none"
+                          >
+                            <option value="" disabled>Select a topic...</option>
+                            {modules
+                              .filter(m => m.course_id === selectedCourse.id)
+                              .sort((a, b) => a.sequence_order - b.sequence_order)
+                              .map(m => {
+                                const moduleSubmodules = submodules
+                                  .filter(sm => sm.module_id === m.id)
+                                  .sort((a, b) => a.sequence_order - b.sequence_order);
+                                if (moduleSubmodules.length === 0) return null;
+                                return (
+                                  <optgroup key={m.id} label={`${m.sequence_order}. ${m.title}`}>
+                                    {moduleSubmodules.map(sm => (
+                                      <option key={sm.id} value={sm.id}>
+                                        {m.sequence_order}.{sm.sequence_order} {sm.title}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                );
+                              })}
+                          </select>
+                        </div>
+                        <div className="flex gap-4 items-end">
+                          <div className="flex-1">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">New Date</label>
+                            <input type="date" value={moveTopic.targetDate} onChange={e => setMoveTopic({...moveTopic, targetDate: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#003F87] transition-all" />
+                          </div>
+                          <button onClick={handleMoveTopic} disabled={!moveTopic.submoduleId || !moveTopic.targetDate} className="px-6 py-2.5 bg-[#003F87] text-white text-sm font-bold rounded-xl hover:bg-[#002B5E] disabled:opacity-50 transition-all shadow-sm shrink-0">
+                            Move
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-
 
                 </div>
               )}
