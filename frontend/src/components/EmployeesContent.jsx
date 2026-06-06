@@ -76,6 +76,8 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
   const [newEmployee, setNewEmployee] = useState({
     name: '',
+    email: '',
+    password: '',
     department: 'Engineering',
     phone: '',
     status: 'Active',
@@ -100,24 +102,28 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
       if (!headers) return;
       const { first_name, last_name } = splitName(newEmployee.name);
 
-      const response = await fetch('/api/v1/employees', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+      const payload = {
           first_name,
           last_name,
           phone: newEmployee.phone,
           employee_role: departmentToApi(newEmployee.department),
           designation: newEmployee.department,
           status: statusToApi(newEmployee.status)
-        })
-      });
+        };
+        if (newEmployee.email) payload.email = newEmployee.email;
+        if (newEmployee.password) payload.password = newEmployee.password;
+
+        const response = await fetch('/api/v1/employees', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
       const resData = await parseApiResponse(response);
       const addedEmployee = mapEmployeeFromApi(resData.data, newEmployee.avatarUrl || null);
 
       setEmployees([addedEmployee, ...employees]);
       setIsModalOpen(false);
-      setNewEmployee({ name: '', department: 'Engineering', phone: '', status: 'Active', joinDate: 'January 2024', avatarUrl: null });
+      setNewEmployee({ name: '', email: '', password: '', department: 'Engineering', phone: '', status: 'Active', joinDate: 'January 2024', avatarUrl: null });
     } catch (error) {
       console.error('Error adding employee:', error);
       alert(error.message || 'Failed to add employee');
@@ -323,6 +329,27 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
                   onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})}
                   className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Email <span className="text-slate-400 normal-case font-normal">(optional)</span></label>
+                  <input 
+                    type="email" value={newEmployee.email}
+                    onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                    placeholder="employee@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Password <span className="text-slate-400 normal-case font-normal">(optional)</span></label>
+                  <input 
+                    type="text" value={newEmployee.password}
+                    onChange={(e) => setNewEmployee({...newEmployee, password: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm"
+                    placeholder="Auto-generated if empty"
+                  />
+                </div>
               </div>
               
               <div>
