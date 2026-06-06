@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, BookOpen, CheckCircle, Plus, LayoutList } from 'lucide-react';
+import { Calendar as CalendarIcon, BookOpen, CheckCircle, Plus, LayoutList, X, ChevronDown, ChevronRight } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -59,8 +60,8 @@ const DailyPlan = ({ userType, userId }) => {
   const [newTaskVisible, setNewTaskVisible] = useState(null); // stores submodule ID
   const [newTask, setNewTask] = useState({ title: '', description: '' });
   const [availableTopics, setAvailableTopics] = useState([]);
-  const [selectedTopicId, setSelectedTopicId] = useState('');
   const [topicLoading, setTopicLoading] = useState(false);
+  const [isCurriculumModalOpen, setIsCurriculumModalOpen] = useState(false);
   const [employeesList, setEmployeesList] = useState([]);
   const [selectedAdminEmployeeId, setSelectedAdminEmployeeId] = useState('');
 
@@ -134,40 +135,49 @@ const DailyPlan = ({ userType, userId }) => {
       const resData = await parseApiResponse(response);
       const topics = resData.data || [];
       setAvailableTopics(topics);
-      setSelectedTopicId(topics[0]?.id || '');
     } catch (error) {
       console.error('Error fetching available topics:', error);
       setAvailableTopics([]);
-      setSelectedTopicId('');
     }
   };
 
-  const handleAddTopicToDay = async (e) => {
-    e.preventDefault();
-    if (!selectedTopicId) return;
-    if (isWeekendDate(selectedDate)) {
-      alert('Topics can only be added to Monday-Friday workdays.');
-      return;
-    }
-
-    setTopicLoading(true);
+  const handleToggleTopic = async (topicId, isScheduled) => {
     try {
       const headers = getAuthHeaders();
-      if (!headers) return;
-
-      const response = await fetch(`/api/v1/employees/${userId}/topics/${selectedTopicId}/schedule`, {
+      const response = await fetch(`/api/v1/employees/${userId}/topics/${topicId}/schedule`, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ scheduled_date: selectedDate })
+        body: JSON.stringify({ scheduled_date: isScheduled ? selectedDate : null })
       });
-
       await parseApiResponse(response);
-      alert('Topic added to the day successfully!');
-      await fetchDailyPlan();
-      await fetchAvailableTopics();
+      setAvailableTopics(prev => prev.map(t => t.id === topicId ? { ...t, scheduled_date: isScheduled ? selectedDate : null } : t));
     } catch (error) {
-      console.error('Error adding topic to day:', error);
-      alert(error.message || 'Failed to add topic to the day');
+      console.error('Error updating topic:', error);
+      throw error;
+    }
+  };
+
+  const handleToggleModule = async (moduleId, isScheduled) => {
+    const submodules = availableTopics.filter(t => t.module_id === moduleId);
+    if (submodules.length === 0) return;
+    setTopicLoading(true);
+    try {
+      await Promise.all(submodules.map(t => handleToggleTopic(t.id, isScheduled)));
+      await fetchDailyPlan();
+    } catch (error) {
+      alert('Failed to update some topics in module');
+    } finally {
+      setTopicLoading(false);
+    }
+  };
+
+  const handleToggleSingleTopic = async (topicId, isScheduled) => {
+    setTopicLoading(true);
+    try {
+      await handleToggleTopic(topicId, isScheduled);
+      await fetchDailyPlan();
+    } catch (error) {
+      alert('Failed to update topic schedule');
     } finally {
       setTopicLoading(false);
     }
@@ -257,35 +267,19 @@ const DailyPlan = ({ userType, userId }) => {
         )}
 
         {userType === 'EMPLOYEE' && (
-          <form onSubmit={handleAddTopicToDay} className="mt-6 pt-5 border-t border-slate-200 flex flex-col gap-3">
+          <div className="mt-6 pt-5 border-t border-slate-200 flex flex-col gap-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-800">Add Topic to Day</h3>
-              <p className="text-xs text-slate-500 mt-1">Use when there is extra teaching time available.</p>
+              <h3 className="text-sm font-bold text-slate-800">Curriculum</h3>
+              <p className="text-xs text-slate-500 mt-1">Manage topics taught on this day.</p>
             </div>
-            <select
-              value={selectedTopicId}
-              onChange={(e) => setSelectedTopicId(e.target.value)}
-              disabled={availableTopics.length === 0 || isWeekendDate(selectedDate)}
-              className="w-full p-2.5 border border-slate-300 rounded-lg text-xs font-semibold outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] bg-white disabled:bg-slate-100 disabled:text-slate-400"
-            >
-              {availableTopics.length === 0 ? (
-                <option value="">No topics available</option>
-              ) : (
-                availableTopics.map(topic => (
-                  <option key={topic.id} value={topic.id}>
-                    {topic.course_modules?.courses?.name} - {topic.title}
-                  </option>
-                ))
-              )}
-            </select>
             <button
-              type="submit"
-              disabled={!selectedTopicId || topicLoading || isWeekendDate(selectedDate)}
+              onClick={() => setIsCurriculumModalOpen(true)}
+              disabled={isWeekendDate(selectedDate)}
               className="w-full py-2 bg-[#003F87] hover:bg-[#002B5E] disabled:bg-slate-300 disabled:cursor-not-allowed transition-all duration-200 text-white text-sm font-bold rounded-lg cursor-pointer active:scale-95 flex items-center justify-center gap-2"
             >
-              <Plus size={14} /> {topicLoading ? 'Adding...' : 'Add Topic'}
+              <LayoutList size={16} /> Manage Topics
             </button>
-          </form>
+          </div>
         )}
       </div>
 
@@ -296,9 +290,7 @@ const DailyPlan = ({ userType, userId }) => {
         </h3>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin w-8 h-8 border-4 border-[#003F87] border-t-transparent rounded-full"></div>
-          </div>
+          <LoadingSpinner text="Loading curriculum..." />
         ) : dailyPlan.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
@@ -388,6 +380,152 @@ const DailyPlan = ({ userType, userId }) => {
             ))}
           </div>
         )}
+      </div>
+
+      {isCurriculumModalOpen && (
+        <CurriculumSelectorModal
+          isOpen={isCurriculumModalOpen}
+          onClose={() => setIsCurriculumModalOpen(false)}
+          selectedDate={selectedDate}
+          topics={availableTopics}
+          onToggleTopic={handleToggleSingleTopic}
+          onToggleModule={handleToggleModule}
+          topicLoading={topicLoading}
+        />
+      )}
+    </div>
+  );
+};
+
+const CurriculumSelectorModal = ({ isOpen, onClose, selectedDate, topics, onToggleTopic, onToggleModule, topicLoading }) => {
+  const [expandedCourses, setExpandedCourses] = useState({});
+  const [expandedModules, setExpandedModules] = useState({});
+
+  if (!isOpen) return null;
+
+  const tree = {};
+  topics.forEach(topic => {
+    const courseId = topic.course_modules?.course_id || 'unknown';
+    const courseName = topic.course_modules?.courses?.name || 'Unknown Course';
+    const moduleId = topic.module_id || 'unknown';
+    const moduleTitle = topic.course_modules?.title || 'Unknown Module';
+
+    if (!tree[courseId]) tree[courseId] = { name: courseName, modules: {} };
+    if (!tree[courseId].modules[moduleId]) tree[courseId].modules[moduleId] = { title: moduleTitle, submodules: [] };
+    tree[courseId].modules[moduleId].submodules.push(topic);
+  });
+
+  const toggleExpand = (setter, id) => {
+    setter(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">Curriculum Topics</h2>
+            <p className="text-xs text-slate-500">Select topics to schedule for {selectedDate}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-5">
+          {Object.keys(tree).length === 0 ? (
+            <div className="text-center text-slate-500 py-10">No courses assigned.</div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {Object.entries(tree).map(([courseId, courseData]) => {
+                const isCourseExpanded = expandedCourses[courseId] !== false;
+                return (
+                  <div key={courseId} className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div 
+                      className="bg-[#003F87] text-white p-3 flex items-center gap-2 cursor-pointer select-none"
+                      onClick={() => toggleExpand(setExpandedCourses, courseId)}
+                    >
+                      {isCourseExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                      <span className="font-bold text-sm">{courseData.name}</span>
+                    </div>
+                    
+                    {isCourseExpanded && (
+                      <div className="flex flex-col">
+                        {Object.entries(courseData.modules).map(([moduleId, moduleData]) => {
+                          const isModuleExpanded = expandedModules[moduleId] !== false;
+                          const allScheduled = moduleData.submodules.every(sm => sm.scheduled_date === selectedDate);
+                          const someScheduled = moduleData.submodules.some(sm => sm.scheduled_date === selectedDate);
+                          
+                          return (
+                            <div key={moduleId} className="border-t border-slate-100 last:border-b-0">
+                              <div className="bg-slate-50 p-3 flex items-center gap-3">
+                                <div 
+                                  className="cursor-pointer text-slate-500 hover:text-slate-700" 
+                                  onClick={() => toggleExpand(setExpandedModules, moduleId)}
+                                >
+                                  {isModuleExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                </div>
+                                <label className="flex items-center gap-2 cursor-pointer flex-1 select-none">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={allScheduled}
+                                    ref={el => { if (el) el.indeterminate = someScheduled && !allScheduled }}
+                                    onChange={(e) => onToggleModule(moduleId, e.target.checked)}
+                                    disabled={topicLoading}
+                                    className="w-4 h-4 text-[#003F87] rounded border-slate-300 focus:ring-[#003F87] disabled:opacity-50"
+                                  />
+                                  <span className="text-sm font-bold text-slate-700">Module: {moduleData.title}</span>
+                                </label>
+                              </div>
+                              
+                              {isModuleExpanded && (
+                                <div className="pl-12 pr-4 py-2 flex flex-col gap-1 bg-white">
+                                  {moduleData.submodules.map(sm => {
+                                    const isScheduled = sm.scheduled_date === selectedDate;
+                                    const isScheduledElsewhere = sm.scheduled_date && sm.scheduled_date !== selectedDate;
+                                    return (
+                                      <div key={sm.id} className="flex items-center justify-between py-1.5 border-b border-slate-50 last:border-0 hover:bg-slate-50 rounded px-2">
+                                        <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                          <input 
+                                            type="checkbox" 
+                                            checked={isScheduled}
+                                            onChange={(e) => onToggleTopic(sm.id, e.target.checked)}
+                                            disabled={topicLoading}
+                                            className="w-4 h-4 text-[#003F87] rounded border-slate-300 focus:ring-[#003F87] disabled:opacity-50"
+                                          />
+                                          <div className="flex flex-col">
+                                            <span className={`text-sm ${isScheduled ? 'font-bold text-[#003F87]' : 'text-slate-600'}`}>{sm.title}</span>
+                                            {isScheduledElsewhere && !isScheduled && (
+                                              <span className="text-[10px] text-amber-600 font-semibold">
+                                                Currently scheduled for: {sm.scheduled_date} (Ticking will move it to today)
+                                              </span>
+                                            )}
+                                          </div>
+                                        </label>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+          <button 
+            onClick={onClose}
+            className="px-6 py-2 bg-[#003F87] text-white text-sm font-bold rounded-lg hover:bg-[#002B5E] transition-colors"
+          >
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Briefcase, BookOpen, CreditCard, TrendingUp } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
 const StatsGrid = () => {
   const [stats, setStats] = useState({
@@ -8,9 +9,11 @@ const StatsGrid = () => {
     courses: 0,
     sales: '₹0'
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -51,10 +54,16 @@ const StatsGrid = () => {
         });
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchStats();
   }, []);
+
+  if (loading) {
+    return <LoadingSpinner text="Loading stats..." />;
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-[24px]">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Calendar, RefreshCcw, MoreVertical, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
 const AttendanceContent = ({ employees = [], courses = [] }) => {
   const [students, setStudents] = useState([]);
@@ -17,10 +18,12 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [courseFilter, setCourseFilter] = useState('All Categories');
   const [dateFilter, setDateFilter] = useState('');
+  const [loading, setLoading] = useState(true);
 
   // Fetch data from backend
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) {
@@ -45,6 +48,8 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
 
       } catch (error) {
         console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -161,6 +166,10 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
   const avgLatency = total === 0 ? 0 : Math.round((lateCount * 15) / total); // Mock calculation
 
   const uniqueCourses = ['All Categories', ...courses.map(c => c.title)];
+
+  if (loading) {
+    return <LoadingSpinner text="Loading attendance data..." />;
+  }
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full">

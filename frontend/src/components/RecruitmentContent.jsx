@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Users, FileText, Phone } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
 const RecruitmentContent = () => {
   const [candidates, setCandidates] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCandidates = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -20,6 +23,8 @@ const RecruitmentContent = () => {
         }
       } catch (error) {
         console.error('Error fetching recruitment candidates:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchCandidates();
@@ -46,6 +51,10 @@ const RecruitmentContent = () => {
     setIsModalOpen(false);
     setNewCandidate({ full_name: '', email: '', phone: '', source_platform: 'INDEED' });
   };
+
+  if (loading) {
+    return <LoadingSpinner text="Loading recruitment data..." />;
+  }
 
   return (
     <>

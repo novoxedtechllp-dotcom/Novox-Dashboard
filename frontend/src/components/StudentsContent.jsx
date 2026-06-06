@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import LoadingSpinner from './LoadingSpinner';
 import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Download, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Pencil } from 'lucide-react';
 
 const getAuthHeaders = () => {
@@ -452,9 +453,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
       {/* Grid Container */}
       {loading ? (
-        <div className="flex items-center justify-center h-40">
-          <p className="text-slate-500 font-semibold">Loading Students...</p>
-        </div>
+        <LoadingSpinner text="Loading Students..." />
       ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[24px]">
         

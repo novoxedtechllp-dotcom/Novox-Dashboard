@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Download, Plus, FileText, CheckCircle, TrendingUp, MoreVertical, Eye, Calendar, DollarSign, Briefcase } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -14,9 +15,11 @@ const PayrollContent = () => {
   };
 
   const [payrollData, setPayrollData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPayroll = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -31,6 +34,8 @@ const PayrollContent = () => {
         }
       } catch (error) {
         console.error('Error fetching payroll:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchPayroll();
@@ -153,6 +158,10 @@ const PayrollContent = () => {
   const pendingCount = useMemo(() => {
     return payrollData.filter(p => p.status === 'PENDING').length;
   }, [payrollData]);
+
+  if (loading) {
+    return <LoadingSpinner text="Loading payroll data..." />;
+  }
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative">

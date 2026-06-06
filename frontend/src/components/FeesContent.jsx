@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -12,9 +13,11 @@ const FeesContent = () => {
   };
 
   const [feesList, setFeesList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchFees = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -29,6 +32,8 @@ const FeesContent = () => {
         }
       } catch (error) {
         console.error('Error fetching fees:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchFees();
@@ -116,6 +121,10 @@ const FeesContent = () => {
     
     doc.save(`fees_report_${new Date().getTime()}.pdf`);
   };
+
+  if (loading) {
+    return <LoadingSpinner text="Loading fees data..." />;
+  }
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative">

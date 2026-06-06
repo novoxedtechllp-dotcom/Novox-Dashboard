@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Phone, MapPin, Briefcase, Calendar, Edit3, Save, X, Camera } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
 const EmployeeProfile = () => {
   const [profile, setProfile] = useState(null);
@@ -123,7 +124,7 @@ const EmployeeProfile = () => {
   };
 
   if (loading) {
-    return <div className="p-6">Loading profile...</div>;
+    return <LoadingSpinner text="Loading profile..." />;
   }
 
   // If the user has no employee profile (e.g. pure admin without employee record)

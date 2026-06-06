@@ -5,6 +5,7 @@ import {
   ChevronRight, ChevronLeft, Download, FileText, Code, Palette, MousePointerClick, 
   Users, Award, TrendingDown, Gauge, Search, Filter, X, Plus, Trash2 
 } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
 const AcademicJourneyContent = () => {
   const [courseFilter, setCourseFilter] = useState('All Courses');
@@ -21,9 +22,11 @@ const AcademicJourneyContent = () => {
     'Design': [],
     'Marketing': []
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCurriculum = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -37,6 +40,8 @@ const AcademicJourneyContent = () => {
         }
       } catch (error) {
         console.error('Error fetching curriculum data:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchCurriculum();
@@ -115,6 +120,11 @@ const AcademicJourneyContent = () => {
     doc.save('Academic_Journey_Report.pdf');
     setActiveModal(null);
   };
+
+  if (loading) {
+    return <LoadingSpinner text="Loading curriculum data..." />;
+  }
+
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full overflow-y-auto" style={{scrollbarWidth: 'none'}}>
       

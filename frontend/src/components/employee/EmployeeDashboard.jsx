@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { CheckSquare, Clock, Calendar, ChevronRight, LogIn, LogOut } from 'lucide-react';
+import { CheckSquare, Clock, Calendar, ChevronRight, LogIn, LogOut, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import LoadingSpinner from '../LoadingSpinner';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -11,9 +12,11 @@ const EmployeeDashboard = () => {
   
   const [recentTasks, setRecentTasks] = useState([]);
   const [recentPayslips, setRecentPayslips] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -35,6 +38,8 @@ const EmployeeDashboard = () => {
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -70,6 +75,10 @@ const EmployeeDashboard = () => {
     
     doc.save(`payslip_${month.replace(' ', '_').toLowerCase()}.pdf`);
   };
+
+  if (loading) {
+    return <LoadingSpinner text="Loading dashboard..." />;
+  }
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative">

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Plus, Search, Briefcase } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
 const WorkReportsContent = () => {
   const [reports, setReports] = useState([]);
   const [projects, setProjects] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -29,6 +32,8 @@ const WorkReportsContent = () => {
         }
       } catch (error) {
         console.error('Error fetching work reports data:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -89,6 +94,10 @@ const WorkReportsContent = () => {
       console.error(err);
     }
   };
+
+  if (loading) {
+    return <LoadingSpinner text="Loading work reports..." />;
+  }
 
   return (
     <>

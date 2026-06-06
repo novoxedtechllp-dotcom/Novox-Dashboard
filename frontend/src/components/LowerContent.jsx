@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Zap } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
-const LowerContent = ({ employees = [], students = [] }) => {
+const LowerContent = ({ employees = [], students }) => {
   const [viewAllBtn, setViewAllBtn] = useState(true);
   const [attendanceTab, setAttendanceTab] = useState('Students');
   
   // Local state for dashboard students if not passed as prop
-  const [dashboardStudents, setDashboardStudents] = useState(students);
+  const [dashboardStudents, setDashboardStudents] = useState(students || []);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (students.length === 0) {
+    if (!students || students.length === 0) {
       // Fetch students from backend just for dashboard if not lifted
       const fetchStudents = async () => {
+        setLoading(true);
         try {
           const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
           if (!userInfo || !userInfo.token) return;
@@ -26,6 +29,8 @@ const LowerContent = ({ employees = [], students = [] }) => {
           }
         } catch (error) {
           console.error('Error fetching students for dashboard:', error);
+        } finally {
+          setLoading(false);
         }
       };
       fetchStudents();
@@ -64,6 +69,11 @@ const LowerContent = ({ employees = [], students = [] }) => {
       }));
 
   const visibleData = viewAllBtn ? displayData.slice(0, 4) : displayData;
+
+  if (loading) {
+    return <LoadingSpinner text="Loading attendance..." />;
+  }
+
   return (
     <div className="flex flex-col gap-[24px]">
       {/* Attendance Overview (Full width) */}

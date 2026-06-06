@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronRight, Star, GitMerge, Users, Code, Layers, MoreHorizontal, Filter, Share2, X, Award, ExternalLink, User, Loader2 } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
 const platforms = [
   { id: 'Internal', label: 'Internal', sub: 'Coursework', Icon: Star, color: '#003F87' },
@@ -19,9 +20,11 @@ const LeaderboardContent = () => {
   };
 
   const [leaderboardData, setLeaderboardData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -36,6 +39,8 @@ const LeaderboardContent = () => {
         }
       } catch (error) {
         console.error('Error fetching leaderboard:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchLeaderboard();
@@ -131,138 +136,144 @@ const LeaderboardContent = () => {
         })}
       </div>
 
-      {/* Podium Area */}
-      <div className="flex justify-center items-end mt-[24px] gap-[24px]">
-        {/* Rank 2 */}
-        {podium[1] && (
-          <div className="flex flex-col items-center bg-white rounded-[16px] p-[24px] border border-[#C2C6D4] shadow-sm w-[280px]">
-            <div className="relative mb-[16px]">
-              <img src={podium[1].avatar} alt={podium[1].name} className="w-[80px] h-[80px] rounded-[16px] object-cover border-4 border-white shadow-md" />
-              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-[28px] h-[28px] bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-[14px] border-2 border-white">2</div>
-            </div>
-            <h3 className="text-[18px] font-bold text-slate-900 text-center">{podium[1].name}</h3>
-            <p className="text-[12px] text-[#555F6B] text-center mb-[24px]">{podium[1].course}</p>
-            <div className="bg-[#F8FAFC] w-full py-[16px] rounded-[8px] text-center">
-              <p className="text-[28px] font-bold text-[#003F87] leading-none">{podium[1].scores[timeframe][platform].toLocaleString()}</p>
-              <p className="text-[10px] font-bold text-[#555F6B] uppercase tracking-wider mt-1">Points</p>
-            </div>
-          </div>
-        )}
-
-        {/* Rank 1 */}
-        {podium[0] && (
-          <div className="flex flex-col items-center bg-white rounded-[16px] p-[24px] border-[2px] border-[#003F87] shadow-lg w-[320px] relative z-10 -mt-[40px]">
-            <div className="absolute -top-[16px]">
-              <Star size={32} className="text-[#FFB800] fill-[#FFB800]" />
-            </div>
-            <div className="relative mb-[16px] mt-[12px]">
-              <img src={podium[0].avatar} alt={podium[0].name} className="w-[100px] h-[100px] rounded-[20px] object-cover border-4 border-[#003F87] shadow-md" />
-              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-[32px] h-[32px] bg-[#003F87] text-white rounded-full flex items-center justify-center font-bold text-[16px] border-2 border-white">1</div>
-            </div>
-            <h3 className="text-[22px] font-bold text-[#003F87] text-center">{podium[0].name}</h3>
-            <p className="text-[13px] text-[#555F6B] text-center mb-[24px]">{podium[0].course}</p>
-            <div className="bg-[#003F87] w-full py-[20px] rounded-[12px] text-center">
-              <p className="text-[36px] font-bold text-white leading-none">{podium[0].scores[timeframe][platform].toLocaleString()}</p>
-              <p className="text-[10px] font-bold text-[#93C5FD] uppercase tracking-widest mt-2">Elite Achievement Score</p>
-            </div>
-          </div>
-        )}
-
-        {/* Rank 3 */}
-        {podium[2] && (
-          <div className="flex flex-col items-center bg-white rounded-[16px] p-[24px] border border-[#C2C6D4] shadow-sm w-[280px]">
-            <div className="relative mb-[16px]">
-              <img src={podium[2].avatar} alt={podium[2].name} className="w-[80px] h-[80px] rounded-[16px] object-cover border-4 border-white shadow-md" />
-              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-[28px] h-[28px] bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-[14px] border-2 border-white">3</div>
-            </div>
-            <h3 className="text-[18px] font-bold text-slate-900 text-center">{podium[2].name}</h3>
-            <p className="text-[12px] text-[#555F6B] text-center mb-[24px]">{podium[2].course}</p>
-            <div className="bg-[#F8FAFC] w-full py-[16px] rounded-[8px] text-center">
-              <p className="text-[28px] font-bold text-[#003F87] leading-none">{podium[2].scores[timeframe][platform].toLocaleString()}</p>
-              <p className="text-[10px] font-bold text-[#555F6B] uppercase tracking-wider mt-1">Points</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* List View */}
-      <div className="flex flex-col border border-[#C2C6D4] rounded-[12px] bg-white shadow-sm mt-[8px] relative">
-        {list.map((student, idx) => {
-          const rank = idx + 4;
-          return (
-            <div 
-              key={student.id} 
-              onClick={() => setSelectedStudent(student)}
-              className={`flex items-center justify-between p-[20px] border-b border-[#C2C6D4] hover:bg-slate-50 transition-colors cursor-pointer ${idx === list.length - 1 ? 'rounded-b-[12px] border-b-0' : ''}`}
-            >
-              <div className="flex items-center gap-[24px]">
-                <span className="text-[18px] font-bold text-slate-900 w-[24px] text-center">{rank}</span>
-                <img src={student.avatar} alt={student.name} className="w-[48px] h-[48px] rounded-[8px] object-cover" />
-                <div>
-                  <h4 className="text-[15px] font-bold text-slate-900">{student.name}</h4>
-                  <p className="text-[12px] text-[#555F6B]">{student.course}</p>
+      {loading ? (
+        <LoadingSpinner text="Loading leaderboard..." />
+      ) : (
+        <>
+          {/* Podium Area */}
+          <div className="flex justify-center items-end mt-[24px] gap-[24px]">
+            {/* Rank 2 */}
+            {podium[1] && (
+              <div className="flex flex-col items-center bg-white rounded-[16px] p-[24px] border border-[#C2C6D4] shadow-sm w-[280px]">
+                <div className="relative mb-[16px]">
+                  <img src={podium[1].avatar} alt={podium[1].name} className="w-[80px] h-[80px] rounded-[16px] object-cover border-4 border-white shadow-md" />
+                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-[28px] h-[28px] bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-[14px] border-2 border-white">2</div>
+                </div>
+                <h3 className="text-[18px] font-bold text-slate-900 text-center">{podium[1].name}</h3>
+                <p className="text-[12px] text-[#555F6B] text-center mb-[24px]">{podium[1].course}</p>
+                <div className="bg-[#F8FAFC] w-full py-[16px] rounded-[8px] text-center">
+                  <p className="text-[28px] font-bold text-[#003F87] leading-none">{podium[1].scores[timeframe][platform].toLocaleString()}</p>
+                  <p className="text-[10px] font-bold text-[#555F6B] uppercase tracking-wider mt-1">Points</p>
                 </div>
               </div>
-              <div className="flex items-center gap-[24px]">
-                <div className="flex items-center gap-[12px] border-r border-[#C2C6D4] pr-[24px]">
-                  <div className="flex gap-[8px] items-center mr-[8px]">
-                    <button 
-                      title="View Achievements"
-                      onClick={(e) => { e.stopPropagation(); openAchievements(student); }}
-                      className="p-[6px] rounded-[6px] hover:bg-amber-50 text-slate-400 hover:text-amber-500 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      aria-label="View Achievements"
-                    >
-                      <Award size={18} />
-                    </button>
-                    <button 
-                      title="View Connected Profiles"
-                      onClick={(e) => { e.stopPropagation(); openProfiles(student); }}
-                      className="p-[6px] rounded-[6px] hover:bg-blue-50 text-slate-400 hover:text-[#003F87] transition-colors focus:outline-none focus:ring-2 focus:ring-[#003F87]"
-                      aria-label="View Connected Profiles"
-                    >
-                      <ExternalLink size={18} />
-                    </button>
-                    <button 
-                      title="View Student Profile"
-                      onClick={(e) => { e.stopPropagation(); setSelectedStudent(student); }}
-                      className="p-[6px] rounded-[6px] hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-700"
-                      aria-label="View Student Profile"
-                    >
-                      <User size={18} />
-                    </button>
+            )}
+
+            {/* Rank 1 */}
+            {podium[0] && (
+              <div className="flex flex-col items-center bg-white rounded-[16px] p-[24px] border-[2px] border-[#003F87] shadow-lg w-[320px] relative z-10 -mt-[40px]">
+                <div className="absolute -top-[16px]">
+                  <Star size={32} className="text-[#FFB800] fill-[#FFB800]" />
+                </div>
+                <div className="relative mb-[16px] mt-[12px]">
+                  <img src={podium[0].avatar} alt={podium[0].name} className="w-[100px] h-[100px] rounded-[20px] object-cover border-4 border-[#003F87] shadow-md" />
+                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-[32px] h-[32px] bg-[#003F87] text-white rounded-full flex items-center justify-center font-bold text-[16px] border-2 border-white">1</div>
+                </div>
+                <h3 className="text-[22px] font-bold text-[#003F87] text-center">{podium[0].name}</h3>
+                <p className="text-[13px] text-[#555F6B] text-center mb-[24px]">{podium[0].course}</p>
+                <div className="bg-[#003F87] w-full py-[20px] rounded-[12px] text-center">
+                  <p className="text-[36px] font-bold text-white leading-none">{podium[0].scores[timeframe][platform].toLocaleString()}</p>
+                  <p className="text-[10px] font-bold text-[#93C5FD] uppercase tracking-widest mt-2">Elite Achievement Score</p>
+                </div>
+              </div>
+            )}
+
+            {/* Rank 3 */}
+            {podium[2] && (
+              <div className="flex flex-col items-center bg-white rounded-[16px] p-[24px] border border-[#C2C6D4] shadow-sm w-[280px]">
+                <div className="relative mb-[16px]">
+                  <img src={podium[2].avatar} alt={podium[2].name} className="w-[80px] h-[80px] rounded-[16px] object-cover border-4 border-white shadow-md" />
+                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-[28px] h-[28px] bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-[14px] border-2 border-white">3</div>
+                </div>
+                <h3 className="text-[18px] font-bold text-slate-900 text-center">{podium[2].name}</h3>
+                <p className="text-[12px] text-[#555F6B] text-center mb-[24px]">{podium[2].course}</p>
+                <div className="bg-[#F8FAFC] w-full py-[16px] rounded-[8px] text-center">
+                  <p className="text-[28px] font-bold text-[#003F87] leading-none">{podium[2].scores[timeframe][platform].toLocaleString()}</p>
+                  <p className="text-[10px] font-bold text-[#555F6B] uppercase tracking-wider mt-1">Points</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* List View */}
+          <div className="flex flex-col border border-[#C2C6D4] rounded-[12px] bg-white shadow-sm mt-[8px] relative">
+            {list.map((student, idx) => {
+              const rank = idx + 4;
+              return (
+                <div 
+                  key={student.id} 
+                  onClick={() => setSelectedStudent(student)}
+                  className={`flex items-center justify-between p-[20px] border-b border-[#C2C6D4] hover:bg-slate-50 transition-colors cursor-pointer ${idx === list.length - 1 ? 'rounded-b-[12px] border-b-0' : ''}`}
+                >
+                  <div className="flex items-center gap-[24px]">
+                    <span className="text-[18px] font-bold text-slate-900 w-[24px] text-center">{rank}</span>
+                    <img src={student.avatar} alt={student.name} className="w-[48px] h-[48px] rounded-[8px] object-cover" />
+                    <div>
+                      <h4 className="text-[15px] font-bold text-slate-900">{student.name}</h4>
+                      <p className="text-[12px] text-[#555F6B]">{student.course}</p>
+                    </div>
                   </div>
-                  <span className="text-[13px] font-bold text-slate-800">{student.coursesCompleted} Courses Completed</span>
+                  <div className="flex items-center gap-[24px]">
+                    <div className="flex items-center gap-[12px] border-r border-[#C2C6D4] pr-[24px]">
+                      <div className="flex gap-[8px] items-center mr-[8px]">
+                        <button 
+                          title="View Achievements"
+                          onClick={(e) => { e.stopPropagation(); openAchievements(student); }}
+                          className="p-[6px] rounded-[6px] hover:bg-amber-50 text-slate-400 hover:text-amber-500 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          aria-label="View Achievements"
+                        >
+                          <Award size={18} />
+                        </button>
+                        <button 
+                          title="View Connected Profiles"
+                          onClick={(e) => { e.stopPropagation(); openProfiles(student); }}
+                          className="p-[6px] rounded-[6px] hover:bg-blue-50 text-slate-400 hover:text-[#003F87] transition-colors focus:outline-none focus:ring-2 focus:ring-[#003F87]"
+                          aria-label="View Connected Profiles"
+                        >
+                          <ExternalLink size={18} />
+                        </button>
+                        <button 
+                          title="View Student Profile"
+                          onClick={(e) => { e.stopPropagation(); setSelectedStudent(student); }}
+                          className="p-[6px] rounded-[6px] hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-700"
+                          aria-label="View Student Profile"
+                        >
+                          <User size={18} />
+                        </button>
+                      </div>
+                      <span className="text-[13px] font-bold text-slate-800">{student.coursesCompleted} Courses Completed</span>
+                    </div>
+                    <div className="text-right min-w-[100px]">
+                      <p className="text-[18px] font-bold text-[#003F87] leading-none">{student.scores[timeframe][platform].toLocaleString()}</p>
+                      <p className={`text-[11px] font-bold mt-1 ${student.trendColor}`}>{student.trend}</p>
+                    </div>
+                    <ChevronRight size={20} className="text-[#C2C6D4]" />
+                  </div>
                 </div>
-                <div className="text-right min-w-[100px]">
-                  <p className="text-[18px] font-bold text-[#003F87] leading-none">{student.scores[timeframe][platform].toLocaleString()}</p>
-                  <p className={`text-[11px] font-bold mt-1 ${student.trendColor}`}>{student.trend}</p>
-                </div>
-                <ChevronRight size={20} className="text-[#C2C6D4]" />
-              </div>
-            </div>
-          );
-        })}
-        
-        {/* Floating Share Button on the right edge */}
-        <button 
-          onClick={() => alert('Leaderboard link copied to clipboard!')}
-          className="fixed right-[40px] bottom-[40px] bg-[#003F87] text-white p-[16px] rounded-full shadow-xl hover:bg-[#002B5E] transition-all hover:scale-105 z-40"
-        >
-          <Share2 size={24} />
-        </button>
-      </div>
+              );
+            })}
+            
+            {/* Floating Share Button on the right edge */}
+            <button 
+              onClick={() => alert('Leaderboard link copied to clipboard!')}
+              className="fixed right-[40px] bottom-[40px] bg-[#003F87] text-white p-[16px] rounded-full shadow-xl hover:bg-[#002B5E] transition-all hover:scale-105 z-40"
+            >
+              <Share2 size={24} />
+            </button>
+          </div>
 
-      {/* Footer Load More */}
-      {visibleCount < sortedData.length && (
-        <div className="w-full flex flex-col items-center mt-[24px] pb-[12px]">
-          <button 
-            onClick={() => setVisibleCount(v => Math.min(v + 6, sortedData.length))}
-            className="border border-[#C2C6D4] text-[#003F87] bg-white hover:bg-slate-50 transition-colors px-[24px] py-[8px] rounded-[6px] text-[13px] font-bold mb-[12px] shadow-sm"
-          >
-            Load More Students
-          </button>
-          <p className="text-[11px] text-[#555F6B]">Showing {visibleCount} of {sortedData.length} enrolled students</p>
-        </div>
+          {/* Footer Load More */}
+          {visibleCount < sortedData.length && (
+            <div className="w-full flex flex-col items-center mt-[24px] pb-[12px]">
+              <button 
+                onClick={() => setVisibleCount(v => Math.min(v + 6, sortedData.length))}
+                className="border border-[#C2C6D4] text-[#003F87] bg-white hover:bg-slate-50 transition-colors px-[24px] py-[8px] rounded-[6px] text-[13px] font-bold mb-[12px] shadow-sm"
+              >
+                Load More Students
+              </button>
+              <p className="text-[11px] text-[#555F6B]">Showing {visibleCount} of {sortedData.length} enrolled students</p>
+            </div>
+          )}
+        </>
       )}
 
       {/* Advanced Filters Modal */}
@@ -348,9 +359,8 @@ const LeaderboardContent = () => {
       {/* Loading Overlay */}
       {isLoadingModal && (
         <div className="fixed inset-0 bg-slate-900/20 z-[60] flex items-center justify-center backdrop-blur-[1px]">
-          <div className="bg-white rounded-xl shadow-xl p-6 flex flex-col items-center justify-center gap-3">
-            <Loader2 size={32} className="text-[#003F87] animate-spin" />
-            <p className="text-sm font-semibold text-slate-700">Loading data...</p>
+          <div className="bg-white rounded-xl shadow-xl overflow-hidden flex items-center justify-center min-w-[200px]">
+            <LoadingSpinner text="Loading data..." />
           </div>
         </div>
       )}

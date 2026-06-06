@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, Mail, MessageSquare, Plus, Search, Calendar, ChevronRight, X, User } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
 const SalesCrmContent = () => {
   const [leads, setLeads] = useState([]);
@@ -18,11 +19,13 @@ const SalesCrmContent = () => {
     source_id: 'src-1',
     stage: 'NEW'
   });
+  const [loading, setLoading] = useState(true);
 
   const stages = ['NEW', 'CONTACTED', 'FOLLOWUP', 'COUNSELLING', 'ENROLLED', 'LOST'];
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -44,6 +47,8 @@ const SalesCrmContent = () => {
         }
       } catch (error) {
         console.error('Error fetching sales CRM data:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -92,6 +97,10 @@ const SalesCrmContent = () => {
     setActiveLead(lead);
     setDetailsTab(tab);
   };
+
+  if (loading) {
+    return <LoadingSpinner text="Loading CRM data..." />;
+  }
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full h-full">

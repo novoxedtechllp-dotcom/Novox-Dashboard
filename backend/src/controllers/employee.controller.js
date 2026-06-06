@@ -459,9 +459,7 @@ export const getAvailableTeachingTopics = asyncHandler(async (req, res) => {
 
   if (error) throw new ApiError(500, error.message || "Failed to fetch available topics");
 
-  const availableTopics = (data || []).filter((topic) => topic.scheduled_date !== date);
-
-  return res.status(200).json(new ApiResponse(200, availableTopics, "Available teaching topics fetched successfully"));
+  return res.status(200).json(new ApiResponse(200, data || [], "Curriculum topics fetched successfully"));
 });
 
 // @desc    Add or move an assigned course topic to a selected instructor workday
@@ -470,11 +468,12 @@ export const scheduleTeachingTopic = asyncHandler(async (req, res) => {
   const { employeeId, submoduleId } = req.params;
   const { scheduled_date } = req.body;
 
-  if (!scheduled_date) throw new ApiError(400, "Please provide scheduled_date");
-
-  const selectedDate = parseDateOnly(scheduled_date);
-  if (!selectedDate) throw new ApiError(400, "Please provide a valid scheduled_date");
-  if (isWeekend(selectedDate)) throw new ApiError(400, "Topics can only be scheduled from Monday to Friday");
+  let selectedDate = null;
+  if (scheduled_date !== null && scheduled_date !== undefined) {
+    selectedDate = parseDateOnly(scheduled_date);
+    if (!selectedDate) throw new ApiError(400, "Please provide a valid scheduled_date");
+    if (isWeekend(selectedDate)) throw new ApiError(400, "Topics can only be scheduled from Monday to Friday");
+  }
 
   const { courseIds } = await getAssignedCourseIds(employeeId);
   if (courseIds.length === 0) throw new ApiError(403, "No courses assigned to this instructor");

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Eye, MousePointerClick, Share2, Plus, ArrowUpRight, TrendingUp } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 
 const BlogDashboardContent = () => {
   const [blogs, setBlogs] = useState([]);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     const fetchBlogs = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -20,10 +23,16 @@ const BlogDashboardContent = () => {
         }
       } catch (error) {
         console.error('Error fetching blogs:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchBlogs();
   }, []);
+
+  if (loading) {
+    return <LoadingSpinner text="Loading blogs..." />;
+  }
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full">

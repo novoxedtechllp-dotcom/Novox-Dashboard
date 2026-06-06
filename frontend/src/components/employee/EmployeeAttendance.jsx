@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, Filter, Eye, X, ChevronLeft, ChevronRight, UserCheck, UserX, AlertTriangle, UserMinus } from 'lucide-react';
+import LoadingSpinner from '../LoadingSpinner';
 
 const EmployeeAttendance = () => {
   const [attendanceData, setAttendanceData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAttendance = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -20,6 +23,8 @@ const EmployeeAttendance = () => {
         }
       } catch (error) {
         console.error('Error fetching attendance:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchAttendance();
@@ -38,6 +43,10 @@ const EmployeeAttendance = () => {
       default: return null;
     }
   };
+
+  if (loading) {
+    return <LoadingSpinner text="Loading attendance..." />;
+  }
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative pb-[100px]">

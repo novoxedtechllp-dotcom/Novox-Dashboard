@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Eye, CheckCircle, Edit2, X, Paperclip, MessageSquare } from 'lucide-react';
+import LoadingSpinner from '../LoadingSpinner';
 
 const EmployeeTasks = () => {
   const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchTasks = async () => {
+      setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
@@ -20,6 +23,8 @@ const EmployeeTasks = () => {
         }
       } catch (error) {
         console.error('Error fetching tasks:', error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchTasks();
@@ -57,6 +62,10 @@ const EmployeeTasks = () => {
       default: return 'text-slate-600 bg-slate-50';
     }
   };
+
+  if (loading) {
+    return <LoadingSpinner text="Loading tasks..." />;
+  }
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative">
