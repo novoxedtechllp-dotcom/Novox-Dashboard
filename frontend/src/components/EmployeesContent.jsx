@@ -56,7 +56,8 @@ const mapEmployeeFromApi = (employee, avatar = null) => ({
   phone: employee.phone || '',
   status: statusFromApi(employee.status),
   joinDate: employee.joining_date ? new Date(employee.joining_date).toLocaleDateString() : '',
-  avatar: avatar || employee.avatar_url || null
+  avatar: avatar || employee.avatar_url || null,
+  systemRole: employee.users?.role || 'EMPLOYEE'
 });
 
 const EmployeesContent = ({ employees = [], setEmployees }) => {
@@ -70,9 +71,10 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
+  const [employeeToMakeAdmin, setEmployeeToMakeAdmin] = useState(null);
   
   const [deptFilter, setDeptFilter] = useState('All Departments');
-  const [statusFilter, setStatusFilter] = useState('All Statuses');
+  const [statusFilter, setStatusFilter] = useState('Active');
 
   const [newEmployee, setNewEmployee] = useState({
     name: '',
@@ -152,7 +154,6 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
   };
 
   const handleGrantAdmin = async (id) => {
-    if(!window.confirm("Are you sure you want to grant Admin privileges to this user?")) return;
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
@@ -164,6 +165,8 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
       });
       await parseApiResponse(response);
 
+      setEmployees(employees.map(emp => emp.id === id ? { ...emp, systemRole: 'ADMIN' } : emp));
+      setEmployeeToMakeAdmin(null);
       alert('Admin privileges granted successfully!');
     } catch (error) {
       console.error('Error granting admin:', error);
@@ -293,79 +296,101 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
       </div>
 
       {/* Grid Container */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         
         {filteredEmployees.map(emp => (
-          <div key={emp.id} className="bg-white rounded-2xl p-4 flex items-center gap-4 relative group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 border border-slate-100/60 shadow-sm cursor-pointer">
+          <div key={emp.id} className="bg-white rounded-3xl border border-slate-200 flex flex-col relative group shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
             
-            {/* Action Buttons */}
-            <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-10 bg-white/90 backdrop-blur-sm pl-2">
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleGrantAdmin(emp.id); }}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                title="Grant Admin Access"
-              >
-                <Shield size={14} />
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); setEmployeeToEdit(emp); }}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                title="Edit Employee"
-              >
-                <Pencil size={14} />
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); setEmployeeToDelete(emp.id); }}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                title="Delete Employee"
-              >
-                <Trash2 size={14} />
-              </button>
+            {/* Main Content Area */}
+            <div className="p-6">
+              {/* Profile Header */}
+              <div className="flex items-start gap-4 mb-6">
+                <div className="relative shrink-0">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shadow-inner">
+                    {emp.avatar ? (
+                      <img src={emp.avatar} alt={emp.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={28} className="text-slate-300" />
+                    )}
+                  </div>
+                  <div className={`absolute bottom-0 right-0 w-4 h-4 border-2 border-white rounded-full shadow-sm ${getStatusDotColor(emp.status)}`}></div>
+                </div>
+                <div className="pt-1 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-block bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border border-blue-100 shrink-0">
+                      {emp.eid}
+                    </span>
+                    {emp.systemRole === 'ADMIN' && (
+                      <span className="inline-block bg-purple-100 text-purple-700 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border border-purple-200 shrink-0 flex items-center gap-1">
+                        <Shield size={10} /> Admin
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800 leading-tight tracking-tight truncate pr-2">{emp.name}</h3>
+                  <div className="flex items-center gap-2 mt-2 text-sm font-medium text-slate-500">
+                    <Briefcase size={14} className="text-slate-400" /> <span className="truncate">{emp.department}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 text-sm font-medium text-slate-500">
+                    <Phone size={14} className="text-slate-400" /> <span className="truncate">{emp.phone}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status and Join Date Row */}
+              <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+                <div className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${getStatusColor(emp.status)}`}>
+                  {emp.status}
+                </div>
+                <div className="text-xs font-bold text-slate-400">
+                  Joined <span className="text-slate-700">{emp.joinDate}</span>
+                </div>
+              </div>
             </div>
 
-            {/* Profile Info */}
-            <div className="relative shrink-0">
-              <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shadow-inner">
-                {emp.avatar ? (
-                  <img src={emp.avatar} alt={emp.name} className="w-full h-full object-cover" />
-                ) : (
-                  <User size={20} className="text-slate-300" />
-                )}
+            {/* Actions Footer */}
+            <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-center justify-between mt-auto">
+              {emp.systemRole !== 'ADMIN' ? (
+                <button 
+                  onClick={() => setEmployeeToMakeAdmin(emp.id)}
+                  className="flex items-center gap-2 text-sm font-bold text-emerald-600 bg-emerald-100/50 hover:bg-emerald-100 px-3 py-2 rounded-lg transition-colors border border-emerald-200 shadow-sm"
+                >
+                  <Shield size={16} /> Grant Admin
+                </button>
+              ) : (
+                <div className="text-xs font-bold text-slate-400 flex items-center gap-1.5 px-2">
+                  <Shield size={14} /> Full Access
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setEmployeeToEdit(emp)}
+                  className="flex items-center gap-2 text-sm font-bold text-blue-600 bg-blue-100/50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors border border-blue-200 shadow-sm"
+                >
+                  <Pencil size={16} /> Edit
+                </button>
+                <button 
+                  onClick={() => setEmployeeToDelete(emp.id)}
+                  className="flex items-center gap-2 text-sm font-bold text-rose-600 bg-rose-100/50 hover:bg-rose-100 px-3 py-2 rounded-lg transition-colors border border-rose-200 shadow-sm"
+                >
+                  <Trash2 size={16} /> Delete
+                </button>
               </div>
-              <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full shadow-sm ${getStatusDotColor(emp.status)}`}></div>
             </div>
-            
-            {/* Details */}
-            <div className="flex flex-col flex-1 min-w-0 pr-16">
-              <div className="flex items-center gap-2 mb-0.5">
-                <h3 className="text-[15px] font-bold text-slate-800 leading-tight truncate">{emp.name}</h3>
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${getStatusColor(emp.status)}`}>
-                  {emp.status}
-                </span>
-              </div>
-              <div className="text-[12px] font-medium text-slate-500 truncate flex items-center gap-1.5">
-                <Briefcase size={12} className="text-slate-400" /> {emp.department}
-              </div>
-              <div className="text-[11px] font-semibold text-slate-400 truncate mt-1 flex items-center gap-1.5">
-                <Phone size={10} /> {emp.phone} • EID: {emp.eid}
-              </div>
-            </div>
-            
+
           </div>
         ))}
 
         {/* Add Employee Card */}
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200 p-4 flex items-center gap-4 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group min-h-[80px]"
+          className="bg-white rounded-3xl border-2 border-dashed border-slate-200 p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all group min-h-[300px]"
         >
-          <div className="w-12 h-12 rounded-full bg-white shadow-sm text-blue-500 flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300 border border-slate-100">
-            <Plus size={20} />
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300">
+            <Plus size={28} />
           </div>
-          <div className="flex flex-col text-left">
-            <h3 className="text-[14px] font-bold text-slate-700 mb-0.5">Add New Employee</h3>
-            <p className="text-[11px] font-medium text-slate-500">Click to onboard a new member</p>
-          </div>
+          <h3 className="text-lg font-black text-slate-800 mb-1">Add New Employee</h3>
+          <p className="text-sm font-medium text-slate-500">Onboard a new team member to your dashboard.</p>
         </button>
       </div>
 
@@ -580,9 +605,38 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
               </button>
               <button 
                 onClick={() => { handleDeleteEmployee(employeeToDelete); setEmployeeToDelete(null); }} 
-                className="flex-1 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold hover:bg-rose-700 shadow-md shadow-rose-900/10 transition-all active:scale-95"
+                className="flex-1 py-3 bg-rose-600 rounded-xl text-sm font-bold text-white hover:bg-rose-700 shadow-md shadow-rose-900/10 transition-colors"
               >
-                Yes, Delete
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Grant Admin Confirmation Modal */}
+      {employeeToMakeAdmin && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 flex flex-col gap-5 text-center items-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 mb-2">
+              <Shield size={28} />
+            </div>
+            <h3 className="text-xl font-black text-slate-900">Grant Admin Privileges?</h3>
+            <p className="text-slate-500 font-medium text-sm">
+              Are you sure you want to grant full Administrator privileges to this user? They will have complete access to the entire dashboard.
+            </p>
+            <div className="flex w-full gap-3 mt-4">
+              <button 
+                onClick={() => setEmployeeToMakeAdmin(null)} 
+                className="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handleGrantAdmin(employeeToMakeAdmin)} 
+                className="flex-1 py-3 bg-emerald-600 rounded-xl text-sm font-bold text-white hover:bg-emerald-700 shadow-md shadow-emerald-900/10 transition-colors"
+              >
+                Grant Admin
               </button>
             </div>
           </div>
