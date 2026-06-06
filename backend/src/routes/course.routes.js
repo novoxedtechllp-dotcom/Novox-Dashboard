@@ -43,16 +43,9 @@ router.route("/:courseId").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, 
 router.route("/:courseId/students").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), getCourseStudents);
 router.route("/:courseId/employees").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), getCourseEmployees);
 
-// Write (Admin and specific Employees)
+// Write (Admin only)
 const writeAuth = authorize({ 
-  roles: [ROLES.ADMIN, ROLES.EMPLOYEE],
-  employeeRoles: [
-    EMPLOYEE_ROLES.HR,
-    EMPLOYEE_ROLES.DEVELOPMENT,
-    EMPLOYEE_ROLES.DESIGN,
-    EMPLOYEE_ROLES.SALES,
-    EMPLOYEE_ROLES.MARKETING
-  ]
+  roles: [ROLES.ADMIN]
 });
 
 router.route("/").post(writeAuth, createCourse);

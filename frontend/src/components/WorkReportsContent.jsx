@@ -14,19 +14,14 @@ const WorkReportsContent = () => {
         
         const headers = { 'Authorization': `Bearer ${userInfo.token}` };
         
-        const [repRes, projRes, empRes] = await Promise.all([
+        const [repRes, empRes] = await Promise.all([
           fetch('/api/v1/work-reports', { headers }),
-          fetch('/api/v1/projects', { headers }),
           fetch('/api/v1/employees', { headers })
         ]);
 
         if (repRes.ok) {
           const resData = await repRes.json();
           setReports(resData.data?.reports || resData.data || []);
-        }
-        if (projRes.ok) {
-          const pData = await projRes.json();
-          setProjects(pData.data?.projects || pData.data || []);
         }
         if (empRes.ok) {
           const eData = await empRes.json();
@@ -43,31 +38,56 @@ const WorkReportsContent = () => {
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [newReport, setNewReport] = useState({ employee_id: '', project_id: '', report_type: 'DAILY', work_done: '', blockers: '' });
 
-  const handleStatusChange = (id, newStatus) => {
-    setReports(reports.map(r => r.id === id ? { ...r, approval_status: newStatus } : r));
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const endpoint = newStatus === 'APPROVED' ? `/api/v1/work-reports/${id}/approve` : `/api/v1/work-reports/${id}/reject`;
+      const response = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userInfo?.token}`
+        }
+      });
+      if (response.ok) {
+        setReports(reports.map(r => r.id === id ? { ...r, approval_status: newStatus } : r));
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const filteredReports = reports.filter(r => {
     if (statusFilter !== 'ALL' && r.approval_status !== statusFilter) return false;
     const emp = employees.find(e => e.id === r.employee_id);
-    if (searchQuery && emp && !emp.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    const empName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() : '';
+    if (searchQuery && !empName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
-  const handleSubmitReport = (e) => {
+  const handleSubmitReport = async (e) => {
     e.preventDefault();
-    if (!newReport.employee_id || !newReport.project_id || !newReport.work_done) return;
+    if (!newReport.employee_id || !newReport.work_done) return;
     
-    const report = {
-      id: `wr-${Date.now()}`,
-      ...newReport,
-      submitted_at: new Date().toISOString(),
-      approval_status: 'PENDING'
-    };
-    
-    setReports([report, ...reports]);
-    setIsSubmitModalOpen(false);
-    setNewReport({ employee_id: '', project_id: '', report_type: 'DAILY', work_done: '', blockers: '' });
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const response = await fetch('/api/v1/work-reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userInfo?.token}`
+        },
+        body: JSON.stringify(newReport)
+      });
+      const resData = await response.json();
+      if (response.ok && resData.data) {
+        setReports([resData.data, ...reports]);
+        setIsSubmitModalOpen(false);
+        setNewReport({ employee_id: '', project_id: '', report_type: 'DAILY', work_done: '', blockers: '' });
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -109,17 +129,17 @@ const WorkReportsContent = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredReports.map(report => {
           const emp = employees.find(e => e.id === report.employee_id) || {};
-          const proj = projects.find(p => p.id === report.project_id) || {};
+          const empName = emp.first_name ? `${emp.first_name} ${emp.last_name}` : 'Unknown Employee';
           
           return (
             <div key={report.id} className="bg-white border border-[#C2C6D4] rounded-xl p-5 hover:border-[#003F87] transition-colors flex flex-col relative group shadow-sm">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-50 text-[#003F87] flex items-center justify-center font-bold text-sm">
-                    {emp.name ? emp.name.substring(0, 2).toUpperCase() : '??'}
+                    {empName !== 'Unknown Employee' ? empName.substring(0, 2).toUpperCase() : '??'}
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">{emp.name}</h3>
+                    <h3 className="text-sm font-bold text-slate-900">{empName}</h3>
                     <p className="text-xs text-slate-500">{new Date(report.submitted_at).toLocaleDateString()}</p>
                   </div>
                 </div>
@@ -135,7 +155,7 @@ const WorkReportsContent = () => {
               <div className="space-y-3 mb-6">
                 <div>
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
-                    <Briefcase size={12} /> {proj.name}
+                    <Briefcase size={12} /> {report.project_id || 'General Task'}
                   </div>
                   <span className="inline-block bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">{report.report_type}</span>
                 </div>
@@ -185,16 +205,13 @@ const WorkReportsContent = () => {
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Employee</label>
                 <select required value={newReport.employee_id} onChange={e => setNewReport({...newReport, employee_id: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none bg-white">
                   <option value="">Select Employee...</option>
-                  {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  {employees.map(e => <option key={e.id} value={e.id}>{`${e.first_name} ${e.last_name}`}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Project</label>
-                  <select required value={newReport.project_id} onChange={e => setNewReport({...newReport, project_id: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none bg-white">
-                    <option value="">Select Project...</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Project/Task Area</label>
+                  <input type="text" value={newReport.project_id} onChange={e => setNewReport({...newReport, project_id: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none bg-white" placeholder="e.g. Frontend, Marketing..." />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Report Type</label>

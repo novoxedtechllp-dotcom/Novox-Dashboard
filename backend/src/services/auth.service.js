@@ -20,6 +20,9 @@ export const registerUserService = async (email, password, role, additionalDetai
   if (!Object.values(ROLES).includes(userRole)) {
     throw new ApiError(400, "Invalid role provided");
   }
+  if (userRole === ROLES.ADMIN) {
+    throw new ApiError(403, "Cannot register as ADMIN");
+  }
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -37,7 +40,9 @@ export const registerUserService = async (email, password, role, additionalDetai
   if (userRole === ROLES.STUDENT) {
     const { first_name, last_name, phone, parent_phone, address, joining_date } = additionalDetails;
     if (!first_name || !last_name || !phone || !joining_date) {
-      await supabase.from("users").delete().eq("id", user.id);
+      await supabase.from("users").delete().eq("id", user.id).then(({ error: rbError }) => {
+        if (rbError) console.error("Rollback failed for orphaned user:", rbError);
+      });
       throw new ApiError(400, "Please provide all required student fields: first_name, last_name, phone, joining_date");
     }
 
@@ -48,13 +53,17 @@ export const registerUserService = async (email, password, role, additionalDetai
       address, joining_date, status: "ACTIVE"
     }]);
     if (studentError) {
-      await supabase.from("users").delete().eq("id", user.id);
+      await supabase.from("users").delete().eq("id", user.id).then(({ error: rbError }) => {
+        if (rbError) console.error("Rollback failed for orphaned user:", rbError);
+      });
       throw new ApiError(500, studentError.message || "Failed to create student profile");
     }
   } else if (userRole === ROLES.EMPLOYEE) {
     const { first_name, last_name, phone, joining_date, designation, employee_role, salary } = additionalDetails;
     if (!first_name || !last_name || !joining_date || !designation || !employee_role) {
-      await supabase.from("users").delete().eq("id", user.id);
+      await supabase.from("users").delete().eq("id", user.id).then(({ error: rbError }) => {
+        if (rbError) console.error("Rollback failed for orphaned user:", rbError);
+      });
       throw new ApiError(400, "Please provide all required employee fields: first_name, last_name, joining_date, designation, employee_role");
     }
 
@@ -66,7 +75,9 @@ export const registerUserService = async (email, password, role, additionalDetai
       .single();
 
     if (roleError || !roleData) {
-      await supabase.from("users").delete().eq("id", user.id);
+      await supabase.from("users").delete().eq("id", user.id).then(({ error: rbError }) => {
+        if (rbError) console.error("Rollback failed for orphaned user:", rbError);
+      });
       throw new ApiError(400, `Invalid employee role specified: ${employee_role}`);
     }
 
@@ -77,7 +88,9 @@ export const registerUserService = async (email, password, role, additionalDetai
       role_id: roleData.id, salary: salary || 0, status: "ACTIVE"
     }]);
     if (employeeError) {
-      await supabase.from("users").delete().eq("id", user.id);
+      await supabase.from("users").delete().eq("id", user.id).then(({ error: rbError }) => {
+        if (rbError) console.error("Rollback failed for orphaned user:", rbError);
+      });
       throw new ApiError(500, employeeError.message || "Failed to create employee profile");
     }
   }

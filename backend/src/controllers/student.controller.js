@@ -319,6 +319,47 @@ const assignCourse = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, data[0], "Course assigned successfully"));
 });
 
+// @desc    Update student course enrollment
+// @route   PUT /api/v1/students/:studentId/courses/:courseId
+const updateStudentCourse = asyncHandler(async (req, res) => {
+  const { studentId, courseId } = req.params;
+  const { progress_percentage, completion_status } = req.body;
+
+  const updates = {};
+  if (progress_percentage !== undefined) updates.progress_percentage = progress_percentage;
+  if (completion_status !== undefined) updates.completion_status = completion_status;
+
+  const { data, error } = await supabase
+    .from("student_courses")
+    .update(updates)
+    .eq("student_id", studentId)
+    .eq("course_id", courseId)
+    .select();
+
+  if (error) throw new ApiError(500, error.message || "Failed to update course enrollment");
+  if (!data || data.length === 0) throw new ApiError(404, "Course enrollment not found");
+
+  return res.status(200).json(new ApiResponse(200, data[0], "Course enrollment updated successfully"));
+});
+
+// @desc    Remove course from student
+// @route   DELETE /api/v1/students/:studentId/courses/:courseId
+const removeStudentCourse = asyncHandler(async (req, res) => {
+  const { studentId, courseId } = req.params;
+
+  const { data, error } = await supabase
+    .from("student_courses")
+    .delete()
+    .eq("student_id", studentId)
+    .eq("course_id", courseId)
+    .select();
+
+  if (error) throw new ApiError(500, error.message || "Failed to remove course");
+  if (!data || data.length === 0) throw new ApiError(404, "Course enrollment not found");
+
+  return res.status(200).json(new ApiResponse(200, {}, "Course removed successfully"));
+});
+
 // @desc    Get student progress
 // @route   GET /api/v1/students/:studentId/progress
 const getStudentProgress = asyncHandler(async (req, res) => {
@@ -364,8 +405,14 @@ const updateStudentTask = asyncHandler(async (req, res) => {
   const updates = {};
   if (status !== undefined) updates.status = status;
   if (submission_url !== undefined) updates.submission_url = submission_url;
-  if (grade !== undefined) updates.grade = grade;
-  if (feedback !== undefined) updates.feedback = feedback;
+  
+  if (grade !== undefined || feedback !== undefined) {
+    if (req.user?.role === 'STUDENT') {
+      throw new ApiError(403, "Students cannot grade themselves");
+    }
+    if (grade !== undefined) updates.grade = grade;
+    if (feedback !== undefined) updates.feedback = feedback;
+  }
 
   if (status === 'SUBMITTED' && !updates.submitted_at) {
     updates.submitted_at = new Date().toISOString();
@@ -504,6 +551,8 @@ export {
   assignCourse,
   getStudentProgress,
   getStudentReports,
+  updateStudentCourse,
+  removeStudentCourse,
   addStudentDocument,
   getStudentDocuments,
   deleteStudentDocument,

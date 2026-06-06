@@ -47,24 +47,13 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Unauthorized");
   }
 
-  const { first_name, last_name, phone, password, avatar_url } = req.body;
+  const { first_name, last_name, phone, avatar_url } = req.body;
 
-  // 1. Update User (password) if provided
-  if (password) {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const { error: userUpdateError } = await supabase
-      .from("users")
-      .update({ password_hash: hashedPassword })
-      .eq("id", userId);
-      
-    if (userUpdateError) throw new ApiError(500, "Failed to update password");
-  }
-
-  // 2. Update Employee Profile
+  // 1. Update Employee Profile Details
   const updates = {};
-  if (first_name !== undefined) updates.first_name = first_name;
-  if (last_name !== undefined) updates.last_name = last_name;
-  if (phone !== undefined) updates.phone = phone;
+  if (first_name) updates.first_name = first_name;
+  if (last_name) updates.last_name = last_name;
+  if (phone) updates.phone = phone;
   if (avatar_url !== undefined) updates.avatar_url = avatar_url;
 
   if (req.file) {

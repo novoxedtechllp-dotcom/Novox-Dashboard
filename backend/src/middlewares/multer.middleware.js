@@ -2,7 +2,13 @@ import multer from "multer";
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "./public/temp");
+    import("fs").then(fs => {
+      const dir = "./public/temp";
+      if (!fs.existsSync(dir)){
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      cb(null, dir);
+    });
   },
   filename: function (req, file, cb) {
     // Generate a unique suffix using date and random number

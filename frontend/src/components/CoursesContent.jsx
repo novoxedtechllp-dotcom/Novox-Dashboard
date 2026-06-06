@@ -157,7 +157,14 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
 
   const handleAddCourse = async (e) => {
     e.preventDefault();
-    if (!newCourse.title || !newCourse.mentorId) return;
+    if (!newCourse.title) {
+      alert("Course title is required.");
+      return;
+    }
+    if (!newCourse.mentorId) {
+      alert("Please select an instructor/mentor for this course.");
+      return;
+    }
 
     try {
       const headers = getAuthHeaders();

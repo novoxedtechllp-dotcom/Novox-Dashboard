@@ -61,14 +61,35 @@ const DailyPlan = ({ userType, userId }) => {
   const [availableTopics, setAvailableTopics] = useState([]);
   const [selectedTopicId, setSelectedTopicId] = useState('');
   const [topicLoading, setTopicLoading] = useState(false);
+  const [employeesList, setEmployeesList] = useState([]);
+  const [selectedAdminEmployeeId, setSelectedAdminEmployeeId] = useState('');
+
+  useEffect(() => {
+    if (userType === 'ADMIN') {
+      const fetchEmployees = async () => {
+        try {
+          const headers = getAuthHeaders();
+          if (!headers) return;
+          const response = await fetch('/api/v1/employees', { headers });
+          const resData = await parseApiResponse(response);
+          const emps = resData.data?.employees || resData.data || [];
+          setEmployeesList(emps);
+          if (emps.length > 0) setSelectedAdminEmployeeId(emps[0].id);
+        } catch (error) {
+           console.error('Error fetching employees:', error);
+        }
+      };
+      fetchEmployees();
+    }
+  }, [userType]);
 
   useEffect(() => {
     fetchDailyPlan();
     fetchAvailableTopics();
-  }, [selectedDate, userType, userId]);
+  }, [selectedDate, userType, userId, selectedAdminEmployeeId]);
 
   const fetchDailyPlan = async () => {
-    if (!userId || !userType) return;
+    if (!userId && userType !== 'ADMIN') return;
     setLoading(true);
     try {
       const headers = getAuthHeaders();
@@ -78,7 +99,12 @@ const DailyPlan = ({ userType, userId }) => {
       if (userType === 'STUDENT') {
         endpoint = `/api/v1/students/${userId}/daily-plan?date=${selectedDate}`;
       } else if (userType === 'ADMIN') {
-        endpoint = `/api/v1/courses/daily-plan?date=${selectedDate}`;
+        if (!selectedAdminEmployeeId) {
+          setDailyPlan([]);
+          setLoading(false);
+          return;
+        }
+        endpoint = `/api/v1/employees/${selectedAdminEmployeeId}/daily-plan?date=${selectedDate}`;
       } else {
         endpoint = `/api/v1/employees/${userId}/daily-plan?date=${selectedDate}`;
       }
@@ -214,6 +240,21 @@ const DailyPlan = ({ userType, userId }) => {
             Today
           </button>
         </div>
+
+        {userType === 'ADMIN' && (
+          <div className="flex flex-col gap-2 mt-6 pt-5 border-t border-slate-200">
+            <label className="text-xs font-bold text-slate-500 uppercase">Select Employee</label>
+            <select
+              value={selectedAdminEmployeeId}
+              onChange={(e) => setSelectedAdminEmployeeId(e.target.value)}
+              className="w-full p-2.5 border border-slate-300 rounded-lg text-sm font-semibold outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] bg-white"
+            >
+              {employeesList.map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {userType === 'EMPLOYEE' && (
           <form onSubmit={handleAddTopicToDay} className="mt-6 pt-5 border-t border-slate-200 flex flex-col gap-3">
