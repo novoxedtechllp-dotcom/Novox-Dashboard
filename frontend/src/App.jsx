@@ -30,7 +30,7 @@ const initialEmployees = [
     id: 1,
     eid: 'EMP001',
     name: 'Alice Johnson',
-    department: 'Engineering',
+    department: 'Development',
     phone: '+1 (555) 123-4567',
     status: 'Active',
     joinDate: 'Jan 2023',
@@ -117,7 +117,7 @@ const employeeStatusFromApi = (status) => {
 };
 
 const employeeDepartmentFromApi = (department) => {
-  if (department === 'DEVELOPMENT') return 'Engineering';
+  if (department === 'DEVELOPMENT') return 'Development';
   if (department === 'HR') return 'HR';
   return department ? department.charAt(0) + department.slice(1).toLowerCase() : 'Staff';
 };
@@ -133,6 +133,7 @@ const mapEmployeeFromApi = (d) => ({
   eid: d.employee_code || `EMP-${String(d.id).slice(0, 4)}`,
   name: `${d.first_name || ''} ${d.last_name || ''}`.trim(),
   department: employeeDepartmentFromApi(d.employee_roles?.role_name),
+  designation: d.designation || '',
   phone: d.phone,
   status: employeeStatusFromApi(d.status),
   joinDate: d.joining_date ? new Date(d.joining_date).toLocaleDateString() : '',

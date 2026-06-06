@@ -30,15 +30,15 @@ const statusFromApi = (status) => {
 };
 
 const departmentToApi = (department) => {
-  if (department === 'Engineering') return 'DEVELOPMENT';
+  if (department === 'Development') return 'DEVELOPMENT';
   if (department === 'Support') return 'HR';
   return department.toUpperCase();
 };
 
 const departmentFromApi = (department) => {
-  if (department === 'DEVELOPMENT') return 'Engineering';
+  if (department === 'DEVELOPMENT') return 'Development';
   if (department === 'HR') return 'HR';
-  return department ? department.charAt(0) + department.slice(1).toLowerCase() : 'Engineering';
+  return department ? department.charAt(0) + department.slice(1).toLowerCase() : 'Development';
 };
 
 const splitName = (name) => {
@@ -78,7 +78,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
     name: '',
     email: '',
     password: '',
-    department: 'Engineering',
+    department: 'Development',
     phone: '',
     status: 'Active',
     joinDate: 'January 2024',
@@ -143,7 +143,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
       setEmployees([addedEmployee, ...employees]);
       setIsModalOpen(false);
-      setNewEmployee({ name: '', email: '', password: '', department: 'Engineering', phone: '', status: 'Active', joinDate: 'January 2024', avatarUrl: null });
+      setNewEmployee({ name: '', email: '', password: '', department: 'Development', phone: '', status: 'Active', joinDate: 'January 2024', avatarUrl: null });
     } catch (error) {
       console.error('Error adding employee:', error);
       alert(error.message || 'Failed to add employee');
@@ -203,7 +203,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
     return employees.filter(emp => emp.department === deptFilter);
   }, [employees, deptFilter]);
 
-  const uniqueDepts = ['All Departments', 'Engineering', 'Marketing', 'Sales', 'HR', 'Support'];
+  const uniqueDepts = ['All Departments', 'Development', 'Marketing', 'Sales', 'HR', 'Support'];
 
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative">

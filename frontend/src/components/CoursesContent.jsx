@@ -47,7 +47,8 @@ const mapCourseFromApi = (course, fallback = {}) => {
     mentorId: instructorProfile?.id || fallback.mentorId || '',
     mentorName,
     mentorInitials: getInitials(mentorName),
-    imgUrl: fallback.imgUrl || course.imgUrl || null
+    imgUrl: course.thumbnail_url || fallback.imgUrl || course.imgUrl || null,
+    enrollmentCount: course.enrollment_count || 0
   };
 };
 
@@ -108,19 +109,25 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   const [schedulePreview, setSchedulePreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [applyingSchedule, setApplyingSchedule] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const getMentorName = (mentorId) => {
     const emp = employees.find(e => String(e.id) === String(mentorId));
     return emp ? emp.name : 'Unassigned';
   };
 
-  const handleImageUpload = async (e) => {
+  const handleImageUpload = async (e, isEdit = false) => {
     const file = e.target.files[0];
     if (file) {
       const previewUrl = URL.createObjectURL(file);
-      setNewCourse({ ...newCourse, imgUrl: previewUrl });
+      if (isEdit) {
+        setCourseToEdit({ ...courseToEdit, imgUrl: previewUrl });
+      } else {
+        setNewCourse({ ...newCourse, imgUrl: previewUrl });
+      }
       
       try {
+        setIsUploading(true);
         const formData = new FormData();
         formData.append('file', file);
         const headers = getAuthHeaders();
@@ -133,10 +140,17 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
         });
         const resData = await response.json();
         if (response.ok && resData.data?.url) {
-          setNewCourse(prev => ({ ...prev, imgUrl: resData.data.url }));
+          if (isEdit) {
+            setCourseToEdit(prev => ({ ...prev, imgUrl: resData.data.url }));
+          } else {
+            setNewCourse(prev => ({ ...prev, imgUrl: resData.data.url }));
+          }
         }
       } catch (err) {
         console.error('Upload failed', err);
+        alert('Image upload failed. Please try again.');
+      } finally {
+        setIsUploading(false);
       }
     }
   };
@@ -216,7 +230,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
           duration_months: Number(courseToEdit.duration_months),
           capacity: Number(courseToEdit.capacity),
           status: courseToEdit.status,
-          instructor_id: courseToEdit.mentorId
+          instructor_id: courseToEdit.mentorId,
+          thumbnail_url: courseToEdit.imgUrl?.startsWith('http') ? courseToEdit.imgUrl : null
         })
       });
       const resData = await parseApiResponse(response);
@@ -510,7 +525,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                 <User size={14} /> Instructor: {course.mentorName}
               </div>
               <div className="flex items-center gap-2 text-[#555F6B] text-[12px]">
-                <Layers size={14} /> Capacity: {course.capacity || 'N/A'} Students
+                <Layers size={14} /> Capacity: <span className="font-semibold">{course.enrollmentCount}</span> / {course.capacity || 'N/A'} Enrolled
               </div>
             </div>
 
@@ -537,79 +552,112 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
       {/* Add Course Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
-              <h2 className="text-lg font-bold text-slate-800">Create New Course</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0 bg-slate-50">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">Create New Course</h2>
+                <p className="text-[13px] text-slate-500">Fill in the details below to add a new course.</p>
+              </div>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 bg-white border border-slate-200 rounded p-1.5"><X size={18} /></button>
             </div>
-            <form onSubmit={handleAddCourse} className="p-6 flex flex-col gap-4 overflow-y-auto">
-              <div className="flex items-center gap-4">
-                <div className="w-[64px] h-[64px] rounded-full bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
-                  {newCourse.imgUrl ? <img src={newCourse.imgUrl} className="w-full h-full object-cover" /> : <BookOpen size={24} className="text-slate-400" />}
+            
+            <form onSubmit={handleAddCourse} className="flex flex-col overflow-hidden h-full">
+              <div className="p-6 flex flex-col gap-6 overflow-y-auto flex-1">
+                
+                {/* Image Upload Section */}
+                <div className="flex flex-col sm:flex-row gap-6 items-start bg-slate-50 p-4 rounded-lg border border-slate-200">
+                  <div className="w-[120px] h-[100px] rounded-lg bg-white border-2 border-dashed border-slate-300 overflow-hidden shrink-0 flex items-center justify-center relative">
+                    {newCourse.imgUrl ? (
+                      <img src={newCourse.imgUrl} className={`w-full h-full object-cover transition-opacity ${isUploading ? 'opacity-50' : ''}`} />
+                    ) : (
+                      <BookOpen size={32} className="text-slate-300" />
+                    )}
+                    {isUploading && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60">
+                        <div className="w-5 h-5 border-2 border-[#003F87] border-t-transparent rounded-full animate-spin mb-1"></div>
+                        <span className="text-[10px] font-bold text-[#003F87]">Uploading...</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-bold text-slate-800 mb-1">Course Thumbnail</h3>
+                    <p className="text-xs text-slate-500 mb-3">Upload a 16:9 high-resolution image to make your course stand out.</p>
+                    <label className={`cursor-pointer bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-2 px-4 rounded-md inline-flex items-center gap-2 border border-slate-300 shadow-sm transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <Upload size={14} /> {newCourse.imgUrl ? 'Change Image' : 'Upload Image'}
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, false)} disabled={isUploading} />
+                    </label>
+                  </div>
                 </div>
-                <div>
-                  <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-1.5 px-3 rounded inline-flex items-center gap-2 border border-slate-200">
-                    <Upload size={14} /> Upload Image
-                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                  </label>
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Title</label>
-                <input type="text" required value={newCourse.title} onChange={e => setNewCourse({ ...newCourse, title: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" />
-              </div>
+                {/* Basic Details */}
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Basic Details</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Title</label>
+                      <input type="text" required placeholder="e.g., Advanced Full Stack Development" value={newCourse.title} onChange={e => setNewCourse({ ...newCourse, title: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Description</label>
+                      <textarea rows="3" placeholder="Describe what students will learn..." value={newCourse.description} onChange={e => setNewCourse({ ...newCourse, description: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
+                    </div>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Description</label>
-                <textarea rows="3" value={newCourse.description} onChange={e => setNewCourse({ ...newCourse, description: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" />
-              </div>
+                {/* Configuration */}
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Course Configuration</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Track/Category</label>
+                      <select value={newCourse.category} onChange={e => setNewCourse({ ...newCourse, category: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
+                        <option value="DEVELOPMENT">DEVELOPMENT</option>
+                        <option value="MARKETING">MARKETING</option>
+                        <option value="DESIGN">DESIGN</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Status</label>
+                      <select value={newCourse.status} onChange={e => setNewCourse({ ...newCourse, status: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
+                        <option value="DRAFT">DRAFT</option>
+                        <option value="PUBLISHED">PUBLISHED</option>
+                        <option value="ARCHIVED">ARCHIVED</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Duration (Months)</label>
+                      <input type="number" min="1" value={newCourse.duration_months} onChange={e => setNewCourse({ ...newCourse, duration_months: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Capacity Limit</label>
+                      <input type="number" min="1" value={newCourse.capacity} onChange={e => setNewCourse({ ...newCourse, capacity: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
+                    </div>
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-2 gap-4">
+                {/* Assignment & Pricing */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Track</label>
-                  <select value={newCourse.category} onChange={e => setNewCourse({ ...newCourse, category: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white outline-none focus:border-[#003F87]">
-                    <option value="DEVELOPMENT">DEVELOPMENT</option>
-                    <option value="MARKETING">MARKETING</option>
-                    <option value="DESIGN">DESIGN</option>
-                  </select>
+                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Assignment & Pricing</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Instructor</label>
+                      <select value={newCourse.mentorId} onChange={e => setNewCourse({ ...newCourse, mentorId: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
+                        {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.designation || emp.department})</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Price (e.g., ₹500)</label>
+                      <input type="text" value={newCourse.price} onChange={e => setNewCourse({ ...newCourse, price: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" placeholder="₹0.00" />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
-                  <select value={newCourse.status} onChange={e => setNewCourse({ ...newCourse, status: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white outline-none focus:border-[#003F87]">
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="PUBLISHED">PUBLISHED</option>
-                    <option value="ARCHIVED">ARCHIVED</option>
-                  </select>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Duration (Months)</label>
-                  <input type="number" min="1" value={newCourse.duration_months} onChange={e => setNewCourse({ ...newCourse, duration_months: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Capacity</label>
-                  <input type="number" min="1" value={newCourse.capacity} onChange={e => setNewCourse({ ...newCourse, capacity: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" />
-                </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Instructor (Employee)</label>
-                  <select value={newCourse.mentorId} onChange={e => setNewCourse({ ...newCourse, mentorId: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white outline-none focus:border-[#003F87]">
-                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.department})</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Price</label>
-                  <input type="text" value={newCourse.price} onChange={e => setNewCourse({ ...newCourse, price: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" placeholder="₹0.00" />
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-4 pt-4 border-t border-slate-200">
-                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white">Create Course</button>
+              <div className="flex justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-200 shrink-0">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-slate-300 bg-white rounded-md text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">Cancel</button>
+                <button type="submit" disabled={isUploading} className="px-5 py-2 bg-[#003F87] hover:bg-[#002B5E] transition-colors rounded-md text-sm font-bold text-white disabled:opacity-60 flex items-center gap-2">
+                  <Plus size={16} /> Create Course
+                </button>
               </div>
             </form>
           </div>
@@ -619,66 +667,112 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
       {/* Edit Course Modal */}
       {courseToEdit && (
         <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
-              <h2 className="text-lg font-bold text-slate-800">Edit Course</h2>
-              <button onClick={() => setCourseToEdit(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0 bg-slate-50">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">Edit Course</h2>
+                <p className="text-[13px] text-slate-500">Update the course details below.</p>
+              </div>
+              <button onClick={() => setCourseToEdit(null)} className="text-slate-400 hover:text-slate-600 bg-white border border-slate-200 rounded p-1.5"><X size={18} /></button>
             </div>
-            <form onSubmit={handleUpdateCourse} className="p-6 flex flex-col gap-4 overflow-y-auto">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Title</label>
-                <input type="text" required value={courseToEdit.title} onChange={e => setCourseToEdit({ ...courseToEdit, title: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" />
-              </div>
+            
+            <form onSubmit={handleUpdateCourse} className="flex flex-col overflow-hidden h-full">
+              <div className="p-6 flex flex-col gap-6 overflow-y-auto flex-1">
+                
+                {/* Image Upload Section */}
+                <div className="flex flex-col sm:flex-row gap-6 items-start bg-slate-50 p-4 rounded-lg border border-slate-200">
+                  <div className="w-[120px] h-[100px] rounded-lg bg-white border-2 border-dashed border-slate-300 overflow-hidden shrink-0 flex items-center justify-center relative">
+                    {courseToEdit.imgUrl ? (
+                      <img src={courseToEdit.imgUrl} className={`w-full h-full object-cover transition-opacity ${isUploading ? 'opacity-50' : ''}`} />
+                    ) : (
+                      <BookOpen size={32} className="text-slate-300" />
+                    )}
+                    {isUploading && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60">
+                        <div className="w-5 h-5 border-2 border-[#003F87] border-t-transparent rounded-full animate-spin mb-1"></div>
+                        <span className="text-[10px] font-bold text-[#003F87]">Uploading...</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-bold text-slate-800 mb-1">Course Thumbnail</h3>
+                    <p className="text-xs text-slate-500 mb-3">Update the course image. Use a high-quality 16:9 picture.</p>
+                    <label className={`cursor-pointer bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-2 px-4 rounded-md inline-flex items-center gap-2 border border-slate-300 shadow-sm transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <Upload size={14} /> Change Image
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, true)} disabled={isUploading} />
+                    </label>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Description</label>
-                <textarea rows="3" value={courseToEdit.description || ''} onChange={e => setCourseToEdit({ ...courseToEdit, description: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" />
-              </div>
+                {/* Basic Details */}
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Basic Details</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Title</label>
+                      <input type="text" required value={courseToEdit.title} onChange={e => setCourseToEdit({ ...courseToEdit, title: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Description</label>
+                      <textarea rows="3" value={courseToEdit.description || ''} onChange={e => setCourseToEdit({ ...courseToEdit, description: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
+                    </div>
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-2 gap-4">
+                {/* Configuration */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Track</label>
-                  <select value={courseToEdit.category} onChange={e => setCourseToEdit({ ...courseToEdit, category: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white outline-none focus:border-[#003F87]">
-                    <option value="DEVELOPMENT">DEVELOPMENT</option>
-                    <option value="MARKETING">MARKETING</option>
-                    <option value="DESIGN">DESIGN</option>
-                  </select>
+                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Course Configuration</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Track/Category</label>
+                      <select value={courseToEdit.category} onChange={e => setCourseToEdit({ ...courseToEdit, category: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
+                        <option value="DEVELOPMENT">DEVELOPMENT</option>
+                        <option value="MARKETING">MARKETING</option>
+                        <option value="DESIGN">DESIGN</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Status</label>
+                      <select value={courseToEdit.status || 'DRAFT'} onChange={e => setCourseToEdit({ ...courseToEdit, status: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
+                        <option value="DRAFT">DRAFT</option>
+                        <option value="PUBLISHED">PUBLISHED</option>
+                        <option value="ARCHIVED">ARCHIVED</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Duration (Months)</label>
+                      <input type="number" min="1" value={courseToEdit.duration_months || 1} onChange={e => setCourseToEdit({ ...courseToEdit, duration_months: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Capacity Limit</label>
+                      <input type="number" min="1" value={courseToEdit.capacity || 20} onChange={e => setCourseToEdit({ ...courseToEdit, capacity: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
-                  <select value={courseToEdit.status || 'DRAFT'} onChange={e => setCourseToEdit({ ...courseToEdit, status: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white outline-none focus:border-[#003F87]">
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="PUBLISHED">PUBLISHED</option>
-                    <option value="ARCHIVED">ARCHIVED</option>
-                  </select>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
+                {/* Assignment & Pricing */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Duration (Months)</label>
-                  <input type="number" min="1" value={courseToEdit.duration_months || 1} onChange={e => setCourseToEdit({ ...courseToEdit, duration_months: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" />
+                  <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">Assignment & Pricing</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Instructor</label>
+                      <select value={courseToEdit.mentorId || employees[0]?.id} onChange={e => setCourseToEdit({ ...courseToEdit, mentorId: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] bg-white outline-none focus:border-[#003F87] transition-colors">
+                        {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.designation || emp.department})</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#555F6B] uppercase mb-1">Price</label>
+                      <input type="text" value={courseToEdit.price} onChange={e => setCourseToEdit({ ...courseToEdit, price: e.target.value })} className="w-full px-3 py-2 border border-[#C2C6D4] rounded-md text-[13px] outline-none focus:border-[#003F87] bg-white transition-colors" />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Capacity</label>
-                  <input type="number" min="1" value={courseToEdit.capacity || 20} onChange={e => setCourseToEdit({ ...courseToEdit, capacity: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Instructor</label>
-                  <select value={courseToEdit.mentorId || employees[0]?.id} onChange={e => setCourseToEdit({ ...courseToEdit, mentorId: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white outline-none focus:border-[#003F87]">
-                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.department})</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Price</label>
-                  <input type="text" value={courseToEdit.price} onChange={e => setCourseToEdit({ ...courseToEdit, price: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-[#003F87]" />
-                </div>
               </div>
-              <div className="flex justify-end mt-4 pt-4 border-t border-slate-200">
-                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white">Save Changes</button>
+              <div className="flex justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-200 shrink-0">
+                <button type="button" onClick={() => setCourseToEdit(null)} className="px-4 py-2 border border-slate-300 bg-white rounded-md text-sm font-bold text-slate-700 hover:bg-slate-100 transition-colors">Cancel</button>
+                <button type="submit" disabled={isUploading} className="px-5 py-2 bg-[#003F87] hover:bg-[#002B5E] transition-colors rounded-md text-sm font-bold text-white disabled:opacity-60 flex items-center gap-2">
+                  <Pencil size={16} /> Save Changes
+                </button>
               </div>
             </form>
           </div>
@@ -756,7 +850,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                     </div>
                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
                       <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Capacity</div>
-                      <div className="text-sm font-bold text-slate-800 flex items-center gap-2"><Layers size={16} className="text-[#003F87]" /> {selectedCourse.capacity || 'N/A'} Seats</div>
+                      <div className="text-sm font-bold text-slate-800 flex items-center gap-2"><Layers size={16} className="text-[#003F87]" /> {selectedCourse.enrollmentCount} / {selectedCourse.capacity || 'N/A'} Enrolled</div>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 col-span-2">
                       <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Assigned Instructor</div>
