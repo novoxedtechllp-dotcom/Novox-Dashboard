@@ -4,8 +4,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 const DEFAULT_TOPICS_PER_DAY = 2;
-const MIN_TOPICS_PER_DAY = 2;
-const MAX_TOPICS_PER_DAY = 3;
+const MIN_TOPICS_PER_DAY = 1;
+const MAX_TOPICS_PER_DAY = 10;
 
 const parseDateOnly = (value) => {
   if (!value) return new Date();
@@ -498,6 +498,101 @@ export const autoSchedulePlan = asyncHandler(async (req, res) => {
   if (updateError) throw new ApiError(500, updateError.message || "Failed to save schedule");
 
   return res.status(200).json(new ApiResponse(200, updateData, "Schedule generated successfully"));
+});
+
+export const previewAutoSchedule = asyncHandler(async (req, res) => {
+  const { courseId } = req.params;
+  const requestedTopicsPerDay = Number(req.body?.topics_per_day);
+  const topicsPerDay = Number.isInteger(requestedTopicsPerDay)
+    ? Math.min(MAX_TOPICS_PER_DAY, Math.max(MIN_TOPICS_PER_DAY, requestedTopicsPerDay))
+    : DEFAULT_TOPICS_PER_DAY;
+
+  // 1. Get course schedule to find the start date.
+  const { data: scheduleData, error: scheduleError } = await supabase
+    .from("course_schedules")
+    .select("*")
+    .eq("course_id", courseId)
+    .order('start_date', { ascending: true })
+    .limit(1);
+
+  if (scheduleError) throw new ApiError(500, scheduleError.message || "Failed to fetch course schedules");
+
+  let startDate = parseDateOnly();
+  if (scheduleData && scheduleData.length > 0) {
+    startDate = parseDateOnly(scheduleData[0].start_date);
+  }
+
+  // 2. Fetch all submodules ordered by sequence
+  const { data: submodules, error: subError } = await supabase
+    .from("course_submodules")
+    .select("*, course_modules!inner(course_id, sequence_order, title)")
+    .eq("course_modules.course_id", courseId)
+    .order("sequence_order", { ascending: true, foreignTable: "course_modules" })
+    .order("sequence_order", { ascending: true });
+
+  if (subError) throw new ApiError(500, subError.message || "Failed to fetch submodules");
+
+  if (!submodules || submodules.length === 0) {
+    return res.status(200).json(new ApiResponse(200, {
+      topics_per_day: topicsPerDay,
+      total_topics: 0,
+      total_days: 0,
+      start_date: null,
+      end_date: null,
+      days: []
+    }, "No submodules to schedule"));
+  }
+
+  // 3. Build day-by-day breakdown (same logic as autoSchedulePlan, but no DB write)
+  let currentDate = moveToNextWorkday(new Date(startDate));
+  let submodulesAssignedToday = 0;
+  const dayMap = new Map(); // dateString -> array of topics
+
+  for (const sub of submodules) {
+    moveToNextWorkday(currentDate);
+    const dateStr = toDateOnlyString(currentDate);
+
+    if (!dayMap.has(dateStr)) {
+      dayMap.set(dateStr, []);
+    }
+
+    dayMap.get(dateStr).push({
+      id: sub.id,
+      title: sub.title,
+      sequence_order: sub.sequence_order,
+      module_title: sub.course_modules?.title || '',
+      module_sequence: sub.course_modules?.sequence_order || 0
+    });
+
+    submodulesAssignedToday++;
+    if (submodulesAssignedToday >= topicsPerDay) {
+      submodulesAssignedToday = 0;
+      addOneWorkday(currentDate);
+    }
+  }
+
+  // 4. Convert map to sorted array of days
+  const days = [];
+  for (const [dateStr, topics] of dayMap) {
+    const dateObj = parseDateOnly(dateStr);
+    const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+    days.push({
+      date: dateStr,
+      weekday,
+      topics
+    });
+  }
+
+  const allDates = days.map(d => d.date).sort();
+
+  return res.status(200).json(new ApiResponse(200, {
+    topics_per_day: topicsPerDay,
+    total_topics: submodules.length,
+    total_days: days.length,
+    start_date: allDates[0] || null,
+    end_date: allDates[allDates.length - 1] || null,
+    days
+  }, "Schedule preview generated successfully"));
 });
 
 export const reschedulePlan = asyncHandler(async (req, res) => {

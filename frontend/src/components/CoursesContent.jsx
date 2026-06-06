@@ -4,7 +4,7 @@ const formatPrice = (price) => {
   const numStr = String(price).replace(/[^\d.]/g, '');
   return numStr ? `₹${numStr}/-` : 'Free';
 };
-import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers } from 'lucide-react';
+import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers, Eye, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -105,6 +105,9 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
   const [topicsPerDay, setTopicsPerDay] = useState(2);
   const [holidayDate, setHolidayDate] = useState('');
   const [moveTopic, setMoveTopic] = useState({ submoduleId: '', targetDate: '' });
+  const [schedulePreview, setSchedulePreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [applyingSchedule, setApplyingSchedule] = useState(false);
 
   const getMentorName = (mentorId) => {
     const emp = employees.find(e => String(e.id) === String(mentorId));
@@ -339,18 +342,40 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
     }
   };
 
-  const handleAutoSchedule = async () => {
+  const handlePreviewSchedule = async () => {
+    setPreviewLoading(true);
+    setSchedulePreview(null);
     try {
       const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/auto-schedule`, {
+      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/schedule-plan/preview`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ topics_per_day: Number(topicsPerDay) })
+      });
+      const resData = await parseApiResponse(response);
+      setSchedulePreview(resData.data);
+    } catch (error) {
+      alert(error.message || 'Failed to preview schedule');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleAutoSchedule = async () => {
+    setApplyingSchedule(true);
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/schedule-plan`, {
         method: 'POST', headers,
         body: JSON.stringify({ topics_per_day: Number(topicsPerDay) })
       });
       await parseApiResponse(response);
       alert('Schedule generated successfully');
-      openCourseDetails(selectedCourse); // Refresh
+      setSchedulePreview(null);
+      openCourseDetails(selectedCourse);
     } catch (error) {
       alert(error.message || 'Failed to generate schedule');
+    } finally {
+      setApplyingSchedule(false);
     }
   };
 
@@ -724,66 +749,6 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
               {/* Modules Tab */}
               {activeTab === 'modules' && (
                 <div className="flex flex-col gap-6">
-                  {/* Scheduling Command Center */}
-                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-col gap-4">
-                    <div className="flex gap-4 items-end border-b border-slate-200 pb-4">
-                      <div className="flex-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Topics Per Day</label>
-                        <input type="number" min="1" max="5" value={topicsPerDay} onChange={e => setTopicsPerDay(e.target.value)} className="w-[100px] px-3 py-2 border rounded text-sm" />
-                      </div>
-                      <button onClick={handleAutoSchedule} className="px-4 py-2 bg-[#008A2E] text-white text-sm font-bold rounded">
-                        Auto-Schedule
-                      </button>
-                    </div>
-                    <div className="flex gap-4 items-end">
-                      <div className="flex-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Reschedule from Date</label>
-                        <input type="date" value={holidayDate} onChange={e => setHolidayDate(e.target.value)} className="w-full max-w-[200px] px-3 py-2 border rounded text-sm" />
-                      </div>
-                      <button onClick={handleAddHoliday} className="px-4 py-2 bg-[#D80000] text-white text-sm font-bold rounded">
-                        Shift Schedule
-                      </button>
-                    </div>
-                    <div className="flex gap-4 items-end border-t border-slate-200 pt-4">
-                      <div className="flex-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Target Topic</label>
-                        <select 
-                          value={moveTopic.submoduleId} 
-                          onChange={e => setMoveTopic({...moveTopic, submoduleId: e.target.value})} 
-                          className="w-full max-w-[250px] px-3 py-2 border border-slate-200 rounded text-sm bg-white outline-none focus:border-[#003F87]"
-                        >
-                          <option value="">Select Topic</option>
-                          {modules
-                            .filter(m => m.course_id === selectedCourse.id)
-                            .sort((a, b) => a.sequence_order - b.sequence_order)
-                            .map(m => {
-                              const moduleSubmodules = submodules
-                                .filter(sm => sm.module_id === m.id)
-                                .sort((a, b) => a.sequence_order - b.sequence_order);
-                              
-                              if (moduleSubmodules.length === 0) return null;
-
-                              return (
-                                <optgroup key={m.id} label={`${m.sequence_order}. ${m.title}`}>
-                                  {moduleSubmodules.map(sm => (
-                                    <option key={sm.id} value={sm.id}>
-                                      {m.sequence_order}.{sm.sequence_order} {sm.title}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              );
-                            })}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">New Date</label>
-                        <input type="date" value={moveTopic.targetDate} onChange={e => setMoveTopic({...moveTopic, targetDate: e.target.value})} className="w-[150px] px-3 py-2 border rounded text-sm outline-none focus:border-[#003F87]" />
-                      </div>
-                      <button onClick={handleMoveTopic} className="px-4 py-2 bg-[#003F87] text-white text-sm font-bold rounded">
-                        Move Topic
-                      </button>
-                    </div>
-                  </div>
 
                   <div className="flex flex-col md:flex-row gap-8">
                     <div className="w-full md:w-1/3 shrink-0">
@@ -901,7 +866,191 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
 
               {/* Schedules Tab */}
               {activeTab === 'schedule' && (
-                <div className="flex flex-col md:flex-row gap-8">
+                <div className="flex flex-col gap-6">
+                  {/* ⚡ Auto Schedule Command Center */}
+                  <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-5">
+                      <div className="w-8 h-8 rounded-lg bg-[#003F87] flex items-center justify-center">
+                        <Zap size={16} className="text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Auto Schedule</h3>
+                        <p className="text-[10px] text-slate-500">Topics are assigned in curriculum order (Module → Topic sequence)</p>
+                      </div>
+                    </div>
+
+                    {/* Stepper + Preview Button */}
+                    <div className="flex items-end gap-5 pb-5 border-b border-slate-200">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Topics Per Day</label>
+                        <div className="flex items-center gap-0">
+                          <button
+                            type="button"
+                            onClick={() => setTopicsPerDay(prev => Math.max(1, Number(prev) - 1))}
+                            disabled={Number(topicsPerDay) <= 1}
+                            className="w-10 h-10 bg-white border border-slate-300 rounded-l-lg flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-bold text-lg active:scale-95"
+                          >−</button>
+                          <div className="w-14 h-10 bg-white border-y border-slate-300 flex items-center justify-center text-lg font-black text-[#003F87] select-none">
+                            {topicsPerDay}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setTopicsPerDay(prev => Math.min(10, Number(prev) + 1))}
+                            disabled={Number(topicsPerDay) >= 10}
+                            className="w-10 h-10 bg-white border border-slate-300 rounded-r-lg flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all font-bold text-lg active:scale-95"
+                          >+</button>
+                        </div>
+                        <div className="text-[9px] text-slate-400 mt-1 text-center">Range: 1 – 10</div>
+                      </div>
+                      <button
+                        onClick={handlePreviewSchedule}
+                        disabled={previewLoading}
+                        className="px-5 py-2.5 bg-white border-2 border-[#003F87] text-[#003F87] text-sm font-bold rounded-lg flex items-center gap-2 hover:bg-[#003F87] hover:text-white transition-all duration-200 disabled:opacity-50 active:scale-95"
+                      >
+                        {previewLoading ? (
+                          <><div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full"></div> Generating...</>
+                        ) : (
+                          <><Eye size={16} /> Preview Schedule</>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Preview Results */}
+                    {schedulePreview && (
+                      <div className="mt-5">
+                        {/* Summary Stats */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Topics</div>
+                            <div className="text-xl font-black text-slate-900 mt-1">{schedulePreview.total_topics}</div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Days</div>
+                            <div className="text-xl font-black text-[#003F87] mt-1">{schedulePreview.total_days}</div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Starts</div>
+                            <div className="text-sm font-bold text-slate-800 mt-1">{schedulePreview.start_date ? formatDateToDDMMYYYY(schedulePreview.start_date) : '—'}</div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-center">
+                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Ends</div>
+                            <div className="text-sm font-bold text-slate-800 mt-1">{schedulePreview.end_date ? formatDateToDDMMYYYY(schedulePreview.end_date) : '—'}</div>
+                          </div>
+                        </div>
+
+                        {/* Day-by-day Table */}
+                        {schedulePreview.days && schedulePreview.days.length > 0 && (
+                          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mb-5">
+                            <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+                              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Day-by-Day Breakdown</h4>
+                            </div>
+                            <div className="max-h-[280px] overflow-y-auto">
+                              {schedulePreview.days.map((day, dayIdx) => (
+                                <div key={day.date} className={`flex border-b border-slate-100 last:border-b-0 ${dayIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                                  <div className="w-[140px] shrink-0 p-3 border-r border-slate-100">
+                                    <div className="text-xs font-bold text-[#003F87]">Day {dayIdx + 1}</div>
+                                    <div className="text-[11px] font-semibold text-slate-700 mt-0.5">{formatDateToDDMMYYYY(day.date)}</div>
+                                    <div className="text-[10px] text-slate-500">{day.weekday}</div>
+                                  </div>
+                                  <div className="flex-1 p-3">
+                                    <div className="flex flex-col gap-1.5">
+                                      {day.topics.map((topic, topicIdx) => (
+                                        <div key={topic.id} className="flex items-center gap-2">
+                                          <div className="w-5 h-5 rounded-full bg-[#E5F0FF] text-[#003F87] text-[10px] font-bold flex items-center justify-center shrink-0">
+                                            {topicIdx + 1}
+                                          </div>
+                                          <div className="text-xs text-slate-800">
+                                            <span className="font-bold">{topic.module_sequence}.{topic.sequence_order}</span>
+                                            <span className="mx-1 text-slate-400">·</span>
+                                            <span className="text-slate-500 italic">{topic.module_title}</span>
+                                            <span className="mx-1 text-slate-400">→</span>
+                                            <span className="font-semibold">{topic.title}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => setSchedulePreview(null)}
+                            className="px-4 py-2 border border-slate-300 text-slate-600 text-sm font-bold rounded-lg hover:bg-slate-50 transition-colors"
+                          >Cancel</button>
+                          <button
+                            onClick={handleAutoSchedule}
+                            disabled={applyingSchedule}
+                            className="px-5 py-2.5 bg-[#008A2E] text-white text-sm font-bold rounded-lg flex items-center gap-2 hover:bg-[#006E24] transition-all duration-200 disabled:opacity-50 active:scale-95 shadow-sm"
+                          >
+                            {applyingSchedule ? (
+                              <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div> Applying...</>
+                            ) : (
+                              <><Zap size={16} /> Apply Schedule</>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Reschedule & Move Topic */}
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-col gap-4">
+                    <div className="flex gap-4 items-end">
+                      <div className="flex-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Reschedule from Date</label>
+                        <input type="date" value={holidayDate} onChange={e => setHolidayDate(e.target.value)} className="w-full max-w-[200px] px-3 py-2 border rounded text-sm" />
+                      </div>
+                      <button onClick={handleAddHoliday} className="px-4 py-2 bg-[#D80000] text-white text-sm font-bold rounded">
+                        Shift Schedule
+                      </button>
+                    </div>
+                    <div className="flex gap-4 items-end border-t border-slate-200 pt-4">
+                      <div className="flex-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Target Topic</label>
+                        <select 
+                          value={moveTopic.submoduleId} 
+                          onChange={e => setMoveTopic({...moveTopic, submoduleId: e.target.value})} 
+                          className="w-full max-w-[250px] px-3 py-2 border border-slate-200 rounded text-sm bg-white outline-none focus:border-[#003F87]"
+                        >
+                          <option value="">Select Topic</option>
+                          {modules
+                            .filter(m => m.course_id === selectedCourse.id)
+                            .sort((a, b) => a.sequence_order - b.sequence_order)
+                            .map(m => {
+                              const moduleSubmodules = submodules
+                                .filter(sm => sm.module_id === m.id)
+                                .sort((a, b) => a.sequence_order - b.sequence_order);
+                              
+                              if (moduleSubmodules.length === 0) return null;
+
+                              return (
+                                <optgroup key={m.id} label={`${m.sequence_order}. ${m.title}`}>
+                                  {moduleSubmodules.map(sm => (
+                                    <option key={sm.id} value={sm.id}>
+                                      {m.sequence_order}.{sm.sequence_order} {sm.title}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              );
+                            })}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">New Date</label>
+                        <input type="date" value={moveTopic.targetDate} onChange={e => setMoveTopic({...moveTopic, targetDate: e.target.value})} className="w-[150px] px-3 py-2 border rounded text-sm outline-none focus:border-[#003F87]" />
+                      </div>
+                      <button onClick={handleMoveTopic} className="px-4 py-2 bg-[#003F87] text-white text-sm font-bold rounded">
+                        Move Topic
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row gap-8">
                   <div className="w-full md:w-[40%] shrink-0">
                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
                       <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><Calendar size={16} /> Add Schedule</h3>
@@ -954,6 +1103,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
                       </div>
                     )}
                   </div>
+                </div>
                 </div>
               )}
             </div>

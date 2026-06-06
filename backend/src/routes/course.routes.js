@@ -15,6 +15,7 @@ import {
   updateCourseTask,
   deleteCourseTask,
   autoSchedulePlan,
+  previewAutoSchedule,
   reschedulePlan,
   addCourseSchedule,
   deleteCourseSchedule,
@@ -69,6 +70,7 @@ router.route("/:courseId/modules/:moduleId/submodules/:submoduleId/tasks").post(
 router.route("/:courseId/modules/:moduleId/submodules/:submoduleId/tasks/:taskId").put(writeAuth, updateCourseTask).delete(writeAuth, deleteCourseTask);
 
 router.route("/:courseId/schedule-plan").post(writeAuth, autoSchedulePlan);
+router.route("/:courseId/schedule-plan/preview").post(writeAuth, previewAutoSchedule);
 router.route("/:courseId/reschedule").post(writeAuth, reschedulePlan);
 
 router.route("/:courseId/schedules").post(writeAuth, addCourseSchedule);
