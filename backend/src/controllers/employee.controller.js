@@ -210,7 +210,7 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/employees/:id
 export const updateEmployee = asyncHandler(async (req, res) => {
   const { employeeId } = req.params;
-  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url } = req.body;
+  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url, grant_admin } = req.body;
 
   const updates = {};
   if (first_name !== undefined) updates.first_name = first_name;
@@ -247,6 +247,13 @@ export const updateEmployee = asyncHandler(async (req, res) => {
 
     if (roleError || !roleData) throw new ApiError(400, `Invalid employee role specified: ${roleName}`);
     updates.role_id = roleData.id;
+  }
+
+  if (grant_admin === true) {
+    const { data: empProfile } = await supabase.from("employee_profiles").select("user_id").eq("id", employeeId).single();
+    if (empProfile?.user_id) {
+      await supabase.from("users").update({ role: 'ADMIN' }).eq("id", empProfile.user_id);
+    }
   }
 
   const { data, error } = await supabase

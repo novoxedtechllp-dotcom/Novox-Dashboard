@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle } from 'lucide-react';
+import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle, Shield } from 'lucide-react';
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -72,6 +72,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
   
   const [deptFilter, setDeptFilter] = useState('All Departments');
+  const [statusFilter, setStatusFilter] = useState('All Statuses');
 
   const [newEmployee, setNewEmployee] = useState({
     name: '',
@@ -150,6 +151,26 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
     }
   };
 
+  const handleGrantAdmin = async (id) => {
+    if(!window.confirm("Are you sure you want to grant Admin privileges to this user?")) return;
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const response = await fetch(`/api/v1/employees/${id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ grant_admin: true })
+      });
+      await parseApiResponse(response);
+
+      alert('Admin privileges granted successfully!');
+    } catch (error) {
+      console.error('Error granting admin:', error);
+      alert(error.message || 'Failed to grant admin privileges');
+    }
+  };
+
   const handleDeleteEmployee = async (id) => {
     try {
       const headers = getAuthHeaders();
@@ -201,11 +222,18 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
   };
 
   const filteredEmployees = useMemo(() => {
-    if (deptFilter === 'All Departments') return employees;
-    return employees.filter(emp => emp.department === deptFilter);
-  }, [employees, deptFilter]);
+    let filtered = employees;
+    if (deptFilter !== 'All Departments') {
+      filtered = filtered.filter(emp => emp.department === deptFilter);
+    }
+    if (statusFilter !== 'All Statuses') {
+      filtered = filtered.filter(emp => emp.status === statusFilter);
+    }
+    return filtered;
+  }, [employees, deptFilter, statusFilter]);
 
   const uniqueDepts = ['All Departments', 'Development', 'Marketing', 'Sales', 'HR'];
+  const uniqueStatuses = ['All Statuses', 'Active', 'On Leave', 'Terminated'];
 
   const getStatusColor = (status) => {
     if(status === 'Active') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
@@ -244,6 +272,17 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
               {uniqueDepts.map(dept => <option key={dept} value={dept}>{dept}</option>)}
             </select>
           </div>
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
+            <select 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none appearance-none pr-8 cursor-pointer relative w-full sm:w-auto"
+              style={{ background: `url('data:image/svg+xml;utf8,<svg fill="none" viewBox="0 0 24 24" stroke="%2364748B" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>') no-repeat right center / 16px` }}
+            >
+              {uniqueStatuses.map(status => <option key={status} value={status}>{status}</option>)}
+            </select>
+          </div>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
@@ -261,6 +300,13 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
             
             {/* Action Buttons */}
             <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-10 bg-white/90 backdrop-blur-sm pl-2">
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleGrantAdmin(emp.id); }}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                title="Grant Admin Access"
+              >
+                <Shield size={14} />
+              </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); setEmployeeToEdit(emp); }}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
