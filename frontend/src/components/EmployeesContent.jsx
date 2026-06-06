@@ -299,83 +299,76 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         
         {filteredEmployees.map(emp => (
-          <div key={emp.id} className="bg-white rounded-3xl border border-slate-200 flex flex-col relative group shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+          <div key={emp.id} className="bg-white rounded-[24px] border border-slate-100/60 flex flex-col relative group shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 overflow-hidden">
             
             {/* Main Content Area */}
-            <div className="p-6">
+            <div className="p-6 relative">
+              {/* Floating Status Badge */}
+              <div className={`absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${getStatusColor(emp.status)}`}>
+                {emp.status}
+              </div>
+
               {/* Profile Header */}
-              <div className="flex items-start gap-4 mb-6">
-                <div className="relative shrink-0">
-                  <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center shadow-inner">
+              <div className="flex flex-col mb-2">
+                <div className="relative w-16 h-16 mb-4">
+                  <div className="w-full h-full rounded-[16px] overflow-hidden bg-slate-100 flex items-center justify-center shadow-inner">
                     {emp.avatar ? (
                       <img src={emp.avatar} alt={emp.name} className="w-full h-full object-cover" />
                     ) : (
                       <User size={28} className="text-slate-300" />
                     )}
                   </div>
-                  <div className={`absolute bottom-0 right-0 w-4 h-4 border-2 border-white rounded-full shadow-sm ${getStatusDotColor(emp.status)}`}></div>
+                  <div className={`absolute -bottom-1 -right-1 w-4 h-4 border-[3px] border-white rounded-full shadow-sm ${getStatusDotColor(emp.status)}`}></div>
                 </div>
-                <div className="pt-1 flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="inline-block bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border border-blue-100 shrink-0">
-                      {emp.eid}
+                
+                <div className="flex items-center gap-2 mb-1.5 mt-1">
+                  <span className="inline-block bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+                    {emp.eid}
+                  </span>
+                  {emp.systemRole === 'ADMIN' && (
+                    <span className="inline-block bg-purple-50 text-purple-600 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <Shield size={10} /> Admin
                     </span>
-                    {emp.systemRole === 'ADMIN' && (
-                      <span className="inline-block bg-purple-100 text-purple-700 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border border-purple-200 shrink-0 flex items-center gap-1">
-                        <Shield size={10} /> Admin
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-lg font-black text-slate-800 leading-tight tracking-tight truncate pr-2">{emp.name}</h3>
-                  <div className="flex items-center gap-2 mt-2 text-sm font-medium text-slate-500">
+                  )}
+                </div>
+                
+                <h3 className="text-lg font-black text-slate-800 leading-tight tracking-tight truncate pr-2 mb-1">{emp.name}</h3>
+                
+                <div className="flex flex-col gap-1.5 mt-2">
+                  <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
                     <Briefcase size={14} className="text-slate-400" /> <span className="truncate">{emp.department}</span>
                   </div>
-                  <div className="flex items-center gap-2 mt-1 text-sm font-medium text-slate-500">
+                  <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
                     <Phone size={14} className="text-slate-400" /> <span className="truncate">{emp.phone}</span>
                   </div>
-                </div>
-              </div>
-
-              {/* Status and Join Date Row */}
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                <div className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${getStatusColor(emp.status)}`}>
-                  {emp.status}
-                </div>
-                <div className="text-xs font-bold text-slate-400">
-                  Joined <span className="text-slate-700">{emp.joinDate}</span>
                 </div>
               </div>
             </div>
 
             {/* Actions Footer */}
-            <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-center justify-between mt-auto">
-              {emp.systemRole !== 'ADMIN' ? (
+            <div className="p-3 bg-slate-50/50 mt-auto flex items-center gap-2 border-t border-slate-50">
+              {emp.systemRole !== 'ADMIN' && (
                 <button 
                   onClick={() => setEmployeeToMakeAdmin(emp.id)}
-                  className="flex items-center gap-2 text-sm font-bold text-emerald-600 bg-emerald-100/50 hover:bg-emerald-100 px-3 py-2 rounded-lg transition-colors border border-emerald-200 shadow-sm"
+                  className="flex-1 flex items-center justify-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-3 rounded-[12px] transition-all"
                 >
-                  <Shield size={16} /> Grant Admin
+                  <Shield size={14} /> Grant
                 </button>
-              ) : (
-                <div className="text-xs font-bold text-slate-400 flex items-center gap-1.5 px-2">
-                  <Shield size={14} /> Full Access
-                </div>
               )}
-
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setEmployeeToEdit(emp)}
-                  className="flex items-center gap-2 text-sm font-bold text-blue-600 bg-blue-100/50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors border border-blue-200 shadow-sm"
-                >
-                  <Pencil size={16} /> Edit
-                </button>
-                <button 
-                  onClick={() => setEmployeeToDelete(emp.id)}
-                  className="flex items-center gap-2 text-sm font-bold text-rose-600 bg-rose-100/50 hover:bg-rose-100 px-3 py-2 rounded-lg transition-colors border border-rose-200 shadow-sm"
-                >
-                  <Trash2 size={16} /> Delete
-                </button>
-              </div>
+              
+              <button 
+                onClick={() => setEmployeeToEdit(emp)}
+                className="flex-1 flex items-center justify-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-3 rounded-[12px] transition-all"
+              >
+                <Pencil size={14} /> Edit
+              </button>
+              
+              <button 
+                onClick={() => setEmployeeToDelete(emp.id)}
+                className="flex-1 flex items-center justify-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 px-2 py-3 rounded-[12px] transition-all"
+              >
+                <Trash2 size={14} /> Terminate
+              </button>
             </div>
 
           </div>
@@ -384,13 +377,13 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
         {/* Add Employee Card */}
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-white rounded-3xl border-2 border-dashed border-slate-200 p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all group min-h-[300px]"
+          className="bg-transparent rounded-[24px] border-2 border-dashed border-slate-200 p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group min-h-[260px]"
         >
-          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300">
-            <Plus size={28} />
+          <div className="w-14 h-14 rounded-[16px] bg-white shadow-sm text-blue-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300 border border-slate-100">
+            <Plus size={24} />
           </div>
-          <h3 className="text-lg font-black text-slate-800 mb-1">Add New Employee</h3>
-          <p className="text-sm font-medium text-slate-500">Onboard a new team member to your dashboard.</p>
+          <h3 className="text-lg font-black text-slate-800 mb-1">Add Employee</h3>
+          <p className="text-xs font-medium text-slate-500">Onboard a new team member.</p>
         </button>
       </div>
 
@@ -594,7 +587,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
             <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-2">
               <Trash2 size={28} />
             </div>
-            <h3 className="text-xl font-black text-slate-900">Delete Employee?</h3>
+            <h3 className="text-xl font-black text-slate-900">Terminate Employee?</h3>
             <p className="text-slate-500 font-medium text-sm">This action cannot be undone. All data associated with this employee will be permanently removed.</p>
             <div className="flex w-full gap-3 mt-4">
               <button 
@@ -607,7 +600,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
                 onClick={() => { handleDeleteEmployee(employeeToDelete); setEmployeeToDelete(null); }} 
                 className="flex-1 py-3 bg-rose-600 rounded-xl text-sm font-bold text-white hover:bg-rose-700 shadow-md shadow-rose-900/10 transition-colors"
               >
-                Delete
+                Terminate
               </button>
             </div>
           </div>
