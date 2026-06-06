@@ -305,15 +305,7 @@ export default function Login({ onLogin }) {
                 </svg>
               </button>
 
-              {role !== 'Admin' && (
-                <div style={{textAlign: 'center', marginTop: '20px', fontSize: '14px', color: '#555F6B'}}>
-                  Don't have an account? 
-                  <a href="#" onClick={(e) => { e.preventDefault(); navigate('/signup'); }} style={{color: '#003F87', fontWeight: 'bold', textDecoration: 'none', marginLeft: '5px'}}>
-                    Sign Up
-                  </a>
-                </div>
-              )}
-              </>
+                            </>
             )}
             </form>
 
