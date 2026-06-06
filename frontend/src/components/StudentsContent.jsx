@@ -47,12 +47,12 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const [newStudent, setNewStudent] = useState({
     first_name: '',
     last_name: '',
-    student_code: '',
+    email: '',
+    password: '',
     phone: '',
     parent_phone: '',
     address: '',
     joining_date: '',
-    status: 'ACTIVE',
     avatarUrl: null
   });
 
@@ -114,22 +114,22 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   const handleAddStudent = async (e) => {
     e.preventDefault();
-    if (!newStudent.first_name || !newStudent.last_name || !newStudent.student_code) return;
+    if (!newStudent.first_name || !newStudent.last_name) return;
 
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
 
       const payload = {
-        student_code: newStudent.student_code,
         first_name: newStudent.first_name,
         last_name: newStudent.last_name,
         phone: newStudent.phone,
         parent_phone: newStudent.parent_phone,
         address: newStudent.address,
         joining_date: newStudent.joining_date || new Date().toISOString().split('T')[0],
-        status: newStudent.status
       };
+      if (newStudent.email) payload.email = newStudent.email;
+      if (newStudent.password) payload.password = newStudent.password;
 
       const response = await fetch('/api/v1/students', {
         method: 'POST',
@@ -145,7 +145,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       setStudents([addedStudent, ...students]);
       setIsAddModalOpen(false);
       setNewStudent({
-        first_name: '', last_name: '', student_code: '', phone: '', parent_phone: '', address: '', joining_date: '', status: 'ACTIVE', avatarUrl: null
+        first_name: '', last_name: '', email: '', password: '', phone: '', parent_phone: '', address: '', joining_date: '', avatarUrl: null
       });
     } catch (error) {
       console.error('Error adding student:', error);
@@ -457,13 +457,18 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Student Code</label>
-                  <input type="text" required value={newStudent.student_code} onChange={(e) => setNewStudent({...newStudent, student_code: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm font-mono text-[#003F87] bg-[#F8FAFC]" placeholder="STD-XXXX" />
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Email <span className="text-slate-400 normal-case font-medium">(optional)</span></label>
+                  <input type="email" value={newStudent.email} onChange={(e) => setNewStudent({...newStudent, email: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm" placeholder="student@example.com" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Joining Date</label>
-                  <input type="date" required value={newStudent.joining_date} onChange={(e) => setNewStudent({...newStudent, joining_date: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm" />
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Password <span className="text-slate-400 normal-case font-medium">(optional)</span></label>
+                  <input type="text" value={newStudent.password} onChange={(e) => setNewStudent({...newStudent, password: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm" placeholder="Auto-generated if empty" />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Joining Date</label>
+                <input type="date" required value={newStudent.joining_date} onChange={(e) => setNewStudent({...newStudent, joining_date: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm" />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -482,14 +487,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 <textarea rows="2" value={newStudent.address} onChange={(e) => setNewStudent({...newStudent, address: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm resize-none" placeholder="123 Street Name, City, Country" />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Account Status</label>
-                <select value={newStudent.status} onChange={(e) => setNewStudent({...newStudent, status: e.target.value})} className="w-full px-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] text-sm bg-white">
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="COMPLETED">COMPLETED</option>
-                  <option value="DROPPED">DROPPED</option>
-                </select>
-              </div>
+
 
               <div className="flex gap-3 justify-end mt-2 pt-6 border-t border-slate-200">
                 <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-6 py-2.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">

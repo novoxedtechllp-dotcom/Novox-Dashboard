@@ -49,6 +49,22 @@ const getAssignedCourseIds = async (employeeId) => {
 // EMPLOYEE PROFILES
 // ==========================================
 
+const generateNextEmployeeCode = async () => {
+  const { data } = await supabase
+    .from("employee_profiles")
+    .select("employee_code")
+    .like("employee_code", "NVX-E%")
+    .order("employee_code", { ascending: false })
+    .limit(1);
+
+  if (data && data.length > 0) {
+    const lastCode = data[0].employee_code;
+    const numPart = parseInt(lastCode.replace("NVX-E", ""), 10) || 0;
+    return `NVX-E${String(numPart + 1).padStart(4, "0")}`;
+  }
+  return "NVX-E0001";
+};
+
 // @desc    Create a new employee
 // @route   POST /api/v1/employees
 export const createEmployee = asyncHandler(async (req, res) => {
@@ -77,7 +93,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
   let employeeRoleId = role_id;
   let createdUserId = null;
   const roleName = employee_role || department || "DEVELOPMENT";
-  const employeeCode = employee_code || `EMP-${Date.now()}`;
+  const employeeCode = employee_code || await generateNextEmployeeCode();
 
   if (!employeeRoleId) {
     const { data: roleData, error: roleError } = await supabase
@@ -362,7 +378,6 @@ export const getEmployeeDailyPlan = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, [], "No courses assigned"));
   }
 
-  // Fetch submodules for those courses scheduled on the given date
   const { data, error } = await supabase
     .from("course_submodules")
     .select(`

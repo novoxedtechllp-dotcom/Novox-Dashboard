@@ -10,6 +10,22 @@ const studentSelectFields = "id, student_code, first_name, last_name, phone, par
 // CORE STUDENT CRUD
 // ==========================================
 
+const generateNextStudentCode = async () => {
+  const { data } = await supabase
+    .from("students")
+    .select("student_code")
+    .like("student_code", "NVX-S%")
+    .order("student_code", { ascending: false })
+    .limit(1);
+
+  if (data && data.length > 0) {
+    const lastCode = data[0].student_code; // e.g. "NVX-S0012"
+    const numPart = parseInt(lastCode.replace("NVX-S", ""), 10) || 0;
+    return `NVX-S${String(numPart + 1).padStart(4, "0")}`;
+  }
+  return "NVX-S0001";
+};
+
 // @desc    Create a new student
 // @route   POST /api/v1/students
 const createStudent = asyncHandler(async (req, res) => {
@@ -24,12 +40,13 @@ const createStudent = asyncHandler(async (req, res) => {
     parent_phone,
     address,
     joining_date,
-    status,
   } = req.body;
 
-  if (!student_code || !first_name || !last_name || !phone || !joining_date) {
+  if (!first_name || !last_name || !phone || !joining_date) {
     throw new ApiError(400, "Please provide all required fields");
   }
+
+  const finalStudentCode = student_code || await generateNextStudentCode();
 
   let studentUserId = user_id;
   let createdUserId = null;
@@ -38,8 +55,8 @@ const createStudent = asyncHandler(async (req, res) => {
     const { data: userExists } = await supabase.from("users").select("id").eq("id", studentUserId).single();
     if (!userExists) throw new ApiError(400, "User not found");
   } else {
-    const loginEmail = email || `${student_code.toLowerCase()}@students.novox.local`;
-    const loginPassword = password || `${student_code}@123`;
+    const loginEmail = email || `${finalStudentCode.toLowerCase()}@students.novox.local`;
+    const loginPassword = password || `${finalStudentCode}@123`;
     const hashedPassword = await bcrypt.hash(loginPassword, 10);
 
     const { data: user, error: userError } = await supabase
@@ -62,8 +79,8 @@ const createStudent = asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from("students")
     .insert([{
-      user_id: studentUserId, student_code, first_name, last_name, phone, parent_phone,
-      address, joining_date, status: status || "ACTIVE",
+      user_id: studentUserId, student_code: finalStudentCode, first_name, last_name, phone, parent_phone,
+      address, joining_date, status: "ACTIVE",
     }])
     .select(studentSelectFields);
 
