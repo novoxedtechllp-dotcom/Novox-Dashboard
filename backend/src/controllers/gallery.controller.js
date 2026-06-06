@@ -5,6 +5,9 @@ import * as galleryService from "../services/gallery.service.js";
 import * as gmbService from "../services/gmb.service.js";
 import { hashImageBuffer } from "../utils/hashImage.js";
 
+// Valid categories
+const VALID_CATEGORIES = ["event", "Ceremony", "Academy", "Uncategorized"];
+
 // @desc    Get all gallery images
 // @route   GET /api/v1/gallery
 export const getGalleryImages = asyncHandler(async (req, res) => {
@@ -22,6 +25,12 @@ export const uploadGalleryImage = asyncHandler(async (req, res) => {
   }
 
   const { category } = req.body;
+  
+  // Validate category if provided
+  if (category && !VALID_CATEGORIES.includes(category)) {
+    throw new ApiError(400, `Invalid category. Must be one of: ${VALID_CATEGORIES.join(", ")}`);
+  }
+
   const imageHash = hashImageBuffer(req.file.buffer);
 
   // Check for duplicate hash in database
@@ -30,44 +39,75 @@ export const uploadGalleryImage = asyncHandler(async (req, res) => {
     throw new ApiError(409, "Duplicate image detected. This image has already been uploaded.");
   }
 
-  // Placeholder implementation since Cloudinary is not integrated yet
-  const placeholderUrl = `https://res.cloudinary.com/placeholder-cloud/image/upload/${imageHash}.png`;
+  // 1. Upload image to GMB
+  const gmbMedia = await gmbService.uploadImageToGmb(req.file.buffer, req.file.originalname);
 
+  // 2. Store metadata in Supabase
   const newImage = await galleryService.addGalleryImageService({
-    image_url: placeholderUrl,
-    source: "MANUAL",
+    image_url: gmbMedia.googleOptimizedUrl || gmbMedia.sourceUrl,
+    source: "DASHBOARD",
     category: category || "Uncategorized",
     image_hash: imageHash,
+    gmb_media_key: gmbMedia.name,
   });
 
   return res
     .status(201)
-    .json(new ApiResponse(201, newImage, "Image uploaded successfully (using temporary placeholder URL)"));
+    .json(new ApiResponse(201, newImage, "Image uploaded and synced to GMB successfully"));
 });
 
 // @desc    Sync images from GMB
 // @route   POST /api/v1/gallery/sync-gmb
 export const syncGmbImages = asyncHandler(async (req, res) => {
-  // Scaffolding: business logic not implemented yet.
+  const result = await gmbService.syncGmbImages();
+  
   return res
     .status(200)
-    .json(new ApiResponse(200, {}, "GMB images synced successfully"));
+    .json(new ApiResponse(200, result, "GMB images synced successfully"));
 });
 
 // @desc    Update gallery image category
 // @route   PUT /api/v1/gallery/:id
 export const updateGalleryImageCategory = asyncHandler(async (req, res) => {
-  // Scaffolding: business logic not implemented yet.
+  const { id } = req.params;
+  const { category } = req.body;
+
+  if (!category || !VALID_CATEGORIES.includes(category)) {
+    throw new ApiError(400, `Invalid category. Must be one of: ${VALID_CATEGORIES.join(", ")}`);
+  }
+
+  const updatedImage = await galleryService.updateGalleryImageCategoryService(id, category);
+
   return res
     .status(200)
-    .json(new ApiResponse(200, {}, "Image category updated successfully"));
+    .json(new ApiResponse(200, updatedImage, "Image category updated successfully"));
 });
 
 // @desc    Delete gallery image
 // @route   DELETE /api/v1/gallery/:id
 export const deleteGalleryImage = asyncHandler(async (req, res) => {
-  // Scaffolding: business logic not implemented yet.
+  const { id } = req.params;
+
+  // 1. Lookup gallery record to get gmb_media_key
+  const image = await galleryService.getGalleryImageByIdService(id);
+  if (!image) {
+    throw new ApiError(404, "Image not found");
+  }
+
+  // 2. Attempt delete from GMB
+  if (image.gmb_media_key) {
+    try {
+      await gmbService.deleteGmbImage(image.gmb_media_key);
+    } catch (error) {
+      // Log error but continue with Supabase deletion as per requirements
+      console.error(`Failed to delete GMB media ${image.gmb_media_key}:`, error.message);
+    }
+  }
+
+  // 3. Delete Supabase row
+  await galleryService.deleteGalleryImageService(id);
+
   return res
     .status(200)
-    .json(new ApiResponse(200, {}, "Image deleted successfully"));
+    .json(new ApiResponse(200, null, "Image deleted successfully"));
 });

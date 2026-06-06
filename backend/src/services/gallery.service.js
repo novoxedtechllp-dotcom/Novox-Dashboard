@@ -17,6 +17,24 @@ export const getGalleryImagesService = async () => {
 };
 
 /**
+ * Fetches a single gallery image by ID.
+ * @param {string} id - Gallery image ID
+ * @returns {Promise<Object>}
+ */
+export const getGalleryImageByIdService = async (id) => {
+  const { data, error } = await supabase
+    .from("gallery_images")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    return null;
+  }
+  return data;
+};
+
+/**
  * Checks if an image with the given hash already exists.
  * @param {string} imageHash - SHA-256 hash of the image.
  * @returns {Promise<boolean>} - True if duplicate exists, false otherwise.
@@ -60,8 +78,17 @@ export const addGalleryImageService = async (imageData) => {
  * @returns {Promise<Object>}
  */
 export const updateGalleryImageCategoryService = async (id, category) => {
-  // Scaffolding: business logic not implemented yet.
-  return {};
+  const { data, error } = await supabase
+    .from("gallery_images")
+    .update({ category })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message || "Failed to update image category");
+  }
+  return data;
 };
 
 /**
@@ -70,6 +97,15 @@ export const updateGalleryImageCategoryService = async (id, category) => {
  * @returns {Promise<Object>}
  */
 export const deleteGalleryImageService = async (id) => {
-  // Scaffolding: business logic not implemented yet.
-  return {};
+  const { data, error } = await supabase
+    .from("gallery_images")
+    .delete()
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message || "Failed to delete image from database");
+  }
+  return data;
 };
