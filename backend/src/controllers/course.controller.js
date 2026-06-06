@@ -2,6 +2,7 @@ import { supabase } from "../config/supabase.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { uploadOnCloudinary, extractPublicIdFromUrl, deleteFromCloudinary } from "../utils/cloudinary.js";
 
 const DEFAULT_TOPICS_PER_DAY = 2;
 const MIN_TOPICS_PER_DAY = 1;
@@ -47,9 +48,15 @@ export const createCourse = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Please provide name, track, duration_months, and capacity");
   }
 
+  let thumbnailUrl = null;
+  if (req.file) {
+    const uploadResult = await uploadOnCloudinary(req.file.path);
+    if (uploadResult?.url) thumbnailUrl = uploadResult.url;
+  }
+
   const { data, error } = await supabase
     .from("courses")
-    .insert([{ name, description, track, duration_months, capacity, status: status || 'DRAFT' }])
+    .insert([{ name, description, track, duration_months, capacity, status: status || 'DRAFT', thumbnail_url: thumbnailUrl }])
     .select();
 
   if (error) throw new ApiError(500, error.message || "Failed to create course");
@@ -111,6 +118,19 @@ export const updateCourse = asyncHandler(async (req, res) => {
   if (duration_months !== undefined) updates.duration_months = duration_months;
   if (capacity !== undefined) updates.capacity = capacity;
   if (status !== undefined) updates.status = status;
+
+  if (req.file) {
+    const uploadResult = await uploadOnCloudinary(req.file.path);
+    if (uploadResult?.url) {
+      updates.thumbnail_url = uploadResult.url;
+
+      const { data: oldCourse } = await supabase.from("courses").select("thumbnail_url").eq("id", courseId).single();
+      if (oldCourse?.thumbnail_url) {
+        const publicId = extractPublicIdFromUrl(oldCourse.thumbnail_url);
+        if (publicId) await deleteFromCloudinary(publicId);
+      }
+    }
+  }
 
   const { data, error } = await supabase
     .from("courses")

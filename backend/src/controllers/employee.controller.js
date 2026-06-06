@@ -2,6 +2,7 @@ import { supabase } from "../config/supabase.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { uploadOnCloudinary, extractPublicIdFromUrl, deleteFromCloudinary } from "../utils/cloudinary.js";
 import bcrypt from "bcrypt";
 
 const parseDateOnly = (value) => {
@@ -89,6 +90,12 @@ export const createEmployee = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Please provide all required fields");
   }
 
+  let avatarUrl = null;
+  if (req.file) {
+    const uploadResult = await uploadOnCloudinary(req.file.path);
+    if (uploadResult?.url) avatarUrl = uploadResult.url;
+  }
+
   let employeeUserId = user_id;
   let employeeRoleId = role_id;
   let createdUserId = null;
@@ -140,6 +147,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
         role_id: employeeRoleId,
         salary: salary || 0,
         status: status || 'ACTIVE',
+        avatar_url: avatarUrl,
       },
     ])
     .select();
@@ -205,6 +213,20 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   if (joining_date !== undefined) updates.joining_date = joining_date;
   if (salary !== undefined) updates.salary = salary;
   if (role_id !== undefined) updates.role_id = role_id;
+
+  if (req.file) {
+    const uploadResult = await uploadOnCloudinary(req.file.path);
+    if (uploadResult?.url) {
+      updates.avatar_url = uploadResult.url;
+
+      // Delete old avatar from Cloudinary
+      const { data: oldProfile } = await supabase.from("employee_profiles").select("avatar_url").eq("id", employeeId).single();
+      if (oldProfile?.avatar_url) {
+        const publicId = extractPublicIdFromUrl(oldProfile.avatar_url);
+        if (publicId) await deleteFromCloudinary(publicId);
+      }
+    }
+  }
 
   if (role_id === undefined && (employee_role !== undefined || department !== undefined)) {
     const roleName = employee_role || department;
