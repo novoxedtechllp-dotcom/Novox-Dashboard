@@ -36,6 +36,15 @@ const isWeekendDate = (value) => {
   return dayOfWeek === 0 || dayOfWeek === 6;
 };
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+
 const DailyPlan = ({ userType, userId }) => {
   const [toast, setToast] = useState(null);
   const alert = (message) => {
@@ -44,7 +53,7 @@ const DailyPlan = ({ userType, userId }) => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [dailyPlan, setDailyPlan] = useState([]);
   const [loading, setLoading] = useState(false);
   const [newTaskVisible, setNewTaskVisible] = useState(null); // stores submodule ID
@@ -199,7 +208,7 @@ const DailyPlan = ({ userType, userId }) => {
         </div>
         <div className="mt-6">
           <button 
-            onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+            onClick={() => setSelectedDate(getLocalDateString())}
             className="w-full py-2 bg-slate-100 hover:bg-slate-200 transition-all duration-200 text-slate-700 text-sm font-bold rounded-lg cursor-pointer active:scale-95"
           >
             Today

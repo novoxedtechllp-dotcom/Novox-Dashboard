@@ -119,3 +119,21 @@ html.dark input, html.dark select, html.dark textarea {
 html.dark input::placeholder, html.dark textarea::placeholder {
   color: #a3a3a3 !important;
 }
+
+/* Global Button Styles */
+button, 
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  cursor: pointer;
+  transition: transform 0.15s ease-in-out, background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+}
+
+button:active, 
+[role="button"]:active,
+input[type="button"]:active,
+input[type="submit"]:active,
+input[type="reset"]:active {
+  transform: scale(0.95);
+}
