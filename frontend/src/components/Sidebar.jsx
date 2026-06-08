@@ -65,40 +65,44 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
       
       <aside className={`
         fixed lg:static top-0 left-0 h-screen bg-white border-r border-[#C2C6D4] 
-        flex flex-col pl-[16px] py-[24px] z-50 transition-transform duration-300 ease-in-out
-        w-[260px] min-w-[260px]
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        flex flex-col z-50 transition-all duration-300 ease-in-out overflow-hidden
+        ${isOpen 
+          ? 'w-[260px] min-w-[260px] translate-x-0 pl-[16px] py-[24px]' 
+          : 'w-[260px] min-w-[260px] lg:w-0 lg:min-w-0 lg:p-0 -translate-x-full lg:translate-x-0 lg:border-r-0'}
       `}>
-        {/* Top Logo Container - 227x108 */}
-        <div className="w-[227px] h-[108px] flex flex-col justify-center shrink-0">
-          <h1 className="text-[28px] font-bold text-[#003F87] leading-none">Novox Edtech</h1>
-          <p className="text-[10px] font-semibold text-[#555F6B] tracking-[0.15em] uppercase mt-2 leading-tight">
-            Institutional<br/>Management
-          </p>
-        </div>
+        {/* Container to prevent text wrapping when width shrinks */}
+        <div className="w-[227px] min-w-[227px] flex flex-col h-full">
+          {/* Top Logo Container - 227x108 */}
+          <div className="h-[108px] flex flex-col justify-center shrink-0">
+            <h1 className="text-[28px] font-bold text-[#003F87] leading-none">Novox Edtech</h1>
+            <p className="text-[10px] font-semibold text-[#555F6B] tracking-[0.15em] uppercase mt-2 leading-tight">
+              Institutional<br/>Management
+            </p>
+          </div>
 
-        {/* Main Nav Container */}
-        <nav className="w-[227px] flex-1 flex flex-col gap-[4px] overflow-y-auto mt-4 pr-1 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
-          {visibleNavItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <Link
-                key={item.id}
-                to={`${basePath}/${item.id}`}
-                onClick={() => setIsOpen && setIsOpen(false)}
-                className={`flex items-center gap-[12px] px-[12px] py-[8px] rounded-[4px] transition-colors text-left w-full h-[36px] shrink-0
-                  ${isActive 
-                    ? 'bg-[#D9E3F1] text-[#003F87] font-semibold' 
-                    : 'text-[#555F6B] font-medium hover:bg-slate-50'
-                  }`}
-              >
-                <Icon size={18} className={isActive ? 'text-[#003F87]' : 'text-[#555F6B]'} />
-                <span className="text-[14px] leading-none">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+          {/* Main Nav Container */}
+          <nav className="flex-1 flex flex-col gap-[4px] overflow-y-auto mt-4 pr-1 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
+            {visibleNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <Link
+                  key={item.id}
+                  to={`${basePath}/${item.id}`}
+                  onClick={() => window.innerWidth < 1024 && setIsOpen && setIsOpen(false)}
+                  className={`flex items-center gap-[12px] px-[12px] py-[8px] rounded-[4px] transition-colors text-left w-full h-[36px] shrink-0
+                    ${isActive 
+                      ? 'bg-[#D9E3F1] text-[#003F87] font-semibold' 
+                      : 'text-[#555F6B] font-medium hover:bg-slate-50'
+                    }`}
+                >
+                  <Icon size={18} className={isActive ? 'text-[#003F87]' : 'text-[#555F6B]'} />
+                  <span className="text-[14px] leading-none whitespace-nowrap">{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
       </aside>
     </>
   );

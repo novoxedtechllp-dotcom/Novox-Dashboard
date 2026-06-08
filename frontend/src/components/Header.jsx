@@ -50,7 +50,7 @@ const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', set
       <div className="flex items-center gap-[12px] md:gap-[24px]">
         <button 
           onClick={toggleSidebar}
-          className="lg:hidden p-[8px] text-[#555F6B] hover:bg-slate-100 rounded-md transition-colors"
+          className="p-[8px] text-[#555F6B] hover:bg-slate-100 rounded-md transition-colors"
         >
           <Menu size={20} />
         </button>

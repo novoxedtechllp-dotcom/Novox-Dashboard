@@ -227,7 +227,12 @@ function App() {
   const canViewCourses = userRole === 'ADMIN' || userRole === 'EMPLOYEE';
   const canViewJourney = userRole === 'ADMIN' || isDevelopment || isDesign || isHR || isSales; // General
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
 
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
