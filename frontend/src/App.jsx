@@ -146,7 +146,6 @@ function App() {
     }
     setIsAuthenticated(true);
     setUserRole(role);
-    navigate('/');
   };
 
   const handleLogout = () => {
@@ -155,7 +154,6 @@ function App() {
     setUserInfo(null);
     sessionStorage.removeItem('userInfo');
     localStorage.removeItem('userInfo');
-    navigate('/');
   };
 
   useEffect(() => {
@@ -167,52 +165,11 @@ function App() {
     }
   }, []);
 
-  if (!isAuthenticated) {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login onLogin={handleLogin} />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    );
-  }
-
-  // We use userInfo state now
   const isHR = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'HR';
   const isDesign = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'DESIGN';
   const isDevelopment = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'DEVELOPMENT';
   const isSales = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'SALES';
   const isMarketing = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'MARKETING';
-
-  if (userRole === 'STUDENT') {
-    return (
-      <div className="flex flex-col h-screen w-screen bg-slate-50 font-sans text-slate-800">
-        <header className="bg-white border-b border-slate-200 p-4 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#003F87] rounded-full flex items-center justify-center shadow-md">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
-                <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
-              </svg>
-            </div>
-            <h1 className="text-xl font-bold text-[#003F87]">Novox Student Portal</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-semibold text-slate-700">Welcome, {userInfo?.first_name || 'Student'}!</span>
-            <button 
-              onClick={handleLogout}
-              className="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-sm rounded hover:bg-slate-200 transition-colors"
-            >
-              Log Out
-            </button>
-          </div>
-        </header>
-        <div className="flex-1 overflow-hidden">
-          <DailyPlan userType="STUDENT" userId={userInfo?.student_profile_id || userInfo?.id} />
-        </div>
-      </div>
-    );
-  }
 
   const basePath = isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : '/admin';
 
@@ -236,54 +193,97 @@ function App() {
 
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
-      <Sidebar 
-        userRole={userRole} 
-        isHR={isHR} 
-        isDesign={isDesign} 
-        isDevelopment={isDevelopment} 
-        isSales={isSales}
-        isMarketing={isMarketing}
-        basePath={basePath}
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
-      />
+      {isAuthenticated && userRole !== 'STUDENT' && (
+        <Sidebar 
+          userRole={userRole} 
+          isHR={isHR} 
+          isDesign={isDesign} 
+          isDevelopment={isDevelopment} 
+          isSales={isSales}
+          isMarketing={isMarketing}
+          basePath={basePath}
+          isOpen={isSidebarOpen}
+          setIsOpen={setIsSidebarOpen}
+        />
+      )}
       
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-white min-w-0">
-        <Header 
-          onLogout={handleLogout} 
-          userInfo={userInfo} 
-          basePath={basePath} 
-          searchQuery={searchQuery} 
-          setSearchQuery={setSearchQuery} 
-          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        />
+        {isAuthenticated && userRole !== 'STUDENT' && (
+          <Header 
+            onLogout={handleLogout} 
+            userInfo={userInfo} 
+            basePath={basePath} 
+            searchQuery={searchQuery} 
+            setSearchQuery={setSearchQuery} 
+            toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          />
+        )}
+
         <div className="flex-1 overflow-y-auto">
           <Routes>
-            <Route path="/" element={<Navigate to={`${basePath}/dashboard`} replace />} />
-            <Route path={basePath} element={<Navigate to={`${basePath}/dashboard`} replace />} />
-            
-            <Route path={`${basePath}/dashboard`} element={userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />} />
-            <Route path={`${basePath}/daily-plan`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
-            {/* <Route path={`${basePath}/attendance`} element={<AttendanceContent employees={employees} courses={courses} />} /> */}
-            <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
-            <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
-            <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
-            <Route path={`${basePath}/settings`} element={<SettingsContent />} />
-            <Route path={`${basePath}/profile`} element={<EmployeeProfile />} />
-            <Route path={`${basePath}/support`} element={<SupportContent />} />
+            {!isAuthenticated ? (
+              <>
+                <Route path="/login" element={<Login onLogin={handleLogin} />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
+              </>
+            ) : userRole === 'STUDENT' ? (
+              <Route path="*" element={
+                <div className="flex flex-col h-full w-full bg-slate-50">
+                  <header className="bg-white border-b border-slate-200 p-4 flex justify-between items-center shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-[#003F87] rounded-full flex items-center justify-center shadow-md">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                          <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                        </svg>
+                      </div>
+                      <h1 className="text-xl font-bold text-[#003F87]">Novox Student Portal</h1>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm font-semibold text-slate-700">Welcome, {userInfo?.first_name || 'Student'}!</span>
+                      <button 
+                        onClick={handleLogout}
+                        className="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-sm rounded hover:bg-slate-200 transition-colors"
+                      >
+                        Log Out
+                      </button>
+                    </div>
+                  </header>
+                  <div className="flex-1 overflow-y-auto">
+                    <DailyPlan userType="STUDENT" userId={userInfo?.student_profile_id || userInfo?.id} />
+                  </div>
+                </div>
+              } />
+            ) : (
+              <>
+                <Route path="/" element={<Navigate to={`${basePath}/dashboard`} replace />} />
+                <Route path={basePath} element={<Navigate to={`${basePath}/dashboard`} replace />} />
+                
+                <Route path={`${basePath}/dashboard`} element={userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />} />
+                <Route path={`${basePath}/daily-plan`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
+                {/* <Route path={`${basePath}/attendance`} element={<AttendanceContent employees={employees} courses={courses} />} /> */}
+                <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
+                <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
+                <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
+                <Route path={`${basePath}/settings`} element={<SettingsContent />} />
+                <Route path={`${basePath}/profile`} element={<EmployeeProfile />} />
+                <Route path={`${basePath}/support`} element={<SupportContent />} />
 
-            {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} />} />}
-            {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} />} />}
-            {canViewFees && <Route path={`${basePath}/fees`} element={<FeesContent />} />}
-            {canViewPayroll && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
-            {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} />} />}
-            {canViewRecruitment && <Route path={`${basePath}/recruitment`} element={<RecruitmentContent />} />}
-            {canViewWhatsapp && <Route path={`${basePath}/whatsapp-automation`} element={<WhatsappContent />} />}
-            {canViewJourney && <Route path={`${basePath}/journey`} element={<AcademicJourneyContent />} />}
-            {canViewSeo && <Route path={`${basePath}/seo`} element={<SeoAgentContent />} />}
-            {canViewBlog && <Route path={`${basePath}/blog`} element={<BlogDashboardContent />} />}
-            
-            <Route path="*" element={<Navigate to={`${basePath}/dashboard`} replace />} />
+                {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} />} />}
+                {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} />} />}
+                {canViewFees && <Route path={`${basePath}/fees`} element={<FeesContent />} />}
+                {canViewPayroll && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
+                {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} />} />}
+                {canViewRecruitment && <Route path={`${basePath}/recruitment`} element={<RecruitmentContent />} />}
+                {canViewWhatsapp && <Route path={`${basePath}/whatsapp-automation`} element={<WhatsappContent />} />}
+                {canViewJourney && <Route path={`${basePath}/journey`} element={<AcademicJourneyContent />} />}
+                {canViewSeo && <Route path={`${basePath}/seo`} element={<SeoAgentContent />} />}
+                {canViewBlog && <Route path={`${basePath}/blog`} element={<BlogDashboardContent />} />}
+                
+                <Route path="*" element={<Navigate to={`${basePath}/dashboard`} replace />} />
+              </>
+            )}
           </Routes>
         </div>
       </main>
