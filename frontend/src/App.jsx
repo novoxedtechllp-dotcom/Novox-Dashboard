@@ -232,13 +232,8 @@ function App() {
                 <div className="flex flex-col h-full w-full bg-slate-50">
                   <header className="bg-white border-b border-slate-200 p-4 flex justify-between items-center shrink-0">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-[#003F87] rounded-full flex items-center justify-center shadow-md">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
-                          <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
-                        </svg>
-                      </div>
-                      <h1 className="text-xl font-bold text-[#003F87]">Novox Student Portal</h1>
+                      <img src="/novox-edtech-calicut-logo.png" alt="Novox Edtech" className="h-[32px] object-contain" />
+                      <h1 className="text-xl font-bold text-[#003F87]">Student Portal</h1>
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="text-sm font-semibold text-slate-700">Welcome, {userInfo?.first_name || 'Student'}!</span>

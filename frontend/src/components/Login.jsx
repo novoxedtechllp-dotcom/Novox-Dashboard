@@ -111,15 +111,8 @@ export default function Login({ onLogin }) {
 
         <div className="relative z-10 max-w-lg mx-auto w-full">
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 bg-white text-[#003F87] rounded-xl flex items-center justify-center shadow-lg">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 3 L2 8 L12 13 L22 8 Z" />
-                <path d="M4.5 10.75 L12 14.5 L19.5 10.75 V 15.5 L12 19.25 L4.5 15.5 Z" />
-                <path d="M20.5 8.75 V 17 H 22 V 8 Z" />
-              </svg>
-            </div>
-            <span className="text-2xl font-black tracking-tight">Novox Edtech</span>
+          <div className="flex items-center gap-3 mb-16 bg-white py-3 px-4 rounded-2xl inline-flex shadow-lg">
+            <img src="/novox-edtech-calicut-logo.png" alt="Novox Edtech" className="h-[40px] object-contain" />
           </div>
 
           <h1 className="text-4xl lg:text-5xl font-black leading-tight mb-6 text-transparent bg-clip-text bg-gradient-to-r from-white to-blue-100">

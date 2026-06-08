@@ -165,7 +165,7 @@ const EmployeePayroll = () => {
               
               <div className="flex justify-between items-start">
                 <div>
-                  <h1 className="text-2xl font-bold text-[#003F87]">Novox Edtech</h1>
+                  <img src="/novox-edtech-calicut-logo.png" alt="Novox Edtech" className="h-[32px] object-contain mb-2" />
                   <p className="text-sm text-slate-500 mt-1">Payslip for the month of {viewRecord.month}</p>
                 </div>
                 <div className="text-right text-sm text-slate-600">

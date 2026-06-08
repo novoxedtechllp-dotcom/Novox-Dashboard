@@ -73,12 +73,12 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
         {/* Container to prevent text wrapping when width shrinks */}
         <div className="w-[227px] min-w-[227px] flex flex-col h-full">
           {/* Top Logo Container - 227x108 */}
-          <div className="h-[108px] flex flex-col justify-center shrink-0 relative">
+          <div className="flex flex-col justify-start shrink-0 relative mb-2">
             <div className="flex justify-between items-start">
-              <div>
-                <h1 className="text-[28px] font-bold text-[#003F87] leading-none">Novox Edtech</h1>
-                <p className="text-[10px] font-semibold text-[#555F6B] tracking-[0.15em] uppercase mt-2 leading-tight">
-                  Institutional<br/>Management
+              <div className="flex flex-col items-start px-3">
+                <img src="/novox-edtech-calicut-logo.png" alt="Novox Edtech" className="h-[44px] w-[180px] object-contain object-left -ml-4" />
+                <p className="text-[9px] font-bold text-[#555F6B] tracking-[0.15em] uppercase mt-1.5 ml-0.5">
+                  Institutional Management
                 </p>
               </div>
               <button 

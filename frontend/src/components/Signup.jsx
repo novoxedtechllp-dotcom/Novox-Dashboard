@@ -86,15 +86,8 @@ export default function Signup() {
         {/* Left Panel */}
         <div className="login-left-panel">
           <div className="left-content">
-            <div className="logo-section">
-              <div className="logo-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 3 L2 8 L12 13 L22 8 Z" />
-                  <path d="M4.5 10.75 L12 14.5 L19.5 10.75 V 15.5 L12 19.25 L4.5 15.5 Z" />
-                  <path d="M20.5 8.75 V 17 H 22 V 8 Z" />
-                </svg>
-              </div>
-              <h2 className="logo-text">Novox Edtech</h2>
+            <div className="logo-section bg-white p-4 rounded-2xl inline-flex shadow-lg" style={{ marginBottom: '2rem' }}>
+              <img src="/novox-edtech-calicut-logo.png" alt="Novox Edtech" className="h-[40px] object-contain" />
             </div>
 
             <div className="hero-text">

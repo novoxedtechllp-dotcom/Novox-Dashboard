@@ -16,10 +16,10 @@ const EmployeeSidebar = () => {
   return (
     <aside className="w-[260px] min-w-[260px] h-screen bg-white border-r border-[#C2C6D4] flex flex-col pl-[16px] py-[24px] z-10">
       {/* Top Logo Container */}
-      <div className="w-[227px] h-[108px] flex flex-col justify-center shrink-0">
-        <h1 className="text-[28px] font-bold text-[#003F87] leading-none">Novox Edtech</h1>
-        <p className="text-[10px] font-semibold text-[#555F6B] tracking-[0.15em] uppercase mt-2 leading-tight">
-          Employee<br/>Portal
+      <div className="w-[227px] flex flex-col justify-start shrink-0 px-3 mb-2">
+        <img src="/novox-edtech-calicut-logo.png" alt="Novox Edtech" className="h-[44px] w-[180px] object-contain object-left -ml-4" />
+        <p className="text-[9px] font-bold text-[#555F6B] tracking-[0.15em] uppercase mt-1.5 ml-0.5">
+          Employee Portal
         </p>
       </div>
 
