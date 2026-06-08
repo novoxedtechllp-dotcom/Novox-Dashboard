@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Briefcase, BookOpen, Calendar, 
   CreditCard, Wallet, MessageSquare, Handshake, Trophy, 
-  GraduationCap, FileText, Globe, Settings, HelpCircle 
+  GraduationCap, FileText, Globe, Settings, HelpCircle, Menu
 } from 'lucide-react';
 
 const navItems = [
@@ -73,11 +73,21 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
         {/* Container to prevent text wrapping when width shrinks */}
         <div className="w-[227px] min-w-[227px] flex flex-col h-full">
           {/* Top Logo Container - 227x108 */}
-          <div className="h-[108px] flex flex-col justify-center shrink-0">
-            <h1 className="text-[28px] font-bold text-[#003F87] leading-none">Novox Edtech</h1>
-            <p className="text-[10px] font-semibold text-[#555F6B] tracking-[0.15em] uppercase mt-2 leading-tight">
-              Institutional<br/>Management
-            </p>
+          <div className="h-[108px] flex flex-col justify-center shrink-0 relative">
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-[28px] font-bold text-[#003F87] leading-none">Novox Edtech</h1>
+                <p className="text-[10px] font-semibold text-[#555F6B] tracking-[0.15em] uppercase mt-2 leading-tight">
+                  Institutional<br/>Management
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsOpen(!isOpen)}
+                className="lg:hidden p-[4px] text-[#555F6B] hover:bg-slate-100 rounded-md transition-colors"
+              >
+                <Menu size={20} />
+              </button>
+            </div>
           </div>
 
           {/* Main Nav Container */}
