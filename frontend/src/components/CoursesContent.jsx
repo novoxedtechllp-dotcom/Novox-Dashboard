@@ -614,7 +614,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Instructor *</label>
                     <select value={courseToEdit ? (courseToEdit.mentorId || employees[0]?.id) : newCourse.mentorId} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, mentorId: e.target.value }) : setNewCourse({ ...newCourse, mentorId: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all appearance-none">
-                      {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.designation || emp.department})</option>)}
+                      {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.position || emp.department})</option>)}
                     </select>
                   </div>
                   <div>

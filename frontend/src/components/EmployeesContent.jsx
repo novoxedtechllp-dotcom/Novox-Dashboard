@@ -44,7 +44,7 @@ const splitName = (name) => {
   const parts = name.trim().split(/\s+/);
   return {
     first_name: parts[0] || '',
-    last_name: parts.slice(1).join(' ') || parts[0] || ''
+    last_name: parts.slice(1).join(' ') || ''
   };
 };
 
@@ -53,6 +53,7 @@ const mapEmployeeFromApi = (employee, avatar = null) => ({
   eid: employee.employee_code || `EMP-${String(employee.id).slice(0, 4)}`,
   name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim(),
   department: departmentFromApi(employee.employee_roles?.role_name || employee.department || employee.employee_role || employee.designation),
+  position: employee.designation || '',
   phone: employee.phone || '',
   status: statusFromApi(employee.status),
   joinDate: employee.joining_date ? new Date(employee.joining_date).toLocaleDateString() : '',
@@ -83,6 +84,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
     email: '',
     password: '',
     department: 'Development',
+    position: '',
     phone: '',
     status: 'Active',
     joinDate: 'January 2024',
@@ -148,7 +150,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
           last_name,
           phone: newEmployee.phone,
           employee_role: departmentToApi(newEmployee.department),
-          designation: newEmployee.department,
+          designation: newEmployee.position || newEmployee.department,
           status: statusToApi(newEmployee.status),
           avatar_url: (newEmployee.avatarUrl && !newEmployee.avatarUrl.startsWith('blob:')) ? newEmployee.avatarUrl : null
         };
@@ -165,7 +167,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
 
       setEmployees([addedEmployee, ...employees]);
       setIsModalOpen(false);
-      setNewEmployee({ name: '', email: '', password: '', department: 'Development', phone: '', status: 'Active', joinDate: 'January 2024', avatarUrl: null });
+      setNewEmployee({ name: '', email: '', password: '', department: 'Development', position: '', phone: '', status: 'Active', joinDate: 'January 2024', avatarUrl: null });
       alert('Employee added successfully!');
     } catch (error) {
       console.error('Error adding employee:', error);
@@ -241,7 +243,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
           phone: employeeToEdit.phone,
           email: employeeToEdit.email,
           department: departmentToApi(employeeToEdit.department),
-          designation: employeeToEdit.department,
+          designation: employeeToEdit.position || employeeToEdit.department,
           status: statusToApi(employeeToEdit.status)
         })
       });
@@ -377,7 +379,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                 
                 <div className="flex flex-col gap-1.5 mt-2">
                   <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                    <Briefcase size={14} className="text-slate-400" /> <span className="truncate">{emp.department}</span>
+                    <Briefcase size={14} className="text-slate-400" /> <span className="truncate">{emp.position || emp.department}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
                     <Phone size={14} className="text-slate-400" /> <span className="truncate">{emp.phone}</span>
@@ -517,6 +519,18 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                   </div>
                 </div>
                 <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Position (Designation)</label>
+                  <input 
+                    type="text" value={newEmployee.position}
+                    onChange={(e) => setNewEmployee({...newEmployee, position: e.target.value})}
+                    placeholder="e.g. Senior Developer"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
                   <input 
                     type="tel" maxLength={10} required value={newEmployee.phone}
@@ -587,19 +601,29 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                 />
               </div>
               
-              <div>
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
-                <div className="relative">
-                  <select 
-                    value={employeeToEdit.department}
-                    onChange={(e) => setEmployeeToEdit({...employeeToEdit, department: e.target.value})}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all appearance-none cursor-pointer"
-                  >
-                    {uniqueDepts.slice(1).map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
+                  <div className="relative">
+                    <select 
+                      value={employeeToEdit.department}
+                      onChange={(e) => setEmployeeToEdit({...employeeToEdit, department: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all appearance-none cursor-pointer"
+                    >
+                      {uniqueDepts.slice(1).map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Position (Designation)</label>
+                  <input 
+                    type="text" value={employeeToEdit.position}
+                    onChange={(e) => setEmployeeToEdit({...employeeToEdit, position: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
+                  />
                 </div>
               </div>
 
