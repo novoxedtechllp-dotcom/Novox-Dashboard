@@ -249,23 +249,37 @@ export const updateEmployee = asyncHandler(async (req, res) => {
     updates.role_id = roleData.id;
   }
 
-  if (grant_admin === true) {
+  if (grant_admin !== undefined) {
     const { data: empProfile } = await supabase.from("employee_profiles").select("user_id").eq("id", employeeId).single();
     if (empProfile?.user_id) {
-      await supabase.from("users").update({ role: 'ADMIN' }).eq("id", empProfile.user_id);
+      await supabase.from("users").update({ role: grant_admin ? 'ADMIN' : 'EMPLOYEE' }).eq("id", empProfile.user_id);
     }
   }
 
-  const { data, error } = await supabase
-    .from("employee_profiles")
-    .update(updates)
-    .eq("id", employeeId)
-    .select();
+  let returnedData = null;
+  if (Object.keys(updates).length > 0) {
+    const { data, error } = await supabase
+      .from("employee_profiles")
+      .update(updates)
+      .eq("id", employeeId)
+      .select();
 
-  if (error) throw new ApiError(500, error.message || "Failed to update employee");
-  if (!data || data.length === 0) throw new ApiError(404, "Employee not found");
+    if (error) throw new ApiError(500, error.message || "Failed to update employee");
+    if (!data || data.length === 0) throw new ApiError(404, "Employee not found");
+    returnedData = data[0];
+  } else {
+    // If only grant_admin was provided
+    if (grant_admin === undefined) throw new ApiError(400, "No fields to update");
+    const { data } = await supabase
+      .from("employee_profiles")
+      .select()
+      .eq("id", employeeId)
+      .single();
+    if (!data) throw new ApiError(404, "Employee not found");
+    returnedData = data;
+  }
 
-  return res.status(200).json(new ApiResponse(200, data[0], "Employee updated successfully"));
+  return res.status(200).json(new ApiResponse(200, returnedData, "Employee updated successfully"));
 });
 
 // @desc    Delete employee

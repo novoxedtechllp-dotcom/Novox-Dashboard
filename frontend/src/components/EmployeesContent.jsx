@@ -69,6 +69,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
   };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
   const [employeeToMakeAdmin, setEmployeeToMakeAdmin] = useState(null);
@@ -92,7 +93,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
     if (file) {
       const previewUrl = URL.createObjectURL(file);
       setNewEmployee({ ...newEmployee, avatarUrl: previewUrl });
-      
+      setIsUploading(true);
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -110,6 +111,9 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
         }
       } catch (err) {
         console.error('Upload failed', err);
+        alert('Failed to upload image. Please try again.');
+      } finally {
+        setIsUploading(false);
       }
     }
   };
@@ -130,7 +134,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
           employee_role: departmentToApi(newEmployee.department),
           designation: newEmployee.department,
           status: statusToApi(newEmployee.status),
-          avatar_url: newEmployee.avatarUrl?.startsWith('http') ? newEmployee.avatarUrl : null
+          avatar_url: (newEmployee.avatarUrl && !newEmployee.avatarUrl.startsWith('blob:')) ? newEmployee.avatarUrl : null
         };
         if (newEmployee.email) payload.email = newEmployee.email;
         if (newEmployee.password) payload.password = newEmployee.password;
@@ -141,7 +145,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
           body: JSON.stringify(payload)
         });
       const resData = await parseApiResponse(response);
-      const addedEmployee = mapEmployeeFromApi(resData.data, newEmployee.avatarUrl || null);
+      const addedEmployee = mapEmployeeFromApi(resData.data, resData.data?.avatar_url || resData.data?.avatar || newEmployee.avatarUrl || null);
 
       setEmployees([addedEmployee, ...employees]);
       setIsModalOpen(false);
@@ -158,19 +162,22 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
       const headers = getAuthHeaders();
       if (!headers) return;
 
+      const employee = employees.find(emp => emp.id === id);
+      const isCurrentlyAdmin = employee?.systemRole === 'ADMIN';
+
       const response = await fetch(`/api/v1/employees/${id}`, {
         method: 'PUT',
         headers,
-        body: JSON.stringify({ grant_admin: true })
+        body: JSON.stringify({ grant_admin: !isCurrentlyAdmin })
       });
       await parseApiResponse(response);
 
-      setEmployees(employees.map(emp => emp.id === id ? { ...emp, systemRole: 'ADMIN' } : emp));
+      setEmployees(employees.map(emp => emp.id === id ? { ...emp, systemRole: isCurrentlyAdmin ? 'EMPLOYEE' : 'ADMIN' } : emp));
       setEmployeeToMakeAdmin(null);
-      alert('Admin privileges granted successfully!');
+      alert(`Admin privileges ${isCurrentlyAdmin ? 'revoked' : 'granted'} successfully!`);
     } catch (error) {
-      console.error('Error granting admin:', error);
-      alert(error.message || 'Failed to grant admin privileges');
+      console.error('Error toggling admin:', error);
+      alert(error.message || 'Failed to toggle admin privileges');
     }
   };
 
@@ -347,7 +354,14 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
             {/* Actions Footer */}
             <div className="p-3 bg-slate-50/50 mt-auto flex items-center gap-2 border-t border-slate-50">
-              {emp.systemRole !== 'ADMIN' && (
+              {emp.systemRole === 'ADMIN' ? (
+                <button 
+                  onClick={() => setEmployeeToMakeAdmin(emp.id)}
+                  className="flex-1 flex items-center justify-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 px-2 py-3 rounded-[12px] transition-all"
+                >
+                  <Shield size={14} /> Ungrant
+                </button>
+              ) : (
                 <button 
                   onClick={() => setEmployeeToMakeAdmin(emp.id)}
                   className="flex-1 flex items-center justify-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-3 rounded-[12px] transition-all"
@@ -451,30 +465,29 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
                   />
                 </div>
               </div>
-              
-              <div>
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
-                <div className="relative">
-                  <select 
-                    value={newEmployee.department}
-                    onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all appearance-none cursor-pointer"
-                  >
-                    {uniqueDepts.slice(1).map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                  </div>
-                </div>
-              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
+                  <div className="relative">
+                    <select 
+                      value={newEmployee.department}
+                      onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all appearance-none cursor-pointer"
+                    >
+                      {uniqueDepts.slice(1).map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                  </div>
+                </div>
+                <div>
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
                   <input 
-                    type="text" required value={newEmployee.phone}
-                    onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})}
-                    placeholder="+1 (555) 000-0000"
+                    type="tel" maxLength={10} required value={newEmployee.phone}
+                    onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})}
+                    placeholder="e.g. 9876543210"
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
@@ -497,9 +510,13 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 justify-end mt-4 pt-6 border-t border-slate-100">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-6 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors">Cancel</button>
-                <button type="submit" className="w-full sm:w-auto px-6 py-3 bg-[#003F87] text-white rounded-xl text-sm font-bold hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95">Add Employee</button>
+              <div className="flex justify-end gap-3 mt-6">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" className={`px-6 py-2 bg-[#003F87] text-white rounded-lg text-sm font-bold shadow-md ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002B5E]'}`} disabled={isUploading}>
+                  {isUploading ? 'Uploading...' : 'Add Employee'}
+                </button>
               </div>
             </form>
           </div>
@@ -610,28 +627,45 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
       {/* Grant Admin Confirmation Modal */}
       {employeeToMakeAdmin && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 flex flex-col gap-5 text-center items-center">
-            <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 mb-2">
-              <Shield size={28} />
-            </div>
-            <h3 className="text-xl font-black text-slate-900">Grant Admin Privileges?</h3>
-            <p className="text-slate-500 font-medium text-sm">
-              Are you sure you want to grant full Administrator privileges to this user? They will have complete access to the entire dashboard.
-            </p>
-            <div className="flex w-full gap-3 mt-4">
-              <button 
-                onClick={() => setEmployeeToMakeAdmin(null)} 
-                className="flex-1 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => handleGrantAdmin(employeeToMakeAdmin)} 
-                className="flex-1 py-3 bg-emerald-600 rounded-xl text-sm font-bold text-white hover:bg-emerald-700 shadow-md shadow-emerald-900/10 transition-colors"
-              >
-                Grant Admin
-              </button>
-            </div>
+          <div className="bg-white rounded-3xl w-full max-w-md p-8 relative shadow-2xl animate-in zoom-in-95 duration-200">
+          {employees.find(e => e.id === employeeToMakeAdmin)?.systemRole === 'ADMIN' ? (
+            <>
+              <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+                <Shield size={32} />
+              </div>
+              <h2 className="text-2xl font-black text-center text-slate-800 mb-2 tracking-tight">Revoke Admin Privileges?</h2>
+              <p className="text-center text-slate-500 font-medium mb-8 text-sm px-4">
+                This employee will lose access to system settings and user management.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+                <Shield size={32} />
+              </div>
+              <h2 className="text-2xl font-black text-center text-slate-800 mb-2 tracking-tight">Grant Admin Privileges?</h2>
+              <p className="text-center text-slate-500 font-medium mb-8 text-sm px-4">
+                This employee will have full access to the dashboard, including user management and system settings.
+              </p>
+            </>
+          )}
+          
+          <div className="flex gap-4">
+            <button 
+              onClick={() => setEmployeeToMakeAdmin(null)}
+              className="flex-1 px-6 py-3.5 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all text-sm"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={() => handleGrantAdmin(employeeToMakeAdmin)}
+              className={`flex-1 px-6 py-3.5 text-white rounded-xl font-bold shadow-lg transition-all text-sm flex items-center justify-center gap-2 ${
+                employees.find(e => e.id === employeeToMakeAdmin)?.systemRole === 'ADMIN' ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/30' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30'
+              }`}
+            >
+              <Shield size={16} /> Confirm
+            </button>
+          </div>
           </div>
         </div>
       )}

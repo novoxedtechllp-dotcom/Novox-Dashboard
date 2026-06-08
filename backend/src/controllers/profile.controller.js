@@ -58,8 +58,8 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
 
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);
-    if (uploadResult?.url) {
-      updates.avatar_url = uploadResult.url;
+    if (uploadResult && (uploadResult.secure_url || uploadResult.url)) {
+      updates.avatar_url = uploadResult.secure_url || uploadResult.url;
 
       // Delete old avatar from Cloudinary if it exists
       const { data: oldProfile } = await supabase
@@ -72,6 +72,8 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
         const publicId = extractPublicIdFromUrl(oldProfile.avatar_url);
         if (publicId) await deleteFromCloudinary(publicId);
       }
+    } else {
+      throw new ApiError(500, "Failed to upload image to Cloudinary");
     }
   }
 

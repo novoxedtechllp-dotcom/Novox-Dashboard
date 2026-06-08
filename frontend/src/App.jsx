@@ -63,7 +63,8 @@ const mapEmployeeFromApi = (d) => ({
   phone: d.phone,
   status: employeeStatusFromApi(d.status),
   joinDate: d.joining_date ? new Date(d.joining_date).toLocaleDateString() : '',
-  avatar: d.avatar_url || null
+  avatar: d.avatar_url || null,
+  systemRole: d.users?.role || 'EMPLOYEE'
 });
 
 const mapCourseFromApi = (d) => {

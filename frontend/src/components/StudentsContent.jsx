@@ -58,6 +58,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const [newEnrollment, setNewEnrollment] = useState('');
   const [newDocName, setNewDocName] = useState('');
   const [ownershipFilter, setOwnershipFilter] = useState('All Students');
+  const [isUploading, setIsUploading] = useState(false);
 
   const fetchStudents = useCallback(async (currentOwnershipFilter) => {
     setLoading(true);
@@ -114,6 +115,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     if (file) {
       const previewUrl = URL.createObjectURL(file);
       setNewStudent({ ...newStudent, avatarUrl: previewUrl });
+      setIsUploading(true);
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -127,6 +129,9 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         }
       } catch (err) {
         console.error('Upload failed', err);
+        alert('Failed to upload image. Please try again.');
+      } finally {
+        setIsUploading(false);
       }
     }
   };
@@ -143,7 +148,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       const payload = {
         first_name: newStudent.first_name, last_name: newStudent.last_name, phone: newStudent.phone, parent_phone: newStudent.parent_phone,
         address: newStudent.address, joining_date: newStudent.joining_date || new Date().toISOString().split('T')[0],
-        avatar_url: newStudent.avatarUrl?.startsWith('http') ? newStudent.avatarUrl : null
+        avatar_url: newStudent.avatarUrl
       };
       if (newStudent.email) payload.email = newStudent.email;
       if (newStudent.password) payload.password = newStudent.password;
@@ -151,32 +156,13 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
       const response = await fetch('/api/v1/students', { method: 'POST', headers, body: JSON.stringify(payload) });
       const resData = await parseApiResponse(response);
-      const addedStudent = { ...resData.data, avatar: newStudent.avatarUrl };
+      const addedStudent = { ...resData.data, avatar: resData.data?.avatar_url || resData.data?.avatar || newStudent.avatarUrl };
       setStudents([addedStudent, ...students]);
       setIsAddModalOpen(false);
       setNewStudent({ first_name: '', last_name: '', email: '', password: '', phone: '', parent_phone: '', address: '', joining_date: '', course_id: '', avatarUrl: null });
     } catch (error) {
       console.error('Error adding student:', error);
       alert(error.message || 'Failed to add student');
-    }
-  };
-
-  const handleEditImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setStudentToEdit({ ...studentToEdit, avatarUrl: previewUrl });
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const headers = getAuthHeaders();
-        delete headers['Content-Type'];
-        const response = await fetch('/api/v1/upload', { method: 'POST', headers, body: formData });
-        const resData = await response.json();
-        if (response.ok && resData.data?.url) {
-          setStudentToEdit(prev => ({ ...prev, avatarUrl: resData.data.url }));
-        }
-      } catch (err) {}
     }
   };
 
@@ -195,15 +181,17 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         phone: studentToEdit.phone,
         parent_phone: studentToEdit.parent_phone,
         address: studentToEdit.address,
+        joining_date: studentToEdit.joining_date,
+        course_id: studentToEdit.course_id,
         status: studentToEdit.status || 'ACTIVE',
-        avatar_url: studentToEdit.avatarUrl?.startsWith('http') ? studentToEdit.avatarUrl : null
+        avatar_url: (studentToEdit.avatarUrl && !studentToEdit.avatarUrl.startsWith('blob:')) ? studentToEdit.avatarUrl : null
       };
       if (studentToEdit.password) payload.password = studentToEdit.password;
       if (studentToEdit.course_id) payload.course_id = studentToEdit.course_id;
 
       const response = await fetch(`/api/v1/students/${studentToEdit.id}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
       const resData = await parseApiResponse(response);
-      setStudents(students.map(s => s.id === studentToEdit.id ? { ...s, ...payload, avatar: studentToEdit.avatarUrl } : s));
+      setStudents(students.map(s => s.id === studentToEdit.id ? { ...s, ...payload, avatar: resData.data?.avatar_url || resData.data?.avatar || studentToEdit.avatarUrl } : s));
       setIsEditStudentOpen(false);
       setStudentToEdit(null);
       alert('Student updated successfully!');
@@ -349,9 +337,15 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
-      const matchStatus = statusFilter === 'All Statuses' || student.status === statusFilter;
       const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
-      const matchSearch = fullName.includes(searchQuery.toLowerCase()) || student.student_code.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchSearch = searchQuery.trim() === '' ? true : (fullName.includes(searchQuery.toLowerCase()) || student.student_code.toLowerCase().includes(searchQuery.toLowerCase()) || (student.phone && student.phone.includes(searchQuery)));
+      
+      if (searchQuery.trim() !== '') {
+        return matchSearch; // Ignore other filters when searching
+      }
+
+      const matchStatus = statusFilter === 'All Statuses' || student.status === statusFilter;
+      // Note: If you want to also apply courseFilter or ownershipFilter locally, add them here.
       return matchStatus && matchSearch;
     });
   }, [students, statusFilter, searchQuery]);
@@ -565,11 +559,11 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Student Phone *</label>
-                    <input type="text" required value={newStudent.phone} onChange={(e) => setNewStudent({...newStudent, phone: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="+1 234 567 8900" />
+                    <input type="text" maxLength={10} required value={newStudent.phone} onChange={(e) => setNewStudent({...newStudent, phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="9876543210" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Parent/Guardian Phone</label>
-                    <input type="text" value={newStudent.parent_phone} onChange={(e) => setNewStudent({...newStudent, parent_phone: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="+1 234 567 8900" />
+                    <input type="text" maxLength={10} value={newStudent.parent_phone} onChange={(e) => setNewStudent({...newStudent, parent_phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="9876543210" />
                   </div>
                 </div>
                 <div>
@@ -627,12 +621,10 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 </div>
               </div>
 
-              <div className="flex gap-4 justify-end mt-2">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-                  Cancel
-                </button>
-                <button type="submit" className="px-8 py-3 bg-[#003F87] rounded-xl text-sm font-bold text-white hover:bg-[#002B5E] shadow-md shadow-blue-900/10 active:scale-95 transition-all">
-                  Complete Registration
+              <div className="flex justify-end gap-[12px] mt-[24px]">
+                <button className="px-[20px] py-[10px] text-[#555F6B] font-bold text-[14px] hover:bg-slate-100 rounded-lg transition-colors" onClick={() => setIsAddModalOpen(false)}>Cancel</button>
+                <button className={`px-[20px] py-[10px] bg-[#003F87] text-white font-bold text-[14px] rounded-lg transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002b5c]'}`} onClick={handleAddStudent} disabled={isUploading}>
+                  {isUploading ? 'Uploading...' : 'Add Student'}
                 </button>
               </div>
             </form>
@@ -660,21 +652,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
             <form onSubmit={handleUpdateStudent} className="p-8 flex flex-col gap-8 overflow-y-auto bg-slate-50/50">
               <div className="flex items-center gap-8">
-                <div className="relative group shrink-0">
-                  <div className="w-32 h-32 rounded-3xl bg-white border-2 border-dashed border-slate-300 flex flex-col items-center justify-center overflow-hidden transition-colors group-hover:border-[#003F87] group-hover:bg-blue-50/30">
-                    {studentToEdit.avatarUrl ? (
-                      <img src={studentToEdit.avatarUrl} alt="Avatar Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <>
-                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mb-2 text-slate-400 group-hover:text-[#003F87] group-hover:bg-blue-100 transition-colors">
-                          <Upload size={20} />
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-500 group-hover:text-[#003F87]">Upload Photo</span>
-                      </>
-                    )}
-                  </div>
-                  <input type="file" accept="image/*" onChange={handleEditImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                </div>
+
 
                 <div className="flex-1 grid grid-cols-2 gap-5">
                   <div>
@@ -696,14 +674,14 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Phone *</label>
                   <div className="relative">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Phone size={18} /></div>
-                    <input required type="tel" placeholder="+1 (555) 000-0000" value={studentToEdit.phone} onChange={e => setStudentToEdit({...studentToEdit, phone: e.target.value})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                    <input required type="tel" maxLength={10} placeholder="9876543210" value={studentToEdit.phone} onChange={e => setStudentToEdit({...studentToEdit, phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
                 </div>
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Parent Phone *</label>
                   <div className="relative">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Phone size={18} /></div>
-                    <input required type="tel" placeholder="Emergency contact" value={studentToEdit.parent_phone} onChange={e => setStudentToEdit({...studentToEdit, parent_phone: e.target.value})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                    <input required type="tel" maxLength={10} placeholder="9876543210" value={studentToEdit.parent_phone} onChange={e => setStudentToEdit({...studentToEdit, parent_phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
                 </div>
                 <div className="col-span-2">
