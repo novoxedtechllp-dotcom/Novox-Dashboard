@@ -227,6 +227,8 @@ function App() {
   const canViewCourses = userRole === 'ADMIN' || userRole === 'EMPLOYEE';
   const canViewJourney = userRole === 'ADMIN' || isDevelopment || isDesign || isHR || isSales; // General
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
       <Sidebar 
@@ -236,11 +238,20 @@ function App() {
         isDevelopment={isDevelopment} 
         isSales={isSales}
         isMarketing={isMarketing}
-        basePath={basePath} 
+        basePath={basePath}
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
       />
       
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-white min-w-0">
-        <Header onLogout={handleLogout} userInfo={userInfo} basePath={basePath} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+        <Header 
+          onLogout={handleLogout} 
+          userInfo={userInfo} 
+          basePath={basePath} 
+          searchQuery={searchQuery} 
+          setSearchQuery={setSearchQuery} 
+          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
         <div className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Navigate to={`${basePath}/dashboard`} replace />} />

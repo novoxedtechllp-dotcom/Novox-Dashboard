@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Search, Bell, HelpCircle, User, LogOut, Settings } from 'lucide-react';
+import { Search, Bell, HelpCircle, User, LogOut, Settings, Menu } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 
-const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', setSearchQuery = () => {} }) => {
+const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', setSearchQuery = () => {}, toggleSidebar }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   const showSearchBar = ['students', 'employees', 'courses'].includes(activeTab);
@@ -45,11 +45,17 @@ const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', set
   }
 
   return (
-    <header className="h-[64px] min-h-[64px] bg-white border-b border-[#C2C6D4] px-[24px] flex items-center justify-between">
+    <header className="h-[64px] min-h-[64px] bg-white border-b border-[#C2C6D4] px-[16px] md:px-[24px] flex items-center justify-between">
       {/* Search Bar & Title */}
-      <div className="flex items-center gap-[24px]">
+      <div className="flex items-center gap-[12px] md:gap-[24px]">
+        <button 
+          onClick={toggleSidebar}
+          className="lg:hidden p-[8px] text-[#555F6B] hover:bg-slate-100 rounded-md transition-colors"
+        >
+          <Menu size={20} />
+        </button>
         {showSearchBar && (
-          <div className="flex items-center gap-2 bg-[#F8FAFC] px-[16px] py-[8px] rounded-md w-[320px] h-[36px]">
+          <div className="hidden sm:flex items-center gap-2 bg-[#F8FAFC] px-[16px] py-[8px] rounded-md w-[240px] md:w-[320px] h-[36px]">
             <Search size={16} className="text-[#555F6B]" />
             <input 
               type="text" 
