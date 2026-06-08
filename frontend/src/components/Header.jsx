@@ -3,9 +3,11 @@ import { useLocation, Link } from 'react-router-dom';
 import { Search, Bell, HelpCircle, User, LogOut, Settings } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 
-const Header = ({ onLogout, userInfo, basePath = '/admin' }) => {
+const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', setSearchQuery = () => {} }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
+  const showSearchBar = ['students', 'employees', 'courses'].includes(activeTab);
+  
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
@@ -46,14 +48,18 @@ const Header = ({ onLogout, userInfo, basePath = '/admin' }) => {
     <header className="h-[64px] min-h-[64px] bg-white border-b border-[#C2C6D4] px-[24px] flex items-center justify-between">
       {/* Search Bar & Title */}
       <div className="flex items-center gap-[24px]">
-        <div className="flex items-center gap-2 bg-[#F8FAFC] px-[16px] py-[8px] rounded-md w-[320px] h-[36px]">
-          <Search size={16} className="text-[#555F6B]" />
-          <input 
-            type="text" 
-            placeholder={activeTab === 'students' ? "Search by student ID, name..." : activeTab === 'courses' ? "Search courses, mentors, or IDs..." : activeTab === 'fees' ? "Search transactions, students..." : activeTab === 'sales-crm' ? "Search leads, status, or courses..." : activeTab === 'whatsapp-automation' ? "Search templates or logs..." : activeTab === 'leaderboard' ? "Search students, rankings, or courses..." : activeTab === 'journey' ? "Search institutional data, courses, or guides..." : activeTab === 'seo' ? "Search across automation tasks..." : "Search students or records..."} 
-            className="bg-transparent border-none outline-none text-[13px] w-full text-slate-800 placeholder:text-[#555F6B]"
-          />
-        </div>
+        {showSearchBar && (
+          <div className="flex items-center gap-2 bg-[#F8FAFC] px-[16px] py-[8px] rounded-md w-[320px] h-[36px]">
+            <Search size={16} className="text-[#555F6B]" />
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={activeTab === 'students' ? "Search by student ID, name..." : activeTab === 'courses' ? "Search courses, mentors, or IDs..." : "Search employees..."} 
+              className="bg-transparent border-none outline-none text-[13px] w-full text-slate-800 placeholder:text-[#555F6B]"
+            />
+          </div>
+        )}
       </div>
       
       {/* Header Actions */}

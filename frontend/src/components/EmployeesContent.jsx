@@ -57,10 +57,11 @@ const mapEmployeeFromApi = (employee, avatar = null) => ({
   status: statusFromApi(employee.status),
   joinDate: employee.joining_date ? new Date(employee.joining_date).toLocaleDateString() : '',
   avatar: avatar || employee.avatar_url || null,
+  email: employee.users?.email || '',
   systemRole: employee.users?.role || 'EMPLOYEE'
 });
 
-const EmployeesContent = ({ employees = [], setEmployees }) => {
+const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) => {
   const [toast, setToast] = useState(null);
   const alert = (message) => {
     const isError = typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error'));
@@ -106,11 +107,15 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
           body: formData
         });
         const resData = await response.json();
-        if (response.ok && resData.data?.url) {
+        if (!response.ok) {
+          throw new Error(resData.message || 'Upload failed');
+        }
+        if (resData.data?.url) {
           setNewEmployee(prev => ({ ...prev, avatarUrl: resData.data.url }));
         }
       } catch (err) {
         console.error('Upload failed', err);
+        setNewEmployee(prev => ({ ...prev, avatarUrl: null }));
         alert('Failed to upload image. Please try again.');
       } finally {
         setIsUploading(false);
@@ -260,8 +265,16 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
     if (statusFilter !== 'All Statuses') {
       filtered = filtered.filter(emp => emp.status === statusFilter);
     }
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(emp => 
+        (emp.name && emp.name.toLowerCase().includes(q)) ||
+        (emp.eid && emp.eid.toLowerCase().includes(q)) ||
+        (emp.phone && emp.phone.includes(searchQuery))
+      );
+    }
     return filtered;
-  }, [employees, deptFilter, statusFilter]);
+  }, [employees, deptFilter, statusFilter, searchQuery]);
 
   const uniqueDepts = ['All Departments', 'Development', 'Marketing', 'Sales', 'HR'];
   const uniqueStatuses = ['All Statuses', 'Active', 'On Leave', 'Terminated'];

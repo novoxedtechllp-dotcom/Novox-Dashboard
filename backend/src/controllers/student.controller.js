@@ -5,7 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary, extractPublicIdFromUrl, deleteFromCloudinary } from "../utils/cloudinary.js";
 import bcrypt from "bcrypt";
 
-const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, address, joining_date, status, avatar_url, created_at";
+const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, address, joining_date, status, avatar_url, created_at, users(email)";
 
 // ==========================================
 // CORE STUDENT CRUD

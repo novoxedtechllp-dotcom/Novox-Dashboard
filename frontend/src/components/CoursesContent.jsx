@@ -61,7 +61,7 @@ const formatDateToDDMMYYYY = (dateStr) => {
   return dateStr;
 };
 
-const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
+const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery = '' }) => {
   const [toast, setToast] = useState(null);
   const alert = (message) => {
     const isError = typeof message === 'string' && (message.toLowerCase().includes('fail') || message.toLowerCase().includes('error'));
@@ -394,9 +394,17 @@ const CoursesContent = ({ courses = [], setCourses, employees = [] }) => {
         normalizedCourses = normalizedCourses.filter(c => String(c.mentorId) === String(currentEmployee.id));
       }
     }
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase();
+      normalizedCourses = normalizedCourses.filter(c => 
+        (c.title && c.title.toLowerCase().includes(q)) ||
+        (c.track && c.track.toLowerCase().includes(q)) ||
+        (c.cid && c.cid.toLowerCase().includes(q))
+      );
+    }
     
     return normalizedCourses;
-  }, [courses, categoryFilter, ownershipFilter, employees]);
+  }, [courses, categoryFilter, ownershipFilter, employees, searchQuery]);
 
   const uniqueCategories = ['All Categories', 'DEVELOPMENT', 'MARKETING', 'DESIGN'];
 

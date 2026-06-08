@@ -64,6 +64,7 @@ const mapEmployeeFromApi = (d) => ({
   status: employeeStatusFromApi(d.status),
   joinDate: d.joining_date ? new Date(d.joining_date).toLocaleDateString() : '',
   avatar: d.avatar_url || null,
+  email: d.users?.email || '',
   systemRole: d.users?.role || 'EMPLOYEE'
 });
 
@@ -93,6 +94,7 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!initialUserInfo);
   const [userRole, setUserRole] = useState(initialUserInfo ? initialUserInfo.role : null);
   const [userInfo, setUserInfo] = useState(initialUserInfo);
+  const [searchQuery, setSearchQuery] = useState('');
   const [courses, setCourses] = useState([]);
   const [employees, setEmployees] = useState([]);
 
@@ -238,7 +240,7 @@ function App() {
       />
       
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-white min-w-0">
-        <Header onLogout={handleLogout} userInfo={userInfo} basePath={basePath} />
+        <Header onLogout={handleLogout} userInfo={userInfo} basePath={basePath} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
         <div className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Navigate to={`${basePath}/dashboard`} replace />} />
@@ -247,15 +249,15 @@ function App() {
             <Route path={`${basePath}/dashboard`} element={userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />} />
             <Route path={`${basePath}/daily-plan`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
             {/* <Route path={`${basePath}/attendance`} element={<AttendanceContent employees={employees} courses={courses} />} /> */}
-            <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} />} />
+            <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
             <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
             <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
             <Route path={`${basePath}/settings`} element={<SettingsContent />} />
             <Route path={`${basePath}/profile`} element={<EmployeeProfile />} />
             <Route path={`${basePath}/support`} element={<SupportContent />} />
 
-            {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} />} />}
-            {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} />} />}
+            {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} />} />}
+            {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} />} />}
             {canViewFees && <Route path={`${basePath}/fees`} element={<FeesContent />} />}
             {canViewPayroll && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
             {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} />} />}

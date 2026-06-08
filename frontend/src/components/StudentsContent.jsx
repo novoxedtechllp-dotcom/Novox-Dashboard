@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import LoadingSpinner from './LoadingSpinner';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail } from 'lucide-react';
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -94,7 +94,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
           address: d.address || 'N/A',
           joining_date: d.joining_date || new Date().toISOString().split('T')[0],
           status: d.status || 'ACTIVE',
-          avatar: d.avatar_url || null
+          avatar: d.avatar_url || null,
+          email: d.users?.email || ''
         }));
         setStudents(mappedData);
       }
@@ -124,11 +125,15 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         
         const response = await fetch('/api/v1/upload', { method: 'POST', headers, body: formData });
         const resData = await response.json();
-        if (response.ok && resData.data?.url) {
+        if (!response.ok) {
+          throw new Error(resData.message || 'Upload failed');
+        }
+        if (resData.data?.url) {
           setNewStudent(prev => ({ ...prev, avatarUrl: resData.data.url }));
         }
       } catch (err) {
         console.error('Upload failed', err);
+        setNewStudent(prev => ({ ...prev, avatarUrl: null }));
         alert('Failed to upload image. Please try again.');
       } finally {
         setIsUploading(false);
@@ -160,7 +165,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       const payload = {
         first_name: newStudent.first_name, last_name: newStudent.last_name, phone: newStudent.phone, parent_phone: newStudent.parent_phone,
         address: newStudent.address, joining_date: newStudent.joining_date || new Date().toISOString().split('T')[0],
-        avatar_url: newStudent.avatarUrl
+        avatar_url: (newStudent.avatarUrl && !newStudent.avatarUrl.startsWith('blob:')) ? newStudent.avatarUrl : null
       };
       if (newStudent.email) payload.email = newStudent.email;
       if (newStudent.password) payload.password = newStudent.password;
@@ -858,6 +863,13 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                           <div>
                             <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Student Phone</div>
                             <div className="text-[15px] font-bold text-slate-800">{activeStudent.phone || 'N/A'}</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-4 items-start">
+                          <div className="w-10 h-10 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center shrink-0"><Mail size={18} /></div>
+                          <div>
+                            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Email Address</div>
+                            <div className="text-[15px] font-bold text-slate-800">{activeStudent.email || 'N/A'}</div>
                           </div>
                         </div>
                         <div className="flex gap-4 items-start">

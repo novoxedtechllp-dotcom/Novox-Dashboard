@@ -88,7 +88,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
   } = req.body;
 
   if (!first_name || !email || !phone) {
-    throw new ApiError(400, "Please provide Name, Email, and Phone number");
+    throw new ApiError(400, "Name, Email, and Phone are mandatory fields");
   }
 
   if (phone.length !== 10) {
