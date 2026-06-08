@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import LoadingSpinner from './LoadingSpinner';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil } from 'lucide-react';
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -35,6 +35,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   const [loading, setLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditStudentOpen, setIsEditStudentOpen] = useState(false);
+  const [studentToEdit, setStudentToEdit] = useState(null);
   const [studentToDelete, setStudentToDelete] = useState(null);
   
   // "View Details" Modal State
@@ -131,7 +133,10 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   const handleAddStudent = async (e) => {
     e.preventDefault();
-    if (!newStudent.first_name || !newStudent.last_name) return;
+    if (!newStudent.first_name || !newStudent.last_name || !newStudent.email || !newStudent.password || !newStudent.phone || !newStudent.address || !newStudent.course_id || !newStudent.parent_phone) {
+      alert("All details are mandatory for enrolling a student.");
+      return;
+    }
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
@@ -153,6 +158,58 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     } catch (error) {
       console.error('Error adding student:', error);
       alert(error.message || 'Failed to add student');
+    }
+  };
+
+  const handleEditImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setStudentToEdit({ ...studentToEdit, avatarUrl: previewUrl });
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const headers = getAuthHeaders();
+        delete headers['Content-Type'];
+        const response = await fetch('/api/v1/upload', { method: 'POST', headers, body: formData });
+        const resData = await response.json();
+        if (response.ok && resData.data?.url) {
+          setStudentToEdit(prev => ({ ...prev, avatarUrl: resData.data.url }));
+        }
+      } catch (err) {}
+    }
+  };
+
+  const handleUpdateStudent = async (e) => {
+    e.preventDefault();
+    if (!studentToEdit.first_name || !studentToEdit.last_name || !studentToEdit.phone || !studentToEdit.address || !studentToEdit.parent_phone) {
+      alert("Please fill all required fields.");
+      return;
+    }
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+      const payload = {
+        first_name: studentToEdit.first_name,
+        last_name: studentToEdit.last_name,
+        phone: studentToEdit.phone,
+        parent_phone: studentToEdit.parent_phone,
+        address: studentToEdit.address,
+        status: studentToEdit.status || 'ACTIVE',
+        avatar_url: studentToEdit.avatarUrl?.startsWith('http') ? studentToEdit.avatarUrl : null
+      };
+      if (studentToEdit.password) payload.password = studentToEdit.password;
+      if (studentToEdit.course_id) payload.course_id = studentToEdit.course_id;
+
+      const response = await fetch(`/api/v1/students/${studentToEdit.id}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
+      const resData = await parseApiResponse(response);
+      setStudents(students.map(s => s.id === studentToEdit.id ? { ...s, ...payload, avatar: studentToEdit.avatarUrl } : s));
+      setIsEditStudentOpen(false);
+      setStudentToEdit(null);
+      alert('Student updated successfully!');
+    } catch (error) {
+      console.error('Error updating student:', error);
+      alert(error.message || 'Failed to update student');
     }
   };
 
@@ -435,6 +492,13 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                   <FileText size={14} /> Full Details
                 </button>
                 <button 
+                  onClick={(e) => { e.stopPropagation(); setStudentToEdit({...student, avatarUrl: student.avatar}); setIsEditStudentOpen(true); }}
+                  className="flex shrink-0 items-center justify-center w-12 h-10 text-emerald-500 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-600 rounded-[12px] transition-all"
+                  title="Edit Student"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button 
                   onClick={(e) => { e.stopPropagation(); setStudentToDelete(student.id); }}
                   className="flex shrink-0 items-center justify-center w-12 h-10 text-rose-500 bg-rose-50 hover:bg-rose-100 hover:text-rose-600 rounded-[12px] transition-all"
                   title="Remove Student"
@@ -569,6 +633,116 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 </button>
                 <button type="submit" className="px-8 py-3 bg-[#003F87] rounded-xl text-sm font-bold text-white hover:bg-[#002B5E] shadow-md shadow-blue-900/10 active:scale-95 transition-all">
                   Complete Registration
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isEditStudentOpen && studentToEdit && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsEditStudentOpen(false)}>
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-300" onClick={e => e.stopPropagation()}>
+            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center rotate-3">
+                  <Pencil size={24} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-800 leading-tight">Edit Student</h2>
+                  <p className="text-sm font-medium text-slate-500 mt-1">Update student information</p>
+                </div>
+              </div>
+              <button onClick={() => setIsEditStudentOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateStudent} className="p-8 flex flex-col gap-8 overflow-y-auto bg-slate-50/50">
+              <div className="flex items-center gap-8">
+                <div className="relative group shrink-0">
+                  <div className="w-32 h-32 rounded-3xl bg-white border-2 border-dashed border-slate-300 flex flex-col items-center justify-center overflow-hidden transition-colors group-hover:border-[#003F87] group-hover:bg-blue-50/30">
+                    {studentToEdit.avatarUrl ? (
+                      <img src={studentToEdit.avatarUrl} alt="Avatar Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <>
+                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mb-2 text-slate-400 group-hover:text-[#003F87] group-hover:bg-blue-100 transition-colors">
+                          <Upload size={20} />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-500 group-hover:text-[#003F87]">Upload Photo</span>
+                      </>
+                    )}
+                  </div>
+                  <input type="file" accept="image/*" onChange={handleEditImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                </div>
+
+                <div className="flex-1 grid grid-cols-2 gap-5">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">First Name *</label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><User size={18} /></div>
+                      <input required type="text" placeholder="e.g. John" value={studentToEdit.first_name} onChange={e => setStudentToEdit({...studentToEdit, first_name: e.target.value})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Last Name *</label>
+                    <input required type="text" placeholder="e.g. Doe" value={studentToEdit.last_name} onChange={e => setStudentToEdit({...studentToEdit, last_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-5">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Phone *</label>
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Phone size={18} /></div>
+                    <input required type="tel" placeholder="+1 (555) 000-0000" value={studentToEdit.phone} onChange={e => setStudentToEdit({...studentToEdit, phone: e.target.value})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Parent Phone *</label>
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Phone size={18} /></div>
+                    <input required type="tel" placeholder="Emergency contact" value={studentToEdit.parent_phone} onChange={e => setStudentToEdit({...studentToEdit, parent_phone: e.target.value})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Address *</label>
+                  <div className="relative">
+                    <div className="absolute left-4 top-4 text-slate-400"><MapPin size={18} /></div>
+                    <textarea required placeholder="Full residential address" value={studentToEdit.address} onChange={e => setStudentToEdit({...studentToEdit, address: e.target.value})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all min-h-[100px] resize-none" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-800 mb-5 flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-blue-50 text-[#003F87] flex items-center justify-center"><GraduationCap size={14} /></div>
+                  Academic Details
+                </h3>
+                <div className="grid grid-cols-2 gap-5">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Status</label>
+                    <select
+                      value={studentToEdit.status}
+                      onChange={e => setStudentToEdit({...studentToEdit, status: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all appearance-none"
+                    >
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="INACTIVE">INACTIVE</option>
+                      <option value="GRADUATED">GRADUATED</option>
+                      <option value="SUSPENDED">SUSPENDED</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 justify-end mt-2">
+                <button type="button" onClick={() => setIsEditStudentOpen(false)} className="px-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" className="px-8 py-3 bg-[#003F87] rounded-xl text-sm font-bold text-white hover:bg-[#002B5E] shadow-md shadow-blue-900/10 active:scale-95 transition-all">
+                  Save Changes
                 </button>
               </div>
             </form>
