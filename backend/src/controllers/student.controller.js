@@ -49,6 +49,14 @@ const createStudent = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Please provide Name, Email, and Phone number");
   }
 
+  if (phone.length !== 10) {
+    throw new ApiError(400, "Phone number must be exactly 10 digits");
+  }
+
+  if (parent_phone && parent_phone.length !== 10) {
+    throw new ApiError(400, "Parent phone number must be exactly 10 digits");
+  }
+
   let avatarUrl = avatar_url || null;
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);
@@ -212,7 +220,21 @@ const getStudentById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/students/:id
 const updateStudent = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
-  const { first_name, last_name, phone, parent_phone, address, status, avatar_url } = req.body;
+  const { first_name, last_name, phone, parent_phone, address, status, avatar_url, email } = req.body;
+
+  if (email !== undefined) {
+    const { data: currentStudent } = await supabase.from("students").select("user_id").eq("id", studentId).single();
+    if (currentStudent?.user_id) {
+      await supabase.from("users").update({ email }).eq("id", currentStudent.user_id);
+    }
+  }
+
+  if (phone !== undefined && phone.length !== 10) {
+    throw new ApiError(400, "Phone number must be exactly 10 digits");
+  }
+  if (parent_phone !== undefined && parent_phone.length !== 10) {
+    throw new ApiError(400, "Parent phone number must be exactly 10 digits");
+  }
 
   const updates = {};
   if (first_name !== undefined) updates.first_name = first_name;

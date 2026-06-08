@@ -91,6 +91,10 @@ export const createEmployee = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Please provide Name, Email, and Phone number");
   }
 
+  if (phone.length !== 10) {
+    throw new ApiError(400, "Phone number must be exactly 10 digits");
+  }
+
   let avatarUrl = avatar_url || null;
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);
@@ -210,7 +214,18 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/employees/:id
 export const updateEmployee = asyncHandler(async (req, res) => {
   const { employeeId } = req.params;
-  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url, grant_admin } = req.body;
+  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url, grant_admin, email } = req.body;
+
+  if (email !== undefined) {
+    const { data: currentEmployee } = await supabase.from("employee_profiles").select("user_id").eq("id", employeeId).single();
+    if (currentEmployee?.user_id) {
+      await supabase.from("users").update({ email }).eq("id", currentEmployee.user_id);
+    }
+  }
+
+  if (phone !== undefined && phone.length !== 10) {
+    throw new ApiError(400, "Phone number must be exactly 10 digits");
+  }
 
   const updates = {};
   if (first_name !== undefined) updates.first_name = first_name;
@@ -289,22 +304,34 @@ export const deleteEmployee = asyncHandler(async (req, res) => {
 
   const { data: employee } = await supabase
     .from("employee_profiles")
-    .select("user_id")
+    .select("user_id, status")
     .eq("id", employeeId)
     .single();
 
+  if (!employee) throw new ApiError(404, "Employee not found");
+
+  if (employee.status === 'TERMINATED') {
+    // Hard delete
+    await supabase.from("employee_documents").delete().eq("employee_id", employeeId);
+    await supabase.from("employee_profiles").delete().eq("id", employeeId);
+    if (employee.user_id) {
+       await supabase.from("users").delete().eq("id", employee.user_id);
+    }
+    return res.status(200).json(new ApiResponse(200, {}, "Employee deleted permanently"));
+  }
+
+  // Soft delete (Terminate)
   const { data, error } = await supabase
     .from("employee_profiles")
     .update({ status: 'TERMINATED' })
     .eq("id", employeeId)
     .select();
 
-  if (error) throw new ApiError(500, error.message || "Failed to delete employee");
-  if (!data || data.length === 0) throw new ApiError(404, "Employee not found");
+  if (error) throw new ApiError(500, error.message || "Failed to terminate employee");
 
   if (employee?.user_id) await supabase.from("users").update({ status: 'INACTIVE' }).eq("id", employee.user_id);
 
-  return res.status(200).json(new ApiResponse(200, {}, "Employee deleted successfully (soft delete)"));
+  return res.status(200).json(new ApiResponse(200, {}, "Employee terminated successfully"));
 });
 
 // ==========================================

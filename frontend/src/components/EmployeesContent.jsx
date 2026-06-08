@@ -128,6 +128,10 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
       alert("Name, email, and phone number are mandatory for enrolling an employee.");
       return;
     }
+    if (newEmployee.phone.length !== 10) {
+      alert("Phone number must be exactly 10 digits.");
+      return;
+    }
 
     try {
       const headers = getAuthHeaders();
@@ -197,10 +201,15 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
         method: 'DELETE',
         headers
       });
-      await parseApiResponse(response);
+      const resData = await parseApiResponse(response);
 
-      setEmployees(employees.filter(emp => emp.id !== id));
-      alert('Employee deleted successfully!');
+      if (resData.message && resData.message.includes('permanently')) {
+        setEmployees(employees.filter(emp => emp.id !== id));
+        alert('Employee deleted permanently!');
+      } else {
+        setEmployees(employees.map(emp => emp.id === id ? { ...emp, status: 'Terminated' } : emp));
+        alert('Employee terminated successfully!');
+      }
     } catch (error) {
       console.error('Error deleting employee:', error);
       alert(error.message || 'Failed to delete employee');
@@ -209,6 +218,10 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
   const handleUpdateEmployee = async (e) => {
     e.preventDefault();
+    if (employeeToEdit.phone && employeeToEdit.phone.length !== 10) {
+      alert("Phone number must be exactly 10 digits.");
+      return;
+    }
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
@@ -221,6 +234,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
           first_name,
           last_name,
           phone: employeeToEdit.phone,
+          email: employeeToEdit.email,
           department: departmentToApi(employeeToEdit.department),
           designation: employeeToEdit.department,
           status: statusToApi(employeeToEdit.status)
@@ -388,7 +402,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
                 onClick={() => setEmployeeToDelete(emp.id)}
                 className="flex-1 flex items-center justify-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 px-2 py-3 rounded-[12px] transition-all"
               >
-                <Trash2 size={14} /> Terminate
+                <Trash2 size={14} /> {emp.status === 'Terminated' ? 'Delete' : 'Terminate'}
               </button>
             </div>
 
@@ -550,6 +564,15 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                 />
               </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email *</label>
+                <input 
+                  type="email" required value={employeeToEdit.email}
+                  onChange={(e) => setEmployeeToEdit({...employeeToEdit, email: e.target.value})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
+                />
+              </div>
               
               <div>
                 <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
@@ -611,8 +634,14 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
             <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-2">
               <Trash2 size={28} />
             </div>
-            <h3 className="text-xl font-black text-slate-900">Terminate Employee?</h3>
-            <p className="text-slate-500 font-medium text-sm">This action cannot be undone. All data associated with this employee will be permanently removed.</p>
+            <h3 className="text-xl font-black text-slate-900">
+              {employees.find(e => e.id === employeeToDelete)?.status === 'Terminated' ? 'Delete Employee?' : 'Terminate Employee?'}
+            </h3>
+            <p className="text-slate-500 font-medium text-sm">
+              {employees.find(e => e.id === employeeToDelete)?.status === 'Terminated' 
+                ? 'This action cannot be undone. All data associated with this employee will be permanently removed.' 
+                : 'This will mark the employee as terminated and revoke their login access. You can permanently delete them later.'}
+            </p>
             <div className="flex w-full gap-3 mt-4">
               <button 
                 onClick={() => setEmployeeToDelete(null)} 
@@ -624,7 +653,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
                 onClick={() => { handleDeleteEmployee(employeeToDelete); setEmployeeToDelete(null); }} 
                 className="flex-1 py-3 bg-rose-600 rounded-xl text-sm font-bold text-white hover:bg-rose-700 shadow-md shadow-rose-900/10 transition-colors"
               >
-                Terminate
+                {employees.find(e => e.id === employeeToDelete)?.status === 'Terminated' ? 'Yes, Delete' : 'Yes, Terminate'}
               </button>
             </div>
           </div>

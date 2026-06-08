@@ -23,18 +23,15 @@ export const getMyProfile = asyncHandler(async (req, res) => {
 
   if (userError || !user) throw new ApiError(404, "User not found");
 
-  // Get employee profile if exists
-  const { data: employeeProfile } = await supabase
-    .from("employee_profiles")
-    .select(`
-      *,
-      employee_roles(role_name)
-    `)
-    .eq("user_id", userId)
-    .single();
+  const isStudent = user.role === "STUDENT";
+  const tableName = isStudent ? "students" : "employee_profiles";
+  
+  let query = supabase.from(tableName).select(isStudent ? "*" : "*, employee_roles(role_name)").eq("user_id", userId).single();
+
+  const { data: profile } = await query;
 
   return res.status(200).json(
-    new ApiResponse(200, { user, employeeProfile: employeeProfile || null }, "Profile fetched successfully")
+    new ApiResponse(200, { user, employeeProfile: profile || null }, "Profile fetched successfully")
   );
 });
 
@@ -47,9 +44,22 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Unauthorized");
   }
 
-  const { first_name, last_name, phone, avatar_url } = req.body;
+  const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
+  const isStudent = user?.role === "STUDENT";
+  const tableName = isStudent ? "students" : "employee_profiles";
 
-  // 1. Update Employee Profile Details
+  const { first_name, last_name, phone, avatar_url, password } = req.body;
+
+  if (phone !== undefined && phone.length !== 10) {
+    throw new ApiError(400, "Phone number must be exactly 10 digits");
+  }
+
+  if (password) {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const { error: pwdError } = await supabase.from("users").update({ password_hash: hashedPassword }).eq("id", userId);
+    if (pwdError) throw new ApiError(500, "Failed to update password");
+  }
+
   const updates = {};
   if (first_name) updates.first_name = first_name;
   if (last_name) updates.last_name = last_name;
@@ -63,7 +73,7 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
 
       // Delete old avatar from Cloudinary if it exists
       const { data: oldProfile } = await supabase
-        .from("employee_profiles")
+        .from(tableName)
         .select("avatar_url")
         .eq("user_id", userId)
         .single();
@@ -80,14 +90,8 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
   let updatedProfile = null;
 
   if (Object.keys(updates).length > 0) {
-    const { data, error } = await supabase
-      .from("employee_profiles")
-      .update(updates)
-      .eq("user_id", userId)
-      .select(`
-        *,
-        employee_roles(role_name)
-      `);
+    let query = supabase.from(tableName).update(updates).eq("user_id", userId).select(isStudent ? "*" : "*, employee_roles(role_name)");
+    const { data, error } = await query;
 
     if (error) throw new ApiError(500, "Failed to update profile details");
     if (data && data.length > 0) {
@@ -95,25 +99,19 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
     }
   } else {
     // Just fetch current profile to return
-    const { data } = await supabase
-      .from("employee_profiles")
-      .select(`
-        *,
-        employee_roles(role_name)
-      `)
-      .eq("user_id", userId)
-      .single();
+    let query = supabase.from(tableName).select(isStudent ? "*" : "*, employee_roles(role_name)").eq("user_id", userId).single();
+    const { data } = await query;
     updatedProfile = data;
   }
 
   // Fetch latest user data
-  const { data: user } = await supabase
+  const { data: updatedUser } = await supabase
     .from("users")
     .select("id, email, role, status")
     .eq("id", userId)
     .single();
 
   return res.status(200).json(
-    new ApiResponse(200, { user, employeeProfile: updatedProfile }, "Profile updated successfully")
+    new ApiResponse(200, { user: updatedUser, employeeProfile: updatedProfile }, "Profile updated successfully")
   );
 });

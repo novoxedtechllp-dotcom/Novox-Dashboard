@@ -81,6 +81,12 @@ const EmployeeProfile = () => {
 
   const handleSave = async () => {
     setSaving(true);
+    if (formData.phone && formData.phone.length !== 10) {
+      alert("Phone number must be exactly 10 digits.");
+      setSaving(false);
+      return;
+    }
+
     try {
       const userInfoStr = sessionStorage.getItem('userInfo');
       const sessionUser = userInfoStr ? JSON.parse(userInfoStr) : null;

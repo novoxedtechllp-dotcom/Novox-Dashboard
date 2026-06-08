@@ -146,6 +146,14 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       alert("Name, email, and phone number are mandatory for enrolling a student.");
       return;
     }
+    if (newStudent.phone.length !== 10) {
+      alert("Phone number must be exactly 10 digits.");
+      return;
+    }
+    if (newStudent.parent_phone && newStudent.parent_phone.length !== 10) {
+      alert("Parent phone number must be exactly 10 digits.");
+      return;
+    }
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
@@ -176,6 +184,14 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       alert("Please fill all required fields (Name and Phone).");
       return;
     }
+    if (studentToEdit.phone.length !== 10) {
+      alert("Phone number must be exactly 10 digits.");
+      return;
+    }
+    if (studentToEdit.parent_phone && studentToEdit.parent_phone.length !== 10) {
+      alert("Parent phone number must be exactly 10 digits.");
+      return;
+    }
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
@@ -183,6 +199,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         first_name: studentToEdit.first_name,
         last_name: studentToEdit.last_name,
         phone: studentToEdit.phone,
+        email: studentToEdit.email,
         parent_phone: studentToEdit.parent_phone,
         address: studentToEdit.address,
         joining_date: studentToEdit.joining_date,
@@ -669,6 +686,10 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                   <div>
                     <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Last Name</label>
                     <input type="text" placeholder="e.g. Doe" value={studentToEdit.last_name} onChange={e => setStudentToEdit({...studentToEdit, last_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Email *</label>
+                    <input required type="email" placeholder="e.g. john@example.com" value={studentToEdit.email} onChange={e => setStudentToEdit({...studentToEdit, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
                 </div>
               </div>
