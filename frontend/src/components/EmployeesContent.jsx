@@ -120,7 +120,14 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
   const handleAddEmployee = async (e) => {
     e.preventDefault();
-    if (!newEmployee.name) return;
+    if (isUploading) {
+      alert('Please wait for the image to finish uploading before saving.');
+      return;
+    }
+    if (!newEmployee.name || !newEmployee.email || !newEmployee.phone) {
+      alert("Name, email, and phone number are mandatory for enrolling an employee.");
+      return;
+    }
 
     try {
       const headers = getAuthHeaders();
@@ -329,11 +336,11 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
                 </div>
                 
                 <div className="flex items-center gap-2 mb-1.5 mt-1">
-                  <span className="inline-block bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+                  <span className="inline-flex items-center justify-center whitespace-nowrap shrink-0 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
                     {emp.eid}
                   </span>
                   {emp.systemRole === 'ADMIN' && (
-                    <span className="inline-block bg-purple-50 text-purple-600 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <span className="inline-flex items-center justify-center whitespace-nowrap shrink-0 bg-purple-50 text-purple-600 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md gap-1">
                       <Shield size={10} /> Admin
                     </span>
                   )}
@@ -447,9 +454,9 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email <span className="text-slate-300 normal-case font-normal">(optional)</span></label>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email *</label>
                   <input 
-                    type="email" value={newEmployee.email}
+                    type="email" required value={newEmployee.email}
                     onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
                     placeholder="john@example.com"
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
@@ -536,7 +543,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
             
             <form onSubmit={handleUpdateEmployee} className="p-8 flex flex-col gap-6">
               <div>
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name</label>
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name *</label>
                 <input 
                   type="text" required value={employeeToEdit.name}
                   onChange={(e) => setEmployeeToEdit({...employeeToEdit, name: e.target.value})}
@@ -562,7 +569,7 @@ const EmployeesContent = ({ employees = [], setEmployees }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number</label>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
                   <input 
                     type="text" required value={employeeToEdit.phone}
                     onChange={(e) => setEmployeeToEdit({...employeeToEdit, phone: e.target.value})}

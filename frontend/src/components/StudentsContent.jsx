@@ -138,8 +138,12 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   const handleAddStudent = async (e) => {
     e.preventDefault();
-    if (!newStudent.first_name || !newStudent.last_name || !newStudent.email || !newStudent.password || !newStudent.phone || !newStudent.address || !newStudent.course_id || !newStudent.parent_phone) {
-      alert("All details are mandatory for enrolling a student.");
+    if (isUploading) {
+      alert('Please wait for the image to finish uploading before saving.');
+      return;
+    }
+    if (!newStudent.first_name || !newStudent.email || !newStudent.phone) {
+      alert("Name, email, and phone number are mandatory for enrolling a student.");
       return;
     }
     try {
@@ -168,8 +172,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   const handleUpdateStudent = async (e) => {
     e.preventDefault();
-    if (!studentToEdit.first_name || !studentToEdit.last_name || !studentToEdit.phone || !studentToEdit.address || !studentToEdit.parent_phone) {
-      alert("Please fill all required fields.");
+    if (!studentToEdit.first_name || !studentToEdit.phone) {
+      alert("Please fill all required fields (Name and Phone).");
       return;
     }
     try {
@@ -552,8 +556,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     <input type="text" required value={newStudent.first_name} onChange={(e) => setNewStudent({...newStudent, first_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="John" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Last Name *</label>
-                    <input type="text" required value={newStudent.last_name} onChange={(e) => setNewStudent({...newStudent, last_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="Doe" />
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Last Name</label>
+                    <input type="text" value={newStudent.last_name} onChange={(e) => setNewStudent({...newStudent, last_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="Doe" />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
@@ -577,8 +581,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><Briefcase size={16} className="text-[#003F87]" /> Account & Enrollment Setup</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Email Address</label>
-                    <input type="email" value={newStudent.email} onChange={(e) => setNewStudent({...newStudent, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="student@example.com" />
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Email Address *</label>
+                    <input type="email" required value={newStudent.email} onChange={(e) => setNewStudent({...newStudent, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="student@example.com" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Password</label>
@@ -602,8 +606,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Joining Date *</label>
-                    <input type="date" required value={newStudent.joining_date} onChange={(e) => setNewStudent({...newStudent, joining_date: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Joining Date</label>
+                    <input type="date" value={newStudent.joining_date} onChange={(e) => setNewStudent({...newStudent, joining_date: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Initial Course</label>
@@ -663,8 +667,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     </div>
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Last Name *</label>
-                    <input required type="text" placeholder="e.g. Doe" value={studentToEdit.last_name} onChange={e => setStudentToEdit({...studentToEdit, last_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Last Name</label>
+                    <input type="text" placeholder="e.g. Doe" value={studentToEdit.last_name} onChange={e => setStudentToEdit({...studentToEdit, last_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
                 </div>
               </div>
@@ -678,17 +682,17 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Parent Phone *</label>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Parent Phone</label>
                   <div className="relative">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Phone size={18} /></div>
-                    <input required type="tel" maxLength={10} placeholder="9876543210" value={studentToEdit.parent_phone} onChange={e => setStudentToEdit({...studentToEdit, parent_phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
+                    <input type="tel" maxLength={10} placeholder="9876543210" value={studentToEdit.parent_phone} onChange={e => setStudentToEdit({...studentToEdit, parent_phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
                 </div>
                 <div className="col-span-2">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Address *</label>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Address</label>
                   <div className="relative">
                     <div className="absolute left-4 top-4 text-slate-400"><MapPin size={18} /></div>
-                    <textarea required placeholder="Full residential address" value={studentToEdit.address} onChange={e => setStudentToEdit({...studentToEdit, address: e.target.value})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all min-h-[100px] resize-none" />
+                    <textarea placeholder="Full residential address" value={studentToEdit.address} onChange={e => setStudentToEdit({...studentToEdit, address: e.target.value})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all min-h-[100px] resize-none" />
                   </div>
                 </div>
               </div>

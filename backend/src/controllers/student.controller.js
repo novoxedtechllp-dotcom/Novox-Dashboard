@@ -45,8 +45,8 @@ const createStudent = asyncHandler(async (req, res) => {
     avatar_url
   } = req.body;
 
-  if (!first_name || !last_name || !phone || !joining_date) {
-    throw new ApiError(400, "Please provide all required fields");
+  if (!first_name || !email || !phone) {
+    throw new ApiError(400, "Please provide Name, Email, and Phone number");
   }
 
   let avatarUrl = avatar_url || null;
