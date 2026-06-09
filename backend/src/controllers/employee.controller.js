@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary, extractPublicIdFromUrl, deleteFromCloudinary } from "../utils/cloudinary.js";
 import bcrypt from "bcrypt";
+import { sendEmail } from "../utils/sendEmail.js";
 
 const parseDateOnly = (value) => {
   const [year, month, day] = String(value || "").split("T")[0].split("-").map(Number);
@@ -69,6 +70,9 @@ const generateNextEmployeeCode = async () => {
 // @desc    Create a new employee
 // @route   POST /api/v1/employees
 export const createEmployee = asyncHandler(async (req, res) => {
+  console.log(`\n[POST /api/v1/employees] -> createEmployee called`);
+  console.log(`Request Body:`, JSON.stringify(req.body, null, 2));
+
   const {
     user_id,
     email,
@@ -182,12 +186,47 @@ export const createEmployee = asyncHandler(async (req, res) => {
     responseData._defaultPassword = loginPassword;
   }
 
+  // Send Welcome Email
+  const loginEmailToSend = email || `${employeeCode.toLowerCase()}@employees.novox.local`;
+  await sendEmail({
+    to: loginEmailToSend,
+    subject: 'Welcome to Novox Dashboard',
+    html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8fafc; padding: 40px 20px; border-radius: 16px;">
+        <div style="background-color: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #0f172a; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">Welcome to our platform!</h1>
+            <p style="color: #64748b; font-size: 16px; margin-top: 8px;">We are thrilled to welcome you as a new employee.</p>
+          </div>
+          <p style="color: #334155; font-size: 16px; line-height: 1.6;">Hello <strong>${first_name}</strong>,</p>
+          <p style="color: #334155; font-size: 16px; line-height: 1.6;">Your employee account has been successfully provisioned. You can now access the Novox Dashboard to view your tasks, schedules, and payroll.</p>
+          <div style="background-color: #f1f5f9; border-left: 4px solid #003F87; padding: 20px; margin: 24px 0; border-radius: 4px 8px 8px 4px;">
+            <p style="margin: 0 0 12px 0; color: #475569; font-size: 14px; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Your Login Credentials</p>
+            <div style="margin-bottom: 8px;">
+              <span style="color: #64748b; font-size: 14px;">Email:</span>
+              <strong style="color: #0f172a; font-size: 16px; margin-left: 8px;">${loginEmailToSend}</strong>
+            </div>
+            <div>
+              <span style="color: #64748b; font-size: 14px;">Password:</span>
+              <strong style="color: #0f172a; font-size: 16px; margin-left: 8px;">${loginPassword || "<i>Your securely provided password</i>"}</strong>
+            </div>
+          </div>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="https://novox.local/login" style="background-color: #003F87; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block;">Access Dashboard</a>
+          </div>
+          <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 24px;">For security reasons, we highly recommend changing your password upon your first login.<br><br>Best regards,<br><strong>The Novox Team</strong></p>
+        </div>
+      </div>
+    `
+  });
+
   return res.status(201).json(new ApiResponse(201, responseData, "Employee created successfully"));
 });
 
 // @desc    Get all employees
 // @route   GET /api/v1/employees
 export const getEmployees = asyncHandler(async (req, res) => {
+  console.log(`\n[GET /api/v1/employees] -> getEmployees called`);
   const { data, error } = await supabase
     .from("employee_profiles")
     .select(`
@@ -206,6 +245,7 @@ export const getEmployees = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/employees/:id
 export const getEmployeeById = asyncHandler(async (req, res) => {
   const { employeeId } = req.params;
+  console.log(`\n[GET /api/v1/employees/${employeeId}] -> getEmployeeById called`);
 
   const { data, error } = await supabase
     .from("employee_profiles")
@@ -228,12 +268,44 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/employees/:id
 export const updateEmployee = asyncHandler(async (req, res) => {
   const { employeeId } = req.params;
-  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url, grant_admin, email, course_ids, guardian_name, guardian_phone } = req.body;
+  console.log(`\n[PUT /api/v1/employees/${employeeId}] -> updateEmployee called`);
+  console.log(`Update Body:`, JSON.stringify(req.body, null, 2));
+  
+  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url, email, course_ids, guardian_name, guardian_phone } = req.body;
 
   if (email !== undefined) {
     const { data: currentEmployee } = await supabase.from("employee_profiles").select("user_id").eq("id", employeeId).single();
     if (currentEmployee?.user_id) {
-      await supabase.from("users").update({ email }).eq("id", currentEmployee.user_id);
+      // Get current email
+      const { data: userData } = await supabase.from("users").select("email").eq("id", currentEmployee.user_id).single();
+      
+      if (userData?.email !== email) {
+        await supabase.from("users").update({ email }).eq("id", currentEmployee.user_id);
+        
+        // Send email update notification
+        await sendEmail({
+          to: email,
+          subject: 'Your Novox Dashboard Email Has Been Updated',
+          html: `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8fafc; padding: 40px 20px; border-radius: 16px;">
+              <div style="background-color: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                <div style="text-align: center; margin-bottom: 30px;">
+                  <div style="background: #e0e7ff; width: 48px; height: 48px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                    <span style="font-size: 24px;">✉️</span>
+                  </div>
+                  <h2 style="color: #0f172a; margin: 0; font-size: 24px; font-weight: 800;">Email Updated</h2>
+                </div>
+                <p style="color: #334155; font-size: 16px; line-height: 1.6; text-align: center;">Your email address for the Novox Dashboard has been successfully updated to:</p>
+                <div style="background-color: #f1f5f9; padding: 16px; margin: 24px 0; border-radius: 8px; text-align: center;">
+                  <strong style="color: #0f172a; font-size: 18px;">${email}</strong>
+                </div>
+                <p style="color: #64748b; font-size: 14px; line-height: 1.6; text-align: center;">You will now use this email address to log in to your account.</p>
+                <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 24px;">If you did not request this change, please contact your administrator immediately.</p>
+              </div>
+            </div>
+          `
+        });
+      }
     }
   }
 
@@ -280,13 +352,6 @@ export const updateEmployee = asyncHandler(async (req, res) => {
     updates.role_id = roleData.id;
   }
 
-  if (grant_admin !== undefined) {
-    const { data: empProfile } = await supabase.from("employee_profiles").select("user_id").eq("id", employeeId).single();
-    if (empProfile?.user_id) {
-      await supabase.from("users").update({ role: grant_admin ? 'ADMIN' : 'EMPLOYEE' }).eq("id", empProfile.user_id);
-    }
-  }
-
   if (course_ids !== undefined && Array.isArray(course_ids)) {
     await supabase.from("course_instructors").delete().eq("employee_id", employeeId);
     if (course_ids.length > 0) {
@@ -298,36 +363,36 @@ export const updateEmployee = asyncHandler(async (req, res) => {
     }
   }
 
-  let returnedData = null;
   if (Object.keys(updates).length > 0) {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("employee_profiles")
       .update(updates)
-      .eq("id", employeeId)
-      .select();
+      .eq("id", employeeId);
 
     if (error) throw new ApiError(500, error.message || "Failed to update employee");
-    if (!data || data.length === 0) throw new ApiError(404, "Employee not found");
-    returnedData = data[0];
-  } else {
-    // If only grant_admin was provided
-    if (grant_admin === undefined) throw new ApiError(400, "No fields to update");
-    const { data } = await supabase
-      .from("employee_profiles")
-      .select()
-      .eq("id", employeeId)
-      .single();
-    if (!data) throw new ApiError(404, "Employee not found");
-    returnedData = data;
   }
 
-  return res.status(200).json(new ApiResponse(200, returnedData, "Employee updated successfully"));
+  const { data: finalEmployee, error: fetchError } = await supabase
+    .from("employee_profiles")
+    .select(`
+      *,
+      employee_roles(role_name),
+      users(email, role, status),
+      course_instructors(course_id)
+    `)
+    .eq("id", employeeId)
+    .single();
+
+  if (fetchError || !finalEmployee) throw new ApiError(404, "Employee not found after update");
+
+  return res.status(200).json(new ApiResponse(200, finalEmployee, "Employee updated successfully"));
 });
 
 // @desc    Delete employee
 // @route   DELETE /api/v1/employees/:id
 export const deleteEmployee = asyncHandler(async (req, res) => {
   const { employeeId } = req.params;
+  console.log(`\n[DELETE /api/v1/employees/${employeeId}] -> deleteEmployee called`);
 
   const { data: employee } = await supabase
     .from("employee_profiles")

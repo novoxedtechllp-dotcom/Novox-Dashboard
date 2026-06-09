@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle, Shield } from 'lucide-react';
+import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const getAuthHeaders = () => {
@@ -43,7 +43,7 @@ const mapEmployeeFromApi = (employee, avatar = null) => ({
   id: employee.id,
   eid: employee.employee_code || `EMP-${String(employee.id).slice(0, 4)}`,
   name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim(),
-  department: departmentFromApi(employee.employee_roles?.role_name || employee.department || employee.employee_role || employee.designation),
+  department: departmentFromApi(employee.employee_roles?.role_name || employee.employee_role || 'DEVELOPMENT'),
   position: employee.designation || '',
   phone: employee.phone || '',
   joinDate: employee.joining_date ? new Date(employee.joining_date).toLocaleDateString() : '',
@@ -83,9 +83,10 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
-  const [employeeToMakeAdmin, setEmployeeToMakeAdmin] = useState(null);
   
   const [deptFilter, setDeptFilter] = useState('All Departments');
   const [statusFilter, setStatusFilter] = useState('Active');
@@ -190,34 +191,14 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
     }
   };
 
-  const handleGrantAdmin = async (id) => {
-    try {
-      const headers = getAuthHeaders();
-      if (!headers) return;
-
-      const employee = employees.find(emp => emp.id === id);
-      const isCurrentlyAdmin = employee?.systemRole === 'ADMIN';
-
-      const response = await fetch(`/api/v1/employees/${id}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({ grant_admin: !isCurrentlyAdmin })
-      });
-      await parseApiResponse(response);
-
-      setEmployees(employees.map(emp => emp.id === id ? { ...emp, systemRole: isCurrentlyAdmin ? 'EMPLOYEE' : 'ADMIN' } : emp));
-      setEmployeeToMakeAdmin(null);
-      alert(`Admin privileges ${isCurrentlyAdmin ? 'revoked' : 'granted'} successfully!`);
-    } catch (error) {
-      console.error('Error toggling admin:', error);
-      alert(error.message || 'Failed to toggle admin privileges');
-    }
-  };
-
   const handleDeleteEmployee = async (id) => {
+    setIsDeleting(true);
     try {
       const headers = getAuthHeaders();
-      if (!headers) return;
+      if (!headers) {
+        setIsDeleting(false);
+        return;
+      }
 
       const response = await fetch(`/api/v1/employees/${id}`, {
         method: 'DELETE',
@@ -235,6 +216,8 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
     } catch (error) {
       console.error('Error deleting employee:', error);
       alert(error.message || 'Failed to delete employee');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -244,35 +227,44 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
       alert("Phone number must be exactly 10 digits.");
       return;
     }
+    setIsUpdating(true);
     try {
       const headers = getAuthHeaders();
-      if (!headers) return;
+      if (!headers) {
+        setIsUpdating(false);
+        return;
+      }
       const { first_name, last_name } = splitName(employeeToEdit.name);
+
+      const payload = {
+        first_name,
+        last_name,
+        phone: employeeToEdit.phone,
+        email: employeeToEdit.email,
+        employee_role: departmentToApi(employeeToEdit.department),
+        designation: employeeToEdit.position || employeeToEdit.department,
+        course_ids: employeeToEdit.courseIds,
+        guardian_name: employeeToEdit.guardianName,
+        guardian_phone: employeeToEdit.guardianPhone
+      };
 
       const response = await fetch(`/api/v1/employees/${employeeToEdit.id}`, {
         method: 'PUT',
         headers,
-        body: JSON.stringify({
-          first_name,
-          last_name,
-          phone: employeeToEdit.phone,
-          email: employeeToEdit.email,
-          department: departmentToApi(employeeToEdit.department),
-          designation: employeeToEdit.position || employeeToEdit.department,
-          course_ids: employeeToEdit.courseIds || [],
-          guardian_name: employeeToEdit.guardianName,
-          guardian_phone: employeeToEdit.guardianPhone
-        })
+        body: JSON.stringify(payload)
       });
+      
       const resData = await parseApiResponse(response);
-      const updatedEmployee = mapEmployeeFromApi(resData.data, employeeToEdit.avatar || null);
+      const updatedEmp = mapEmployeeFromApi(resData.data, employeeToEdit.avatar);
 
-      setEmployees(employees.map(emp => emp.id === employeeToEdit.id ? updatedEmployee : emp));
+      setEmployees(employees.map(emp => emp.id === updatedEmp.id ? updatedEmp : emp));
       setEmployeeToEdit(null);
       alert('Employee updated successfully!');
     } catch (error) {
       console.error('Error updating employee:', error);
       alert(error.message || 'Failed to update employee');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -371,23 +363,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
             </div>
 
             {/* Actions Footer */}
-            <div className="p-3 bg-slate-50/50 mt-auto flex items-center gap-2 border-t border-slate-50">
-              {emp.systemRole === 'ADMIN' ? (
-                <button 
-                  onClick={() => setEmployeeToMakeAdmin(emp.id)}
-                  className="flex-1 flex items-center justify-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 px-2 py-3 rounded-[12px] transition-all"
-                >
-                  <Shield size={14} /> Ungrant
-                </button>
-              ) : (
-                <button 
-                  onClick={() => setEmployeeToMakeAdmin(emp.id)}
-                  className="flex-1 flex items-center justify-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-3 rounded-[12px] transition-all"
-                >
-                  <Shield size={14} /> Grant
-                </button>
-              )}
-              
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100">
               <button 
                 onClick={() => setEmployeeToEdit(emp)}
                 className="flex-1 flex items-center justify-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-3 rounded-[12px] transition-all"
@@ -422,7 +398,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
       {/* Add Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg my-8 flex flex-col animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-8 flex flex-col animate-in fade-in zoom-in duration-200">
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0">
               <h2 className="text-xl font-black text-slate-800">Add New Employee</h2>
               <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
@@ -453,23 +429,34 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name *</label>
-                <input 
-                  type="text" required value={newEmployee.name}
-                  onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})}
-                  placeholder="John Doe"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
-                />
-              </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name *</label>
+                  <input 
+                    type="text" required value={newEmployee.name}
+                    onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})}
+                    placeholder="John Doe"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
+                  />
+                </div>
                 <div>
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email *</label>
                   <input 
                     type="email" required value={newEmployee.email}
                     onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
                     placeholder="john@example.com"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
+                  <input 
+                    type="tel" maxLength={10} required value={newEmployee.phone}
+                    onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})}
+                    placeholder="e.g. 9876543210"
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
@@ -508,30 +495,17 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
-                  <input 
-                    type="tel" maxLength={10} required value={newEmployee.phone}
-                    onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})}
-                    placeholder="e.g. 9876543210"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mentoring Courses</label>
+                  <CustomSelect
+                    value={newEmployee.courseIds}
+                    onChange={(val) => setNewEmployee({...newEmployee, courseIds: val})}
+                    options={courses.map(c => ({ value: c.id, label: c.name }))}
+                    multiple={true}
+                    className="w-full"
+                    selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
+                    placeholder="Select courses..."
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mentoring Courses</label>
-                <CustomSelect
-                  value={newEmployee.courseIds}
-                  onChange={(val) => setNewEmployee({...newEmployee, courseIds: val})}
-                  options={courses.map(c => ({ value: c.id, label: c.name }))}
-                  multiple={true}
-                  className="w-full"
-                  selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
-                  placeholder="Select courses..."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Guardian Name</label>
                   <input 
@@ -541,6 +515,9 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Guardian Phone Number</label>
                   <input 
@@ -568,7 +545,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
       {/* Edit Modal */}
       {employeeToEdit && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg my-8 flex flex-col animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-8 flex flex-col animate-in fade-in zoom-in duration-200">
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0">
               <h2 className="text-xl font-black text-slate-800">Edit Employee</h2>
               <button onClick={() => setEmployeeToEdit(null)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
@@ -577,25 +554,34 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
             </div>
             
             <form onSubmit={handleUpdateEmployee} className="p-8 flex flex-col gap-6">
-              <div>
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name *</label>
-                <input 
-                  type="text" required value={employeeToEdit.name}
-                  onChange={(e) => setEmployeeToEdit({...employeeToEdit, name: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email *</label>
-                <input 
-                  type="email" required value={employeeToEdit.email}
-                  onChange={(e) => setEmployeeToEdit({...employeeToEdit, email: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name *</label>
+                  <input 
+                    type="text" required value={employeeToEdit.name}
+                    onChange={(e) => setEmployeeToEdit({...employeeToEdit, name: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email *</label>
+                  <input 
+                    type="email" required value={employeeToEdit.email}
+                    onChange={(e) => setEmployeeToEdit({...employeeToEdit, email: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
+                  />
+                </div>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
+                  <input 
+                    type="text" required value={employeeToEdit.phone}
+                    onChange={(e) => setEmployeeToEdit({...employeeToEdit, phone: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
+                  />
+                </div>
                 <div>
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
                   <CustomSelect
@@ -606,6 +592,9 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Position (Designation)</label>
                   <input 
@@ -614,30 +603,18 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
-                  <input 
-                    type="text" required value={employeeToEdit.phone}
-                    onChange={(e) => setEmployeeToEdit({...employeeToEdit, phone: e.target.value})}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mentoring Courses</label>
+                  <CustomSelect
+                    value={employeeToEdit.courseIds || []}
+                    onChange={(val) => setEmployeeToEdit({...employeeToEdit, courseIds: val})}
+                    options={courses.map(c => ({ value: c.id, label: c.name }))}
+                    multiple={true}
+                    className="w-full"
+                    selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
+                    placeholder="Select courses..."
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mentoring Courses</label>
-                <CustomSelect
-                  value={employeeToEdit.courseIds || []}
-                  onChange={(val) => setEmployeeToEdit({...employeeToEdit, courseIds: val})}
-                  options={courses.map(c => ({ value: c.id, label: c.name }))}
-                  multiple={true}
-                  className="w-full"
-                  selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
-                  placeholder="Select courses..."
-                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -663,7 +640,9 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-end mt-4 pt-6 border-t border-slate-100">
                 <button type="button" onClick={() => setEmployeeToEdit(null)} className="w-full sm:w-auto px-6 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors">Cancel</button>
-                <button type="submit" className="w-full sm:w-auto px-6 py-3 bg-[#003F87] text-white rounded-xl text-sm font-bold hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95">Save Changes</button>
+                <button type="submit" disabled={isUpdating} className={`w-full sm:w-auto px-6 py-3 bg-[#003F87] text-white rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 ${isUpdating ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002B5E] shadow-blue-900/10'}`}>
+                  {isUpdating ? 'Saving...' : 'Save Changes'}
+                </button>
               </div>
             </form>
           </div>
@@ -691,58 +670,13 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                 Cancel
               </button>
               <button 
-                onClick={() => { handleDeleteEmployee(employeeToDelete); setEmployeeToDelete(null); }} 
-                className="flex-1 py-3 bg-rose-600 rounded-xl text-sm font-bold text-white hover:bg-rose-700 shadow-md shadow-rose-900/10 transition-colors"
+                onClick={() => { handleDeleteEmployee(employeeToDelete); }} 
+                disabled={isDeleting}
+                className={`flex-1 py-3 bg-rose-600 rounded-xl text-sm font-bold text-white shadow-md transition-colors ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-700 shadow-rose-900/10'}`}
               >
-                Yes, Delete
+                {isDeleting ? 'Deleting...' : 'Yes, Delete'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Grant Admin Confirmation Modal */}
-      {employeeToMakeAdmin && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-md p-8 relative shadow-2xl animate-in zoom-in-95 duration-200">
-          {employees.find(e => e.id === employeeToMakeAdmin)?.systemRole === 'ADMIN' ? (
-            <>
-              <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
-                <Shield size={32} />
-              </div>
-              <h2 className="text-2xl font-black text-center text-slate-800 mb-2 tracking-tight">Revoke Admin Privileges?</h2>
-              <p className="text-center text-slate-500 font-medium mb-8 text-sm px-4">
-                This employee will lose access to system settings and user management.
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
-                <Shield size={32} />
-              </div>
-              <h2 className="text-2xl font-black text-center text-slate-800 mb-2 tracking-tight">Grant Admin Privileges?</h2>
-              <p className="text-center text-slate-500 font-medium mb-8 text-sm px-4">
-                This employee will have full access to the dashboard, including user management and system settings.
-              </p>
-            </>
-          )}
-          
-          <div className="flex gap-4">
-            <button 
-              onClick={() => setEmployeeToMakeAdmin(null)}
-              className="flex-1 px-6 py-3.5 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-all text-sm"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={() => handleGrantAdmin(employeeToMakeAdmin)}
-              className={`flex-1 px-6 py-3.5 text-white rounded-xl font-bold shadow-lg transition-all text-sm flex items-center justify-center gap-2 ${
-                employees.find(e => e.id === employeeToMakeAdmin)?.systemRole === 'ADMIN' ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/30' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30'
-              }`}
-            >
-              <Shield size={16} /> Confirm
-            </button>
-          </div>
           </div>
         </div>
       )}

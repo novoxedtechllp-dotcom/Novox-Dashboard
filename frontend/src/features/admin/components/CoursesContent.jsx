@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers, Eye, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import CustomSelect from '../../../components/CustomSelect';
 
 const formatPrice = (price) => {
   const numStr = String(price).replace(/[^\d.]/g, '');
@@ -43,7 +44,7 @@ const mapCourseFromApi = (course, fallback = {}) => {
     ...course,
     title: course.name || course.title || '',
     category: course.track || course.category || 'DEVELOPMENT',
-    price: fallback.price || course.price || '₹0.00',
+    price: course.total_fee ? formatPrice(course.total_fee) : (fallback.price || course.price || '₹0.00'),
     mentorId: instructorProfile?.id || fallback.mentorId || '',
     mentorName,
     mentorInitials: getInitials(mentorName),
@@ -59,6 +60,15 @@ const formatDateToDDMMYYYY = (dateStr) => {
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
   }
   return dateStr;
+};
+
+const getCourseGradient = (category) => {
+  switch(category) {
+    case 'DEVELOPMENT': return 'bg-gradient-to-br from-blue-50/80 to-white border border-blue-100/50 border-l-4 border-l-blue-500 hover:border-blue-300';
+    case 'MARKETING': return 'bg-gradient-to-br from-purple-50/80 to-white border border-purple-100/50 border-l-4 border-l-purple-500 hover:border-purple-300';
+    case 'DESIGN': return 'bg-gradient-to-br from-rose-50/80 to-white border border-rose-100/50 border-l-4 border-l-rose-500 hover:border-rose-300';
+    default: return 'bg-gradient-to-br from-slate-50/80 to-white border border-slate-100 border-l-4 border-l-slate-400 hover:border-slate-300';
+  }
 };
 
 const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery = '' }) => {
@@ -378,8 +388,6 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     }
   };
 
-  const [ownershipFilter, setOwnershipFilter] = useState('All Courses');
-
   const filteredCourses = useMemo(() => {
     let normalizedCourses = courses.map(course => mapCourseFromApi(course));
     
@@ -387,13 +395,6 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       normalizedCourses = normalizedCourses.filter(c => c.category === categoryFilter);
     }
     
-    if (ownershipFilter === 'My Courses') {
-      const currentUserEmail = JSON.parse(sessionStorage.getItem('userInfo') || '{}')?.email;
-      const currentEmployee = employees.find(e => e.email === currentUserEmail);
-      if (currentEmployee) {
-        normalizedCourses = normalizedCourses.filter(c => String(c.mentorId) === String(currentEmployee.id));
-      }
-    }
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
       normalizedCourses = normalizedCourses.filter(c => 
@@ -404,7 +405,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     }
     
     return normalizedCourses;
-  }, [courses, categoryFilter, ownershipFilter, employees, searchQuery]);
+  }, [courses, categoryFilter, employees, searchQuery]);
 
   const uniqueCategories = ['All Categories', 'DEVELOPMENT', 'MARKETING', 'DESIGN'];
 
@@ -420,30 +421,15 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       {/* Top Filter Bar */}
       <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Category</span>
-            <select
+          <div className="flex items-center gap-3">
+            <CustomSelect
+              options={uniqueCategories.map(cat => ({ value: cat, label: cat }))}
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="bg-transparent text-sm font-bold text-slate-700 outline-none appearance-none pr-8 cursor-pointer relative"
-              style={{ background: `url('data:image/svg+xml;utf8,<svg fill="none" viewBox="0 0 24 24" stroke="%2364748B" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>') no-repeat right center / 16px` }}
-            >
-              {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
+              onChange={(val) => setCategoryFilter(val)}
+              placeholder="Category"
+            />
           </div>
 
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Ownership</span>
-            <select
-              value={ownershipFilter}
-              onChange={(e) => setOwnershipFilter(e.target.value)}
-              className="bg-transparent text-sm font-bold text-slate-700 outline-none appearance-none pr-8 cursor-pointer relative"
-              style={{ background: `url('data:image/svg+xml;utf8,<svg fill="none" viewBox="0 0 24 24" stroke="%2364748B" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>') no-repeat right center / 16px` }}
-            >
-              <option value="All Courses">All Courses</option>
-              <option value="My Courses">My Courses</option>
-            </select>
-          </div>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
@@ -469,7 +455,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
         </div>
 
         {filteredCourses.map(course => (
-          <div key={course.id} className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col h-[280px] relative group hover:border-blue-200 transition-all shadow-sm hover:shadow-xl overflow-hidden">
+          <div key={course.id} className={`rounded-2xl p-6 flex flex-col h-[280px] relative group transition-all shadow-sm hover:shadow-xl overflow-hidden ${getCourseGradient(course.category)}`}>
 
             <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-10 translate-x-2 group-hover:translate-x-0">
               <button onClick={(e) => { e.stopPropagation(); setCourseToEdit(course); }} className="w-8 h-8 rounded-full bg-white shadow-sm border border-slate-100 text-slate-400 hover:bg-blue-50 hover:text-[#003F87] hover:border-blue-200 flex items-center justify-center transition-all" title="Edit Course">
@@ -580,19 +566,19 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Category</label>
-                    <select value={courseToEdit ? courseToEdit.category : newCourse.category} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, category: e.target.value }) : setNewCourse({ ...newCourse, category: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all appearance-none">
-                      <option value="DEVELOPMENT">DEVELOPMENT</option>
-                      <option value="MARKETING">MARKETING</option>
-                      <option value="DESIGN">DESIGN</option>
-                    </select>
+                    <CustomSelect
+                      options={[{ value: 'DEVELOPMENT', label: 'DEVELOPMENT' }, { value: 'MARKETING', label: 'MARKETING' }, { value: 'DESIGN', label: 'DESIGN' }]}
+                      value={courseToEdit ? courseToEdit.category : newCourse.category}
+                      onChange={val => courseToEdit ? setCourseToEdit({ ...courseToEdit, category: val }) : setNewCourse({ ...newCourse, category: val })}
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Status</label>
-                    <select value={courseToEdit ? (courseToEdit.status || 'DRAFT') : newCourse.status} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, status: e.target.value }) : setNewCourse({ ...newCourse, status: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all appearance-none">
-                      <option value="DRAFT">DRAFT</option>
-                      <option value="PUBLISHED">PUBLISHED</option>
-                      <option value="ARCHIVED">ARCHIVED</option>
-                    </select>
+                    <CustomSelect
+                      options={[{ value: 'DRAFT', label: 'DRAFT' }, { value: 'PUBLISHED', label: 'PUBLISHED' }, { value: 'ARCHIVED', label: 'ARCHIVED' }]}
+                      value={courseToEdit ? (courseToEdit.status || 'DRAFT') : newCourse.status}
+                      onChange={val => courseToEdit ? setCourseToEdit({ ...courseToEdit, status: val }) : setNewCourse({ ...newCourse, status: val })}
+                    />
                   </div>
                 </div>
               </div>
@@ -613,9 +599,12 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Instructor *</label>
-                    <select value={courseToEdit ? (courseToEdit.mentorId || employees[0]?.id) : newCourse.mentorId} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, mentorId: e.target.value }) : setNewCourse({ ...newCourse, mentorId: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all appearance-none">
-                      {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.position || emp.department})</option>)}
-                    </select>
+                    <CustomSelect
+                      options={employees.map(emp => ({ value: emp.id, label: `${emp.name} (${emp.position || emp.department})` }))}
+                      value={courseToEdit ? (courseToEdit.mentorId || employees[0]?.id) : newCourse.mentorId}
+                      onChange={val => courseToEdit ? setCourseToEdit({ ...courseToEdit, mentorId: val }) : setNewCourse({ ...newCourse, mentorId: val })}
+                      searchable={true}
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Price (e.g. ₹500.00)</label>
