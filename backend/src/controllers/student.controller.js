@@ -5,7 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary, extractPublicIdFromUrl, deleteFromCloudinary } from "../utils/cloudinary.js";
 import bcrypt from "bcrypt";
 
-const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, address, joining_date, status, avatar_url, created_at, users(email)";
+const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, guardian_name, address, joining_date, status, avatar_url, created_at, users(email)";
 
 // ==========================================
 // CORE STUDENT CRUD
@@ -39,9 +39,10 @@ const createStudent = asyncHandler(async (req, res) => {
     last_name,
     phone,
     parent_phone,
+    guardian_name,
     address,
     joining_date,
-    course_id,
+    course_ids,
     avatar_url
   } = req.body;
 
@@ -96,7 +97,7 @@ const createStudent = asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from("students")
     .insert([{
-      user_id: studentUserId, student_code: finalStudentCode, first_name, last_name, phone, parent_phone,
+      user_id: studentUserId, student_code: finalStudentCode, first_name, last_name, phone, parent_phone, guardian_name,
       address, joining_date, status: "ACTIVE", avatar_url: avatarUrl
     }])
     .select(studentSelectFields);
@@ -108,40 +109,42 @@ const createStudent = asyncHandler(async (req, res) => {
 
   const newStudent = data[0];
 
-  if (course_id) {
-    // Assign course
-    const { error: courseError } = await supabase
-      .from("student_courses")
-      .insert([{ 
-        student_id: newStudent.id, 
-        course_id, 
-        progress_percentage: 0,
-        completion_status: 'IN_PROGRESS'
-      }]);
+  if (course_ids && Array.isArray(course_ids) && course_ids.length > 0) {
+    for (const cid of course_ids) {
+      // Assign course
+      const { error: courseError } = await supabase
+        .from("student_courses")
+        .insert([{ 
+          student_id: newStudent.id, 
+          course_id: cid, 
+          progress_percentage: 0,
+          completion_status: 'IN_PROGRESS'
+        }]);
 
-    if (!courseError) {
-      // Auto-assign existing tasks for this course
-      const { data: modulesTasks } = await supabase
-        .from("course_modules")
-        .select('id, course_submodules(id, course_tasks(id))')
-        .eq('course_id', course_id);
+      if (!courseError) {
+        // Auto-assign existing tasks for this course
+        const { data: modulesTasks } = await supabase
+          .from("course_modules")
+          .select('id, course_submodules(id, course_tasks(id))')
+          .eq('course_id', cid);
 
-      if (modulesTasks && modulesTasks.length > 0) {
-        const tasksToAssign = [];
-        modulesTasks.forEach(module => {
-          module.course_submodules?.forEach(sub => {
-            sub.course_tasks?.forEach(task => {
-              tasksToAssign.push({
-                student_id: newStudent.id,
-                task_id: task.id,
-                status: 'PENDING'
+        if (modulesTasks && modulesTasks.length > 0) {
+          const tasksToAssign = [];
+          modulesTasks.forEach(module => {
+            module.course_submodules?.forEach(sub => {
+              sub.course_tasks?.forEach(task => {
+                tasksToAssign.push({
+                  student_id: newStudent.id,
+                  task_id: task.id,
+                  status: 'PENDING'
+                });
               });
             });
           });
-        });
 
-        if (tasksToAssign.length > 0) {
-          await supabase.from("student_tasks").insert(tasksToAssign);
+          if (tasksToAssign.length > 0) {
+            await supabase.from("student_tasks").insert(tasksToAssign);
+          }
         }
       }
     }
@@ -153,7 +156,7 @@ const createStudent = asyncHandler(async (req, res) => {
 // @desc    Get all students with filters
 // @route   GET /api/v1/students
 const getStudents = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, courseId, instructorId, status, search } = req.query;
+  const { page = 1, limit = 20, courseId, instructorId, status, search, department } = req.query;
 
   const pageNum = parseInt(page, 10);
   const limitNum = parseInt(limit, 10);
@@ -171,6 +174,11 @@ const getStudents = asyncHandler(async (req, res) => {
       ${studentSelectFields},
       student_courses!inner(courses!inner(instructor_id))
     `, { count: "exact" }).eq("student_courses.courses.instructor_id", instructorId);
+  } else if (department && department !== 'All Departments') {
+    query = supabase.from("students").select(`
+      ${studentSelectFields},
+      student_courses!inner(courses!inner(track))
+    `, { count: "exact" }).eq("student_courses.courses.track", department);
   } else {
     query = supabase.from("students").select(studentSelectFields, { count: "exact" });
   }
@@ -187,7 +195,7 @@ const getStudents = asyncHandler(async (req, res) => {
 
   if (error) throw new ApiError(500, error.message || "Failed to fetch students");
 
-  const formattedData = (courseId || instructorId) ? data.map(s => {
+  const formattedData = (courseId || instructorId || department) ? data.map(s => {
     const { student_courses, ...rest } = s;
     return rest;
   }) : data;
@@ -220,7 +228,7 @@ const getStudentById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/students/:id
 const updateStudent = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
-  const { first_name, last_name, phone, parent_phone, address, status, avatar_url, email } = req.body;
+  const { first_name, last_name, phone, parent_phone, guardian_name, address, status, avatar_url, email } = req.body;
 
   if (email !== undefined) {
     const { data: currentStudent } = await supabase.from("students").select("user_id").eq("id", studentId).single();
@@ -241,6 +249,7 @@ const updateStudent = asyncHandler(async (req, res) => {
   if (last_name !== undefined) updates.last_name = last_name;
   if (phone !== undefined) updates.phone = phone;
   if (parent_phone !== undefined) updates.parent_phone = parent_phone;
+  if (guardian_name !== undefined) updates.guardian_name = guardian_name;
   if (address !== undefined) updates.address = address;
   if (status !== undefined) updates.status = status;
   if (avatar_url !== undefined) updates.avatar_url = avatar_url;

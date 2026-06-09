@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Briefcase, BookOpen, Calendar, 
   CreditCard, Wallet, MessageSquare, Handshake, Trophy, 
-  GraduationCap, FileText, Globe, Settings, HelpCircle, Menu
+  GraduationCap, FileText, Globe, Settings, HelpCircle, Menu, LogOut
 } from 'lucide-react';
 
 const navItems = [
@@ -25,7 +25,7 @@ const navItems = [
   // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
-const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, basePath = '/admin', isOpen, setIsOpen }) => {
+const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   
@@ -112,6 +112,19 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
               );
             })}
           </nav>
+
+          {/* Bottom Action (Logout) */}
+          {onLogout && (
+            <div className="mt-auto pt-4 border-t border-[#E0E0E0] shrink-0 pr-1">
+              <button
+                onClick={onLogout}
+                className="flex items-center gap-[12px] px-[12px] py-[8px] rounded-[4px] transition-colors text-left w-full h-[36px] text-[#D80000] font-medium hover:bg-[#FFF0F0]"
+              >
+                <LogOut size={18} className="text-[#D80000]" />
+                <span className="text-[14px] leading-none whitespace-nowrap">Log Out</span>
+              </button>
+            </div>
+          )}
         </div>
       </aside>
     </>

@@ -84,7 +84,10 @@ export const createEmployee = asyncHandler(async (req, res) => {
     department,
     salary,
     status,
-    avatar_url
+    avatar_url,
+    course_ids,
+    guardian_name,
+    guardian_phone
   } = req.body;
 
   if (!first_name || !email || !phone) {
@@ -154,6 +157,8 @@ export const createEmployee = asyncHandler(async (req, res) => {
         salary: salary || 0,
         status: status || 'ACTIVE',
         avatar_url: avatarUrl,
+        guardian_name: guardian_name || null,
+        guardian_phone: guardian_phone || null
       },
     ])
     .select();
@@ -161,6 +166,14 @@ export const createEmployee = asyncHandler(async (req, res) => {
   if (error) {
     if (createdUserId) await supabase.from("users").delete().eq("id", createdUserId);
     throw new ApiError(500, error.message || "Failed to create employee");
+  }
+
+  if (course_ids && Array.isArray(course_ids) && course_ids.length > 0) {
+    const courseAssignments = course_ids.map(course_id => ({
+      employee_id: data[0].id,
+      course_id: course_id
+    }));
+    await supabase.from("course_instructors").insert(courseAssignments);
   }
 
   // Return the default password if one was auto-generated
@@ -180,7 +193,8 @@ export const getEmployees = asyncHandler(async (req, res) => {
     .select(`
       *,
       employee_roles(role_name),
-      users(email, role, status)
+      users(email, role, status),
+      course_instructors(course_id)
     `);
 
   if (error) throw new ApiError(500, error.message || "Failed to fetch employees");
@@ -214,7 +228,7 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/employees/:id
 export const updateEmployee = asyncHandler(async (req, res) => {
   const { employeeId } = req.params;
-  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url, grant_admin, email } = req.body;
+  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url, grant_admin, email, course_ids, guardian_name, guardian_phone } = req.body;
 
   if (email !== undefined) {
     const { data: currentEmployee } = await supabase.from("employee_profiles").select("user_id").eq("id", employeeId).single();
@@ -237,6 +251,8 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   if (salary !== undefined) updates.salary = salary;
   if (role_id !== undefined) updates.role_id = role_id;
   if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+  if (guardian_name !== undefined) updates.guardian_name = guardian_name;
+  if (guardian_phone !== undefined) updates.guardian_phone = guardian_phone;
 
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);
@@ -268,6 +284,17 @@ export const updateEmployee = asyncHandler(async (req, res) => {
     const { data: empProfile } = await supabase.from("employee_profiles").select("user_id").eq("id", employeeId).single();
     if (empProfile?.user_id) {
       await supabase.from("users").update({ role: grant_admin ? 'ADMIN' : 'EMPLOYEE' }).eq("id", empProfile.user_id);
+    }
+  }
+
+  if (course_ids !== undefined && Array.isArray(course_ids)) {
+    await supabase.from("course_instructors").delete().eq("employee_id", employeeId);
+    if (course_ids.length > 0) {
+      const courseAssignments = course_ids.map(course_id => ({
+        employee_id: employeeId,
+        course_id: course_id
+      }));
+      await supabase.from("course_instructors").insert(courseAssignments);
     }
   }
 
