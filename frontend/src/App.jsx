@@ -2,37 +2,36 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import MainContent from './components/MainContent';
-import AttendanceContent from './components/AttendanceContent';
-import StudentsContent from './components/StudentsContent';
-import EmployeesContent from './components/EmployeesContent';
-import CoursesContent from './components/CoursesContent';
-import FeesContent from './components/FeesContent';
-import SalesCrmContent from './components/SalesCrmContent';
-import WhatsappContent from './components/WhatsappContent';
-import LeaderboardContent from './components/LeaderboardContent';
-import AcademicJourneyContent from './components/AcademicJourneyContent';
-import SeoAgentContent from './components/SeoAgentContent';
-import PayrollContent from './components/PayrollContent';
-import WorkReportsContent from './components/WorkReportsContent';
-import RecruitmentContent from './components/RecruitmentContent';
-import BlogDashboardContent from './components/BlogDashboardContent';
-import SettingsContent from './components/SettingsContent';
-import EmployeeProfile from './components/EmployeeProfile';
-import SupportContent from './components/SupportContent';
-import Login from './components/Login';
-import Signup from './components/Signup';
+import MainContent from './features/admin/components/MainContent';
+import AttendanceContent from './features/admin/components/AttendanceContent';
+import StudentsContent from './features/student/components/StudentsContent';
+import EmployeesContent from './features/admin/components/EmployeesContent';
+import CoursesContent from './features/admin/components/CoursesContent';
+import FeesContent from './features/admin/components/FeesContent';
+import SalesCrmContent from './features/employee/marketing/components/SalesCrmContent';
+import WhatsappContent from './features/employee/marketing/components/WhatsappContent';
+import LeaderboardContent from './features/admin/components/LeaderboardContent';
+import AcademicJourneyContent from './features/student/components/AcademicJourneyContent';
+import SeoAgentContent from './features/employee/marketing/components/SeoAgentContent';
+import PayrollContent from './features/admin/components/PayrollContent';
+import WorkReportsContent from './features/employee/components/WorkReportsContent';
+import RecruitmentContent from './features/admin/components/RecruitmentContent';
+import BlogDashboardContent from './features/employee/marketing/components/BlogDashboardContent';
+import SettingsContent from './features/admin/components/SettingsContent';
+import EmployeeProfile from './features/employee/components/EmployeeProfile';
+import SupportContent from './features/admin/components/SupportContent';
+import Login from './features/auth/components/Login';
+import Signup from './features/auth/components/Signup';
 import Fab from './components/Fab';
-import DailyPlan from './components/DailyPlan';
+import DailyPlan from './features/employee/components/DailyPlan';
 
 // Employee Components
-import EmployeeSidebar from './components/employee/EmployeeSidebar';
-import EmployeeHeader from './components/employee/EmployeeHeader';
-import EmployeeDashboard from './components/employee/EmployeeDashboard';
-import EmployeeTasks from './components/employee/EmployeeTasks';
-import EmployeeAttendance from './components/employee/EmployeeAttendance';
-import EmployeePayroll from './components/employee/EmployeePayroll';
-import EmployeeSettings from './components/employee/EmployeeSettings';
+import EmployeeSidebar from './features/employee/components/EmployeeSidebar';
+import EmployeeHeader from './features/employee/components/EmployeeHeader';
+import EmployeeDashboard from './features/employee/components/EmployeeDashboard';
+import EmployeeTasks from './features/employee/components/EmployeeTasks';
+import EmployeeAttendance from './features/employee/components/EmployeeAttendance';
+import EmployeeLeaves from './features/employee/components/EmployeeLeaves';
 
 // Mock data removed
 
@@ -156,14 +155,7 @@ function App() {
     localStorage.removeItem('userInfo');
   };
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    if (savedTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
+
 
   const isHR = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'HR';
   const isDesign = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'DESIGN';
@@ -204,6 +196,7 @@ function App() {
           basePath={basePath}
           isOpen={isSidebarOpen}
           setIsOpen={setIsSidebarOpen}
+          onLogout={handleLogout}
         />
       )}
       

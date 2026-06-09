@@ -25,7 +25,8 @@ import {
   archiveCourse,
   getCourseStudents,
   getCourseEmployees,
-  getAdminDailyPlan
+  getAdminDailyPlan,
+  batchAssignStudentsToCourse
 } from "../controllers/course.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -76,6 +77,8 @@ router.route("/:courseId/reschedule").post(writeAuth, reschedulePlan);
 
 router.route("/:courseId/schedules").post(writeAuth, addCourseSchedule);
 router.route("/:courseId/schedules/:scheduleId").delete(writeAuth, deleteCourseSchedule);
+
+router.route("/:courseId/students/batch-assign").post(writeAuth, batchAssignStudentsToCourse);
 
 router.route("/:courseId/instructors").post(writeAuth, assignInstructorToCourse);
 router.route("/:courseId/instructors/:instructorId").delete(writeAuth, removeInstructorFromCourse);

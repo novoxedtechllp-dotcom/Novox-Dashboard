@@ -65,7 +65,8 @@ export const createCourse = asyncHandler(async (req, res) => {
   if (assignedInstructorId) {
     const { error: instructorError } = await supabase
       .from("course_instructors")
-      .insert([{ course_id: data[0].id, employee_id: assignedInstructorId }]);
+      .insert([{ course_id: data[0].id, employee_id: assignedInstructorId }])
+      .select();
 
     if (instructorError) {
       await supabase.from("courses").delete().eq("id", data[0].id);
@@ -149,7 +150,8 @@ export const updateCourse = asyncHandler(async (req, res) => {
     if (assignedInstructorId) {
       const { error: instructorError } = await supabase
         .from("course_instructors")
-        .insert([{ course_id: courseId, employee_id: assignedInstructorId }]);
+        .insert([{ course_id: courseId, employee_id: assignedInstructorId }])
+        .select();
 
       if (instructorError) throw new ApiError(500, instructorError.message || "Failed to update course instructor");
     }
@@ -671,6 +673,80 @@ export const reschedulePlan = asyncHandler(async (req, res) => {
   if (updateError) throw new ApiError(500, updateError.message || "Failed to reschedule plan");
 
   return res.status(200).json(new ApiResponse(200, updateData, "Plan rescheduled successfully"));
+});
+
+export const batchAssignStudentsToCourse = asyncHandler(async (req, res) => {
+  const { courseId } = req.params;
+  const { studentIds } = req.body;
+
+  if (!Array.isArray(studentIds) || studentIds.length === 0) {
+    throw new ApiError(400, "Please provide an array of studentIds");
+  }
+
+  // Check if course exists
+  const { data: course, error: courseErr } = await supabase
+    .from("courses")
+    .select("id")
+    .eq("id", courseId)
+    .single();
+
+  if (courseErr || !course) throw new ApiError(404, "Course not found");
+
+  // Fetch existing assignments for these students in this course
+  const { data: existingAssignments } = await supabase
+    .from("student_courses")
+    .select("student_id")
+    .eq("course_id", courseId)
+    .in("student_id", studentIds);
+
+  const existingIds = new Set(existingAssignments?.map(a => a.student_id) || []);
+  const newStudentIds = studentIds.filter(id => !existingIds.has(id));
+
+  if (newStudentIds.length === 0) {
+    return res.status(200).json(new ApiResponse(200, {}, "All selected students are already assigned to this course"));
+  }
+
+  const courseInserts = newStudentIds.map(sid => ({
+    student_id: sid,
+    course_id: courseId,
+    progress_percentage: 0,
+    completion_status: 'IN_PROGRESS'
+  }));
+
+  const { error: insertError } = await supabase.from("student_courses").insert(courseInserts);
+  if (insertError) throw new ApiError(500, insertError.message || "Failed to assign students to course");
+
+  // Auto-assign existing tasks for this course
+  const { data: modulesTasks } = await supabase
+    .from("course_modules")
+    .select('id, course_submodules(id, course_tasks(id))')
+    .eq('course_id', courseId);
+
+  if (modulesTasks && modulesTasks.length > 0) {
+    const tasksToAssign = [];
+    modulesTasks.forEach(module => {
+      module.course_submodules?.forEach(sub => {
+        sub.course_tasks?.forEach(task => {
+          newStudentIds.forEach(sid => {
+            tasksToAssign.push({
+              student_id: sid,
+              task_id: task.id,
+              status: 'PENDING'
+            });
+          });
+        });
+      });
+    });
+
+    if (tasksToAssign.length > 0) {
+      const chunkSize = 1000;
+      for (let i = 0; i < tasksToAssign.length; i += chunkSize) {
+        await supabase.from("student_tasks").insert(tasksToAssign.slice(i, i + chunkSize));
+      }
+    }
+  }
+
+  return res.status(201).json(new ApiResponse(201, { assignedCount: newStudentIds.length }, `Successfully assigned ${newStudentIds.length} students`));
 });
 
 export const getAdminDailyPlan = asyncHandler(async (req, res) => {
