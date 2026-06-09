@@ -113,6 +113,11 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const [applyingSchedule, setApplyingSchedule] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
+  const [allStudents, setAllStudents] = useState([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [isStudentsLoading, setIsStudentsLoading] = useState(false);
+  const [assigningStudents, setAssigningStudents] = useState(false);
+
   const getMentorName = (mentorId) => {
     const emp = employees.find(e => String(e.id) === String(mentorId));
     return emp ? emp.name : 'Unassigned';
@@ -204,6 +209,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
 
   const handleUpdateCourse = async (e) => {
     e.preventDefault();
+    if (!courseToEdit.mentorId) return alert("Please select an instructor/mentor for this course.");
     try {
       const headers = getAuthHeaders();
       if (!headers) return;
@@ -388,6 +394,41 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     }
   };
 
+  const loadStudentsForAssignment = async () => {
+    setIsStudentsLoading(true);
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`/api/v1/students?limit=1000`, { headers });
+      const resData = await parseApiResponse(response);
+      setAllStudents(resData.data.students || []);
+    } catch (error) {
+      alert(error.message || 'Failed to fetch students');
+    } finally {
+      setIsStudentsLoading(false);
+    }
+  };
+
+  const handleBatchAssignStudents = async () => {
+    if (selectedStudentIds.length === 0) return;
+    setAssigningStudents(true);
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/students/batch-assign`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ studentIds: selectedStudentIds })
+      });
+      await parseApiResponse(response);
+      alert('Students assigned successfully!');
+      setSelectedStudentIds([]);
+      openCourseDetails(selectedCourse);
+    } catch (error) {
+      alert(error.message || 'Failed to assign students');
+    } finally {
+      setAssigningStudents(false);
+    }
+  };
+
   const filteredCourses = useMemo(() => {
     let normalizedCourses = courses.map(course => mapCourseFromApi(course));
     
@@ -492,7 +533,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                   <User size={16} className="text-slate-400 shrink-0" /> <span className="truncate">{course.mentorName}</span>
                 </div>
                 <div className="flex items-center gap-3 text-slate-500 text-[13px] font-medium">
-                  <Layers size={16} className="text-slate-400 shrink-0" /> <span><span className="font-bold text-slate-700">{course.enrollmentCount}</span> / {course.capacity || 'N/A'} Enrolled</span>
+                  <User size={16} className="text-slate-400 shrink-0" /> <span><span className="font-bold text-slate-700">{course.enrollmentCount}</span> Enrolled</span>
                 </div>
               </div>
             </div>
@@ -601,7 +642,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Instructor *</label>
                     <CustomSelect
                       options={employees.map(emp => ({ value: emp.id, label: `${emp.name} (${emp.position || emp.department})` }))}
-                      value={courseToEdit ? (courseToEdit.mentorId || employees[0]?.id) : newCourse.mentorId}
+                      value={courseToEdit ? courseToEdit.mentorId : newCourse.mentorId}
                       onChange={val => courseToEdit ? setCourseToEdit({ ...courseToEdit, mentorId: val }) : setNewCourse({ ...newCourse, mentorId: val })}
                       searchable={true}
                     />
@@ -692,6 +733,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
               <div className="flex gap-2">
                 {[
                   { id: 'overview', icon: <BookOpen size={16} />, label: 'Overview' },
+                  { id: 'students', icon: <User size={16} />, label: 'Students' },
                   { id: 'modules', icon: <LayoutList size={16} />, label: 'Curriculum Builder' },
                   { id: 'schedule', icon: <Calendar size={16} />, label: 'Master Schedule' }
                 ].map(tab => (
@@ -732,10 +774,10 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                       </div>
                     </div>
                     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100"><Layers size={20} /></div>
+                      <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100"><User size={20} /></div>
                       <div>
-                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Capacity</div>
-                        <div className="text-[15px] font-bold text-slate-800"><span className="text-emerald-600 font-black">{selectedCourse.enrollmentCount}</span> / {selectedCourse.capacity || 'N/A'}</div>
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Enrolled Students</div>
+                        <div className="text-[15px] font-bold text-slate-800"><span className="text-emerald-600 font-black">{selectedCourse.enrollmentCount}</span></div>
                       </div>
                     </div>
                     <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
@@ -745,6 +787,81 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                         <div className="text-[15px] font-bold text-slate-800 truncate">{selectedCourse.mentorName}</div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Students Tab */}
+              {activeTab === 'students' && (
+                <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300 fade-in">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-black text-slate-800">Assign Students</h3>
+                      <p className="text-sm text-slate-500 mt-1">Select students to enroll them in {selectedCourse.title}</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={loadStudentsForAssignment}
+                        className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                      >
+                        Refresh List
+                      </button>
+                      <button 
+                        onClick={handleBatchAssignStudents}
+                        disabled={selectedStudentIds.length === 0 || assigningStudents}
+                        className="px-6 py-2 bg-[#003F87] rounded-xl text-sm font-bold text-white hover:bg-[#002B5E] shadow-md shadow-blue-900/10 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {assigningStudents ? 'Assigning...' : `Assign ${selectedStudentIds.length} Student${selectedStudentIds.length !== 1 ? 's' : ''}`}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    {isStudentsLoading ? (
+                      <div className="p-8 text-center text-slate-500 text-sm font-medium">Loading students...</div>
+                    ) : allStudents.length === 0 ? (
+                      <div className="p-8 text-center text-slate-500 text-sm font-medium">No students found. Click Refresh List.</div>
+                    ) : (
+                      <div className="max-h-[50vh] overflow-y-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-sm">
+                            <tr>
+                              <th className="py-3 px-6 border-b border-slate-100 w-12">
+                                <input 
+                                  type="checkbox" 
+                                  className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87]"
+                                  onChange={(e) => setSelectedStudentIds(e.target.checked ? allStudents.map(s => s.id) : [])}
+                                  checked={selectedStudentIds.length === allStudents.length && allStudents.length > 0}
+                                />
+                              </th>
+                              <th className="py-3 px-6 text-xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">Student Name</th>
+                              <th className="py-3 px-6 text-xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">Code</th>
+                              <th className="py-3 px-6 text-xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">Phone</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {allStudents.map(student => (
+                              <tr key={student.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                <td className="py-3 px-6">
+                                  <input 
+                                    type="checkbox" 
+                                    className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87]"
+                                    checked={selectedStudentIds.includes(student.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) setSelectedStudentIds([...selectedStudentIds, student.id]);
+                                      else setSelectedStudentIds(selectedStudentIds.filter(id => id !== student.id));
+                                    }}
+                                  />
+                                </td>
+                                <td className="py-3 px-6 text-sm font-bold text-slate-800">{student.first_name} {student.last_name}</td>
+                                <td className="py-3 px-6 text-sm font-medium text-slate-500">{student.student_code}</td>
+                                <td className="py-3 px-6 text-sm font-medium text-slate-500">{student.phone}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

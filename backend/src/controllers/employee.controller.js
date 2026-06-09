@@ -280,7 +280,8 @@ export const updateEmployee = asyncHandler(async (req, res) => {
       const { data: userData } = await supabase.from("users").select("email").eq("id", currentEmployee.user_id).single();
       
       if (userData?.email !== email) {
-        await supabase.from("users").update({ email }).eq("id", currentEmployee.user_id);
+        const { error: emailError } = await supabase.from("users").update({ email }).eq("id", currentEmployee.user_id).select();
+        if (emailError) throw new ApiError(500, emailError.message || "Failed to update email in users table");
         
         // Send email update notification
         await sendEmail({
@@ -353,13 +354,15 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   }
 
   if (course_ids !== undefined && Array.isArray(course_ids)) {
-    await supabase.from("course_instructors").delete().eq("employee_id", employeeId);
+    const { error: deleteError } = await supabase.from("course_instructors").delete().eq("employee_id", employeeId);
+    if (deleteError) throw new ApiError(500, deleteError.message || "Failed to remove old courses");
     if (course_ids.length > 0) {
       const courseAssignments = course_ids.map(course_id => ({
         employee_id: employeeId,
         course_id: course_id
       }));
-      await supabase.from("course_instructors").insert(courseAssignments);
+      const { error: insertError } = await supabase.from("course_instructors").insert(courseAssignments).select();
+      if (insertError) throw new ApiError(500, insertError.message || "Failed to assign new courses");
     }
   }
 
@@ -367,7 +370,8 @@ export const updateEmployee = asyncHandler(async (req, res) => {
     const { error } = await supabase
       .from("employee_profiles")
       .update(updates)
-      .eq("id", employeeId);
+      .eq("id", employeeId)
+      .select();
 
     if (error) throw new ApiError(500, error.message || "Failed to update employee");
   }
