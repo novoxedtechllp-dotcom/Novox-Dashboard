@@ -55,7 +55,7 @@ const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', set
           <Menu size={20} />
         </button>
         {showSearchBar && (
-          <div className="hidden sm:flex items-center gap-2 bg-[#F8FAFC] px-[16px] py-[8px] rounded-md w-[240px] md:w-[320px] h-[36px]">
+          <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 px-[16px] py-[8px] rounded-xl w-[240px] md:w-[320px] h-[36px] hover:border-blue-300 transition-colors">
             <Search size={16} className="text-[#555F6B]" />
             <input 
               type="text" 
