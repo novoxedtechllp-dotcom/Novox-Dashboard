@@ -1,14 +1,57 @@
 import { supabase } from "../config/supabase.js";
 
-/**
- * Fetches all gallery images from Supabase DB.
- * @returns {Promise<Array>}
- */
-export const getGalleryImagesService = async () => {
+// -- Categories --
+
+export const createCategoryService = async (categoryData) => {
   const { data, error } = await supabase
-    .from("gallery_images")
+    .from("gallery_categories")
+    .insert([categoryData])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message || "Failed to create category");
+  }
+  return data;
+};
+
+export const getCategoriesService = async () => {
+  const { data, error } = await supabase
+    .from("gallery_categories")
     .select("*")
     .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message || "Failed to fetch categories");
+  }
+  return data;
+};
+
+// -- Images --
+
+export const getGalleryImagesService = async ({ search, category_id, page = 1, limit = 50 }) => {
+  let query = supabase
+    .from("gallery_images")
+    .select(`
+      *,
+      category:gallery_categories(name, slug)
+    `)
+    .eq("is_deleted", false)
+    .order("created_at", { ascending: false });
+
+  if (search) {
+    query = query.ilike("title", `%${search}%`);
+  }
+  if (category_id) {
+    query = query.eq("category_id", category_id);
+  }
+
+  // Pagination
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  query = query.range(from, to);
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message || "Failed to fetch gallery images");
@@ -16,11 +59,6 @@ export const getGalleryImagesService = async () => {
   return data;
 };
 
-/**
- * Fetches a single gallery image by ID.
- * @param {string} id - Gallery image ID
- * @returns {Promise<Object>}
- */
 export const getGalleryImageByIdService = async (id) => {
   const { data, error } = await supabase
     .from("gallery_images")
@@ -34,16 +72,12 @@ export const getGalleryImageByIdService = async (id) => {
   return data;
 };
 
-/**
- * Checks if an image with the given hash already exists.
- * @param {string} imageHash - SHA-256 hash of the image.
- * @returns {Promise<boolean>} - True if duplicate exists, false otherwise.
- */
 export const checkImageDuplicateService = async (imageHash) => {
   const { data, error } = await supabase
     .from("gallery_images")
     .select("id")
-    .eq("image_hash", imageHash);
+    .eq("image_hash", imageHash)
+    .eq("is_deleted", false);
 
   if (error) {
     throw new Error(error.message || "Failed to check image duplicate");
@@ -51,17 +85,10 @@ export const checkImageDuplicateService = async (imageHash) => {
   return data && data.length > 0;
 };
 
-/**
- * Creates/inserts a new gallery image record.
- * @param {Object} imageData - Image metadata
- * @returns {Promise<Object>}
- */
 export const addGalleryImageService = async (imageData) => {
-  const { image_url, source, category, image_hash, gmb_media_key } = imageData;
-
   const { data, error } = await supabase
     .from("gallery_images")
-    .insert([{ image_url, source, category: category || "Uncategorized", image_hash, gmb_media_key }])
+    .insert([imageData])
     .select()
     .single();
 
@@ -71,41 +98,46 @@ export const addGalleryImageService = async (imageData) => {
   return data;
 };
 
-/**
- * Updates an existing gallery image's category.
- * @param {string} id - Gallery image ID
- * @param {string} category - New category
- * @returns {Promise<Object>}
- */
-export const updateGalleryImageCategoryService = async (id, category) => {
+export const updateGalleryImageMetadataService = async (id, metadata) => {
+  // metadata can include title, description, category_id, tags
+  metadata.updated_at = new Date();
+  
   const { data, error } = await supabase
     .from("gallery_images")
-    .update({ category })
+    .update(metadata)
     .eq("id", id)
     .select()
     .single();
 
   if (error) {
-    throw new Error(error.message || "Failed to update image category");
+    throw new Error(error.message || "Failed to update image metadata");
   }
   return data;
 };
 
-/**
- * Deletes a gallery image from Supabase.
- * @param {string} id - Gallery image ID
- * @returns {Promise<Object>}
- */
 export const deleteGalleryImageService = async (id) => {
   const { data, error } = await supabase
     .from("gallery_images")
-    .delete()
+    .update({ is_deleted: true })
     .eq("id", id)
     .select()
     .single();
 
   if (error) {
-    throw new Error(error.message || "Failed to delete image from database");
+    throw new Error(error.message || "Failed to mark image as deleted");
+  }
+  return data;
+};
+
+export const bulkDeleteGalleryImagesService = async (ids) => {
+  const { data, error } = await supabase
+    .from("gallery_images")
+    .update({ is_deleted: true })
+    .in("id", ids)
+    .select();
+
+  if (error) {
+    throw new Error(error.message || "Failed to bulk delete images");
   }
   return data;
 };

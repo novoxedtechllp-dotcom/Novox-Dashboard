@@ -2,9 +2,11 @@ import { Router } from "express";
 import {
   getGalleryImages,
   uploadGalleryImage,
-  syncGmbImages,
-  updateGalleryImageCategory,
+  updateGalleryImageMetadata,
   deleteGalleryImage,
+  bulkDeleteGalleryImages,
+  createCategory,
+  getCategories
 } from "../controllers/gallery.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -14,15 +16,19 @@ import { upload } from "../middlewares/upload.middleware.js";
 
 const router = Router();
 
-// Public route to fetch all gallery images
+// Public routes for fetching
 router.route("/").get(getGalleryImages);
+router.route("/categories").get(getCategories);
 
-// Protect all other operations (Admin only)
+// Protect all management operations (Admin only)
 router.use(verifyJWT);
 router.use(authorize({ roles: [ROLES.ADMIN] }));
 
+router.route("/categories").post(createCategory);
 router.route("/upload").post(upload.single("image"), uploadGalleryImage);
-router.route("/sync-gmb").post(syncGmbImages);
-router.route("/:id").put(updateGalleryImageCategory).delete(deleteGalleryImage);
+router.route("/bulk-delete").post(bulkDeleteGalleryImages);
+router.route("/:id")
+  .put(updateGalleryImageMetadata)
+  .delete(deleteGalleryImage);
 
 export default router;

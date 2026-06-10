@@ -1,6 +1,6 @@
 -- Drop existing tables to ensure a clean slate
 DROP TABLE IF EXISTS 
-  gallery_images, audit_logs, notifications, blog_statistics, blogs, candidate_evaluations, interviews, candidates, 
+  gallery_images, gallery_categories, audit_logs, notifications, blog_statistics, blogs, candidate_evaluations, interviews, candidates, 
   whatsapp_messages, whatsapp_conversations, whatsapp_campaigns, whatsapp_templates, 
   followups, lead_activities, leads, lead_sources, 
   fee_payments, student_fee_plans, 
@@ -17,7 +17,7 @@ CASCADE;
 DROP TYPE IF EXISTS 
   USER_ROLE, USER_STATUS, EMPLOYEE_STATUS, COURSE_TRACK, COURSE_STATUS, 
   STUDENT_STATUS, STUDENT_COURSE_STATUS, ATTENDANCE_STATUS, REPORT_TYPE, 
-  APPROVAL_STATUS, PAYROLL_STATUS, PAYMENT_METHOD, CRM_STAGE, ACTIVITY_TYPE, 
+  PAYROLL_STATUS, PAYMENT_METHOD, CRM_STAGE, ACTIVITY_TYPE, 
   CAMPAIGN_STATUS, SENDER_TYPE, CANDIDATE_STATUS, INTERVIEW_RESULT, AUDIT_ACTION, 
   PROJECT_STATUS, CONVERSATION_STATUS, PLATFORM_TYPE 
 CASCADE;
@@ -32,7 +32,6 @@ CREATE TYPE STUDENT_STATUS AS ENUM ('ACTIVE', 'COMPLETED', 'DROPPED');
 CREATE TYPE STUDENT_COURSE_STATUS AS ENUM ('IN_PROGRESS', 'COMPLETED', 'DROPPED');
 CREATE TYPE ATTENDANCE_STATUS AS ENUM ('PRESENT', 'ABSENT', 'LATE', 'HALF_DAY');
 CREATE TYPE REPORT_TYPE AS ENUM ('DAILY', 'WEEKLY');
-CREATE TYPE APPROVAL_STATUS AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 CREATE TYPE PAYROLL_STATUS AS ENUM ('PENDING', 'PAID');
 CREATE TYPE PAYMENT_METHOD AS ENUM ('CASH', 'UPI', 'CARD', 'BANK');
 CREATE TYPE CRM_STAGE AS ENUM ('NEW', 'CONTACTED', 'FOLLOWUP', 'COUNSELLING', 'ENROLLED', 'LOST');
@@ -244,7 +243,6 @@ CREATE TABLE work_reports (
     work_done TEXT NOT NULL,
     blockers TEXT,
     submitted_at TIMESTAMP DEFAULT NOW(),
-    approval_status APPROVAL_STATUS DEFAULT 'PENDING',
     reviewed_by UUID REFERENCES employee_profiles(id)
 );
 
@@ -292,8 +290,7 @@ CREATE TABLE fee_payments (
 CREATE TABLE whatsapp_templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) UNIQUE NOT NULL,
-    template_content TEXT NOT NULL,
-    approval_status APPROVAL_STATUS DEFAULT 'PENDING'
+    template_content TEXT NOT NULL
 );
 
 CREATE TABLE whatsapp_campaigns (
@@ -392,14 +389,27 @@ CREATE TABLE audit_logs (
 );
 
 -- 14. GALLERY MODULE
+CREATE TABLE gallery_categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    parent_id UUID REFERENCES gallery_categories(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE gallery_images (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    image_url TEXT NOT NULL,
-    source VARCHAR(20) NOT NULL,
-    category VARCHAR(50) NOT NULL DEFAULT 'Uncategorized',
+    title VARCHAR(255),
+    description TEXT,
+    cloudinary_url TEXT NOT NULL,
+    cloudinary_public_id VARCHAR(255) NOT NULL,
     image_hash TEXT UNIQUE NOT NULL,
-    gmb_media_key VARCHAR(255),
-    created_at TIMESTAMP DEFAULT NOW()
+    category_id UUID REFERENCES gallery_categories(id) ON DELETE SET NULL,
+    tags TEXT[],
+    uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE
 );
 
 -- Indexes
@@ -413,4 +423,5 @@ CREATE INDEX idx_work_reports_date ON work_reports(submitted_at);
 CREATE INDEX idx_notifications_user_unread ON notifications(user_id) WHERE is_read = FALSE;
 CREATE INDEX idx_audit_logs_created ON audit_logs(created_at DESC);
 CREATE INDEX idx_gallery_images_hash ON gallery_images(image_hash);
-CREATE INDEX idx_gallery_images_category ON gallery_images(category);
+CREATE INDEX idx_gallery_images_category ON gallery_images(category_id);
+CREATE INDEX idx_gallery_categories_slug ON gallery_categories(slug);
