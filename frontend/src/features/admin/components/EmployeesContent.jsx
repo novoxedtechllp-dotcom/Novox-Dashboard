@@ -326,6 +326,24 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
             {/* Main Content Area */}
             <div className="p-6 relative">
 
+              {/* Top Right Actions */}
+              <div className="absolute top-6 right-6 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={() => setEmployeeToEdit(emp)}
+                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
+                  title="Edit Employee"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button 
+                  onClick={() => setEmployeeToDelete(emp.id)}
+                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-all"
+                  title="Delete Employee"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+
               {/* Profile Header */}
               <div className="flex flex-col mb-2">
                 <div className="relative w-16 h-16 mb-4">
@@ -360,23 +378,6 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Actions Footer */}
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100">
-              <button 
-                onClick={() => setEmployeeToEdit(emp)}
-                className="flex-1 flex items-center justify-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-3 rounded-[12px] transition-all"
-              >
-                <Pencil size={14} /> Edit
-              </button>
-              
-              <button 
-                onClick={() => setEmployeeToDelete(emp.id)}
-                className="flex-1 flex items-center justify-center gap-1 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 px-2 py-3 rounded-[12px] transition-all"
-              >
-                <Trash2 size={14} /> Delete
-              </button>
             </div>
 
           </div>
