@@ -594,17 +594,11 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
               {/* Core Details */}
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><BookOpen size={16} className="text-[#003F87]" /> Core Identity</h3>
-                <div className="grid grid-cols-1 gap-5 mb-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Course Title *</label>
                     <input type="text" required placeholder="e.g., Advanced Full Stack Development" value={courseToEdit ? courseToEdit.title : newCourse.title} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, title: e.target.value }) : setNewCourse({ ...newCourse, title: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Description</label>
-                    <textarea rows="3" placeholder="Describe the curriculum..." value={courseToEdit ? (courseToEdit.description || '') : newCourse.description} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, description: e.target.value }) : setNewCourse({ ...newCourse, description: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all resize-none" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Category</label>
                     <CustomSelect
@@ -622,12 +616,16 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Description</label>
+                  <textarea rows="3" placeholder="Describe the curriculum..." value={courseToEdit ? (courseToEdit.description || '') : newCourse.description} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, description: e.target.value }) : setNewCourse({ ...newCourse, description: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all resize-none" />
+                </div>
               </div>
 
               {/* Logistics */}
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><LayoutList size={16} className="text-[#003F87]" /> Logistics & Pricing</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Duration (Months)</label>
                     <input type="number" min="1" value={courseToEdit ? (courseToEdit.duration_months || 1) : newCourse.duration_months} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, duration_months: e.target.value }) : setNewCourse({ ...newCourse, duration_months: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
@@ -636,8 +634,6 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Capacity</label>
                     <input type="number" min="1" value={courseToEdit ? (courseToEdit.capacity || 20) : newCourse.capacity} onChange={e => courseToEdit ? setCourseToEdit({ ...courseToEdit, capacity: e.target.value }) : setNewCourse({ ...newCourse, capacity: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Instructor *</label>
                     <CustomSelect
