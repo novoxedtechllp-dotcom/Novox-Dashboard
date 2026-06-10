@@ -89,9 +89,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
     salary,
     status,
     avatar_url,
-    course_ids,
-    guardian_name,
-    guardian_phone
+    course_ids
   } = req.body;
 
   if (!first_name || !email || !phone) {
@@ -160,9 +158,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
         role_id: employeeRoleId,
         salary: salary || 0,
         status: status || 'ACTIVE',
-        avatar_url: avatarUrl,
-        guardian_name: guardian_name || null,
-        guardian_phone: guardian_phone || null
+        avatar_url: avatarUrl
       },
     ])
     .select();
@@ -271,7 +267,7 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   console.log(`\n[PUT /api/v1/employees/${employeeId}] -> updateEmployee called`);
   console.log(`Update Body:`, JSON.stringify(req.body, null, 2));
   
-  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url, email, course_ids, guardian_name, guardian_phone } = req.body;
+  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url, email, course_ids } = req.body;
 
   if (email !== undefined) {
     const { data: currentEmployee } = await supabase.from("employee_profiles").select("user_id").eq("id", employeeId).single();
@@ -324,8 +320,6 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   if (salary !== undefined) updates.salary = salary;
   if (role_id !== undefined) updates.role_id = role_id;
   if (avatar_url !== undefined) updates.avatar_url = avatar_url;
-  if (guardian_name !== undefined) updates.guardian_name = guardian_name;
-  if (guardian_phone !== undefined) updates.guardian_phone = guardian_phone;
 
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);

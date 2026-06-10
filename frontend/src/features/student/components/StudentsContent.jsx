@@ -74,13 +74,13 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         return;
       }
 
-      let url = '/api/v1/students';
+      let url = '/api/v1/students?limit=1000';
       if (currentOwnershipFilter === 'My Students') {
         const profRes = await fetch('/api/v1/profile/me', { headers });
         const profData = await profRes.json();
         const empId = profData?.data?.employeeProfile?.id;
         if (empId) {
-          url += `?instructorId=${empId}`;
+          url += `&instructorId=${empId}`;
         }
       }
       

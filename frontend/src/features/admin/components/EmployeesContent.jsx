@@ -50,9 +50,7 @@ const mapEmployeeFromApi = (employee, avatar = null) => ({
   avatar: avatar || employee.avatar_url || null,
   email: employee.users?.email || '',
   systemRole: employee.users?.role || 'EMPLOYEE',
-  courseIds: employee.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || [],
-  guardianName: employee.guardian_name || '',
-  guardianPhone: employee.guardian_phone || ''
+  courseIds: employee.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []
 });
 
 const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) => {
@@ -100,9 +98,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
     phone: '',
     joinDate: 'January 2024',
     avatarUrl: null,
-    courseIds: [],
-    guardianName: '',
-    guardianPhone: ''
+    courseIds: []
   });
 
   const handleImageUpload = async (e) => {
@@ -166,9 +162,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
           employee_role: departmentToApi(newEmployee.department),
           designation: newEmployee.position || newEmployee.department,
           avatar_url: (newEmployee.avatarUrl && !newEmployee.avatarUrl.startsWith('blob:')) ? newEmployee.avatarUrl : null,
-          course_ids: newEmployee.courseIds,
-          guardian_name: newEmployee.guardianName,
-          guardian_phone: newEmployee.guardianPhone
+          course_ids: newEmployee.courseIds
         };
         if (newEmployee.email) payload.email = newEmployee.email;
         if (newEmployee.password) payload.password = newEmployee.password;
@@ -183,7 +177,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
 
       setEmployees([addedEmployee, ...employees]);
       setIsModalOpen(false);
-      setNewEmployee({ name: '', email: '', password: '', department: 'Development', position: '', phone: '', joinDate: 'January 2024', avatarUrl: null, courseIds: [], guardianName: '', guardianPhone: '' });
+      setNewEmployee({ name: '', email: '', password: '', department: 'Development', position: '', phone: '', joinDate: 'January 2024', avatarUrl: null, courseIds: [] });
       alert('Employee added successfully!');
     } catch (error) {
       console.error('Error adding employee:', error);
@@ -243,9 +237,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
         email: employeeToEdit.email,
         employee_role: departmentToApi(employeeToEdit.department),
         designation: employeeToEdit.position || employeeToEdit.department,
-        course_ids: employeeToEdit.courseIds,
-        guardian_name: employeeToEdit.guardianName,
-        guardian_phone: employeeToEdit.guardianPhone
+        course_ids: employeeToEdit.courseIds
       };
 
       const response = await fetch(`/api/v1/employees/${employeeToEdit.id}`, {
@@ -498,24 +490,6 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     placeholder="Select courses..."
                   />
                 </div>
-                <div>
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Guardian Name</label>
-                  <input 
-                    type="text" value={newEmployee.guardianName}
-                    onChange={(e) => setNewEmployee({...newEmployee, guardianName: e.target.value})}
-                    placeholder="e.g. John Doe"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Guardian Phone Number</label>
-                  <input 
-                    type="tel" maxLength={10} value={newEmployee.guardianPhone}
-                    onChange={(e) => setNewEmployee({...newEmployee, guardianPhone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})}
-                    placeholder="e.g. 9876543210"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
-                  />
-                </div>
               </div>
 
               <div className="flex justify-end gap-3 mt-6">
@@ -596,24 +570,6 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full"
                     selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
                     placeholder="Select courses..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Guardian Name</label>
-                  <input 
-                    type="text" value={employeeToEdit.guardianName}
-                    onChange={(e) => setEmployeeToEdit({...employeeToEdit, guardianName: e.target.value})}
-                    placeholder="e.g. John Doe"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Guardian Phone Number</label>
-                  <input 
-                    type="tel" maxLength={10} value={employeeToEdit.guardianPhone}
-                    onChange={(e) => setEmployeeToEdit({...employeeToEdit, guardianPhone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})}
-                    placeholder="e.g. 9876543210"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>
               </div>

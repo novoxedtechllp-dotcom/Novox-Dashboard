@@ -226,7 +226,7 @@ const getStudents = asyncHandler(async (req, res) => {
     query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,student_code.ilike.%${search}%`);
   }
 
-  query = query.range(offset, offset + limitNum - 1);
+  query = query.range(offset, offset + limitNum - 1).order("created_at", { ascending: false });
 
   const { data, error, count } = await query;
 

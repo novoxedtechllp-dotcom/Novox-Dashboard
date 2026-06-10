@@ -10,6 +10,11 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendEmail = async ({ to, subject, html }) => {
+  if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
+    console.warn('SMTP_EMAIL or SMTP_PASSWORD not configured. Skipping email to', to);
+    return null;
+  }
+
   try {
     const mailOptions = {
       from: `Novox Dashboard <${process.env.SMTP_EMAIL}>`,
