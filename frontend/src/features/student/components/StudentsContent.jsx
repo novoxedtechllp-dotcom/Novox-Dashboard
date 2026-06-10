@@ -600,7 +600,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               {/* Personal Details */}
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><User size={16} className="text-[#003F87]" /> Personal Details</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-5 mb-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">First Name *</label>
                     <input type="text" required value={newStudent.first_name} onChange={(e) => setNewStudent({...newStudent, first_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="John" />
@@ -609,8 +609,6 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Last Name</label>
                     <input type="text" value={newStudent.last_name} onChange={(e) => setNewStudent({...newStudent, last_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="Doe" />
                   </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Student Phone *</label>
                     <input type="text" maxLength={10} required value={newStudent.phone} onChange={(e) => setNewStudent({...newStudent, phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="9876543210" />
@@ -619,8 +617,6 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Parent/Guardian Phone</label>
                     <input type="text" maxLength={10} value={newStudent.parent_phone} onChange={(e) => setNewStudent({...newStudent, parent_phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="9876543210" />
                   </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Guardian Name</label>
                     <input type="text" value={newStudent.guardian_name} onChange={(e) => setNewStudent({...newStudent, guardian_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="Optional" />
@@ -635,7 +631,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               {/* Account Setup */}
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><Briefcase size={16} className="text-[#003F87]" /> Account & Enrollment Setup</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Email Address *</label>
                     <input type="email" required value={newStudent.email} onChange={(e) => setNewStudent({...newStudent, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="student@example.com" />
@@ -659,20 +655,18 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                       </button>
                     </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Joining Date</label>
                     <input type="date" value={newStudent.joining_date} onChange={(e) => setNewStudent({...newStudent, joining_date: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Initial Courses</label>
-                    <div className="w-full max-h-[120px] overflow-y-auto px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl custom-scrollbar">
+                  <div className="md:col-span-3">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 mt-2">Initial Courses</label>
+                    <div className="w-full max-h-[120px] overflow-y-auto px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl custom-scrollbar flex flex-wrap gap-2">
                       {courses.length === 0 ? (
                         <p className="text-sm text-slate-500 px-2 py-1">No courses available.</p>
                       ) : (
                         courses.map(c => (
-                          <label key={c.id} className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-white px-2 rounded-md transition-colors">
+                          <label key={c.id} className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-white px-3 rounded-md transition-colors bg-white border border-slate-200">
                             <input 
                               type="checkbox" 
                               checked={newStudent.course_ids.includes(c.id)}
@@ -726,7 +720,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               <div className="flex items-center gap-8">
 
 
-                <div className="flex-1 grid grid-cols-2 gap-5">
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div>
                     <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">First Name *</label>
                     <div className="relative">
@@ -738,14 +732,14 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Last Name</label>
                     <input type="text" placeholder="e.g. Doe" value={studentToEdit.last_name} onChange={e => setStudentToEdit({...studentToEdit, last_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
-                  <div className="col-span-2">
+                  <div>
                     <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Email *</label>
                     <input required type="email" placeholder="e.g. john@example.com" value={studentToEdit.email} onChange={e => setStudentToEdit({...studentToEdit, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-5 mt-5">
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Phone *</label>
                   <div className="relative">
@@ -767,7 +761,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     <input type="text" placeholder="Optional" value={studentToEdit.guardian_name || ''} onChange={e => setStudentToEdit({...studentToEdit, guardian_name: e.target.value})} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 md:col-span-3 lg:col-span-4">
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Address</label>
                   <div className="relative">
                     <div className="absolute left-4 top-4 text-slate-400"><MapPin size={18} /></div>
