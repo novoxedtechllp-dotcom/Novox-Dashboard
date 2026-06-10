@@ -99,6 +99,7 @@ export const registerUserService = async (email, password, role, additionalDetai
 };
 
 export const loginUserService = async (email, password) => {
+  console.log(`[loginUserService] Attempting login for email: ${email}`);
   const { data: user, error } = await supabase
     .from("users")
     .select(`
@@ -120,6 +121,9 @@ export const loginUserService = async (email, password) => {
     `)
     .eq("email", email)
     .single();
+
+  console.log(`[loginUserService] Supabase query result - Error:`, error);
+  console.log(`[loginUserService] Supabase query result - User found:`, !!user);
 
   if (error || !user) {
     throw new ApiError(401, "User Not Found");

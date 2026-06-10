@@ -5,7 +5,10 @@ import { ApiError } from "../utils/ApiError.js";
 import { loginUserService, registerUserService, changePasswordService } from "../services/auth.service.js";
 
 const login = asyncHandler(async (req, res) => {
+  console.log("Login hit");
   const { email, password } = req.body;
+  console.log("Email: ", email);
+  console.log("Password: ", password);
 
   const result = await loginUserService(email, password);
 

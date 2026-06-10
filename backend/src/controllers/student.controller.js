@@ -6,7 +6,7 @@ import { uploadOnCloudinary, extractPublicIdFromUrl, deleteFromCloudinary } from
 import bcrypt from "bcrypt";
 import { sendEmail } from "../utils/sendEmail.js";
 
-const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, guardian_name, address, joining_date, status, avatar_url, created_at, users(email)";
+const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, address, joining_date, status, avatar_url, created_at, users(email)";
 
 // ==========================================
 // CORE STUDENT CRUD
@@ -40,7 +40,6 @@ const createStudent = asyncHandler(async (req, res) => {
     last_name,
     phone,
     parent_phone,
-    guardian_name,
     address,
     joining_date,
     course_ids,
@@ -134,7 +133,7 @@ const createStudent = asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from("students")
     .insert([{
-      user_id: studentUserId, student_code: finalStudentCode, first_name, last_name, phone, parent_phone, guardian_name,
+      user_id: studentUserId, student_code: finalStudentCode, first_name, last_name, phone, parent_phone,
       address, joining_date, status: "ACTIVE", avatar_url: avatarUrl
     }])
     .select(studentSelectFields);
@@ -265,7 +264,7 @@ const getStudentById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/students/:id
 const updateStudent = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
-  const { first_name, last_name, phone, parent_phone, guardian_name, address, status, avatar_url, email } = req.body;
+  const { first_name, last_name, phone, parent_phone, address, status, avatar_url, email } = req.body;
 
   if (email !== undefined) {
     const { data: currentStudent } = await supabase.from("students").select("user_id").eq("id", studentId).single();
@@ -315,7 +314,6 @@ const updateStudent = asyncHandler(async (req, res) => {
   if (last_name !== undefined) updates.last_name = last_name;
   if (phone !== undefined) updates.phone = phone;
   if (parent_phone !== undefined) updates.parent_phone = parent_phone;
-  if (guardian_name !== undefined) updates.guardian_name = guardian_name;
   if (address !== undefined) updates.address = address;
   if (status !== undefined) updates.status = status;
   if (avatar_url !== undefined) updates.avatar_url = avatar_url;

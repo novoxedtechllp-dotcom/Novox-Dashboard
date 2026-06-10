@@ -101,9 +101,9 @@ async function run() {
 
     // 3. Create student
     await client.query(`
-      INSERT INTO students (user_id, student_code, first_name, last_name, phone, parent_phone, guardian_name, address, joining_date, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE')
-    `, [userId, studentCode, firstName, lastName, phone, parentPhone, guardianName, address, joiningDate]);
+      INSERT INTO students (user_id, student_code, first_name, last_name, phone, parent_phone, address, joining_date, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ACTIVE')
+    `, [userId, studentCode, firstName, lastName, phone, parentPhone, address, joiningDate]);
 
     console.log(`Inserted student ${fullName} (${studentCode})`);
   }
