@@ -321,20 +321,28 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         
         {filteredEmployees.map(emp => (
-          <div key={emp.id} className="bg-white rounded-[24px] border border-slate-100/60 flex flex-col relative group shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 overflow-hidden min-h-[200px]">
+          <div key={emp.id} className="bg-white rounded-[24px] border border-slate-100/60 flex flex-col relative group shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 overflow-hidden">
             
-            {/* Action Buttons (Hover) */}
-            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-10 translate-x-2 group-hover:translate-x-0">
-              <button onClick={(e) => { e.stopPropagation(); setEmployeeToEdit(emp); }} className="w-8 h-8 rounded-full bg-white shadow-sm border border-slate-100 text-slate-400 hover:bg-blue-50 hover:text-[#003F87] hover:border-blue-200 flex items-center justify-center transition-all" title="Edit Employee">
-                <Pencil size={14} />
-              </button>
-              <button onClick={(e) => { e.stopPropagation(); setEmployeeToDelete(emp.id); }} className="w-8 h-8 rounded-full bg-white shadow-sm border border-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 flex items-center justify-center transition-all" title="Delete Employee">
-                <Trash2 size={14} />
-              </button>
-            </div>
-
             {/* Main Content Area */}
             <div className="p-6 relative">
+
+              {/* Top Right Actions */}
+              <div className="absolute top-6 right-6 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={() => setEmployeeToEdit(emp)}
+                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
+                  title="Edit Employee"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button 
+                  onClick={() => setEmployeeToDelete(emp.id)}
+                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-all"
+                  title="Delete Employee"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
 
               {/* Profile Header */}
               <div className="flex flex-col mb-2">
