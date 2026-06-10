@@ -221,3 +221,8 @@ The application provides role-based routing and access control.
 This project is developed for educational and organizational management purposes.
 
 ---
+
+## 📝 Recent Updates
+
+For details on the most recent features, bug fixes, and improvements (including UI modernization, component restructuring, and routing fixes), please see our detailed [CHANGELOG.md](./CHANGELOG.md).
+
