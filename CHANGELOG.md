@@ -33,7 +33,7 @@ This document details the latest changes, features, and bug fixes applied to the
 
 ### 4. Sidebar Responsiveness (`e3cd276b` & `e2dcfe46`)
 - Fixed overall responsiveness of the Sidebar component for smaller screens.
-- Added a proper hamburger menu icon to toggle the sidebar on mobile and tablet views.
+- Added a proper haburger menu icon to toggle the sidebar on mobile and tablet views.
 
 ---
 *Note: This log reflects the most recent series of commits on the current branch. For a full history, please refer to the `git log`.*
