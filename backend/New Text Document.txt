@@ -1,0 +1,15 @@
+PORT = 3000
+CORS_ORIGIN = *
+SUPABASE_URL="https://ybtpofrmpnozbxifilqr.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="sb_secret_Acwl53gC77hVccaeBbWd7Q_Z6H3jtLi"
+DATABASE_URL="postgresql://postgres:DB_Dashboard26@db.ybtpofrmpnozbxifilqr.supabase.co:5432/postgres"
+
+# JWT Secrets
+ACCESS_TOKEN_SECRET="4cf58e8bf94f4b4c3eff87c361c94b1bea9121f76e8a0de95436ae6ba645285a4bcf11e7"
+REFRESH_TOKEN_SECRET="0f9ee18ed6b1849ce94801a5c4b83047f57a2ad37a2655abe5bbcde4dd2d0049df4ffc5e"
+ACCESS_TOKEN_EXPIRY="1d"
+REFRESH_TOKEN_EXPIRY="30d"
+
+CLOUDINARY_CLOUD_NAME = dqjvgxgyw
+CLOUDINARY_API_KEY = 527816743657385
+CLOUDINARY_API_SECRET = qy2RqRFbs11lrIcTG1Zr9Y6Vnvw
