@@ -4,8 +4,9 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { uploadOnCloudinary, extractPublicIdFromUrl, deleteFromCloudinary } from "../utils/cloudinary.js";
 import bcrypt from "bcrypt";
+import { sendEmail } from "../utils/sendEmail.js";
 
-const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, address, joining_date, status, avatar_url, created_at, users(email)";
+const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, guardian_name, address, joining_date, status, avatar_url, created_at, users(email)";
 
 // ==========================================
 // CORE STUDENT CRUD
@@ -39,9 +40,10 @@ const createStudent = asyncHandler(async (req, res) => {
     last_name,
     phone,
     parent_phone,
+    guardian_name,
     address,
     joining_date,
-    course_id,
+    course_ids,
     avatar_url
   } = req.body;
 
@@ -91,12 +93,48 @@ const createStudent = asyncHandler(async (req, res) => {
 
     studentUserId = user.id;
     createdUserId = user.id;
+
+    // Send Welcome Email
+    await sendEmail({
+      to: loginEmail,
+      subject: 'Welcome to Novox Dashboard',
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 40px 20px; border-radius: 16px;">
+          <div style="background-color: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <div style="background: #f3e8ff; width: 64px; height: 64px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                <span style="font-size: 32px;">🚀</span>
+              </div>
+              <h1 style="color: #1e1b4b; margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -0.5px;">Welcome to our platform!</h1>
+              <p style="color: #6b7280; font-size: 16px; margin-top: 8px; font-weight: 500;">We are excited to welcome you as a new student.</p>
+            </div>
+            <p style="color: #374151; font-size: 16px; line-height: 1.6;">Hey <strong>${first_name}</strong>! 🎮</p>
+            <p style="color: #374151; font-size: 16px; line-height: 1.6;">Your student profile has been created and you are officially ready to embark on your learning quest. Complete modules, earn XP, and track your progress on the leaderboard!</p>
+            <div style="background: linear-gradient(to right, #f3f4f6, #ffffff); border: 2px dashed #d1d5db; padding: 24px; margin: 24px 0; border-radius: 12px; text-align: center;">
+              <p style="margin: 0 0 16px 0; color: #4b5563; font-size: 13px; text-transform: uppercase; font-weight: 800; letter-spacing: 1.5px;">🔥 Your Access Keys 🔥</p>
+              <div style="margin-bottom: 12px;">
+                <span style="color: #6b7280; font-size: 14px; font-weight: 600;">Player ID (Email):</span><br/>
+                <strong style="color: #111827; font-size: 18px;">${loginEmail}</strong>
+              </div>
+              <div>
+                <span style="color: #6b7280; font-size: 14px; font-weight: 600;">Secret Passcode:</span><br/>
+                <strong style="color: #111827; font-size: 18px;">${loginPassword}</strong>
+              </div>
+            </div>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="https://novox.local/login" style="background: linear-gradient(to right, #6366f1, #8b5cf6); color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 50px; font-weight: 800; font-size: 16px; display: inline-block; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);">Start Your Journey</a>
+            </div>
+            <p style="color: #9ca3af; font-size: 13px; text-align: center; margin-top: 32px;">Don't forget to change your passcode after your first login.<br>See you on the leaderboard!</p>
+          </div>
+        </div>
+      `
+    });
   }
 
   const { data, error } = await supabase
     .from("students")
     .insert([{
-      user_id: studentUserId, student_code: finalStudentCode, first_name, last_name, phone, parent_phone,
+      user_id: studentUserId, student_code: finalStudentCode, first_name, last_name, phone, parent_phone, guardian_name,
       address, joining_date, status: "ACTIVE", avatar_url: avatarUrl
     }])
     .select(studentSelectFields);
@@ -108,40 +146,42 @@ const createStudent = asyncHandler(async (req, res) => {
 
   const newStudent = data[0];
 
-  if (course_id) {
-    // Assign course
-    const { error: courseError } = await supabase
-      .from("student_courses")
-      .insert([{ 
-        student_id: newStudent.id, 
-        course_id, 
-        progress_percentage: 0,
-        completion_status: 'IN_PROGRESS'
-      }]);
+  if (course_ids && Array.isArray(course_ids) && course_ids.length > 0) {
+    for (const cid of course_ids) {
+      // Assign course
+      const { error: courseError } = await supabase
+        .from("student_courses")
+        .insert([{ 
+          student_id: newStudent.id, 
+          course_id: cid, 
+          progress_percentage: 0,
+          completion_status: 'IN_PROGRESS'
+        }]);
 
-    if (!courseError) {
-      // Auto-assign existing tasks for this course
-      const { data: modulesTasks } = await supabase
-        .from("course_modules")
-        .select('id, course_submodules(id, course_tasks(id))')
-        .eq('course_id', course_id);
+      if (!courseError) {
+        // Auto-assign existing tasks for this course
+        const { data: modulesTasks } = await supabase
+          .from("course_modules")
+          .select('id, course_submodules(id, course_tasks(id))')
+          .eq('course_id', cid);
 
-      if (modulesTasks && modulesTasks.length > 0) {
-        const tasksToAssign = [];
-        modulesTasks.forEach(module => {
-          module.course_submodules?.forEach(sub => {
-            sub.course_tasks?.forEach(task => {
-              tasksToAssign.push({
-                student_id: newStudent.id,
-                task_id: task.id,
-                status: 'PENDING'
+        if (modulesTasks && modulesTasks.length > 0) {
+          const tasksToAssign = [];
+          modulesTasks.forEach(module => {
+            module.course_submodules?.forEach(sub => {
+              sub.course_tasks?.forEach(task => {
+                tasksToAssign.push({
+                  student_id: newStudent.id,
+                  task_id: task.id,
+                  status: 'PENDING'
+                });
               });
             });
           });
-        });
 
-        if (tasksToAssign.length > 0) {
-          await supabase.from("student_tasks").insert(tasksToAssign);
+          if (tasksToAssign.length > 0) {
+            await supabase.from("student_tasks").insert(tasksToAssign);
+          }
         }
       }
     }
@@ -153,7 +193,7 @@ const createStudent = asyncHandler(async (req, res) => {
 // @desc    Get all students with filters
 // @route   GET /api/v1/students
 const getStudents = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, courseId, instructorId, status, search } = req.query;
+  const { page = 1, limit = 20, courseId, instructorId, status, search, department } = req.query;
 
   const pageNum = parseInt(page, 10);
   const limitNum = parseInt(limit, 10);
@@ -171,6 +211,11 @@ const getStudents = asyncHandler(async (req, res) => {
       ${studentSelectFields},
       student_courses!inner(courses!inner(instructor_id))
     `, { count: "exact" }).eq("student_courses.courses.instructor_id", instructorId);
+  } else if (department && department !== 'All Departments') {
+    query = supabase.from("students").select(`
+      ${studentSelectFields},
+      student_courses!inner(courses!inner(track))
+    `, { count: "exact" }).eq("student_courses.courses.track", department);
   } else {
     query = supabase.from("students").select(studentSelectFields, { count: "exact" });
   }
@@ -181,13 +226,13 @@ const getStudents = asyncHandler(async (req, res) => {
     query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,student_code.ilike.%${search}%`);
   }
 
-  query = query.range(offset, offset + limitNum - 1);
+  query = query.range(offset, offset + limitNum - 1).order("created_at", { ascending: false });
 
   const { data, error, count } = await query;
 
   if (error) throw new ApiError(500, error.message || "Failed to fetch students");
 
-  const formattedData = (courseId || instructorId) ? data.map(s => {
+  const formattedData = (courseId || instructorId || department) ? data.map(s => {
     const { student_courses, ...rest } = s;
     return rest;
   }) : data;
@@ -220,12 +265,41 @@ const getStudentById = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/students/:id
 const updateStudent = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
-  const { first_name, last_name, phone, parent_phone, address, status, avatar_url, email } = req.body;
+  const { first_name, last_name, phone, parent_phone, guardian_name, address, status, avatar_url, email } = req.body;
 
   if (email !== undefined) {
     const { data: currentStudent } = await supabase.from("students").select("user_id").eq("id", studentId).single();
     if (currentStudent?.user_id) {
-      await supabase.from("users").update({ email }).eq("id", currentStudent.user_id);
+      // Get current email
+      const { data: userData } = await supabase.from("users").select("email").eq("id", currentStudent.user_id).single();
+      
+      if (userData?.email !== email) {
+        await supabase.from("users").update({ email }).eq("id", currentStudent.user_id);
+        
+        // Send email update notification
+        await sendEmail({
+          to: email,
+          subject: 'Your Novox Dashboard Email Has Been Updated',
+          html: `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8fafc; padding: 40px 20px; border-radius: 16px;">
+              <div style="background-color: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                <div style="text-align: center; margin-bottom: 30px;">
+                  <div style="background: #e0e7ff; width: 48px; height: 48px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                    <span style="font-size: 24px;">✉️</span>
+                  </div>
+                  <h2 style="color: #0f172a; margin: 0; font-size: 24px; font-weight: 800;">Email Updated</h2>
+                </div>
+                <p style="color: #334155; font-size: 16px; line-height: 1.6; text-align: center;">Your email address for the Novox Dashboard has been successfully updated to:</p>
+                <div style="background-color: #f1f5f9; padding: 16px; margin: 24px 0; border-radius: 8px; text-align: center;">
+                  <strong style="color: #0f172a; font-size: 18px;">${email}</strong>
+                </div>
+                <p style="color: #64748b; font-size: 14px; line-height: 1.6; text-align: center;">You will now use this email address to log in to your account.</p>
+                <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 24px;">If you did not request this change, please contact your administrator immediately.</p>
+              </div>
+            </div>
+          `
+        });
+      }
     }
   }
 
@@ -241,6 +315,7 @@ const updateStudent = asyncHandler(async (req, res) => {
   if (last_name !== undefined) updates.last_name = last_name;
   if (phone !== undefined) updates.phone = phone;
   if (parent_phone !== undefined) updates.parent_phone = parent_phone;
+  if (guardian_name !== undefined) updates.guardian_name = guardian_name;
   if (address !== undefined) updates.address = address;
   if (status !== undefined) updates.status = status;
   if (avatar_url !== undefined) updates.avatar_url = avatar_url;

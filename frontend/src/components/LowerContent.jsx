@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Zap } from 'lucide-react';
-import LoadingSpinner from './LoadingSpinner';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const LowerContent = ({ employees = [], students }) => {
   const [viewAllBtn, setViewAllBtn] = useState(true);

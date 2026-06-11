@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Search, Bell, HelpCircle, User, LogOut, Settings } from 'lucide-react';
+import { Search, Bell, HelpCircle, User, LogOut, Settings, Menu } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 
-const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', setSearchQuery = () => {} }) => {
+const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', setSearchQuery = () => {}, toggleSidebar }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   const showSearchBar = ['students', 'employees', 'courses'].includes(activeTab);
@@ -45,11 +45,17 @@ const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', set
   }
 
   return (
-    <header className="h-[64px] min-h-[64px] bg-white border-b border-[#C2C6D4] px-[24px] flex items-center justify-between">
+    <header className="h-[64px] min-h-[64px] bg-white border-b border-[#C2C6D4] px-[16px] md:px-[24px] flex items-center justify-between">
       {/* Search Bar & Title */}
-      <div className="flex items-center gap-[24px]">
+      <div className="flex items-center gap-[12px] md:gap-[24px]">
+        <button 
+          onClick={toggleSidebar}
+          className="p-[8px] text-[#555F6B] hover:bg-slate-100 rounded-md transition-colors"
+        >
+          <Menu size={20} />
+        </button>
         {showSearchBar && (
-          <div className="flex items-center gap-2 bg-[#F8FAFC] px-[16px] py-[8px] rounded-md w-[320px] h-[36px]">
+          <div className="hidden sm:flex items-center gap-2 bg-[#F8FAFC] px-[16px] py-[8px] rounded-md w-[240px] md:w-[320px] h-[36px]">
             <Search size={16} className="text-[#555F6B]" />
             <input 
               type="text" 
@@ -65,22 +71,25 @@ const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', set
       {/* Header Actions */}
       <div className="flex items-center gap-[16px]">
 
-
-
-        
         {/* Profile */}
         <div className="relative" ref={profileRef}>
           <div 
-            className="flex items-center gap-[12px] ml-[8px] cursor-pointer hover:bg-slate-50 p-[4px] rounded-md transition-colors"
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className={`flex items-center gap-[12px] ml-[8px] p-[4px] rounded-md transition-colors ${userInfo?.role !== 'ADMIN' ? 'cursor-pointer hover:bg-slate-50' : ''}`}
+            onClick={() => {
+              if (userInfo?.role !== 'ADMIN') {
+                setIsDropdownOpen(!isDropdownOpen);
+              }
+            }}
           >
             <div className="text-right">
               <div className="text-[13px] font-bold text-slate-800 leading-none">
                 {displayName}
               </div>
-              <div className="text-[11px] text-[#555F6B] mt-[2px] font-semibold">
-                {roleTitle}
-              </div>
+              {userInfo?.role !== 'ADMIN' && (
+                <div className="text-[11px] text-[#555F6B] mt-[2px] font-semibold">
+                  {roleTitle}
+                </div>
+              )}
             </div>
             <div className="w-[36px] h-[36px] rounded-full bg-slate-200 flex items-center justify-center shrink-0 border border-slate-300 overflow-hidden">
               {userInfo?.avatar_url ? (
@@ -101,9 +110,7 @@ const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', set
               <Link to={`${basePath}/profile`} className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#555F6B] hover:bg-[#F8FAFC] hover:text-[#003F87] transition-colors cursor-pointer text-[13px] font-semibold" onClick={() => setIsDropdownOpen(false)}>
                 <User size={16} /> My Profile
               </Link>
-              <Link to={`${basePath}/settings`} className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#555F6B] hover:bg-[#F8FAFC] hover:text-[#003F87] transition-colors cursor-pointer text-[13px] font-semibold" onClick={() => setIsDropdownOpen(false)}>
-                <Settings size={16} /> Preferences
-              </Link>
+
               <div className="border-t border-[#E0E0E0] my-[4px]"></div>
               <div 
                 className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#D80000] hover:bg-[#FFF0F0] transition-colors cursor-pointer text-[13px] font-semibold"
