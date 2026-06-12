@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import MainContent from './features/admin/components/MainContent';
 import AttendanceContent from './features/admin/components/AttendanceContent';
+import LeaveManagementContent from './features/admin/components/LeaveManagementContent';
 import StudentsContent from './features/student/components/StudentsContent';
 import EmployeesContent from './features/admin/components/EmployeesContent';
 import CoursesContent from './features/admin/components/CoursesContent';
@@ -30,6 +31,7 @@ import EmployeeSidebar from './features/employee/components/EmployeeSidebar';
 import EmployeeHeader from './features/employee/components/EmployeeHeader';
 import EmployeeDashboard from './features/employee/components/EmployeeDashboard';
 import EmployeeTasks from './features/employee/components/EmployeeTasks';
+import EmployeeLeave from './features/employee/components/EmployeeLeave';
 import EmployeeAttendance from './features/employee/components/EmployeeAttendance';
 import EmployeeLeaves from './features/employee/components/EmployeeLeaves';
 
@@ -251,6 +253,7 @@ function App() {
                 <Route path={`${basePath}/dashboard`} element={userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />} />
                 <Route path={`${basePath}/daily-plan`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/attendance`} element={userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />} />
+                <Route path={`${basePath}/leave`} element={userRole === 'EMPLOYEE' ? <EmployeeLeave /> : (userRole === 'ADMIN' || isHR ? <LeaveManagementContent /> : <Navigate to={`${basePath}/dashboard`} />)} />
                 <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />

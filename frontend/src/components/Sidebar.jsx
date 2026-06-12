@@ -13,6 +13,7 @@ const navItems = [
   { id: 'employees', label: 'Employees', icon: Briefcase },
   { id: 'courses', label: 'Courses', icon: BookOpen },
   { id: 'attendance', label: 'Attendance', icon: Calendar },
+  { id: 'leave', label: 'Leave Requests', icon: FileText },
   { id: 'fees', label: 'Fees', icon: CreditCard },
   // { id: 'payroll', label: 'Payroll', icon: Wallet },
   // { id: 'work-reports', label: 'Work Reports', icon: FileText },
@@ -107,7 +108,9 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
                     }`}
                 >
                   <Icon size={18} className={isActive ? 'text-[#003F87]' : 'text-[#555F6B]'} />
-                  <span className="text-[14px] leading-none whitespace-nowrap">{item.label}</span>
+                  <span className="text-[14px] leading-none whitespace-nowrap">
+                    {item.id === 'leave' && (userRole === 'ADMIN' || isHR) ? 'Leave Management' : item.label}
+                  </span>
                 </Link>
               );
             })}
