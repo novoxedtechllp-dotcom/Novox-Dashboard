@@ -446,7 +446,7 @@ const FeesContent = () => {
         </div>
       )}
       {/* Header Container */}
-      <div className="w-full flex justify-between items-end h-[60px]">
+      <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 min-h-[60px]">
         <div className="flex flex-col justify-end">
           <div className="text-[11px] font-semibold text-[#003F87] mb-1 flex items-center gap-1">
             <span className="text-[#555F6B]">Financials</span> &gt; Management
@@ -506,7 +506,7 @@ const FeesContent = () => {
         </div>
 
         {/* Filters */}
-        <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex items-center gap-6 bg-slate-50">
+        <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-slate-50">
           <div className="flex items-center gap-2">
             <Filter size={16} className="text-[#555F6B]" />
             <span className="text-[12px] font-bold text-[#555F6B] uppercase">Status:</span>

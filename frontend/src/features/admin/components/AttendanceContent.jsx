@@ -246,7 +246,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full">
       {/* Header Section */}
-      <div className="w-full flex justify-between items-center min-h-[52px]">
+      <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 min-h-[52px]">
         <div>
           <h2 className="text-[20px] font-bold text-[#003F87] leading-tight">Attendance Management</h2>
           <p className="text-[13px] text-[#555F6B] mt-1">Real-time tracking for {activeTab.toLowerCase()}.</p>
