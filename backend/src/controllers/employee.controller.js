@@ -276,13 +276,23 @@ export const updateEmployee = asyncHandler(async (req, res) => {
       const { data: userData } = await supabase.from("users").select("email").eq("id", currentEmployee.user_id).single();
       
       if (userData?.email !== email) {
-        const { error: emailError } = await supabase.from("users").update({ email }).eq("id", currentEmployee.user_id).select();
-        if (emailError) throw new ApiError(500, emailError.message || "Failed to update email in users table");
+        // Reset password to default when email is changed
+        const { data: profileData } = await supabase.from("employee_profiles").select("employee_code").eq("id", employeeId).single();
+        const employeeCode = profileData?.employee_code || "EMP";
+        const loginPassword = `${employeeCode}@123`;
+        const hashedPassword = await bcrypt.hash(loginPassword, 10);
+
+        const { error: userError } = await supabase.from("users").update({ 
+          email, 
+          password_hash: hashedPassword 
+        }).eq("id", currentEmployee.user_id).select();
         
-        // Send email update notification
+        if (userError) throw new ApiError(500, userError.message || "Failed to update email and password in users table");
+        
+        // Send email and password update notification
         await sendEmail({
           to: email,
-          subject: 'Your Novox Dashboard Email Has Been Updated',
+          subject: 'Your Novox Dashboard Login Credentials Have Been Updated',
           html: `
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8fafc; padding: 40px 20px; border-radius: 16px;">
               <div style="background-color: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
@@ -290,13 +300,23 @@ export const updateEmployee = asyncHandler(async (req, res) => {
                   <div style="background: #e0e7ff; width: 48px; height: 48px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
                     <span style="font-size: 24px;">✉️</span>
                   </div>
-                  <h2 style="color: #0f172a; margin: 0; font-size: 24px; font-weight: 800;">Email Updated</h2>
+                  <h2 style="color: #0f172a; margin: 0; font-size: 24px; font-weight: 800;">Login Credentials Updated</h2>
                 </div>
-                <p style="color: #334155; font-size: 16px; line-height: 1.6; text-align: center;">Your email address for the Novox Dashboard has been successfully updated to:</p>
-                <div style="background-color: #f1f5f9; padding: 16px; margin: 24px 0; border-radius: 8px; text-align: center;">
-                  <strong style="color: #0f172a; font-size: 18px;">${email}</strong>
+                <p style="color: #334155; font-size: 16px; line-height: 1.6; text-align: center;">Your email address and password for the Novox Dashboard have been successfully updated.</p>
+                <div style="background-color: #f1f5f9; border-left: 4px solid #003F87; padding: 20px; margin: 24px 0; border-radius: 4px 8px 8px 4px;">
+                  <div style="margin-bottom: 8px;">
+                    <span style="color: #64748b; font-size: 14px;">New Email:</span>
+                    <strong style="color: #0f172a; font-size: 16px; margin-left: 8px;">${email}</strong>
+                  </div>
+                  <div>
+                    <span style="color: #64748b; font-size: 14px;">New Password:</span>
+                    <strong style="color: #0f172a; font-size: 16px; margin-left: 8px;">${loginPassword}</strong>
+                  </div>
                 </div>
-                <p style="color: #64748b; font-size: 14px; line-height: 1.6; text-align: center;">You will now use this email address to log in to your account.</p>
+                <p style="color: #64748b; font-size: 14px; line-height: 1.6; text-align: center;">You will now use these credentials to log in to your account. We highly recommend changing your password after your first login.</p>
+                <div style="text-align: center; margin: 32px 0;">
+                  <a href="https://novox.local/login" style="background-color: #003F87; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block;">Login to Dashboard</a>
+                </div>
                 <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 24px;">If you did not request this change, please contact your administrator immediately.</p>
               </div>
             </div>
