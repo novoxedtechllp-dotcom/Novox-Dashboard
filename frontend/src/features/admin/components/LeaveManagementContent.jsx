@@ -1,59 +1,58 @@
-import React, { useState } from 'react';
-import { Search, Filter, CheckCircle, XCircle, Clock, MessageSquare, X, Send } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, CheckCircle, XCircle, Clock, MessageSquare, X, Send, AlertCircle } from 'lucide-react';
+import { apiClient } from '../../../../lib/apiClient';
 
 const LeaveManagementContent = () => {
-  // Mock data for Admin/HR
-  const [leaveRequests, setLeaveRequests] = useState([
-    {
-      id: 1,
-      employeeName: 'Sarah Jenkins',
-      role: 'Sales Executive',
-      avatar: 'SJ',
-      type: 'Sick Leave',
-      startDate: '2026-06-15',
-      endDate: '2026-06-16',
-      reason: 'Not feeling well, running a fever.',
-      appliedOn: '2026-06-13',
-      status: 'PENDING'
-    },
-    {
-      id: 2,
-      employeeName: 'Michael Chang',
-      role: 'Frontend Developer',
-      avatar: 'MC',
-      type: 'Casual Leave',
-      startDate: '2026-06-20',
-      endDate: '2026-06-22',
-      reason: 'Attending a family wedding out of town.',
-      appliedOn: '2026-06-10',
-      status: 'PENDING'
-    },
-    {
-      id: 3,
-      employeeName: 'Emily Davis',
-      role: 'Marketing Manager',
-      avatar: 'ED',
-      type: 'Earned Leave',
-      startDate: '2026-07-01',
-      endDate: '2026-07-05',
-      reason: 'Pre-planned vacation.',
-      appliedOn: '2026-06-05',
-      status: 'APPROVED'
-    }
-  ]);
-
+  const [leaveRequests, setLeaveRequests] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
   
-  // Rejection Modal State
+  // Modal states
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [rejectionMessage, setRejectionMessage] = useState('');
 
-  const handleApprove = (id) => {
-    setLeaveRequests(prev => prev.map(req => 
-      req.id === id ? { ...req, status: 'APPROVED' } : req
-    ));
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchLeaves();
+  }, []);
+
+  const fetchLeaves = async () => {
+    try {
+      setIsLoading(true);
+      const res = await apiClient('/leaves');
+      // Ensure we map the joined employee_profiles data nicely
+      const formattedData = (res.data || []).map(req => ({
+        ...req,
+        employeeName: req.employee_profiles ? `${req.employee_profiles.first_name} ${req.employee_profiles.last_name}` : 'Unknown Employee',
+        role: req.employee_profiles ? req.employee_profiles.designation : 'N/A',
+        avatar: req.employee_profiles && req.employee_profiles.first_name ? req.employee_profiles.first_name[0] + (req.employee_profiles.last_name ? req.employee_profiles.last_name[0] : '') : '??'
+      }));
+      setLeaveRequests(formattedData);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch leaves:", err);
+      setError("Failed to load leave requests from server.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleApprove = async (id) => {
+    try {
+      await apiClient(`/leaves/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'APPROVED' })
+      });
+      // Update local state without refetching for speed
+      setLeaveRequests(prev => prev.map(req => 
+        req.id === id ? { ...req, status: 'APPROVED' } : req
+      ));
+    } catch (err) {
+      alert("Failed to approve leave: " + err.message);
+    }
   };
 
   const handleOpenRejectModal = (id) => {
@@ -62,14 +61,24 @@ const LeaveManagementContent = () => {
     setIsRejectModalOpen(true);
   };
 
-  const handleConfirmReject = () => {
-    if (selectedRequestId) {
+  const handleConfirmReject = async () => {
+    if (!selectedRequestId) return;
+    
+    try {
+      await apiClient(`/leaves/${selectedRequestId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'REJECTED', adminMessage: rejectionMessage })
+      });
+      
       setLeaveRequests(prev => prev.map(req => 
-        req.id === selectedRequestId ? { ...req, status: 'REJECTED', adminMessage: rejectionMessage } : req
+        req.id === selectedRequestId ? { ...req, status: 'REJECTED', admin_message: rejectionMessage } : req
       ));
+      
+      setIsRejectModalOpen(false);
+      setSelectedRequestId(null);
+    } catch (err) {
+      alert("Failed to reject leave: " + err.message);
     }
-    setIsRejectModalOpen(false);
-    setSelectedRequestId(null);
   };
 
   const filteredRequests = leaveRequests.filter(req => {
@@ -98,6 +107,13 @@ const LeaveManagementContent = () => {
           <p className="text-slate-500 text-[14px] mt-1">Review and manage employee leave requests</p>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-[#FDE2E2] border border-[#D80000]/20 rounded-lg flex items-start gap-3">
+          <AlertCircle className="text-[#D80000] shrink-0 mt-0.5" size={18} />
+          <p className="text-[14px] font-bold text-[#D80000]">{error}</p>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between">
@@ -131,7 +147,11 @@ const LeaveManagementContent = () => {
 
       {/* List */}
       <div className="space-y-4">
-        {filteredRequests.length > 0 ? filteredRequests.map((req) => (
+        {isLoading ? (
+          <div className="bg-white border border-[#E2E8F0] rounded-xl p-12 text-center text-slate-500">
+            Loading leave requests...
+          </div>
+        ) : filteredRequests.length > 0 ? filteredRequests.map((req) => (
           <div key={req.id} className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm flex flex-col md:flex-row justify-between gap-6 md:items-center">
             
             <div className="flex items-start gap-4 flex-1">
@@ -149,17 +169,17 @@ const LeaveManagementContent = () => {
                     <span className="font-semibold">Type:</span> {req.type}
                   </div>
                   <div className="text-[13px] text-slate-600">
-                    <span className="font-semibold">Dates:</span> <span className="font-bold text-slate-800">{req.startDate}</span> to <span className="font-bold text-slate-800">{req.endDate}</span>
+                    <span className="font-semibold">Dates:</span> <span className="font-bold text-slate-800">{req.start_date}</span> to <span className="font-bold text-slate-800">{req.end_date}</span>
                   </div>
                   <div className="text-[13px] text-slate-500">
-                    <span className="font-semibold">Applied:</span> {req.appliedOn}
+                    <span className="font-semibold">Applied:</span> {new Date(req.applied_on).toLocaleDateString()}
                   </div>
                 </div>
 
                 <div className="mt-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
                   <p className="text-[13px] text-slate-700"><span className="font-bold text-slate-800">Reason:</span> {req.reason}</p>
-                  {req.adminMessage && (
-                    <p className="text-[13px] text-[#D80000] mt-2"><span className="font-bold">Rejection Note:</span> {req.adminMessage}</p>
+                  {req.admin_message && (
+                    <p className="text-[13px] text-[#D80000] mt-2"><span className="font-bold">Rejection Note:</span> {req.admin_message}</p>
                   )}
                 </div>
               </div>

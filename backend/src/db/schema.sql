@@ -451,3 +451,18 @@ CREATE INDEX idx_notifications_user_unread ON notifications(user_id) WHERE is_re
 CREATE INDEX idx_audit_logs_created ON audit_logs(created_at DESC);
 CREATE INDEX idx_gallery_images_hash ON gallery_images(image_hash);
 CREATE INDEX idx_gallery_images_category ON gallery_images(category);
+
+-- 15. LEAVE MANAGEMENT MODULE
+CREATE TABLE IF NOT EXISTS leaves (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID NOT NULL REFERENCES employee_profiles(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    reason TEXT NOT NULL,
+    status APPROVAL_STATUS DEFAULT 'PENDING',
+    admin_message TEXT,
+    applied_on TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_leaves_employee_id ON leaves(employee_id);

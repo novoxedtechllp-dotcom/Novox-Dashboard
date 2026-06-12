@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Send, FileText } from 'lucide-react';
+import { apiClient } from '../../../../lib/apiClient';
 
 const EmployeeLeave = () => {
   const [activeTab, setActiveTab] = useState('Request Leave');
@@ -10,54 +11,46 @@ const EmployeeLeave = () => {
     reason: ''
   });
 
-  // Mock data since we are purely frontend right now
-  const [leaveHistory, setLeaveHistory] = useState([
-    {
-      id: 1,
-      type: 'Sick Leave',
-      startDate: '2026-05-10',
-      endDate: '2026-05-11',
-      reason: 'Fever and cold',
-      status: 'APPROVED',
-      appliedOn: '2026-05-09'
-    },
-    {
-      id: 2,
-      type: 'Casual Leave',
-      startDate: '2026-04-20',
-      endDate: '2026-04-20',
-      reason: 'Personal errands',
-      status: 'REJECTED',
-      appliedOn: '2026-04-18'
-    }
-  ]);
-
+  const [leaveHistory, setLeaveHistory] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchLeaves();
+  }, []);
+
+  const fetchLeaves = async () => {
+    try {
+      setIsLoading(true);
+      const res = await apiClient('/leaves');
+      setLeaveHistory(res.data || []);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch leaves:", err);
+      setError("Failed to load leave history.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
 
-    // Simulate an API call delay
-    setTimeout(() => {
-      const newLeave = {
-        id: Date.now(),
-        type: formData.leaveType,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        reason: formData.reason,
-        status: 'PENDING',
-        appliedOn: new Date().toISOString().split('T')[0]
-      };
+    try {
+      await apiClient('/leaves', {
+        method: 'POST',
+        body: JSON.stringify(formData)
+      });
       
-      setLeaveHistory([newLeave, ...leaveHistory]);
-      setIsSubmitting(false);
       setSubmitSuccess(true);
       
       // Reset form
@@ -68,9 +61,17 @@ const EmployeeLeave = () => {
         reason: ''
       });
 
+      // Refresh list
+      fetchLeaves();
+
       // Clear success message after 3 seconds
       setTimeout(() => setSubmitSuccess(false), 3000);
-    }, 800);
+    } catch (err) {
+      console.error("Failed to submit leave request:", err);
+      setError(err.message || "Failed to submit leave request.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -122,132 +123,110 @@ const EmployeeLeave = () => {
         </button>
       </div>
 
+      {error && (
+        <div className="mb-6 p-4 bg-[#FDE2E2] border border-[#D80000]/20 rounded-lg flex items-start gap-3">
+          <AlertCircle className="text-[#D80000] shrink-0 mt-0.5" size={18} />
+          <p className="text-[14px] font-bold text-[#D80000]">{error}</p>
+        </div>
+      )}
+
       {activeTab === 'Request Leave' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-300 fade-in">
+        <div className="max-w-4xl animate-in slide-in-from-bottom-4 duration-300 fade-in">
           
           {/* Form Column */}
-          <div className="lg:col-span-2">
-            <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm">
-              <div className="p-5 border-b border-[#E2E8F0] bg-slate-50">
-                <h3 className="font-bold text-slate-800 text-[15px] flex items-center gap-2">
-                  <FileText size={18} className="text-[#003F87]" />
-                  New Leave Application
-                </h3>
-              </div>
-              
-              <div className="p-6">
-                {submitSuccess && (
-                  <div className="mb-6 p-4 bg-[#E5F7ED] border border-[#008A2E]/20 rounded-lg flex items-start gap-3">
-                    <CheckCircle className="text-[#008A2E] shrink-0 mt-0.5" size={18} />
-                    <div>
-                      <h4 className="text-[14px] font-bold text-[#008A2E]">Leave Request Submitted</h4>
-                      <p className="text-[13px] text-[#008A2E]/80 mt-1">Your leave request has been sent to the administration for approval. You can track its status in the history tab.</p>
-                    </div>
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm">
+            <div className="p-5 border-b border-[#E2E8F0] bg-slate-50">
+              <h3 className="font-bold text-slate-800 text-[15px] flex items-center gap-2">
+                <FileText size={18} className="text-[#003F87]" />
+                New Leave Application
+              </h3>
+            </div>
+            
+            <div className="p-6">
+              {submitSuccess && (
+                <div className="mb-6 p-4 bg-[#E5F7ED] border border-[#008A2E]/20 rounded-lg flex items-start gap-3">
+                  <CheckCircle className="text-[#008A2E] shrink-0 mt-0.5" size={18} />
                   <div>
-                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Leave Type</label>
-                    <select
-                      name="leaveType"
-                      value={formData.leaveType}
+                    <h4 className="text-[14px] font-bold text-[#008A2E]">Leave Request Submitted</h4>
+                    <p className="text-[13px] text-[#008A2E]/80 mt-1">Your leave request has been sent to the administration for approval. You can track its status in the history tab.</p>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-[13px] font-bold text-slate-700 mb-2">Leave Type</label>
+                  <select
+                    name="leaveType"
+                    value={formData.leaveType}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors"
+                  >
+                    <option value="Sick Leave">Sick Leave</option>
+                    <option value="Casual Leave">Casual Leave</option>
+                    <option value="Earned Leave">Earned Leave</option>
+                    <option value="Maternity/Paternity Leave">Maternity/Paternity Leave</option>
+                    <option value="Unpaid Leave">Unpaid Leave</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Start Date</label>
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={formData.startDate}
                       onChange={handleInputChange}
                       required
                       className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors"
-                    >
-                      <option value="Sick Leave">Sick Leave</option>
-                      <option value="Casual Leave">Casual Leave</option>
-                      <option value="Earned Leave">Earned Leave</option>
-                      <option value="Maternity/Paternity Leave">Maternity/Paternity Leave</option>
-                      <option value="Unpaid Leave">Unpaid Leave</option>
-                    </select>
+                    />
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-700 mb-2">Start Date</label>
-                      <input
-                        type="date"
-                        name="startDate"
-                        value={formData.startDate}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[13px] font-bold text-slate-700 mb-2">End Date</label>
-                      <input
-                        type="date"
-                        name="endDate"
-                        value={formData.endDate}
-                        onChange={handleInputChange}
-                        required
-                        min={formData.startDate}
-                        className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors"
-                      />
-                    </div>
-                  </div>
-
                   <div>
-                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Reason for Leave</label>
-                    <textarea
-                      name="reason"
-                      value={formData.reason}
+                    <label className="block text-[13px] font-bold text-slate-700 mb-2">End Date</label>
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={formData.endDate}
                       onChange={handleInputChange}
                       required
-                      placeholder="Please provide a brief reason for your leave request..."
-                      rows="4"
-                      className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-3 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors resize-none"
-                    ></textarea>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="bg-[#003F87] hover:bg-[#002B5E] text-white px-6 py-3 rounded-lg font-bold text-[14px] transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                    >
-                      {isSubmitting ? (
-                        <>Processing...</>
-                      ) : (
-                        <>
-                          <Send size={16} />
-                          Submit Request
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-
-          {/* Info Column */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-              <h3 className="font-bold text-slate-800 text-[14px] mb-4">Leave Balances</h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-[13px] mb-1.5">
-                    <span className="font-semibold text-slate-700">Casual Leave</span>
-                    <span className="font-bold text-[#003F87]">8 / 12</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div className="bg-[#003F87] h-2 rounded-full w-[66%]"></div>
+                      min={formData.startDate}
+                      className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors"
+                    />
                   </div>
                 </div>
+
                 <div>
-                  <div className="flex justify-between text-[13px] mb-1.5">
-                    <span className="font-semibold text-slate-700">Sick Leave</span>
-                    <span className="font-bold text-[#008A2E]">5 / 10</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div className="bg-[#008A2E] h-2 rounded-full w-[50%]"></div>
-                  </div>
+                  <label className="block text-[13px] font-bold text-slate-700 mb-2">Reason for Leave</label>
+                  <textarea
+                    name="reason"
+                    value={formData.reason}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Please provide a brief reason for your leave request..."
+                    rows="4"
+                    className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-3 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors resize-none"
+                  ></textarea>
                 </div>
-              </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="bg-[#003F87] hover:bg-[#002B5E] text-white px-6 py-3 rounded-lg font-bold text-[14px] transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>Processing...</>
+                    ) : (
+                      <>
+                        <Send size={16} />
+                        Submit Request
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
           
@@ -256,34 +235,45 @@ const EmployeeLeave = () => {
 
       {activeTab === 'My Leave History' && (
         <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm animate-in slide-in-from-bottom-4 duration-300 fade-in">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-[11px] uppercase tracking-wider font-bold text-slate-500 border-b border-[#E2E8F0]">
-                  <th className="py-4 px-6">Leave Type</th>
-                  <th className="py-4 px-6">Duration</th>
-                  <th className="py-4 px-6">Reason</th>
-                  <th className="py-4 px-6">Applied On</th>
-                  <th className="py-4 px-6">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaveHistory.map((leave) => (
-                  <tr key={leave.id} className="border-b border-[#E2E8F0] hover:bg-slate-50 transition-colors text-[13px]">
-                    <td className="py-4 px-6 font-bold text-slate-800">{leave.type}</td>
-                    <td className="py-4 px-6 text-slate-600 font-medium">
-                      {leave.startDate} to {leave.endDate}
-                    </td>
-                    <td className="py-4 px-6 text-slate-600 max-w-[200px] truncate" title={leave.reason}>
-                      {leave.reason}
-                    </td>
-                    <td className="py-4 px-6 text-slate-500">{leave.appliedOn}</td>
-                    <td className="py-4 px-6">{getStatusBadge(leave.status)}</td>
+          {isLoading ? (
+            <div className="p-8 text-center text-slate-500">Loading leave history...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-[11px] uppercase tracking-wider font-bold text-slate-500 border-b border-[#E2E8F0]">
+                    <th className="py-4 px-6">Leave Type</th>
+                    <th className="py-4 px-6">Duration</th>
+                    <th className="py-4 px-6">Reason</th>
+                    <th className="py-4 px-6">Applied On</th>
+                    <th className="py-4 px-6">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {leaveHistory.length > 0 ? leaveHistory.map((leave) => (
+                    <tr key={leave.id} className="border-b border-[#E2E8F0] hover:bg-slate-50 transition-colors text-[13px]">
+                      <td className="py-4 px-6 font-bold text-slate-800">{leave.type}</td>
+                      <td className="py-4 px-6 text-slate-600 font-medium">
+                        {leave.start_date} to {leave.end_date}
+                      </td>
+                      <td className="py-4 px-6 text-slate-600 max-w-[200px] truncate" title={leave.reason}>
+                        {leave.reason}
+                        {leave.admin_message && leave.status === 'REJECTED' && (
+                          <div className="text-[#D80000] text-[11px] mt-1 font-medium">Reason: {leave.admin_message}</div>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-slate-500">{new Date(leave.applied_on).toLocaleDateString()}</td>
+                      <td className="py-4 px-6">{getStatusBadge(leave.status)}</td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="5" className="py-8 px-6 text-center text-slate-500">No leave requests found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
