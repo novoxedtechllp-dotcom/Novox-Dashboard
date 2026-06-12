@@ -15,8 +15,12 @@ import {
   deleteStudentDocument,
   getStudentTasks,
   updateStudentTask,
-  getStudentDailyPlan
+  getStudentDailyPlan,
+  submitStudentTask,
+  reviewStudentTask
 } from "../controllers/student.controller.js";
+
+import { getAcademicJourney } from "../controllers/journey.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/authorize.middleware.js";
@@ -59,6 +63,18 @@ router.route("/:studentId/progress").get(readAuth, getStudentProgress);
 
 router.route("/:studentId/tasks").get(readAuth, getStudentTasks);
 router.route("/:studentId/tasks/:taskId").put(readAuth, updateStudentTask);
+
+// Task submission (student only)
+router.route("/:studentId/tasks/:taskId/submit")
+  .post(authorize({ roles: [ROLES.STUDENT] }), submitStudentTask);
+
+// Task review (admin and employee)
+router.route("/:studentId/tasks/:taskId/review")
+  .patch(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), reviewStudentTask);
+
+// Academic journey (all roles, internal RBAC inside the controller)
+router.route("/:studentId/academic-journey")
+  .get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT] }), getAcademicJourney);
 
 router.route("/:studentId/documents")
   .get(readAuth, getStudentDocuments)

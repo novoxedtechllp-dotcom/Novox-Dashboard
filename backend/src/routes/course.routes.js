@@ -26,7 +26,15 @@ import {
   getCourseStudents,
   getCourseEmployees,
   getAdminDailyPlan,
-  batchAssignStudentsToCourse
+  batchAssignStudentsToCourse,
+  patchModuleStatus,
+  reorderModules,
+  reorderSubmodules,
+  reorderTasks,
+  reorderSubtasks,
+  addCourseSubtask,
+  updateCourseSubtask,
+  deleteCourseSubtask
 } from "../controllers/course.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -62,14 +70,26 @@ router.route("/:courseId").put(writeAuth, updateCourse).delete(writeAuth, delete
 router.route("/:courseId/publish").patch(writeAuth, publishCourse);
 router.route("/:courseId/archive").patch(writeAuth, archiveCourse);
 
+// ── Modules ──────────────────────────────────────────────────
 router.route("/:courseId/modules").post(writeAuth, addCourseModule);
+router.route("/:courseId/modules/reorder").patch(writeAuth, reorderModules);
 router.route("/:courseId/modules/:moduleId").put(writeAuth, updateCourseModule).delete(writeAuth, deleteCourseModule);
+router.route("/:courseId/modules/:moduleId/status").patch(writeAuth, patchModuleStatus);
 
+// ── Submodules ────────────────────────────────────────────────
 router.route("/:courseId/modules/:moduleId/submodules").post(writeAuth, addCourseSubmodule);
+router.route("/:courseId/modules/:moduleId/submodules/reorder").patch(writeAuth, reorderSubmodules);
 router.route("/:courseId/modules/:moduleId/submodules/:submoduleId").put(writeAuth, updateCourseSubmodule).delete(writeAuth, deleteCourseSubmodule);
 
+// ── Tasks ─────────────────────────────────────────────────────
 router.route("/:courseId/modules/:moduleId/submodules/:submoduleId/tasks").post(writeAuth, addCourseTask);
+router.route("/:courseId/modules/:moduleId/submodules/:submoduleId/tasks/reorder").patch(writeAuth, reorderTasks);
 router.route("/:courseId/modules/:moduleId/submodules/:submoduleId/tasks/:taskId").put(writeAuth, updateCourseTask).delete(writeAuth, deleteCourseTask);
+
+// ── Subtasks ──────────────────────────────────────────────────
+router.route("/:courseId/modules/:moduleId/submodules/:submoduleId/tasks/:taskId/subtasks").post(writeAuth, addCourseSubtask);
+router.route("/:courseId/modules/:moduleId/submodules/:submoduleId/tasks/:taskId/subtasks/reorder").patch(writeAuth, reorderSubtasks);
+router.route("/:courseId/modules/:moduleId/submodules/:submoduleId/tasks/:taskId/subtasks/:subtaskId").put(writeAuth, updateCourseSubtask).delete(writeAuth, deleteCourseSubtask);
 
 router.route("/:courseId/schedule-plan").post(writeAuth, autoSchedulePlan);
 router.route("/:courseId/schedule-plan/preview").post(writeAuth, previewAutoSchedule);
