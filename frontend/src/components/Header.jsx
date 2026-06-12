@@ -74,12 +74,8 @@ const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', set
         {/* Profile */}
         <div className="relative" ref={profileRef}>
           <div 
-            className={`flex items-center gap-[12px] ml-[8px] p-[4px] rounded-md transition-colors ${userInfo?.role !== 'ADMIN' ? 'cursor-pointer hover:bg-slate-50' : ''}`}
-            onClick={() => {
-              if (userInfo?.role !== 'ADMIN') {
-                setIsDropdownOpen(!isDropdownOpen);
-              }
-            }}
+            className={`flex items-center gap-[12px] ml-[8px] p-[4px] rounded-md transition-colors cursor-pointer hover:bg-slate-50`}
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
             <div className="text-right">
               <div className="text-[13px] font-bold text-slate-800 leading-none">
@@ -107,11 +103,14 @@ const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', set
                 <div className="text-[14px] font-bold text-slate-800">{displayName}</div>
                 <div className="text-[12px] text-[#555F6B]">{displayEmail}</div>
               </div>
-              <Link to={`${basePath}/profile`} className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#555F6B] hover:bg-[#F8FAFC] hover:text-[#003F87] transition-colors cursor-pointer text-[13px] font-semibold" onClick={() => setIsDropdownOpen(false)}>
-                <User size={16} /> My Profile
-              </Link>
-
-              <div className="border-t border-[#E0E0E0] my-[4px]"></div>
+              {userInfo?.role !== 'ADMIN' && (
+                <>
+                  <Link to={`${basePath}/profile`} className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#555F6B] hover:bg-[#F8FAFC] hover:text-[#003F87] transition-colors cursor-pointer text-[13px] font-semibold" onClick={() => setIsDropdownOpen(false)}>
+                    <User size={16} /> My Profile
+                  </Link>
+                  <div className="border-t border-[#E0E0E0] my-[4px]"></div>
+                </>
+              )}
               <div 
                 className="flex items-center gap-[12px] px-[16px] py-[10px] text-[#D80000] hover:bg-[#FFF0F0] transition-colors cursor-pointer text-[13px] font-semibold"
                 onClick={onLogout}

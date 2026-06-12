@@ -59,9 +59,9 @@ const LowerContent = ({ employees = [], students }) => {
       })
     : employees.map(e => ({
         id: e.id,
-        name: e.name,
-        subtitle: e.department,
-        initials: e.name.substring(0, 2).toUpperCase(),
+        name: e.name || 'Unknown',
+        subtitle: e.department || 'Staff',
+        initials: (e.name || 'UN').substring(0, 2).toUpperCase(),
         time: e.status === 'Active' ? '08:00 AM' : '--:--',
         status: e.status === 'Active' ? 'Present' : 'On Leave',
         statusColor: e.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600',
@@ -100,33 +100,35 @@ const LowerContent = ({ employees = [], students }) => {
         </div>
         
         <div className="w-full overflow-x-auto flex-1">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse table-fixed min-w-[600px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Entity Name</th>
-                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Check-In</th>
-                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Action</th>
+                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-2/5">Entity Name</th>
+                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">Check-In</th>
+                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">Status</th>
+                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">Action</th>
               </tr>
             </thead>
             <tbody>
               {visibleData.length > 0 ? visibleData.map(item => (
                 <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td className="py-4 px-6 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">{item.initials}</div>
-                    <div>
-                      <div className="text-sm font-bold text-slate-800">{item.name}</div>
-                      <div className="text-[11px] text-slate-500">{item.subtitle}</div>
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-3 truncate">
+                      <div className="w-9 h-9 shrink-0 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">{item.initials}</div>
+                      <div className="truncate">
+                        <div className="text-sm font-bold text-slate-800 truncate">{item.name}</div>
+                        <div className="text-[11px] text-slate-500 truncate">{item.subtitle}</div>
+                      </div>
                     </div>
                   </td>
-                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700">{item.time}</td>
-                  <td className="py-4 px-6">
+                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700 truncate">{item.time}</td>
+                  <td className="py-4 px-6 truncate">
                     <span className={`inline-flex items-center gap-1.5 ${item.statusColor} px-2.5 py-1 rounded-full text-[11px] font-bold`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${item.dotColor}`}></span>
+                      <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${item.dotColor}`}></span>
                       {item.status}
                     </span>
                   </td>
-                  <td className="py-4 px-6">
+                  <td className="py-4 px-6 truncate">
                     <button className="text-[#003F87] text-xs font-bold hover:underline">Details</button>
                   </td>
                 </tr>
