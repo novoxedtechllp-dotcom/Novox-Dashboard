@@ -67,6 +67,20 @@ export default function Login({ onLogin }) {
       }
     } catch (err) {
       console.error("Backend connection failed:", err);
+      // Developer fallback for testing frontend components offline when backend is not running
+      if (email === 'admin@novox.com' && password === 'admin@novox' && role === 'Admin') {
+        const mockAdminUser = {
+          id: 'mock-admin-id',
+          email: 'admin@novox.com',
+          role: 'ADMIN',
+          first_name: 'System',
+          last_name: 'Admin',
+          token: 'mock-jwt-token'
+        };
+        sessionStorage.setItem('userInfo', JSON.stringify(mockAdminUser));
+        if (onLogin) onLogin('ADMIN');
+        return;
+      }
       setError(err.message || "Failed to connect to the server. Please ensure the backend is running.");
     } finally {
       setLoading(false);
