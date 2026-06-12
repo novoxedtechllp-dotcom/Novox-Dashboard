@@ -97,7 +97,23 @@ export const getCourseById = asyncHandler(async (req, res) => {
 
   const { data, error } = await supabase
     .from("courses")
-    .select(`*, course_modules(*, course_submodules(*, course_tasks(*))), course_schedules(*), course_instructors(employee_profiles(*)), student_courses(count)`)
+    .select(`id, name, description, track, duration_months, capacity, status, thumbnail_url, created_at,
+course_modules(
+  id, title, description, sequence_order, status,
+  course_submodules(
+    id, title, description, sequence_order, scheduled_date,
+    course_tasks(
+      id, title, description, sequence_order, task_type, due_date,
+      course_task_subtasks(id, title, description, sequence_order)
+    )
+  )
+),
+course_instructors(
+  id,
+  employee_profiles(id, first_name, last_name, designation, avatar_url)
+),
+course_schedules(id, start_date, end_date, days_of_week, start_time, end_time),
+student_courses(count)`)
     .eq("id", courseId)
     .single();
 
@@ -731,7 +747,7 @@ export const batchAssignStudentsToCourse = asyncHandler(async (req, res) => {
             tasksToAssign.push({
               student_id: sid,
               task_id: task.id,
-              status: 'PENDING'
+              status: 'NOT_STARTED'
             });
           });
         });
@@ -772,4 +788,133 @@ export const getAdminDailyPlan = asyncHandler(async (req, res) => {
   if (error) throw new ApiError(500, error.message || "Failed to fetch admin daily plan");
 
   return res.status(200).json(new ApiResponse(200, data, "Admin daily plan fetched successfully"));
+});
+
+// ============================================================
+// FEATURE 1 — Module status toggle
+// ============================================================
+
+// @desc    Set module status to DRAFT or PUBLISHED
+// @route   PATCH /api/v1/courses/:courseId/modules/:moduleId/status
+export const patchModuleStatus = asyncHandler(async (req, res) => {
+  const { moduleId } = req.params;
+  const { status } = req.body;
+
+  if (!["DRAFT", "PUBLISHED"].includes(status)) {
+    throw new ApiError(400, "Status must be DRAFT or PUBLISHED");
+  }
+
+  const { data, error } = await supabase
+    .from("course_modules")
+    .update({ status })
+    .eq("id", moduleId)
+    .select()
+    .single();
+
+  if (error) throw new ApiError(500, error.message);
+  if (!data) throw new ApiError(404, "Module not found");
+
+  return res.status(200).json(new ApiResponse(200, data, `Module marked as ${status}`));
+});
+
+// ============================================================
+// FEATURE 1 — Reorder helpers
+// ============================================================
+
+const batchReorder = async (table, orderArray) => {
+  for (const item of orderArray) {
+    const { error } = await supabase
+      .from(table)
+      .update({ sequence_order: item.sequence_order })
+      .eq("id", item.id);
+    if (error) throw new ApiError(500, `Failed to reorder ${table}: ${error.message}`);
+  }
+};
+
+// @route   PATCH /api/v1/courses/:courseId/modules/reorder
+export const reorderModules = asyncHandler(async (req, res) => {
+  await batchReorder("course_modules", req.body.order);
+  return res.status(200).json(new ApiResponse(200, null, "Modules reordered"));
+});
+
+// @route   PATCH /api/v1/courses/:courseId/modules/:moduleId/submodules/reorder
+export const reorderSubmodules = asyncHandler(async (req, res) => {
+  await batchReorder("course_submodules", req.body.order);
+  return res.status(200).json(new ApiResponse(200, null, "Submodules reordered"));
+});
+
+// @route   PATCH /api/v1/courses/:courseId/modules/:moduleId/submodules/:submoduleId/tasks/reorder
+export const reorderTasks = asyncHandler(async (req, res) => {
+  await batchReorder("course_tasks", req.body.order);
+  return res.status(200).json(new ApiResponse(200, null, "Tasks reordered"));
+});
+
+// @route   PATCH /api/v1/courses/:courseId/modules/:moduleId/submodules/:submoduleId/tasks/:taskId/subtasks/reorder
+export const reorderSubtasks = asyncHandler(async (req, res) => {
+  await batchReorder("course_task_subtasks", req.body.order);
+  return res.status(200).json(new ApiResponse(200, null, "Subtasks reordered"));
+});
+
+// ============================================================
+// FEATURE 1 — Subtask CRUD
+// ============================================================
+
+// @desc    Add a subtask to a task
+// @route   POST /api/v1/courses/:courseId/modules/:moduleId/submodules/:submoduleId/tasks/:taskId/subtasks
+export const addCourseSubtask = asyncHandler(async (req, res) => {
+  const { taskId } = req.params;
+  const { title, description, sequence_order } = req.body;
+
+  if (!title || sequence_order === undefined) {
+    throw new ApiError(400, "Title and sequence_order are required");
+  }
+
+  const { data, error } = await supabase
+    .from("course_task_subtasks")
+    .insert([{ task_id: taskId, title, description, sequence_order }])
+    .select()
+    .single();
+
+  if (error) throw new ApiError(500, error.message);
+
+  return res.status(201).json(new ApiResponse(201, data, "Subtask added successfully"));
+});
+
+// @desc    Update a subtask
+// @route   PUT /api/v1/courses/:courseId/modules/:moduleId/submodules/:submoduleId/tasks/:taskId/subtasks/:subtaskId
+export const updateCourseSubtask = asyncHandler(async (req, res) => {
+  const { subtaskId } = req.params;
+  const { title, description, sequence_order } = req.body;
+
+  const updates = {};
+  if (title !== undefined) updates.title = title;
+  if (description !== undefined) updates.description = description;
+  if (sequence_order !== undefined) updates.sequence_order = sequence_order;
+
+  const { data, error } = await supabase
+    .from("course_task_subtasks")
+    .update(updates)
+    .eq("id", subtaskId)
+    .select()
+    .single();
+
+  if (error) throw new ApiError(500, error.message);
+  if (!data) throw new ApiError(404, "Subtask not found");
+
+  return res.status(200).json(new ApiResponse(200, data, "Subtask updated successfully"));
+});
+
+// @desc    Delete a subtask
+// @route   DELETE /api/v1/courses/:courseId/modules/:moduleId/submodules/:submoduleId/tasks/:taskId/subtasks/:subtaskId
+export const deleteCourseSubtask = asyncHandler(async (req, res) => {
+  const { subtaskId } = req.params;
+
+  const { error } = await supabase
+    .from("course_task_subtasks")
+    .delete()
+    .eq("id", subtaskId);
+
+  if (error) throw new ApiError(500, error.message);
+
+  return res.status(200).json(new ApiResponse(200, null, "Subtask deleted successfully"));
 });

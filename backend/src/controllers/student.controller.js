@@ -173,7 +173,7 @@ const createStudent = asyncHandler(async (req, res) => {
                 tasksToAssign.push({
                   student_id: newStudent.id,
                   task_id: task.id,
-                  status: 'PENDING'
+                  status: 'NOT_STARTED'
                 });
               });
             });
@@ -496,8 +496,16 @@ const getStudentTasks = asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from("student_tasks")
     .select(`
-      id, student_id, task_id, status, submission_url, grade, feedback, submitted_at,
-      course_tasks(title, description, sequence_order, submodule_id, due_date, task_type, course_submodules(title, scheduled_date, module_id, course_modules(title, course_id, courses(name))))
+      id, student_id, task_id, status, submitted_at,
+      reviewer_id, review_timestamp, review_comment,
+      course_tasks(
+        title, description, sequence_order, task_type, due_date,
+        course_submodules(
+          title, scheduled_date, module_id,
+          course_modules(title, course_id, courses(name))
+        )
+      ),
+      task_submission_resources(id, resource_type, content, label, uploaded_at)
     `)
     .eq("student_id", studentId);
 
@@ -510,35 +518,18 @@ const getStudentTasks = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/students/:studentId/tasks/:taskId
 const updateStudentTask = asyncHandler(async (req, res) => {
   const { studentId, taskId } = req.params;
-  const { status, submission_url, grade, feedback } = req.body;
+  const { status } = req.body;
 
-  const isStudentRole = req.user.role === 'STUDENT';
+  const isStudentRole = req.user.role === "STUDENT";
 
-  // Students can only submit — they cannot grade themselves
   if (isStudentRole) {
-    if (grade !== undefined || feedback !== undefined) {
-      throw new ApiError(403, "Students cannot grade or provide feedback on their own tasks");
-    }
-    if (status !== undefined && status !== 'SUBMITTED') {
-      throw new ApiError(403, "Students can only set task status to SUBMITTED");
+    if (status !== undefined && !["IN_PROGRESS"].includes(status)) {
+      throw new ApiError(403, "Students can only set their task to IN_PROGRESS. Use the submit endpoint to submit.");
     }
   }
 
   const updates = {};
   if (status !== undefined) updates.status = status;
-  if (submission_url !== undefined) updates.submission_url = submission_url;
-  
-  if (grade !== undefined || feedback !== undefined) {
-    if (req.user?.role === 'STUDENT') {
-      throw new ApiError(403, "Students cannot grade themselves");
-    }
-    if (grade !== undefined) updates.grade = grade;
-    if (feedback !== undefined) updates.feedback = feedback;
-  }
-
-  if (status === 'SUBMITTED' && !updates.submitted_at) {
-    updates.submitted_at = new Date().toISOString();
-  }
 
   const { data, error } = await supabase
     .from("student_tasks")
@@ -664,6 +655,204 @@ const getStudentDailyPlan = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, data, "Daily plan fetched successfully"));
 });
 
+// ============================================================
+// FEATURE 2 — Task submission
+// ============================================================
+
+// @desc    Student submits a task with at least one resource
+// @route   POST /api/v1/students/:studentId/tasks/:taskId/submit
+const submitStudentTask = asyncHandler(async (req, res) => {
+  const { studentId, taskId } = req.params;
+  const { resources } = req.body;
+
+  // Verify the requesting user owns this student profile
+  const { data: studentProfile } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", req.user.id)
+    .single();
+
+  if (!studentProfile || studentProfile.id !== studentId) {
+    throw new ApiError(403, "You can only submit tasks for your own profile");
+  }
+
+  // Resource gate
+  if (!resources || !Array.isArray(resources) || resources.length === 0) {
+    throw new ApiError(400, "At least one resource (link, file, or note) is required to submit a task");
+  }
+
+  for (const r of resources) {
+    if (!["LINK", "FILE", "NOTE"].includes(r.resource_type)) {
+      throw new ApiError(400, `Invalid resource_type: ${r.resource_type}`);
+    }
+    if (!r.content || !r.content.trim()) {
+      throw new ApiError(400, "Each resource must have non-empty content");
+    }
+  }
+
+  // Block resubmission if already pending or approved
+  const { data: existingTask } = await supabase
+    .from("student_tasks")
+    .select("id, status")
+    .eq("id", taskId)
+    .eq("student_id", studentId)
+    .single();
+
+  if (!existingTask) throw new ApiError(404, "Task not found for this student");
+
+  if (existingTask.status === "PENDING_REVIEW") {
+    throw new ApiError(400, "Task is already pending review");
+  }
+  if (existingTask.status === "APPROVED") {
+    throw new ApiError(400, "Task is already approved and cannot be resubmitted");
+  }
+
+  // Insert resources
+  const resourceRows = resources.map(r => ({
+    student_task_id: taskId,
+    resource_type: r.resource_type,
+    content: r.content.trim(),
+    label: r.label?.trim() || null,
+  }));
+
+  const { error: resourceError } = await supabase
+    .from("task_submission_resources")
+    .insert(resourceRows);
+
+  if (resourceError) throw new ApiError(500, resourceError.message);
+
+  // Update task status
+  const { data: updatedTask, error: updateError } = await supabase
+    .from("student_tasks")
+    .update({
+      status: "PENDING_REVIEW",
+      submitted_at: new Date().toISOString(),
+    })
+    .eq("id", taskId)
+    .eq("student_id", studentId)
+    .select()
+    .single();
+
+  if (updateError) throw new ApiError(500, updateError.message);
+
+  return res.status(200).json(new ApiResponse(200, updatedTask, "Task submitted for review"));
+});
+
+// ============================================================
+// FEATURE 2 — Task review
+// ============================================================
+
+// Internal helper — not exported
+const recalculateCourseProgress = async (studentId, taskId) => {
+  // Find the course this task belongs to
+  const { data: taskData } = await supabase
+    .from("course_tasks")
+    .select(`
+      id,
+      course_submodules(
+        course_modules(course_id)
+      )
+    `)
+    .eq("id", taskId)
+    .single();
+
+  const courseId = taskData?.course_submodules?.course_modules?.course_id;
+  if (!courseId) return;
+
+  // Fetch all student_tasks for this student, with enough join to filter by course
+  const { data: allTasks } = await supabase
+    .from("student_tasks")
+    .select(`
+      id, status,
+      course_tasks(
+        course_submodules(
+          course_modules(course_id)
+        )
+      )
+    `)
+    .eq("student_id", studentId);
+
+  if (!allTasks) return;
+
+  const courseTasks = allTasks.filter(
+    t => t.course_tasks?.course_submodules?.course_modules?.course_id === courseId
+  );
+
+  const total = courseTasks.length;
+  if (total === 0) return;
+
+  const approved = courseTasks.filter(t => t.status === "APPROVED").length;
+  const percentage = parseFloat(((approved / total) * 100).toFixed(2));
+
+  await supabase
+    .from("student_courses")
+    .update({ progress_percentage: percentage })
+    .eq("student_id", studentId)
+    .eq("course_id", courseId);
+};
+
+// @desc    Employee/Admin reviews a student task submission
+// @route   PATCH /api/v1/students/:studentId/tasks/:taskId/review
+const reviewStudentTask = asyncHandler(async (req, res) => {
+  const { studentId, taskId } = req.params;
+  const { outcome, comment } = req.body;
+
+  if (!["APPROVED", "CHANGES_REQUESTED"].includes(outcome)) {
+    throw new ApiError(400, "Outcome must be APPROVED or CHANGES_REQUESTED");
+  }
+
+  if (outcome === "CHANGES_REQUESTED" && (!comment || !comment.trim())) {
+    throw new ApiError(400, "A comment is required when requesting changes");
+  }
+
+  // Get reviewer's employee profile — admin may not have one, that's fine
+  const { data: reviewerProfile } = await supabase
+    .from("employee_profiles")
+    .select("id")
+    .eq("user_id", req.user.id)
+    .single();
+
+  const reviewerId = reviewerProfile?.id || null;
+
+  // Verify task is in PENDING_REVIEW
+  const { data: existingTask } = await supabase
+    .from("student_tasks")
+    .select("id, status")
+    .eq("id", taskId)
+    .eq("student_id", studentId)
+    .single();
+
+  if (!existingTask) throw new ApiError(404, "Task not found");
+  if (existingTask.status !== "PENDING_REVIEW") {
+    throw new ApiError(400, `Task is not pending review (current status: ${existingTask.status})`);
+  }
+
+  const newStatus = outcome === "APPROVED" ? "APPROVED" : "IN_PROGRESS";
+
+  const { data: updatedTask, error } = await supabase
+    .from("student_tasks")
+    .update({
+      status: newStatus,
+      reviewer_id: reviewerId,
+      review_timestamp: new Date().toISOString(),
+      review_comment: comment?.trim() || null,
+    })
+    .eq("id", taskId)
+    .eq("student_id", studentId)
+    .select()
+    .single();
+
+  if (error) throw new ApiError(500, error.message);
+
+  if (outcome === "APPROVED") {
+    await recalculateCourseProgress(studentId, taskId);
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, updatedTask, `Task ${outcome === "APPROVED" ? "approved" : "sent back for changes"}`)
+  );
+});
+
 export {
   createStudent,
   getStudents,
@@ -680,5 +869,7 @@ export {
   deleteStudentDocument,
   getStudentTasks,
   updateStudentTask,
-  getStudentDailyPlan
+  getStudentDailyPlan,
+  submitStudentTask,
+  reviewStudentTask
 };
