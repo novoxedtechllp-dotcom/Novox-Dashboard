@@ -8,7 +8,8 @@ const CustomSelect = ({
   multiple = false, 
   placeholder = 'Select...',
   className = '',
-  selectClassName = ''
+  selectClassName = '',
+  openUpwards = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -62,7 +63,7 @@ const CustomSelect = ({
       </button>
 
       {isOpen && (
-        <div className="absolute z-[99] w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-auto custom-scrollbar overflow-x-hidden">
+        <div className={`absolute z-[99] w-full ${openUpwards ? 'bottom-full mb-2' : 'mt-2'} bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-auto custom-scrollbar overflow-x-hidden`}>
           {options.length === 0 ? (
             <div className="px-4 py-3 text-sm text-slate-500">No options available</div>
           ) : (

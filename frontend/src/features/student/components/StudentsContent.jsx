@@ -42,6 +42,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const [isEditStudentOpen, setIsEditStudentOpen] = useState(false);
   const [studentToEdit, setStudentToEdit] = useState(null);
   const [studentToDelete, setStudentToDelete] = useState(null);
+  const [documentToDelete, setDocumentToDelete] = useState(null);
+  const [courseToRemove, setCourseToRemove] = useState(null);
   
   // "View Details" Modal State
   const [activeStudent, setActiveStudent] = useState(null);
@@ -64,6 +66,11 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const [newDocName, setNewDocName] = useState('');
   const [ownershipFilter, setOwnershipFilter] = useState('All Students');
   const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isFetchingDetails, setIsFetchingDetails] = useState(false);
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
 
   const fetchStudents = useCallback(async (currentOwnershipFilter, currentDepartmentFilter) => {
     setLoading(true);
@@ -104,7 +111,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
           joining_date: d.joining_date || new Date().toISOString().split('T')[0],
           status: d.status || 'ACTIVE',
           avatar: d.avatar_url || null,
-          email: d.users?.email || ''
+          email: d.users?.email || '',
+          courses_count: d.student_courses ? d.student_courses.length : 0
         }));
         setStudents(mappedData);
       }
@@ -169,6 +177,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       return;
     }
     try {
+      setIsSubmitting(true);
       const headers = getAuthHeaders();
       if (!headers) return;
       const payload = {
@@ -190,6 +199,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     } catch (error) {
       console.error('Error adding student:', error);
       alert(error.message || 'Failed to add student');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -208,6 +219,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       return;
     }
     try {
+      setIsSubmitting(true);
       const headers = getAuthHeaders();
       if (!headers) return;
       const payload = {
@@ -235,11 +247,14 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     } catch (error) {
       console.error('Error updating student:', error);
       alert(error.message || 'Failed to update student');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDeleteStudent = async (id) => {
     try {
+      setIsDeleting(true);
       const headers = getAuthHeaders();
       if (!headers) return;
       const response = await fetch(`/api/v1/students/${id}`, { method: 'DELETE', headers });
@@ -248,14 +263,18 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       setStudentCourses(studentCourses.filter(sc => sc.student_id !== id));
       setStudentDocuments(studentDocuments.filter(sd => sd.student_id !== id));
       setStudentTasks(studentTasks.filter(st => st.student_id !== id));
+      setStudentToDelete(null);
     } catch (error) {
       console.error('Error deleting student:', error);
       alert(error.message || 'Failed to delete student');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const fetchStudentSubResources = async (studentId) => {
     try {
+      setIsFetchingDetails(true);
       const headers = getAuthHeaders();
       if (!headers) return;
       const [progressResponse, documentsResponse, tasksResponse] = await Promise.all([
@@ -271,6 +290,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       setStudentTasks(prev => [ ...prev.filter(st => st.student_id !== studentId), ...(tasksData.data || []).map(st => ({ ...st, student_id: studentId })) ]);
     } catch (error) {
       console.error('Error fetching student details:', error);
+    } finally {
+      setIsFetchingDetails(false);
     }
   };
 
@@ -283,6 +304,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const handleEnrollCourse = async () => {
     if (!newEnrollment || !activeStudent) return;
     try {
+      setIsEnrolling(true);
       const headers = getAuthHeaders();
       const response = await fetch(`/api/v1/students/${activeStudent.id}/courses`, { method: 'POST', headers, body: JSON.stringify({ course_id: newEnrollment }) });
       const resData = await response.json();
@@ -295,42 +317,53 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     } catch (error) {
       console.error('Error enrolling course:', error);
       alert(error.message || 'Failed to enroll course');
+    } finally {
+      setIsEnrolling(false);
     }
   };
 
-  const handleRemoveCourse = async (studentId, courseId) => {
-    if (!window.confirm("Are you sure you want to remove this course from the student?")) return;
+  const handleRemoveCourse = async () => {
+    if (!courseToRemove) return;
     try {
+      setIsDeleting(true);
       const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/students/${studentId}/courses/${courseId}`, { method: 'DELETE', headers });
+      const response = await fetch(`/api/v1/students/${courseToRemove.studentId}/courses/${courseToRemove.courseId}`, { method: 'DELETE', headers });
       if (response.ok) {
-        setStudentCourses(studentCourses.filter(sc => !(sc.student_id === studentId && sc.course_id === courseId)));
+        setStudentCourses(studentCourses.filter(sc => !(sc.student_id === courseToRemove.studentId && sc.course_id === courseToRemove.courseId)));
+        setCourseToRemove(null);
       } else {
         alert("Failed to remove course");
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const handleDeleteDocument = async (studentId, docId) => {
-    if(!window.confirm("Are you sure you want to delete this document?")) return;
+  const handleDeleteDocument = async () => {
+    if(!documentToDelete) return;
     try {
+      setIsDeleting(true);
       const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/students/${studentId}/documents/${docId}`, { method: 'DELETE', headers });
+      const response = await fetch(`/api/v1/students/${documentToDelete.student_id}/documents/${documentToDelete.id}`, { method: 'DELETE', headers });
       if (response.ok) {
-        setStudentDocuments(studentDocuments.filter(sd => sd.id !== docId));
+        setStudentDocuments(studentDocuments.filter(sd => sd.id !== documentToDelete.id));
+        setDocumentToDelete(null);
       } else {
         alert("Failed to delete document");
       }
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const handleAddDocument = async () => {
     if(!newDocName || !selectedDocFile) { alert("Please select a document type and a file to upload."); return; }
     try {
+      setIsUploadingDoc(true);
       const formData = new FormData();
       formData.append('file', selectedDocFile);
       const headers = getAuthHeaders();
@@ -350,6 +383,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     } catch (error) {
       console.error('Error adding document:', error);
       alert(error.message || 'Failed to add document');
+    } finally {
+      setIsUploadingDoc(false);
     }
   };
 
@@ -488,7 +523,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
           const studentEnrolledCourses = studentCourses.filter(sc => sc.student_id === student.id);
           
           return (
-            <div key={student.id} className="bg-white rounded-[24px] border border-slate-100/60 flex flex-col relative group shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 overflow-hidden min-h-[260px]">
+            <div key={student.id} onClick={() => openStudentDetails(student)} className="cursor-pointer bg-white rounded-[24px] border border-slate-100/60 flex flex-col relative group shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 overflow-hidden min-h-[260px]">
               
               {/* Floating Status Badge */}
               <div className={`absolute top-6 right-6 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${getStatusColor(student.status)}`}>
@@ -524,7 +559,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                       <Phone size={14} className="text-slate-400" /> <span className="truncate">{student.phone || 'No phone'}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                      <GraduationCap size={14} className="text-slate-400" /> <span>{studentEnrolledCourses.length} Courses</span>
+                      <GraduationCap size={14} className="text-slate-400" /> <span>{Math.max(student.courses_count || 0, studentEnrolledCourses.length)} Courses</span>
                     </div>
                   </div>
                 </div>
@@ -534,7 +569,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               {/* Actions Footer */}
               <div className="p-3 bg-slate-50/50 mt-auto flex items-center gap-2 border-t border-slate-50">
                 <button 
-                  onClick={() => openStudentDetails(student)}
+                  onClick={(e) => { e.stopPropagation(); openStudentDetails(student); }}
                   className="flex-1 flex items-center justify-center gap-1.5 text-[10px] xl:text-[11px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-3 rounded-[12px] transition-all"
                 >
                   <FileText size={14} /> Full Details
@@ -564,7 +599,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
       {/* Add Student Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsAddModalOpen(false)}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsAddModalOpen(false)}>
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
               <div>
@@ -600,7 +635,9 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               {/* Personal Details */}
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><User size={16} className="text-[#003F87]" /> Personal Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-5 mb-5">
+                
+                {/* Line 1 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">First Name *</label>
                     <input type="text" required value={newStudent.first_name} onChange={(e) => setNewStudent({...newStudent, first_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="John" />
@@ -609,6 +646,10 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Last Name</label>
                     <input type="text" value={newStudent.last_name} onChange={(e) => setNewStudent({...newStudent, last_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="Doe" />
                   </div>
+                </div>
+
+                {/* Line 2 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Student Phone *</label>
                     <input type="text" maxLength={10} required value={newStudent.phone} onChange={(e) => setNewStudent({...newStudent, phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="9876543210" />
@@ -617,25 +658,33 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Parent/Guardian Phone</label>
                     <input type="text" maxLength={10} value={newStudent.parent_phone} onChange={(e) => setNewStudent({...newStudent, parent_phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10)})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="9876543210" />
                   </div>
+                </div>
+
+                {/* Line 3 & 4 */}
+                <div className="grid grid-cols-1 gap-5 mb-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Guardian Name</label>
                     <input type="text" value={newStudent.guardian_name} onChange={(e) => setNewStudent({...newStudent, guardian_name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="Optional" />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Full Address</label>
-                  <textarea rows="2" value={newStudent.address} onChange={(e) => setNewStudent({...newStudent, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all resize-none" placeholder="123 Education St, City, Country" />
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Full Address</label>
+                    <textarea rows="2" value={newStudent.address} onChange={(e) => setNewStudent({...newStudent, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all resize-none" placeholder="123 Education St, City, Country" />
+                  </div>
                 </div>
               </div>
 
               {/* Account Setup */}
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><Briefcase size={16} className="text-[#003F87]" /> Account & Enrollment Setup</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                
+                <div className="grid grid-cols-1 gap-5 mb-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Email Address *</label>
                     <input type="email" required value={newStudent.email} onChange={(e) => setNewStudent({...newStudent, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" placeholder="student@example.com" />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Password</label>
                     <div className="relative">
@@ -659,38 +708,39 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Joining Date</label>
                     <input type="date" value={newStudent.joining_date} onChange={(e) => setNewStudent({...newStudent, joining_date: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all" />
                   </div>
-                  <div className="md:col-span-3">
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 mt-2">Initial Courses</label>
-                    <div className="w-full max-h-[120px] overflow-y-auto px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl custom-scrollbar flex flex-wrap gap-2">
-                      {courses.length === 0 ? (
-                        <p className="text-sm text-slate-500 px-2 py-1">No courses available.</p>
-                      ) : (
-                        courses.map(c => (
-                          <label key={c.id} className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-white px-3 rounded-md transition-colors bg-white border border-slate-200">
-                            <input 
-                              type="checkbox" 
-                              checked={newStudent.course_ids.includes(c.id)}
-                              onChange={(e) => {
-                                const newCourseIds = e.target.checked 
-                                  ? [...newStudent.course_ids, c.id]
-                                  : newStudent.course_ids.filter(id => id !== c.id);
-                                setNewStudent({...newStudent, course_ids: newCourseIds});
-                              }}
-                              className="w-4 h-4 rounded border-slate-300 text-[#003F87] focus:ring-[#003F87]"
-                            />
-                            <span className="text-sm font-bold text-slate-700">{c.title || c.name} <span className="font-normal text-xs text-slate-400 ml-1">({c.category || 'Course'})</span></span>
-                          </label>
-                        ))
-                      )}
-                    </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Initial Courses</label>
+                  <div className="w-full max-h-[120px] overflow-y-auto px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl custom-scrollbar flex flex-wrap gap-2">
+                    {courses.length === 0 ? (
+                      <p className="text-sm text-slate-500 px-2 py-1">No courses available.</p>
+                    ) : (
+                      courses.map(c => (
+                        <label key={c.id} className="flex items-center gap-3 py-1.5 cursor-pointer hover:bg-white px-3 rounded-md transition-colors bg-white border border-slate-200">
+                          <input 
+                            type="checkbox" 
+                            checked={newStudent.course_ids.includes(c.id)}
+                            onChange={(e) => {
+                              const newCourseIds = e.target.checked 
+                                ? [...newStudent.course_ids, c.id]
+                                : newStudent.course_ids.filter(id => id !== c.id);
+                              setNewStudent({...newStudent, course_ids: newCourseIds});
+                            }}
+                            className="w-4 h-4 rounded border-slate-300 text-[#003F87] focus:ring-[#003F87]"
+                          />
+                          <span className="text-sm font-bold text-slate-700">{c.title || c.name} <span className="font-normal text-xs text-slate-400 ml-1">({c.category || 'Course'})</span></span>
+                        </label>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-end gap-[12px] mt-[24px]">
                 <button className="px-[20px] py-[10px] text-[#555F6B] font-bold text-[14px] hover:bg-slate-100 rounded-lg transition-colors" onClick={() => setIsAddModalOpen(false)}>Cancel</button>
-                <button className={`px-[20px] py-[10px] bg-[#003F87] text-white font-bold text-[14px] rounded-lg transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002b5c]'}`} onClick={handleAddStudent} disabled={isUploading}>
-                  {isUploading ? 'Uploading...' : 'Add Student'}
+                <button className={`px-[20px] py-[10px] bg-[#003F87] text-white font-bold text-[14px] rounded-lg transition-colors ${isUploading || isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002b5c]'}`} onClick={handleAddStudent} disabled={isUploading || isSubmitting}>
+                  {isSubmitting ? 'Adding...' : 'Add Student'}
                 </button>
               </div>
             </form>
@@ -699,7 +749,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       )}
 
       {isEditStudentOpen && studentToEdit && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsEditStudentOpen(false)}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsEditStudentOpen(false)}>
           <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-300" onClick={e => e.stopPropagation()}>
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-4">
@@ -776,8 +826,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                 <button type="button" onClick={() => setIsEditStudentOpen(false)} className="px-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
                   Cancel
                 </button>
-                <button type="submit" className="px-8 py-3 bg-[#003F87] rounded-xl text-sm font-bold text-white hover:bg-[#002B5E] shadow-md shadow-blue-900/10 active:scale-95 transition-all">
-                  Save Changes
+                <button type="submit" disabled={isSubmitting} className={`px-8 py-3 bg-[#003F87] rounded-xl text-sm font-bold text-white shadow-md shadow-blue-900/10 active:scale-95 transition-all ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002B5E]'}`}>
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>
@@ -787,28 +837,70 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
       {/* Delete Confirmation Modal */}
       {studentToDelete && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setStudentToDelete(null)}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 flex flex-col gap-4 text-center animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-            <div className="w-20 h-20 bg-rose-50 border-4 border-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Trash2 size={32} />
-            </div>
-            <h3 className="text-2xl font-black text-slate-900">Delete Student?</h3>
-            <p className="text-sm font-medium text-slate-500 leading-relaxed px-4">This permanently removes the student profile, course progress, and documents. This cannot be undone.</p>
-            <div className="flex gap-3 justify-center mt-6">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setStudentToDelete(null)}>
+          <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="p-6 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 mb-2">Remove Student?</h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">Are you sure you want to completely remove this student profile? This will delete all their records and cannot be undone.</p>
+              
+              <div className="flex w-full gap-3">
               <button onClick={() => setStudentToDelete(null)} className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors flex-1">
                 Cancel
               </button>
-              <button onClick={() => { handleDeleteStudent(studentToDelete); setStudentToDelete(null); }} className="px-6 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold hover:bg-rose-700 shadow-md active:scale-95 transition-all flex-1">
-                Yes, Delete
+              <button onClick={() => handleDeleteStudent(studentToDelete)} disabled={isDeleting} className={`px-6 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all flex-1 ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-700'}`}>
+                {isDeleting ? 'Removing...' : 'Remove'}
               </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* Delete Document Confirm Modal */}
+      {documentToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setDocumentToDelete(null)}>
+          <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="p-6 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 mb-2">Delete Document?</h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">Are you sure you want to delete this document? This action cannot be undone.</p>
+              <div className="flex w-full gap-3">
+                <button onClick={() => setDocumentToDelete(null)} className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors flex-1">Cancel</button>
+                <button onClick={handleDeleteDocument} disabled={isDeleting} className={`px-6 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all flex-1 ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-700'}`}>{isDeleting ? 'Deleting...' : 'Delete'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Course Confirm Modal */}
+      {courseToRemove && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setCourseToRemove(null)}>
+          <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="p-6 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 mb-2">Remove Course?</h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">Are you sure you want to remove this course from the student?</p>
+              <div className="flex w-full gap-3">
+                <button onClick={() => setCourseToRemove(null)} className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors flex-1">Cancel</button>
+                <button onClick={handleRemoveCourse} disabled={isDeleting} className={`px-6 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all flex-1 ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-700'}`}>{isDeleting ? 'Removing...' : 'Remove'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* View Details Command Center Modal */}
       {activeStudent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200" onClick={() => setActiveStudent(null)}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200" onClick={() => setActiveStudent(null)}>
           <div className="bg-[#FAFBFC] rounded-3xl shadow-2xl w-full max-w-5xl h-full sm:h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             
             {/* Modal Header - Elegant & Clean */}
@@ -941,6 +1033,10 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               {/* Courses Tab */}
               {detailsTab === 'courses' && (
                 <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300 fade-in">
+                  {isFetchingDetails ? (
+                    <div className="flex flex-col items-center justify-center py-24"><LoadingSpinner /><p className="text-slate-500 font-medium mt-4 text-sm">Loading courses...</p></div>
+                  ) : (
+                    <>
                   <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-end">
                     <div className="flex-1 w-full">
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Enroll Student in a New Course</label>
@@ -955,10 +1051,10 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     </div>
                     <button 
                       onClick={handleEnrollCourse}
-                      disabled={!newEnrollment}
+                      disabled={!newEnrollment || isEnrolling}
                       className="w-full md:w-auto px-8 py-3 bg-[#003F87] text-white rounded-xl text-sm font-bold hover:bg-[#002B5E] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 shrink-0"
                     >
-                      <Plus size={18} /> Enroll Now
+                      {isEnrolling ? 'Enrolling...' : <><Plus size={18} /> Enroll Now</>}
                     </button>
                   </div>
 
@@ -1000,7 +1096,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                                   <div className="h-full bg-gradient-to-r from-blue-500 to-[#003F87] rounded-full" style={{ width: `${sc.progress_percentage}%` }}></div>
                                 </div>
                               </div>
-                              <button onClick={() => handleRemoveCourse(activeStudent.id, sc.course_id)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-rose-500 rounded-full transition-all shrink-0 bg-slate-50" title="Remove Course">
+                              <button onClick={() => setCourseToRemove({ studentId: activeStudent.id, courseId: sc.course_id })} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-rose-500 rounded-full transition-all shrink-0 bg-slate-50" title="Remove Course">
                                 <Trash2 size={16} />
                               </button>
                             </div>
@@ -1009,6 +1105,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                       })
                     )}
                   </div>
+                  </>
+                  )}
                 </div>
               )}
 
@@ -1045,10 +1143,10 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     </div>
                     <button 
                       onClick={handleAddDocument}
-                      disabled={!newDocName || !selectedDocFile}
+                      disabled={!newDocName || !selectedDocFile || isUploadingDoc}
                       className="w-full md:w-auto px-8 py-3 bg-[#003F87] text-white rounded-xl text-sm font-bold hover:bg-[#002B5E] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 shrink-0"
                     >
-                      <Plus size={18} /> Upload
+                      {isUploadingDoc ? 'Uploading...' : <><Plus size={18} /> Upload</>}
                     </button>
                   </div>
 
@@ -1075,7 +1173,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                             <button onClick={() => window.open(sd.document_url, '_blank')} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:bg-[#003F87] hover:text-white transition-colors" title="View Document">
                               <Eye size={16} />
                             </button>
-                            <button onClick={() => handleDeleteDocument(activeStudent.id, sd.id)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:bg-rose-500 hover:text-white transition-colors" title="Delete Document">
+                            <button onClick={() => setDocumentToDelete({ student_id: activeStudent.id, id: sd.id })} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:bg-rose-500 hover:text-white transition-colors" title="Delete Document">
                               <Trash2 size={16} />
                             </button>
                           </div>
@@ -1089,6 +1187,10 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               {/* Tasks Tab */}
               {detailsTab === 'tasks' && (
                 <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300 fade-in">
+                  {isFetchingDetails ? (
+                    <div className="flex flex-col items-center justify-center py-24"><LoadingSpinner /><p className="text-slate-500 font-medium mt-4 text-sm">Loading tasks...</p></div>
+                  ) : (
+                    <>
                   {studentTasks.filter(st => st.student_id === activeStudent.id).length === 0 ? (
                     <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 shadow-sm">
                       <ListTodo size={48} className="mx-auto text-slate-200 mb-4" />
@@ -1145,6 +1247,8 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                         </div>
                       ))}
                     </div>
+                  )}
+                  </>
                   )}
                 </div>
               )}

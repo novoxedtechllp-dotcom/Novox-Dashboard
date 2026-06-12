@@ -12,7 +12,7 @@ const navItems = [
   { id: 'students', label: 'Students', icon: Users },
   { id: 'employees', label: 'Employees', icon: Briefcase },
   { id: 'courses', label: 'Courses', icon: BookOpen },
-  // { id: 'attendance', label: 'Attendance', icon: Calendar },
+  { id: 'attendance', label: 'Attendance', icon: Calendar },
   // { id: 'fees', label: 'Fees', icon: CreditCard },
   // { id: 'payroll', label: 'Payroll', icon: Wallet },
   // { id: 'work-reports', label: 'Work Reports', icon: FileText },
@@ -74,7 +74,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
         <div className="w-[227px] min-w-[227px] flex flex-col h-full">
           {/* Top Logo Container - 227x108 */}
           <div className="flex flex-col justify-start shrink-0 relative mb-2">
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-center">
               <div className="flex flex-col items-start px-3">
                 <img src="/novox-edtech-calicut-logo.png" alt="Novox Edtech" className="h-[44px] w-[180px] object-contain object-left -ml-4" />
                 <p className="text-[9px] font-bold text-[#555F6B] tracking-[0.15em] uppercase mt-1.5 ml-0.5">

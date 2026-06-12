@@ -139,7 +139,7 @@ export const getAttendanceHistory = asyncHandler(async (req, res) => {
     resolvedId = entity.id;
   }
 
-  let query = supabase.from(table).select("id, attendance_date, check_in, check_out, status, remarks, created_at").order("attendance_date", { ascending: false });
+  let query = supabase.from(table).select("*").order("attendance_date", { ascending: false });
 
   if (resolvedId) {
     query = query.eq(filterColumn, resolvedId);
