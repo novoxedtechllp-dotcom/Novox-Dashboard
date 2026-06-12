@@ -5,10 +5,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 // Helper function to resolve the target table and logical ID based on a generic userId
 const resolveUserEntity = async (userId, explicitType) => {
-  // If explicitType is provided by frontend (student/employee)
-  if (explicitType === 'student') return { table: 'student_attendance', column: 'student_id', id: userId };
-  if (explicitType === 'employee') return { table: 'employee_attendance', column: 'employee_id', id: userId };
-
   // Attempt to resolve by assuming userId is the UUID from the `users` table
   const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
   
@@ -31,6 +27,11 @@ const resolveUserEntity = async (userId, explicitType) => {
   // Fallback: Check if it's a raw employee_id
   const { data: isEmployee } = await supabase.from("employee_profiles").select("id").eq("id", userId).single();
   if (isEmployee) return { table: 'employee_attendance', column: 'employee_id', id: userId };
+
+  // If explicitType is provided by frontend (student/employee) and we haven't found it in users or profiles, just use it.
+  // This helps when the DB doesn't have the record yet but we want to fail gracefully at the DB level, or bulk inserts.
+  if (explicitType === 'student') return { table: 'student_attendance', column: 'student_id', id: userId };
+  if (explicitType === 'employee') return { table: 'employee_attendance', column: 'employee_id', id: userId };
 
   throw new ApiError(404, "Could not resolve user entity from provided userId");
 };
@@ -192,7 +193,7 @@ export const getAttendanceReport = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/attendance/check-in
 export const checkInEmployee = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const entity = await resolveUserEntity(userId, 'employee');
+  const entity = await resolveUserEntity(userId);
   
   // Get current IST time
   const now = new Date();
@@ -221,15 +222,17 @@ export const checkInEmployee = asyncHandler(async (req, res) => {
     .eq('attendance_date', istDateStr)
     .maybeSingle();
 
-  if (existingRecord && existingRecord.check_in) {
-    throw new ApiError(400, "You have already checked in today");
+  // If already checked in and NOT checked out, prevent double check-in
+  if (existingRecord && existingRecord.check_in && !existingRecord.check_out) {
+    throw new ApiError(400, "You are already checked in today");
   }
 
   const payload = {
     employee_id: entity.id,
     attendance_date: istDateStr,
-    check_in: istTimestampStr,
-    status: status
+    check_in: existingRecord?.check_in || istTimestampStr,
+    check_out: null, // Clear check-out so they are checked in again
+    status: existingRecord?.status || status // Keep original status (e.g. if they were LATE, they are still LATE)
   };
 
   const { data, error } = await supabase
@@ -246,7 +249,7 @@ export const checkInEmployee = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/attendance/check-out
 export const checkOutEmployee = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const entity = await resolveUserEntity(userId, 'employee');
+  const entity = await resolveUserEntity(userId);
   
   // Get current IST time
   const now = new Date();

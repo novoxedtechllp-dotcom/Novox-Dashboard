@@ -4,7 +4,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 
 const LowerContent = ({ employees = [], students }) => {
   const [viewAllBtn, setViewAllBtn] = useState(true);
-  const [attendanceTab, setAttendanceTab] = useState('Students');
+  const [attendanceTab, setAttendanceTab] = useState('Employees');
   
   // Local state for dashboard students if not passed as prop
   const [dashboardStudents, setDashboardStudents] = useState(students || []);
@@ -45,13 +45,26 @@ const LowerContent = ({ employees = [], students }) => {
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
-        const response = await fetch('/api/v1/attendance', {
-          headers: { 'Authorization': `Bearer ${userInfo.token}` }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setAttendanceRecords(data);
+        
+        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+        const today = new Date().toLocaleDateString('en-CA');
+        
+        const [studentRes, employeeRes] = await Promise.all([
+          fetch(`/api/v1/attendance?type=student&from=${today}&to=${today}`, { headers }),
+          fetch(`/api/v1/attendance?type=employee&from=${today}&to=${today}`, { headers })
+        ]);
+
+        let allRecords = [];
+        if (studentRes.ok) {
+          const sData = await studentRes.json();
+          if (sData.data) allRecords = [...allRecords, ...sData.data];
         }
+        if (employeeRes.ok) {
+          const eData = await employeeRes.json();
+          if (eData.data) allRecords = [...allRecords, ...eData.data];
+        }
+        
+        setAttendanceRecords(allRecords);
       } catch (error) {
         console.error('Error fetching dashboard attendance:', error);
       }
@@ -88,7 +101,8 @@ const LowerContent = ({ employees = [], students }) => {
           time: att ? formatTime(att.check_in) : '--:--',
           status: statusData.text,
           statusColor: statusData.color,
-          dotColor: statusData.dot
+          dotColor: statusData.dot,
+          rawTime: att ? new Date(att.check_out || att.check_in || 0).getTime() : 0
         };
       })
     : employees.map(e => {
@@ -102,11 +116,17 @@ const LowerContent = ({ employees = [], students }) => {
           time: att ? formatTime(att.check_in) : '--:--',
           status: statusData.text,
           statusColor: statusData.color,
-          dotColor: statusData.dot
+          dotColor: statusData.dot,
+          rawTime: att ? new Date(att.check_out || att.check_in || 0).getTime() : 0
         };
       });
 
-  const visibleData = viewAllBtn ? displayData.slice(0, 4) : displayData;
+  const sortedDisplayData = [...displayData].sort((a, b) => {
+    if (a.rawTime !== b.rawTime) return b.rawTime - a.rawTime;
+    return a.name.localeCompare(b.name);
+  });
+
+  const visibleData = viewAllBtn ? sortedDisplayData.slice(0, 4) : sortedDisplayData;
 
   if (loading) {
     return <LoadingSpinner text="Loading attendance..." />;
@@ -123,16 +143,16 @@ const LowerContent = ({ employees = [], students }) => {
           </div>
           <div className="flex bg-slate-100 rounded-lg p-1">
             <button 
-              onClick={() => setAttendanceTab('Students')}
-              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${attendanceTab === 'Students' ? 'bg-white text-[#003F87] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Students
-            </button>
-            <button 
               onClick={() => setAttendanceTab('Employees')}
               className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${attendanceTab === 'Employees' ? 'bg-white text-[#003F87] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
               Employees
+            </button>
+            <button 
+              onClick={() => setAttendanceTab('Students')}
+              className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${attendanceTab === 'Students' ? 'bg-white text-[#003F87] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Students
             </button>
           </div>
         </div>

@@ -8,6 +8,7 @@ const EmployeeDashboard = () => {
   const [studentCount, setStudentCount] = useState(0);
   const [courseCount, setCourseCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   const userInfoStr = sessionStorage.getItem('userInfo');
   const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
@@ -28,7 +29,8 @@ const EmployeeDashboard = () => {
           const allAttendance = (data.data || []).filter(a => a.employee_id === userInfo.id || a.employee_id === userInfo.employee_profile_id);
           
           const now = new Date();
-          const today = now.toISOString().split('T')[0];
+          // Use local timezone string 'YYYY-MM-DD' instead of UTC to avoid timezone mismatches
+          const today = now.toLocaleDateString('en-CA');
           const currentMonth = now.getMonth();
           const currentYear = now.getFullYear();
 
@@ -90,38 +92,28 @@ const EmployeeDashboard = () => {
 
   const handlePunch = async (type) => {
     if (!userInfo || !userInfo.token) return;
+    setError(null);
     try {
-      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
-      const today = new Date().toISOString().split('T')[0];
-      const now = new Date().toISOString();
+      const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+      const endpoint = type === 'in' ? '/api/v1/attendance/check-in' : '/api/v1/attendance/check-out';
       
-      const payload = {
-        userId: userInfo.employee_profile_id || userInfo.id,
-        date: today,
-        type: 'employee',
-        status: attendanceRecord ? attendanceRecord.status : 'PRESENT',
-      };
-
-      if (type === 'in') {
-        payload.check_in = now;
-        payload.check_out = null;
-      } else if (type === 'out') {
-        payload.check_out = now;
-        if (attendanceRecord?.check_in) payload.check_in = attendanceRecord.check_in;
-      }
-
-      const res = await fetch('/api/v1/attendance', {
+      const res = await fetch(endpoint, {
         method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
+        headers
       });
 
       if (res.ok) {
         const resData = await res.json();
         setAttendanceRecord(resData.data);
+      } else {
+        const errData = await res.json();
+        setError(errData.message || 'Failed to record punch');
+        setTimeout(() => setError(null), 5000);
       }
     } catch (err) {
       console.error('Error recording punch:', err);
+      setError('An unexpected error occurred. Please try again.');
+      setTimeout(() => setError(null), 5000);
     }
   };
 
@@ -171,6 +163,13 @@ const EmployeeDashboard = () => {
                   : "Ready to start your day?"}
             </p>
           </div>
+
+          {error && (
+            <div className="mb-3 p-2.5 bg-[#FDE2E2] border border-[#D80000]/20 text-[#D80000] rounded-lg text-[13px] font-medium flex items-center gap-2">
+              <AlertCircle size={16} className="shrink-0" />
+              <p>{error}</p>
+            </div>
+          )}
 
           {isCheckedIn ? (
             <button 

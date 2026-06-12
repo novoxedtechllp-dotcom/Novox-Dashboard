@@ -12,105 +12,49 @@ const EmployeeAttendance = ({ courses = [] }) => {
   // For Calendar
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  useEffect(() => {
-    const fetchAttendance = async () => {
-      setLoading(true);
-      try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
+  const fetchAttendance = async () => {
+    setLoading(true);
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      if (!userInfo || !userInfo.token) return;
 
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+      const headers = { 'Authorization': `Bearer ${userInfo.token}` };
 
-        // Fetch employee attendance
-        const attRes = await fetch('/api/v1/attendance?type=employee', { headers });
-        if (attRes.ok) {
-          const data = await attRes.json();
-          // Filter by the employee's ID
-          const myAttendance = (data.data || []).filter(a => a.employee_id === userInfo.id || a.employee_id === userInfo.employee_profile_id);
-          setAttendance(myAttendance);
-        }
-
-        // Fetch students
-        const stdRes = await fetch('/api/v1/students', { headers });
-        if (stdRes.ok) {
-          const resData = await stdRes.json();
-          const studs = resData.data?.students || resData.data || (Array.isArray(resData) ? resData : []);
-          setStudents(studs);
-        }
-
-        // Fetch student attendance
-        const stuAttRes = await fetch('/api/v1/attendance?type=student', { headers });
-        if (stuAttRes.ok) {
-          const sData = await stuAttRes.json();
-          setStudentAttendance(sData.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching attendance:', error);
-      } finally {
-        setLoading(false);
+      // Fetch employee attendance
+      const attRes = await fetch('/api/v1/attendance?type=employee', { headers });
+      if (attRes.ok) {
+        const data = await attRes.json();
+        // Filter by the employee's ID
+        const myAttendance = (data.data || []).filter(a => a.employee_id === userInfo.id || a.employee_id === userInfo.employee_profile_id);
+        setAttendance(myAttendance);
       }
-    };
-    const headers = { 'Authorization': `Bearer ${userInfo.token}` };
 
-    // Fetch attendance for the employee
-    const attRes = await fetch('/api/v1/attendance', { headers });
-    if (attRes.ok) {
-      const data = await attRes.json();
-      // Backend returns response inside data.data usually, let's check
-      const attData = data.data || data;
-      const myAttendance = attData.filter(a => a.employee_id === userInfo.id || a.employee_id === userInfo.employee_profile_id);
-      setAttendance(myAttendance);
+      // Fetch students
+      const stdRes = await fetch('/api/v1/students', { headers });
+      if (stdRes.ok) {
+        const resData = await stdRes.json();
+        const studs = resData.data?.students || resData.data || (Array.isArray(resData) ? resData : []);
+        setStudents(studs);
+      }
+
+      // Fetch student attendance
+      const stuAttRes = await fetch('/api/v1/attendance?type=student', { headers });
+      if (stuAttRes.ok) {
+        const sData = await stuAttRes.json();
+        setStudentAttendance(sData.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching attendance:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-useEffect(() => {
-  fetchAttendance();
-}, []);
+  useEffect(() => {
+    fetchAttendance();
+  }, []);
 
-const handlePunchIn = async () => {
-  try {
-    const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-    const res = await fetch('/api/v1/attendance/check-in', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${userInfo.token}` }
-    });
-    const data = await res.json();
-    if (res.ok) {
-      alert('Checked in successfully');
-      fetchAttendance();
-    } else {
-      alert(data.message || 'Failed to check in');
-    }
-  } catch (err) {
-    console.error(err);
-    alert('Error checking in');
-  }
-};
 
-const handlePunchOut = async () => {
-  try {
-    const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-    const res = await fetch('/api/v1/attendance/check-out', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${userInfo.token}` }
-    });
-    const data = await res.json();
-    if (res.ok) {
-      alert('Checked out successfully');
-      fetchAttendance();
-    } else {
-      alert(data.message || 'Failed to check out');
-    }
-  } catch (err) {
-    console.error(err);
-    alert('Error checking out');
-  }
-};
 
 const formatTime = (isoString) => {
   if (!isoString) return '-';
@@ -247,7 +191,12 @@ const getMappedStudentData = () => {
 if (loading) return <LoadingSpinner text="Loading your attendance..." />;
 
 const { days: calendarDays, presentCount, absentCount, lateCount, halfDayCount, formattedLateTime } = renderCalendar();
-const mappedStudents = getMappedStudentData();
+const mappedStudents = getMappedStudentData().sort((a, b) => {
+  const timeA = new Date(a.check_out || a.check_in || 0).getTime();
+  const timeB = new Date(b.check_out || b.check_in || 0).getTime();
+  if (timeA !== timeB) return timeB - timeA;
+  return a.name.localeCompare(b.name);
+});
 
 const studentStats = {
   total: mappedStudents.length,

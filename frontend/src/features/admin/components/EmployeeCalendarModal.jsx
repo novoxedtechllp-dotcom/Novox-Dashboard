@@ -21,7 +21,8 @@ const EmployeeCalendarModal = ({ employee, onClose }) => {
         const from = `${year}-${month}-01`;
         const to = `${year}-${month}-${lastDay}`;
 
-        const res = await fetch(`/api/v1/attendance?userId=${employee.id || employee.userId}&type=employee&from=${from}&to=${to}`, {
+        const type = employee.type === 'Student' ? 'student' : 'employee';
+        const res = await fetch(`/api/v1/attendance?userId=${employee.userId}&type=${type}&from=${from}&to=${to}`, {
           headers: { 'Authorization': `Bearer ${userInfo.token}` }
         });
 
