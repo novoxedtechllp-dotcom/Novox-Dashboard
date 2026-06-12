@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Calendar, AlertCircle, Users, BarChart2, LogIn, LogOut, MoreVertical } from 'lucide-react';
+import { Clock, Calendar, AlertCircle, Users, BarChart2, LogIn, LogOut, FileText, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const EmployeeDashboard = () => {
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [attendanceRecord, setAttendanceRecord] = useState(null);
   const [monthlyStats, setMonthlyStats] = useState({ present: 0, halfDay: 0, late: 0, absent: 0 });
@@ -29,16 +31,13 @@ const EmployeeDashboard = () => {
           const allAttendance = (data.data || []).filter(a => a.employee_id === userInfo.id || a.employee_id === userInfo.employee_profile_id);
           
           const now = new Date();
-          // Use local timezone string 'YYYY-MM-DD' instead of UTC to avoid timezone mismatches
           const today = now.toLocaleDateString('en-CA');
           const currentMonth = now.getMonth();
           const currentYear = now.getFullYear();
 
-          // Today's record
           const record = allAttendance.find(a => a.attendance_date === today || a.attendance_date?.startsWith(today));
           setAttendanceRecord(record || null);
 
-          // Monthly stats
           let present = 0, halfDay = 0, late = 0, absent = 0;
           allAttendance.forEach(a => {
             if (!a.attendance_date) return;
@@ -53,7 +52,6 @@ const EmployeeDashboard = () => {
           setMonthlyStats({ present, halfDay, late, absent });
         }
 
-        // Fetch total courses (real data - replacing Pending Tasks)
         let myCourseIdSet = new Set();
         const crsRes = await fetch('/api/v1/courses', { headers });
         if (crsRes.ok) {
@@ -64,7 +62,6 @@ const EmployeeDashboard = () => {
           setCourseCount(myCourseIdSet.size);
         }
 
-        // Fetch total students (real data)
         const stdRes = await fetch('/api/v1/students', { headers });
         if (stdRes.ok) {
           const stdData = await stdRes.json();
@@ -121,115 +118,234 @@ const EmployeeDashboard = () => {
   const isCheckedOut = attendanceRecord && attendanceRecord.check_out;
   const hasPunchedInBefore = !!attendanceRecord?.check_in;
 
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const totalAttendanceDays = monthlyStats.present + monthlyStats.halfDay;
+
   return (
-    <div className="p-[24px]">
-      <div className="mb-6">
-        <h2 className="text-[28px] font-bold text-slate-900">Welcome back, {userInfo?.first_name || 'Employee'}!</h2>
-        <p className="text-slate-500 text-[14px]">{currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-8 animate-in fade-in duration-500 font-sans">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl lg:text-3xl font-bold text-slate-800 tracking-tight">
+            {getGreeting()}, <span className="text-indigo-600">{userInfo?.first_name || 'Employee'}</span>
+          </h2>
+          <p className="text-slate-500 font-medium text-sm mt-1 flex items-center gap-2">
+            <Calendar size={15} className="text-indigo-400" />
+            {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          </p>
+        </div>
+        <button 
+          onClick={() => navigate(window.location.pathname.replace('/dashboard', '/leave'))}
+          className="bg-white border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
+        >
+          <FileText size={16} /> Request Leave
+        </button>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 mb-6">
-        {/* Left Column: Daily Attendance */}
-        <div className="w-full lg:w-[350px] bg-white border border-[#E2E8F0] rounded-xl p-6 shadow-sm flex flex-col justify-between h-[320px]">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="font-bold text-[#003F87] text-[16px]">Daily Attendance</h3>
-              <p className="text-[13px] text-slate-500 mt-1">Monitor your shift time</p>
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-sm font-medium flex items-center gap-3 shadow-sm animate-in slide-in-from-top-2">
+          <AlertCircle size={18} />
+          <p>{error}</p>
+        </div>
+      )}
+
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+        
+        {/* Left Column (Main Focus) */}
+        <div className="xl:col-span-2 flex flex-col gap-6 lg:gap-8">
+          
+          {/* Time & Action Hero Card */}
+          <div className="bg-white rounded-3xl p-8 lg:p-10 border border-slate-200/60 shadow-sm relative overflow-hidden group">
+            {/* Minimalist ambient glow */}
+            <div className="absolute -right-32 -top-32 w-96 h-96 bg-indigo-100/50 rounded-full blur-[80px] opacity-60 group-hover:opacity-80 transition-opacity duration-1000 pointer-events-none"></div>
+            
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+              
+              <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-4">
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 text-slate-600 text-xs font-bold tracking-widest uppercase shadow-sm border border-slate-200/50">
+                    <Clock size={12} className={isCheckedIn ? "text-indigo-500 animate-pulse" : "text-slate-400"} /> 
+                    Today's Shift
+                  </div>
+                  <span className="text-slate-400 font-medium text-sm flex items-center gap-1.5">
+                    {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </span>
+                </div>
+                
+                <h1 className="text-6xl md:text-[5.5rem] font-light text-slate-800 tracking-tighter tabular-nums leading-none">
+                  {currentTime.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+                </h1>
+                
+                <div className="text-slate-500 font-medium text-sm md:text-base flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
+                  {isCheckedIn ? (
+                    <>
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                      Checked in at {new Date(attendanceRecord.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </>
+                  ) : isCheckedOut ? (
+                    <>
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
+                      Completed shift at {new Date(attendanceRecord.check_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
+                      Ready to start your day?
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center w-full md:w-auto gap-4 md:min-w-[200px]">
+                 {isCheckedIn ? (
+                   <>
+                    <div className="text-emerald-600 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Active Shift
+                    </div>
+                    <button 
+                      onClick={() => handlePunch('out')}
+                      className="w-full bg-white border-2 border-slate-200 hover:border-rose-500 hover:bg-rose-50 text-slate-700 hover:text-rose-600 py-3.5 px-6 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all group"
+                    >
+                      <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" /> Check Out
+                    </button>
+                   </>
+                ) : isCheckedOut ? (
+                   <>
+                    <div className="text-slate-500 bg-slate-100 border border-slate-200 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
+                      <CheckCircle2 size={16} /> Shift Completed
+                    </div>
+                    <button 
+                      disabled
+                      className="w-full bg-slate-50 border border-slate-200 text-slate-400 py-3.5 px-6 rounded-2xl font-bold text-base flex items-center justify-center gap-2 cursor-not-allowed"
+                    >
+                      Done for today
+                    </button>
+                   </>
+                ) : (
+                  <>
+                    <div className="text-slate-500 bg-slate-100 border border-slate-200 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
+                      Waiting to Start
+                    </div>
+                    <button 
+                      onClick={() => handlePunch('in')}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 px-6 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all shadow-[0_8px_16px_-6px_rgba(79,70,229,0.4)] hover:shadow-[0_12px_20px_-6px_rgba(79,70,229,0.5)] hover:-translate-y-0.5 active:translate-y-0 group"
+                    >
+                      <LogIn size={20} className="group-hover:translate-x-1 transition-transform" /> {hasPunchedInBefore ? "Check In Again" : "Check In"}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-            {isCheckedIn ? (
-              <span className="bg-[#E5F7ED] text-[#008A2E] text-[10px] font-bold px-3 py-1 rounded-full border border-[#008A2E]/20 uppercase tracking-wider">
-                Checked In
-              </span>
-            ) : isCheckedOut ? (
-              <span className="bg-[#FFF4E5] text-[#B26E00] text-[10px] font-bold px-3 py-1 rounded-full border border-[#B26E00]/20 uppercase tracking-wider">
-                Checked Out
-              </span>
-            ) : (
-              <span className="bg-[#FDE2E2] text-[#D80000] text-[10px] font-bold px-3 py-1 rounded-full border border-[#D80000]/20 uppercase tracking-wider">
-                Not Checked In
-              </span>
-            )}
           </div>
 
-          <div className="text-center my-6">
-            <h1 className="text-[42px] font-black text-slate-900 tracking-tight leading-none mb-3">
-              {currentTime.toLocaleTimeString('en-US', { hour12: false })}
-            </h1>
-            <p className="text-[14px] text-slate-500 font-medium">
-              {isCheckedIn 
-                ? `Checked in at ${new Date(attendanceRecord.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` 
-                : isCheckedOut 
-                  ? `Checked out at ${new Date(attendanceRecord.check_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` 
-                  : "Ready to start your day?"}
-            </p>
-          </div>
-
-          {error && (
-            <div className="mb-3 p-2.5 bg-[#FDE2E2] border border-[#D80000]/20 text-[#D80000] rounded-lg text-[13px] font-medium flex items-center gap-2">
-              <AlertCircle size={16} className="shrink-0" />
-              <p>{error}</p>
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+            <div className="bg-white rounded-2xl border border-slate-200/60 p-6 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow group">
+              <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                <Users size={20} />
+              </div>
+              <div>
+                <h3 className="text-3xl font-semibold text-slate-800">{studentCount}</h3>
+                <p className="text-sm font-medium text-slate-500 mt-1">My Students</p>
+              </div>
             </div>
-          )}
 
-          {isCheckedIn ? (
-            <button 
-              onClick={() => handlePunch('out')}
-              className="w-full bg-[#D80000] hover:bg-[#B20000] text-white py-3.5 rounded-lg font-bold text-[15px] flex items-center justify-center gap-2 transition-all shadow-sm"
-            >
-              <LogOut size={20} /> Check Out
-            </button>
-          ) : (
-            <button 
-              onClick={() => handlePunch('in')}
-              className="w-full bg-[#003F87] hover:bg-[#002B5E] text-white py-3.5 rounded-lg font-bold text-[15px] flex items-center justify-center gap-2 transition-all shadow-sm"
-            >
-              <LogIn size={20} /> {hasPunchedInBefore ? "Check In Again" : "Check In"}
-            </button>
-          )}
+            <div className="bg-white rounded-2xl border border-slate-200/60 p-6 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow group">
+              <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                <Calendar size={20} />
+              </div>
+              <div>
+                <h3 className="text-3xl font-semibold text-slate-800">{courseCount}</h3>
+                <p className="text-sm font-medium text-slate-500 mt-1">My Courses</p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200/60 p-6 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow group">
+              <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                 <BarChart2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-3xl font-semibold text-slate-800">
+                  {totalAttendanceDays} <span className="text-lg text-slate-400 font-normal">Days</span>
+                </h3>
+                <p className="text-sm font-medium text-slate-500 mt-1">Overall Attendance</p>
+              </div>
+            </div>
+          </div>
+          
         </div>
 
-        {/* Right Column */}
-        <div className="flex-1 flex gap-6 h-[320px]">
-          {/* Quick Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full h-full">
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 shadow-sm text-center flex flex-col items-center justify-center h-full">
-              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-[#003F87] mb-3">
-                <Users size={24} />
-              </div>
-              <p className="text-[13px] font-medium text-slate-500">My Students</p>
-              <h3 className="text-[28px] font-black text-slate-900 mt-1">{studentCount}</h3>
-              <div className="w-12 h-1 bg-[#003F87] mt-3 rounded-full"></div>
-            </div>
+        {/* Right Column: Monthly Overview */}
+        <div className="bg-white border border-slate-200/60 rounded-3xl p-8 shadow-sm flex flex-col">
+          <div className="flex items-center justify-between mb-8">
+             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <BarChart2 size={20} className="text-indigo-500" />
+                Monthly Overview
+             </h3>
+             <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded-md uppercase tracking-wider">
+               {new Date().toLocaleString('default', { month: 'short' })}
+             </span>
+          </div>
+          
+          <div className="space-y-6 flex-1">
+             <div className="flex items-center justify-between group">
+                <div className="flex items-center gap-4">
+                   <div className="w-2.5 h-10 rounded-full bg-emerald-500 group-hover:scale-y-110 transition-transform"></div>
+                   <div className="flex flex-col">
+                     <span className="text-sm font-bold text-slate-700">Present</span>
+                     <span className="text-xs text-slate-500">Full working days</span>
+                   </div>
+                </div>
+                <span className="text-2xl font-semibold text-slate-800">{monthlyStats.present}</span>
+             </div>
+             
+             <div className="flex items-center justify-between group">
+                <div className="flex items-center gap-4">
+                   <div className="w-2.5 h-10 rounded-full bg-blue-500 group-hover:scale-y-110 transition-transform"></div>
+                   <div className="flex flex-col">
+                     <span className="text-sm font-bold text-slate-700">Half Day</span>
+                     <span className="text-xs text-slate-500">Partial hours</span>
+                   </div>
+                </div>
+                <span className="text-2xl font-semibold text-slate-800">{monthlyStats.halfDay}</span>
+             </div>
 
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 shadow-sm flex flex-col justify-center h-full">
-              <p className="text-[13px] font-bold text-slate-800 mb-3 text-center">This Month</p>
-              <div className="grid grid-cols-2 gap-2 flex-1 h-full">
-                <div className="bg-[#E5F7ED] border border-[#008A2E]/20 rounded-md p-2 text-center flex flex-col justify-center">
-                  <div className="text-[18px] font-black text-[#008A2E] leading-none">{monthlyStats.present}</div>
-                  <div className="text-[9px] font-bold text-[#008A2E]/70 uppercase mt-1">Present</div>
+             <div className="flex items-center justify-between group">
+                <div className="flex items-center gap-4">
+                   <div className="w-2.5 h-10 rounded-full bg-amber-500 group-hover:scale-y-110 transition-transform"></div>
+                   <div className="flex flex-col">
+                     <span className="text-sm font-bold text-slate-700">Late</span>
+                     <span className="text-xs text-slate-500">After shift start</span>
+                   </div>
                 </div>
-                <div className="bg-[#E5F0FF] border border-[#003F87]/20 rounded-md p-2 text-center flex flex-col justify-center">
-                  <div className="text-[18px] font-black text-[#003F87] leading-none">{monthlyStats.halfDay}</div>
-                  <div className="text-[9px] font-bold text-[#003F87]/70 uppercase mt-1">Half Day</div>
-                </div>
-                <div className="bg-[#FFF4E5] border border-[#B26E00]/20 rounded-md p-2 text-center flex flex-col justify-center">
-                  <div className="text-[18px] font-black text-[#B26E00] leading-none">{monthlyStats.late}</div>
-                  <div className="text-[9px] font-bold text-[#B26E00]/70 uppercase mt-1">Late</div>
-                </div>
-                <div className="bg-[#FDE2E2] border border-[#D80000]/20 rounded-md p-2 text-center flex flex-col justify-center">
-                  <div className="text-[18px] font-black text-[#D80000] leading-none">{monthlyStats.absent}</div>
-                  <div className="text-[9px] font-bold text-[#D80000]/70 uppercase mt-1">Absent</div>
-                </div>
-              </div>
-            </div>
+                <span className="text-2xl font-semibold text-slate-800">{monthlyStats.late}</span>
+             </div>
 
-            <div className="bg-white rounded-xl border border-[#E2E8F0] p-6 shadow-sm text-center flex flex-col items-center justify-center h-full">
-              <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-700 mb-3">
-                <Calendar size={24} />
-              </div>
-              <p className="text-[13px] font-medium text-slate-500">My Courses</p>
-              <h3 className="text-[28px] font-black text-slate-900 mt-1">{courseCount}</h3>
-              <div className="w-12 h-1 bg-purple-600 mt-3 rounded-full"></div>
+             <div className="flex items-center justify-between group">
+                <div className="flex items-center gap-4">
+                   <div className="w-2.5 h-10 rounded-full bg-rose-500 group-hover:scale-y-110 transition-transform"></div>
+                   <div className="flex flex-col">
+                     <span className="text-sm font-bold text-slate-700">Absent</span>
+                     <span className="text-xs text-slate-500">Missed shifts</span>
+                   </div>
+                </div>
+                <span className="text-2xl font-semibold text-slate-800">{monthlyStats.absent}</span>
+             </div>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <div className="bg-slate-50 rounded-2xl p-4 flex items-start gap-3">
+              <Clock size={18} className="text-slate-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Your attendance is tracked automatically when you punch in and out. Ensure you check out at the end of your shift to maintain accurate records.
+              </p>
             </div>
           </div>
         </div>
