@@ -83,6 +83,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
   const [isUploading, setIsUploading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
   
@@ -151,6 +152,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
     }
 
     try {
+      setIsSubmitting(true);
       const headers = getAuthHeaders();
       if (!headers) return;
       const { first_name, last_name } = splitName(newEmployee.name);
@@ -182,6 +184,8 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
     } catch (error) {
       console.error('Error adding employee:', error);
       alert(error.message || 'Failed to add employee');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -212,6 +216,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
       alert(error.message || 'Failed to delete employee');
     } finally {
       setIsDeleting(false);
+      setEmployeeToDelete(null);
     }
   };
 
@@ -313,7 +318,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         
         {filteredEmployees.map(emp => (
-          <div key={emp.id} className="bg-white rounded-[24px] border border-slate-100/60 flex flex-col relative group shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 overflow-hidden">
+          <div key={emp.id} onClick={() => setEmployeeToEdit(emp)} className="cursor-pointer bg-white rounded-[24px] border border-slate-100/60 flex flex-col relative group shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 overflow-hidden">
             
             {/* Main Content Area */}
             <div className="p-6 relative">
@@ -321,14 +326,14 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
               {/* Top Right Actions */}
               <div className="absolute top-6 right-6 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
-                  onClick={() => setEmployeeToEdit(emp)}
+                  onClick={(e) => { e.stopPropagation(); setEmployeeToEdit(emp); }}
                   className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
                   title="Edit Employee"
                 >
                   <Pencil size={16} />
                 </button>
                 <button 
-                  onClick={() => setEmployeeToDelete(emp.id)}
+                  onClick={(e) => { e.stopPropagation(); setEmployeeToDelete(emp.id); }}
                   className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-all"
                   title="Delete Employee"
                 >
@@ -390,8 +395,8 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
 
       {/* Add Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-8 flex flex-col animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto" onClick={() => setIsModalOpen(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-8 flex flex-col animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0">
               <h2 className="text-xl font-black text-slate-800">Add New Employee</h2>
               <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
@@ -423,7 +428,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name *</label>
                   <input 
                     type="text" required value={newEmployee.name}
@@ -432,7 +437,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email *</label>
                   <input 
                     type="email" required value={newEmployee.email}
@@ -441,7 +446,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
                   <input 
                     type="tel" maxLength={10} required value={newEmployee.phone}
@@ -450,7 +455,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Password <span className="text-slate-300 normal-case font-normal">(optional)</span></label>
                   <input 
                     type="text" value={newEmployee.password}
@@ -459,7 +464,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
                   <CustomSelect
                     value={newEmployee.department}
@@ -469,7 +474,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Position (Designation)</label>
                   <input 
                     type="text" value={newEmployee.position}
@@ -478,13 +483,14 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mentoring Courses</label>
                   <CustomSelect
                     value={newEmployee.courseIds}
                     onChange={(val) => setNewEmployee({...newEmployee, courseIds: val})}
                     options={courses.map(c => ({ value: c.id, label: c.name }))}
                     multiple={true}
+                    openUpwards={true}
                     className="w-full"
                     selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
                     placeholder="Select courses..."
@@ -496,8 +502,8 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
                   Cancel
                 </button>
-                <button type="submit" className={`px-6 py-2 bg-[#003F87] text-white rounded-lg text-sm font-bold shadow-md ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002B5E]'}`} disabled={isUploading}>
-                  {isUploading ? 'Uploading...' : 'Add Employee'}
+                <button type="submit" className={`px-6 py-2 bg-[#003F87] text-white rounded-lg text-sm font-bold shadow-md ${isUploading || isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002B5E]'}`} disabled={isUploading || isSubmitting}>
+                  {isSubmitting ? 'Adding...' : 'Add Employee'}
                 </button>
               </div>
             </form>
@@ -507,8 +513,8 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
 
       {/* Edit Modal */}
       {employeeToEdit && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-8 flex flex-col animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto" onClick={() => setEmployeeToEdit(null)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl my-8 flex flex-col animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0">
               <h2 className="text-xl font-black text-slate-800">Edit Employee</h2>
               <button onClick={() => setEmployeeToEdit(null)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors">
@@ -587,8 +593,8 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
 
       {/* Delete Confirmation Modal */}
       {employeeToDelete && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 flex flex-col gap-5 text-center items-center">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setEmployeeToDelete(null)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 flex flex-col gap-5 text-center items-center" onClick={e => e.stopPropagation()}>
             <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-2">
               <Trash2 size={28} />
             </div>

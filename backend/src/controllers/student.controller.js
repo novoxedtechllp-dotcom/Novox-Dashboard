@@ -6,7 +6,7 @@ import { uploadOnCloudinary, extractPublicIdFromUrl, deleteFromCloudinary } from
 import bcrypt from "bcrypt";
 import { sendEmail } from "../utils/sendEmail.js";
 
-const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, guardian_name, address, joining_date, status, avatar_url, created_at, users(email)";
+const studentSelectFields = "id, student_code, first_name, last_name, phone, parent_phone, guardian_name, address, joining_date, status, avatar_url, created_at, users(email), student_courses(id, course_id)";
 
 // ==========================================
 // CORE STUDENT CRUD

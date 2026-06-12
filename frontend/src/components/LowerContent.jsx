@@ -8,6 +8,7 @@ const LowerContent = ({ employees = [], students }) => {
   
   // Local state for dashboard students if not passed as prop
   const [dashboardStudents, setDashboardStudents] = useState(students || []);
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -39,34 +40,71 @@ const LowerContent = ({ employees = [], students }) => {
     }
   }, [students]);
 
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        if (!userInfo || !userInfo.token) return;
+        const response = await fetch('/api/v1/attendance', {
+          headers: { 'Authorization': `Bearer ${userInfo.token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setAttendanceRecords(data);
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard attendance:', error);
+      }
+    };
+    fetchAttendance();
+  }, []);
+
   const handleViewAllClick = () => {
     setViewAllBtn(!viewAllBtn);
   };
 
+  const getStatusDisplay = (status) => {
+    if (status === 'PRESENT' || status === 'LATE' || status === 'HALF_DAY') {
+      return { text: status.replace('_', ' '), color: 'bg-green-100 text-green-700', dot: 'bg-green-500' };
+    }
+    return { text: 'Absent', color: 'bg-red-100 text-red-700', dot: 'bg-red-500' };
+  };
+
+  const formatTime = (isoString) => {
+    if (!isoString) return '--:--';
+    return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   const displayData = attendanceTab === 'Students' 
     ? dashboardStudents.map(s => {
+        const att = attendanceRecords.find(a => a.student_id === (s.id || s._id));
         const fullName = s.first_name ? `${s.first_name} ${s.last_name || ''}` : (s.name || 'Unknown');
+        const statusData = att ? getStatusDisplay(att.status) : { text: 'Not Marked', color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' };
         return {
           id: s.id || s._id,
           name: fullName,
           subtitle: s.course || 'Enrolled',
           initials: fullName.substring(0, 2).toUpperCase(),
-          time: s.status === 'ACTIVE' ? '08:15 AM' : '--:--',
-          status: s.status === 'ACTIVE' ? 'Present' : 'Absent',
-          statusColor: s.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600',
-          dotColor: s.status === 'ACTIVE' ? 'bg-green-500' : 'bg-slate-400'
+          time: att ? formatTime(att.check_in) : '--:--',
+          status: statusData.text,
+          statusColor: statusData.color,
+          dotColor: statusData.dot
         };
       })
-    : employees.map(e => ({
-        id: e.id,
-        name: e.name,
-        subtitle: e.department,
-        initials: e.name.substring(0, 2).toUpperCase(),
-        time: e.status === 'Active' ? '08:00 AM' : '--:--',
-        status: e.status === 'Active' ? 'Present' : 'On Leave',
-        statusColor: e.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600',
-        dotColor: e.status === 'Active' ? 'bg-green-500' : 'bg-slate-400'
-      }));
+    : employees.map(e => {
+        const att = attendanceRecords.find(a => a.employee_id === e.id);
+        const statusData = att ? getStatusDisplay(att.status) : { text: 'Not Marked', color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' };
+        return {
+          id: e.id,
+          name: e.name || 'Unknown',
+          subtitle: e.department || 'Staff',
+          initials: (e.name || 'UN').substring(0, 2).toUpperCase(),
+          time: att ? formatTime(att.check_in) : '--:--',
+          status: statusData.text,
+          statusColor: statusData.color,
+          dotColor: statusData.dot
+        };
+      });
 
   const visibleData = viewAllBtn ? displayData.slice(0, 4) : displayData;
 
@@ -100,33 +138,35 @@ const LowerContent = ({ employees = [], students }) => {
         </div>
         
         <div className="w-full overflow-x-auto flex-1">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse table-fixed min-w-[600px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Entity Name</th>
-                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Check-In</th>
-                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Action</th>
+                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-2/5">Entity Name</th>
+                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">Check-In</th>
+                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">Status</th>
+                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">Action</th>
               </tr>
             </thead>
             <tbody>
               {visibleData.length > 0 ? visibleData.map(item => (
                 <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td className="py-4 px-6 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">{item.initials}</div>
-                    <div>
-                      <div className="text-sm font-bold text-slate-800">{item.name}</div>
-                      <div className="text-[11px] text-slate-500">{item.subtitle}</div>
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-3 truncate">
+                      <div className="w-9 h-9 shrink-0 rounded-full bg-blue-50 text-[#003F87] font-bold text-xs flex items-center justify-center">{item.initials}</div>
+                      <div className="truncate">
+                        <div className="text-sm font-bold text-slate-800 truncate">{item.name}</div>
+                        <div className="text-[11px] text-slate-500 truncate">{item.subtitle}</div>
+                      </div>
                     </div>
                   </td>
-                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700">{item.time}</td>
-                  <td className="py-4 px-6">
+                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700 truncate">{item.time}</td>
+                  <td className="py-4 px-6 truncate">
                     <span className={`inline-flex items-center gap-1.5 ${item.statusColor} px-2.5 py-1 rounded-full text-[11px] font-bold`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${item.dotColor}`}></span>
+                      <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${item.dotColor}`}></span>
                       {item.status}
                     </span>
                   </td>
-                  <td className="py-4 px-6">
+                  <td className="py-4 px-6 truncate">
                     <button className="text-[#003F87] text-xs font-bold hover:underline">Details</button>
                   </td>
                 </tr>

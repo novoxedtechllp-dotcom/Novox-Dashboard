@@ -17,7 +17,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [courseFilter, setCourseFilter] = useState('All Categories');
-  const [dateFilter, setDateFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
 
   // Fetch data from backend
@@ -34,16 +34,23 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
 
         // Fetch students
         const stdRes = await fetch('/api/v1/students', { headers });
-        if (stdRes.ok) setStudents(await stdRes.json());
+        if (stdRes.ok) {
+          const resData = await stdRes.json();
+          const studs = resData.data?.students || resData.data || (Array.isArray(resData) ? resData : []);
+          setStudents(studs);
+        }
 
-        // Fetch attendance (V2 API uses a single endpoint for all attendance)
-        const attRes = await fetch('/api/v1/attendance', { headers });
-        if (attRes.ok) {
-          const attendanceData = await attRes.json();
-          // Assuming the backend returns mixed data or we filter it here
-          // If the backend hasn't implemented V2 fully, this will just gracefully fallback to empty arrays
-          setStudentAttendance(attendanceData.filter(a => a.student_id));
-          setEmployeeAttendance(attendanceData.filter(a => a.employee_id));
+        // Fetch attendance
+        const studentAttRes = await fetch('/api/v1/attendance?type=student', { headers });
+        const employeeAttRes = await fetch('/api/v1/attendance?type=employee', { headers });
+        
+        if (studentAttRes.ok) {
+          const sData = await studentAttRes.json();
+          setStudentAttendance(sData.data || []);
+        }
+        if (employeeAttRes.ok) {
+          const eData = await employeeAttRes.json();
+          setEmployeeAttendance(eData.data || []);
         }
 
       } catch (error) {
@@ -61,23 +68,45 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
     setDateFilter('');
   };
 
-  const handleUpdateStatus = (id, newStatus) => {
-    const table = activeTab === 'Students' ? studentAttendance : employeeAttendance;
-    const setTable = activeTab === 'Students' ? setStudentAttendance : setEmployeeAttendance;
-    
-    const updated = table.map(item => {
-      if (item.id === id) {
-        const now = new Date().toISOString();
-        return { 
-          ...item, 
-          status: newStatus,
-          check_in: newStatus === 'PRESENT' || newStatus === 'LATE' || newStatus === 'HALF_DAY' ? now : null,
-          remarks: newStatus === 'LATE' ? 'Manually updated' : item.remarks
-        };
+  const handleUpdateStatus = async (userId, type, newStatus) => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      if (!userInfo || !userInfo.token) return;
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+      
+      const selectedDate = dateFilter || new Date().toISOString().split('T')[0];
+      const now = new Date().toISOString();
+      const payload = {
+        userId: userId,
+        date: selectedDate,
+        status: newStatus,
+        type: type === 'Student' ? 'student' : 'employee',
+        check_in: newStatus === 'PRESENT' || newStatus === 'LATE' || newStatus === 'HALF_DAY' ? now : null,
+      };
+
+      const res = await fetch('/api/v1/attendance', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        // Re-fetch attendance
+        const studentAttRes = await fetch('/api/v1/attendance?type=student', { headers: { 'Authorization': `Bearer ${userInfo.token}` } });
+        const employeeAttRes = await fetch('/api/v1/attendance?type=employee', { headers: { 'Authorization': `Bearer ${userInfo.token}` } });
+        
+        if (studentAttRes.ok) {
+          const sData = await studentAttRes.json();
+          setStudentAttendance(sData.data || []);
+        }
+        if (employeeAttRes.ok) {
+          const eData = await employeeAttRes.json();
+          setEmployeeAttendance(eData.data || []);
+        }
       }
-      return item;
-    });
-    setTable(updated);
+    } catch (err) {
+      console.error('Error updating attendance:', err);
+    }
     setOpenActionMenuId(null);
   };
 
@@ -92,44 +121,87 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
     setOpenActionMenuId(null);
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
-    const table = activeTab === 'Students' ? studentAttendance : employeeAttendance;
-    const setTable = activeTab === 'Students' ? setStudentAttendance : setEmployeeAttendance;
-    
-    const updated = table.map(item => {
-      if (item.id === editRecord.id) {
-        // Construct full ISO strings from the time inputs for the current attendance date
-        const datePrefix = item.attendance_date;
-        return { 
-          ...item, 
-          status: editForm.status,
-          check_in: editForm.check_in ? `${datePrefix}T${editForm.check_in}:00` : null,
-          check_out: editForm.check_out ? `${datePrefix}T${editForm.check_out}:00` : null,
-          remarks: editForm.remarks
-        };
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      if (!userInfo || !userInfo.token) return;
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+      
+      const datePrefix = editRecord.attendance_date || dateFilter || new Date().toISOString().split('T')[0];
+      const payload = {
+        userId: editRecord.userId,
+        date: datePrefix,
+        status: editForm.status,
+        check_in: editForm.check_in ? `${datePrefix}T${editForm.check_in}:00` : null,
+        check_out: editForm.check_out ? `${datePrefix}T${editForm.check_out}:00` : null,
+        remarks: editForm.remarks,
+        type: editRecord.type === 'Student' ? 'student' : 'employee'
+      };
+
+      const res = await fetch('/api/v1/attendance', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        const studentAttRes = await fetch('/api/v1/attendance?type=student', { headers: { 'Authorization': `Bearer ${userInfo.token}` } });
+        const employeeAttRes = await fetch('/api/v1/attendance?type=employee', { headers: { 'Authorization': `Bearer ${userInfo.token}` } });
+        
+        if (studentAttRes.ok) {
+          const sData = await studentAttRes.json();
+          setStudentAttendance(sData.data || []);
+        }
+        if (employeeAttRes.ok) {
+          const eData = await employeeAttRes.json();
+          setEmployeeAttendance(eData.data || []);
+        }
       }
-      return item;
-    });
-    setTable(updated);
+    } catch (err) {
+      console.error('Error updating attendance:', err);
+    }
     setEditRecord(null);
   };
 
   // Join data with respective Profiles
   const getMappedData = () => {
+    const selectedDate = dateFilter || new Date().toISOString().split('T')[0];
     if (activeTab === 'Students') {
-      return studentAttendance.map(sa => {
-        const student = students.find(s => (s.id || s._id) === sa.student_id);
-        const name = student ? `${student.first_name || ''} ${student.last_name || ''}`.trim() : `Unknown Student (ID: ${sa.student_id})`;
-        const initials = student && student.first_name ? `${student.first_name[0]}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() : '??';
-        return { ...sa, type: 'Student', identifier: student?.student_code || 'N/A', name, initials, course: 'Mapped from courses later' }; // Assuming course mapping isn't directly on attendance table
+      return students.map(student => {
+        const studentId = student.id || student._id;
+        const sa = studentAttendance.find(a => a.student_id === studentId && (a.attendance_date === selectedDate || a.date === selectedDate || a.attendance_date?.startsWith(selectedDate)));
+        const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || `Unknown Student`;
+        const initials = student.first_name ? `${student.first_name[0]}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() : '??';
+        return { 
+          ...(sa || {}), 
+          userId: studentId,
+          type: 'Student', 
+          identifier: student.student_code || 'N/A', 
+          name, 
+          initials, 
+          course: student.course?.name || 'N/A',
+          status: sa ? sa.status : 'NOT_MARKED',
+          attendance_date: sa ? sa.attendance_date : selectedDate
+        };
       });
     } else {
-      return employeeAttendance.map(ea => {
-        const employee = employees.find(e => e.id === ea.employee_id);
-        const name = employee ? employee.name : `Unknown Employee (ID: ${ea.employee_id})`;
+      return employees.map(employee => {
+        const employeeId = employee.id || employee._id;
+        const ea = employeeAttendance.find(a => a.employee_id === employeeId && (a.attendance_date === selectedDate || a.date === selectedDate || a.attendance_date?.startsWith(selectedDate)));
+        const name = employee.name || `Unknown Employee`;
         const initials = name !== 'Unknown Employee' ? name.substring(0, 2).toUpperCase() : '??';
-        return { ...ea, type: 'Employee', identifier: employee?.eid || 'N/A', name, initials, course: employee?.department || 'N/A' };
+        return { 
+          ...(ea || {}), 
+          userId: employeeId,
+          type: 'Employee', 
+          identifier: employee.eid || 'N/A', 
+          name, 
+          initials, 
+          course: employee.department || 'N/A',
+          status: ea ? ea.status : 'NOT_MARKED',
+          attendance_date: ea ? ea.attendance_date : selectedDate
+        };
       });
     }
   };
@@ -152,10 +224,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
     if (courseFilter !== 'All Categories' && item.course !== courseFilter) {
       return false;
     }
-    if (dateFilter && item.attendance_date !== dateFilter) {
-      return false;
-    }
-    return true;
+    return true; // We map using dateFilter globally, so no need to filter date here
   });
 
   const total = filteredData.length;
@@ -267,7 +336,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
             </thead>
             <tbody>
               {filteredData.length > 0 ? filteredData.map((item, index) => (
-                <tr key={item.id} className={index !== filteredData.length - 1 ? "border-b border-slate-100" : ""}>
+                <tr key={item.userId} className={index !== filteredData.length - 1 ? "border-b border-slate-100" : ""}>
                   <td className="py-[16px] px-[24px]">
                     <div className="text-[13px] font-bold text-[#003F87] leading-tight break-words max-w-[80px]">{item.identifier}</div>
                   </td>
@@ -289,12 +358,14 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
                         ${item.status === 'LATE' ? 'bg-[#FFF4E5] text-[#B26E00]' : ''}
                         ${item.status === 'ABSENT' ? 'bg-[#FDE2E2] text-[#D80000]' : ''}
                         ${item.status === 'HALF_DAY' ? 'bg-[#E5F0FF] text-[#003F87]' : ''}
+                        ${item.status === 'NOT_MARKED' ? 'bg-slate-100 text-slate-500' : ''}
                       `}>
                         <span className={`w-[6px] h-[6px] rounded-full 
                           ${item.status === 'PRESENT' ? 'bg-[#008A2E]' : ''}
                           ${item.status === 'LATE' ? 'bg-[#B26E00]' : ''}
                           ${item.status === 'ABSENT' ? 'bg-[#D80000]' : ''}
                           ${item.status === 'HALF_DAY' ? 'bg-[#003F87]' : ''}
+                          ${item.status === 'NOT_MARKED' ? 'bg-slate-400' : ''}
                         `}></span> 
                         {item.status.replace('_', ' ')}
                       </span>
@@ -309,17 +380,17 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
                   </td>
                   <td className="py-[16px] px-[24px] text-right relative">
                     <button 
-                      onClick={() => setOpenActionMenuId(openActionMenuId === item.id ? null : item.id)}
+                      onClick={() => setOpenActionMenuId(openActionMenuId === item.userId ? null : item.userId)}
                       className="text-[#555F6B] hover:text-[#003F87] p-1 rounded hover:bg-slate-100 transition-colors"
                     >
                       <MoreVertical size={18} />
                     </button>
-                    {openActionMenuId === item.id && (
+                    {openActionMenuId === item.userId && (
                       <div className={`absolute right-[24px] ${index >= filteredData.length - 2 && filteredData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} w-[140px] bg-white border border-[#C2C6D4] shadow-lg rounded-[8px] z-50 overflow-hidden text-left flex flex-col`}>
-                        <button onClick={() => handleUpdateStatus(item.id, 'PRESENT')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#008A2E] text-left border-b border-slate-100 transition-colors">Mark Present</button>
-                        <button onClick={() => handleUpdateStatus(item.id, 'LATE')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#B26E00] text-left border-b border-slate-100 transition-colors">Mark Late</button>
-                        <button onClick={() => handleUpdateStatus(item.id, 'ABSENT')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#D80000] text-left border-b border-slate-100 transition-colors">Mark Absent</button>
-                        <button onClick={() => handleUpdateStatus(item.id, 'HALF_DAY')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#003F87] text-left border-b border-slate-100 transition-colors">Mark Half Day</button>
+                        <button onClick={() => handleUpdateStatus(item.userId, item.type, 'PRESENT')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#008A2E] text-left border-b border-slate-100 transition-colors">Mark Present</button>
+                        <button onClick={() => handleUpdateStatus(item.userId, item.type, 'LATE')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#B26E00] text-left border-b border-slate-100 transition-colors">Mark Late</button>
+                        <button onClick={() => handleUpdateStatus(item.userId, item.type, 'ABSENT')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#D80000] text-left border-b border-slate-100 transition-colors">Mark Absent</button>
+                        <button onClick={() => handleUpdateStatus(item.userId, item.type, 'HALF_DAY')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#003F87] text-left border-b border-slate-100 transition-colors">Mark Half Day</button>
                         <button onClick={() => handleOpenEdit(item)} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 text-left transition-colors">Edit Record</button>
                       </div>
                     )}

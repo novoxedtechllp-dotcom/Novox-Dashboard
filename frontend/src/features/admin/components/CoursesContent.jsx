@@ -117,6 +117,10 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [isStudentsLoading, setIsStudentsLoading] = useState(false);
   const [assigningStudents, setAssigningStudents] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isFetchingDetails, setIsFetchingDetails] = useState(false);
+  const [isAddingModule, setIsAddingModule] = useState(false);
 
   const getMentorName = (mentorId) => {
     const emp = employees.find(e => String(e.id) === String(mentorId));
@@ -168,6 +172,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     if (!newCourse.mentorId) return alert("Please select an instructor/mentor for this course.");
 
     try {
+      setIsSubmitting(true);
       const headers = getAuthHeaders();
       if (!headers) return;
 
@@ -191,19 +196,25 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       setNewCourse({ title: '', description: '', category: 'DEVELOPMENT', duration_months: 1, capacity: 20, price: '', mentorId: employees[0]?.id || '', status: 'DRAFT', imgUrl: null });
     } catch (error) {
       alert(error.message || 'Failed to add course');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDeleteCourse = async (id) => {
     try {
+      setIsDeleting(true);
       const headers = getAuthHeaders();
       if (!headers) return;
       const response = await fetch(`/api/v1/courses/${id}`, { method: 'DELETE', headers });
       await parseApiResponse(response);
       setCourses(courses.filter(c => c.id !== id));
       setSelectedCourse(null);
+      setCourseToDelete(null);
     } catch (error) {
       alert(error.message || 'Failed to delete course');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -211,6 +222,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     e.preventDefault();
     if (!courseToEdit.mentorId) return alert("Please select an instructor/mentor for this course.");
     try {
+      setIsSubmitting(true);
       const headers = getAuthHeaders();
       if (!headers) return;
       const response = await fetch(`/api/v1/courses/${courseToEdit.id}`, {
@@ -230,6 +242,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       setCourseToEdit(null);
     } catch (error) {
       alert(error.message || 'Failed to update course');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -237,6 +251,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     e.preventDefault();
     if (!newModule.title) return;
     try {
+      setIsAddingModule(true);
       const headers = getAuthHeaders();
       const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules`, {
         method: 'POST', headers,
@@ -247,6 +262,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       setNewModule({ title: '', description: '', sequence_order: modules.filter(m => m.course_id === selectedCourse.id).length + 2 });
     } catch (error) {
       alert(error.message || 'Failed to add module');
+    } finally {
+      setIsAddingModule(false);
     }
   };
 
@@ -254,6 +271,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     setSelectedCourse(course);
     setActiveTab('overview');
     try {
+      setIsFetchingDetails(true);
       const headers = getAuthHeaders();
       if (!headers) return;
       const response = await fetch(`/api/v1/courses/${course.id}`, { headers });
@@ -285,6 +303,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       });
     } catch (error) {
       console.error('Error fetching course details:', error);
+    } finally {
+      setIsFetchingDetails(false);
     }
   };
 
@@ -292,6 +312,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     e.preventDefault();
     if (!newSubmodule.title) return;
     try {
+      setIsAddingModule(true);
       const headers = getAuthHeaders();
       const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules/${moduleId}/submodules`, {
         method: 'POST', headers,
@@ -302,6 +323,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       setNewSubmodule({ title: '', sequence_order: submodules.filter(s => s.module_id === moduleId).length + 2 });
     } catch (error) {
       alert(error.message || 'Failed to add submodule');
+    } finally {
+      setIsAddingModule(false);
     }
   };
 
@@ -309,6 +332,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     e.preventDefault();
     if (!newTask.title) return;
     try {
+      setIsAddingModule(true);
       const headers = getAuthHeaders();
       const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules/${moduleId}/submodules/${submoduleId}/tasks`, {
         method: 'POST', headers,
@@ -319,6 +343,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       setNewTask({ title: '', sequence_order: tasks.filter(t => t.submodule_id === submoduleId).length + 2, task_type: 'PRE_PLANNED' });
     } catch (error) {
       alert(error.message || 'Failed to add task');
+    } finally {
+      setIsAddingModule(false);
     }
   };
 
@@ -496,7 +522,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
         </div>
 
         {filteredCourses.map(course => (
-          <div key={course.id} className={`rounded-2xl p-6 flex flex-col h-[280px] relative group transition-all shadow-sm hover:shadow-xl overflow-hidden ${getCourseGradient(course.category)}`}>
+          <div key={course.id} onClick={() => openCourseDetails(course)} className={`cursor-pointer rounded-2xl p-6 flex flex-col h-[280px] relative group transition-all shadow-sm hover:shadow-xl overflow-hidden ${getCourseGradient(course.category)}`}>
 
             <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all z-10 translate-x-2 group-hover:translate-x-0">
               <button onClick={(e) => { e.stopPropagation(); setCourseToEdit(course); }} className="w-8 h-8 rounded-full bg-white shadow-sm border border-slate-100 text-slate-400 hover:bg-blue-50 hover:text-[#003F87] hover:border-blue-200 flex items-center justify-center transition-all" title="Edit Course">
@@ -553,8 +579,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
 
       {/* Add / Edit Course Modal */}
       {(isModalOpen || courseToEdit) && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => { setIsModalOpen(false); setCourseToEdit(null); }}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
               <div>
                 <h2 className="text-2xl font-black text-slate-800">{courseToEdit ? 'Edit Course' : 'Create New Course'}</h2>
@@ -654,8 +680,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                 <button type="button" onClick={() => { setIsModalOpen(false); setCourseToEdit(null); }} className="px-8 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
                   Cancel
                 </button>
-                <button type="submit" disabled={isUploading} className="px-8 py-3 bg-[#003F87] rounded-xl text-sm font-bold text-white hover:bg-[#002B5E] shadow-md shadow-blue-900/10 active:scale-95 transition-all disabled:opacity-50">
-                  {courseToEdit ? 'Save Changes' : 'Create Course'}
+                <button type="submit" disabled={isUploading || isSubmitting} className={`px-8 py-3 bg-[#003F87] rounded-xl text-sm font-bold text-white shadow-md shadow-blue-900/10 active:scale-95 transition-all ${isUploading || isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002B5E]'}`}>
+                  {isSubmitting ? 'Saving...' : (courseToEdit ? 'Save Changes' : 'Create Course')}
                 </button>
               </div>
             </form>
@@ -665,7 +691,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
 
       {/* Delete Confirmation Modal */}
       {courseToDelete && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setCourseToDelete(null)}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setCourseToDelete(null)}>
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 flex flex-col gap-4 text-center animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="w-20 h-20 bg-rose-50 border-4 border-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-2">
               <Trash2 size={32} />
@@ -676,8 +702,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
               <button onClick={() => setCourseToDelete(null)} className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors flex-1">
                 Cancel
               </button>
-              <button onClick={() => { handleDeleteCourse(courseToDelete); setCourseToDelete(null); }} className="px-6 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold hover:bg-rose-700 shadow-md active:scale-95 transition-all flex-1">
-                Yes, Delete
+              <button onClick={() => handleDeleteCourse(courseToDelete)} disabled={isDeleting} className={`px-6 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all flex-1 ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-700'}`}>
+                {isDeleting ? 'Deleting...' : 'Yes, Delete'}
               </button>
             </div>
           </div>
@@ -686,7 +712,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
 
       {/* View Details Command Center Modal */}
       {selectedCourse && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[40] flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200" onClick={() => setSelectedCourse(null)}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200" onClick={() => setSelectedCourse(null)}>
           <div className="bg-[#FAFBFC] rounded-3xl shadow-2xl w-full max-w-5xl h-full sm:h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             
             {/* Modal Header */}
@@ -752,7 +778,13 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
 
             {/* Modal Content Area */}
             <div className="p-8 overflow-y-auto flex-1">
-              
+              {isFetchingDetails ? (
+                <div className="flex flex-col items-center justify-center py-24">
+                  <div className="w-8 h-8 border-4 border-[#003F87] border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-slate-500 font-medium mt-4 text-sm">Loading course details...</p>
+                </div>
+              ) : (
+                <>
               {/* Overview Tab */}
               {activeTab === 'overview' && (
                 <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300 fade-in">
@@ -819,29 +851,29 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                       <div className="p-8 text-center text-slate-500 text-sm font-medium">No students found. Click Refresh List.</div>
                     ) : (
                       <div className="max-h-[50vh] overflow-y-auto">
-                        <table className="w-full text-left border-collapse">
-                          <thead className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-sm">
+                        <table className="w-full text-center border-collapse">
+                          <thead className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-md">
                             <tr>
-                              <th className="py-3 px-6 border-b border-slate-100 w-12">
+                              <th className="py-4 px-6 border-b border-slate-200 w-12 text-center">
                                 <input 
                                   type="checkbox" 
-                                  className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87]"
+                                  className="w-4 h-4 rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] cursor-pointer inline-block align-middle"
                                   onChange={(e) => setSelectedStudentIds(e.target.checked ? allStudents.map(s => s.id) : [])}
                                   checked={selectedStudentIds.length === allStudents.length && allStudents.length > 0}
                                 />
                               </th>
-                              <th className="py-3 px-6 text-xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">Student Name</th>
-                              <th className="py-3 px-6 text-xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">Code</th>
-                              <th className="py-3 px-6 text-xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">Phone</th>
+                              <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Student Name</th>
+                              <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Code</th>
+                              <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Phone</th>
                             </tr>
                           </thead>
                           <tbody>
                             {allStudents.map(student => (
-                              <tr key={student.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                                <td className="py-3 px-6">
+                              <tr key={student.id} className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors group">
+                                <td className="py-4 px-6 text-center">
                                   <input 
                                     type="checkbox" 
-                                    className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87]"
+                                    className="w-4 h-4 rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] cursor-pointer inline-block align-middle"
                                     checked={selectedStudentIds.includes(student.id)}
                                     onChange={(e) => {
                                       if (e.target.checked) setSelectedStudentIds([...selectedStudentIds, student.id]);
@@ -849,9 +881,16 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                     }}
                                   />
                                 </td>
-                                <td className="py-3 px-6 text-sm font-bold text-slate-800">{student.first_name} {student.last_name}</td>
-                                <td className="py-3 px-6 text-sm font-medium text-slate-500">{student.student_code}</td>
-                                <td className="py-3 px-6 text-sm font-medium text-slate-500">{student.phone}</td>
+                                <td className="py-4 px-6 text-center">
+                                  <div className="flex items-center justify-center gap-3">
+                                    <div className="w-9 h-9 rounded-full bg-[#E5F0FF] text-[#003F87] flex items-center justify-center font-black text-xs shadow-inner group-hover:bg-[#003F87] group-hover:text-white transition-colors">
+                                      {student.first_name?.[0] || 'U'}{student.last_name?.[0] || ''}
+                                    </div>
+                                    <span className="font-bold text-slate-800 text-sm">{student.first_name} {student.last_name}</span>
+                                  </div>
+                                </td>
+                                <td className="py-4 px-6 text-sm font-bold text-slate-500">{student.student_code}</td>
+                                <td className="py-4 px-6 text-sm font-medium text-slate-500">{student.phone || '-'}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -883,7 +922,9 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                           <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Sequence Order</label>
                           <input type="number" required value={newModule.sequence_order} onChange={e => setNewModule({ ...newModule, sequence_order: e.target.value })} className="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 transition-all" />
                         </div>
-                        <button type="submit" className="w-full py-3 mt-2 bg-[#003F87] text-white text-sm font-bold rounded-xl hover:bg-[#002B5E] shadow-sm active:scale-95 transition-all">Create Module</button>
+                        <button type="submit" disabled={isAddingModule} className={`w-full py-3 mt-2 bg-[#003F87] text-white text-sm font-bold rounded-xl shadow-sm active:scale-95 transition-all ${isAddingModule ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002B5E]'}`}>
+                          {isAddingModule ? 'Adding...' : 'Create Module'}
+                        </button>
                       </form>
                     </div>
 
@@ -926,7 +967,9 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                   <div className="w-[80px] shrink-0 border-l border-slate-100 pl-3">
                                     <input type="number" placeholder="Seq" required value={newSubmodule.sequence_order} onChange={e => setNewSubmodule({...newSubmodule, sequence_order: e.target.value})} className="w-full text-sm p-2 bg-transparent outline-none text-center font-bold text-[#003F87] placeholder-slate-400" />
                                   </div>
-                                  <button type="submit" className="py-2.5 px-5 bg-[#003F87] text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-[#002B5E] shadow-sm active:scale-95 transition-all shrink-0"><Plus size={16} /></button>
+                                  <button type="submit" disabled={isAddingModule} className={`py-2.5 px-5 bg-[#003F87] text-white text-xs font-bold rounded-lg cursor-pointer shadow-sm active:scale-95 transition-all shrink-0 ${isAddingModule ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#002B5E]'}`}>
+                                    {isAddingModule ? '...' : <Plus size={16} />}
+                                  </button>
                                 </form>
 
                                 {/* Topics List */}
@@ -982,7 +1025,9 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                               </select>
                                               <div className="h-4 w-px bg-slate-200"></div>
                                               <input type="number" placeholder="Seq" required value={newTask.sequence_order} onChange={e => setNewTask({...newTask, sequence_order: e.target.value})} className="w-[50px] text-xs p-2 outline-none text-center font-bold text-[#003F87]" />
-                                              <button type="submit" className="py-2 px-4 bg-[#008A2E] text-white text-[10px] uppercase tracking-widest font-black rounded-md hover:bg-[#006E24] transition-colors shadow-sm"><Plus size={14} /></button>
+                                              <button type="submit" disabled={isAddingModule} className={`py-2 px-4 bg-[#008A2E] text-white text-[10px] uppercase tracking-widest font-black rounded-md transition-colors shadow-sm ${isAddingModule ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#006E24]'}`}>
+                                                {isAddingModule ? '...' : <Plus size={14} />}
+                                              </button>
                                             </form>
                                           </div>
                                         )}
@@ -1203,6 +1248,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                   </div>
 
                 </div>
+              )}
+                </>
               )}
             </div>
           </div>

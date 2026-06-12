@@ -59,11 +59,6 @@ export default function Login({ onLogin }) {
           setLoading(false);
           return;
         }
-        if (role === 'Student' && userInfoToSave.role !== 'STUDENT') {
-          setError('Invalid login panel. Please use the Student panel.');
-          setLoading(false);
-          return;
-        }
 
         sessionStorage.setItem('userInfo', JSON.stringify(userInfoToSave));
         if (onLogin) onLogin(userInfoToSave.role);
@@ -144,7 +139,7 @@ export default function Login({ onLogin }) {
 
           {!isForgotPassword && (
             <div className="bg-slate-100 p-1.5 rounded-2xl flex mb-8">
-              {['Admin', 'Employee', 'Student'].map((r) => (
+              {['Admin', 'Employee'].map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -263,7 +258,7 @@ export default function Login({ onLogin }) {
                 <div>
                   <div className="flex justify-between items-center mb-2 px-1">
                     <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Password</label>
-                    {(role === 'Employee' || role === 'Student') && (
+                    {(role === 'Employee') && (
                       <button 
                         type="button" 
                         onClick={() => setIsForgotPassword(true)} 
