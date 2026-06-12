@@ -1,8 +1,31 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+const sanitizeFeeRecord = (fee) => {
+  if (!fee) return fee;
+  const parsedAmt = parseInt(String(fee.amount || '').replace(/[^0-9]/g, ''), 10) || 0;
+  
+  const totalAmount = typeof fee.totalAmount === 'number' 
+    ? fee.totalAmount 
+    : (typeof fee.numericAmount === 'number' ? fee.numericAmount : (fee.status === 'Pending' ? parsedAmt : (fee.status === 'Partially Paid' ? Math.floor(parsedAmt * 1.4) : parsedAmt)));
+    
+  const paidAmount = typeof fee.paidAmount === 'number' 
+    ? fee.paidAmount 
+    : (fee.status === 'Pending' ? 0 : parsedAmt);
+    
+  const remainingBalance = typeof fee.remainingBalance === 'number' 
+    ? fee.remainingBalance 
+    : Math.max(0, totalAmount - paidAmount);
+
+  return {
+    ...fee,
+    totalAmount,
+    paidAmount,
+    remainingBalance
+  };
+};
 
 const FeesContent = () => {
   const [toast, setToast] = useState(null);
@@ -13,31 +36,158 @@ const FeesContent = () => {
   };
 
   const [feesList, setFeesList] = useState([]);
+  const [studentsList, setStudentsList] = useState([]);
+  const [coursesList, setCoursesList] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Form states for Recording Fee Payment
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [paymentType, setPaymentType] = useState('Full');
+  const [totalAmountInput, setTotalAmountInput] = useState('');
+  const [paidAmountInput, setPaidAmountInput] = useState('');
+
   useEffect(() => {
-    const fetchFees = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         if (!userInfo || !userInfo.token) return;
-        
-        const response = await fetch('/api/v1/fees', {
-          headers: { 'Authorization': `Bearer ${userInfo.token}` }
-        });
-        const resData = await response.json();
-        if (response.ok) {
-          const feesArray = resData.data?.fees || resData.data || [];
-          setFeesList(feesArray);
+        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+
+        const fallbackStudents = [
+          { id: 'stud-1', first_name: 'Aarav', last_name: 'Sharma', student_code: 'NVX-S0001', student_courses: [{ course_id: 'c-1' }] },
+          { id: 'stud-2', first_name: 'Neha', last_name: 'Patel', student_code: 'NVX-S0002', student_courses: [{ course_id: 'c-2' }] },
+          { id: 'stud-3', first_name: 'Vikram', last_name: 'Singh', student_code: 'NVX-S0003', student_courses: [{ course_id: 'c-1' }, { course_id: 'c-3' }] },
+          { id: 'stud-4', first_name: 'Priya', last_name: 'Nair', student_code: 'NVX-S0004', student_courses: [{ course_id: 'c-3' }] },
+          { id: 'stud-5', first_name: 'Rohan', last_name: 'Das', student_code: 'NVX-S0005', student_courses: [{ course_id: 'c-2' }] }
+        ];
+
+        const fallbackCourses = [
+          { id: 'c-1', name: 'Full Stack Development', title: 'Full Stack Development', track: 'DEVELOPMENT' },
+          { id: 'c-2', name: 'UI/UX Design Masterclass', title: 'UI/UX Design Masterclass', track: 'DESIGN' },
+          { id: 'c-3', name: 'Digital Marketing & Growth', title: 'Digital Marketing & Growth', track: 'MARKETING' }
+        ];
+
+        // 1. Fetch Students
+        let fetchedStudents = [];
+        try {
+          const studentsRes = await fetch('/api/v1/students?limit=1000', { headers });
+          if (studentsRes.ok) {
+            const studentsData = await studentsRes.json();
+            fetchedStudents = studentsData.data?.students || studentsData.data || [];
+          }
+          if (fetchedStudents.length === 0) {
+            fetchedStudents = fallbackStudents;
+          }
+        } catch (e) {
+          console.warn("Using offline fallback students:", e);
+          fetchedStudents = fallbackStudents;
+        }
+        setStudentsList(fetchedStudents);
+
+        // 2. Fetch Courses
+        let fetchedCourses = [];
+        try {
+          const coursesRes = await fetch('/api/v1/courses', { headers });
+          if (coursesRes.ok) {
+            const coursesData = await coursesRes.json();
+            fetchedCourses = coursesData.data || [];
+          }
+          if (fetchedCourses.length === 0) {
+            fetchedCourses = fallbackCourses;
+          }
+        } catch (e) {
+          console.warn("Using offline fallback courses:", e);
+          fetchedCourses = fallbackCourses;
+        }
+        setCoursesList(fetchedCourses);
+
+        // 3. Load Fees from localStorage
+        const storedFees = localStorage.getItem('novox_student_fees');
+        if (storedFees) {
+          try {
+            const parsed = JSON.parse(storedFees);
+            setFeesList(parsed.map(sanitizeFeeRecord));
+          } catch (e) {
+            console.error("Error loading stored fees:", e);
+            setFeesList([]);
+          }
+        } else {
+          // Pre-populate with realistic initial records if there are fetched students and courses
+          if (fetchedStudents.length > 0) {
+            const initialFees = [];
+            
+            for (let i = 0; i < Math.min(5, fetchedStudents.length); i++) {
+              const student = fetchedStudents[i];
+              let courseName = 'General Course';
+              let courseId = '';
+              if (student.student_courses && student.student_courses.length > 0) {
+                const sCourse = student.student_courses[0];
+                courseId = sCourse.course_id;
+                const matchedCourse = fetchedCourses.find(c => c.id === sCourse.course_id);
+                if (matchedCourse) {
+                  courseName = matchedCourse.name || matchedCourse.title || courseName;
+                }
+              } else if (fetchedCourses.length > 0) {
+                courseId = fetchedCourses[i % fetchedCourses.length].id;
+                courseName = fetchedCourses[i % fetchedCourses.length].name || fetchedCourses[i % fetchedCourses.length].title || courseName;
+              }
+
+              const statusIdx = i % 3;
+              const totalAmt = 15000 - i * 2000;
+              let paidAmt = totalAmt;
+              let statusText = 'Full Paid';
+              let statusColorVal = 'green';
+              let paymentTypeVal = 'Full';
+              
+              if (statusIdx === 1) {
+                paidAmt = Math.floor(totalAmt * 0.6); // 60% paid
+                statusText = 'Partially Paid';
+                statusColorVal = 'yellow';
+                paymentTypeVal = 'Installment';
+              } else if (statusIdx === 2) {
+                paidAmt = 0;
+                statusText = 'Pending';
+                statusColorVal = 'red';
+                paymentTypeVal = 'Installment';
+              }
+
+              const dateObj = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+              const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+              initialFees.push({
+                id: `fee-${Date.now()}-${i}`,
+                studentId: student.id,
+                name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+                initials: `${student.first_name ? student.first_name[0] : ''}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() || 'ST',
+                course: courseName,
+                courseId: courseId,
+                type: paymentTypeVal,
+                totalAmount: totalAmt,
+                paidAmount: paidAmt,
+                remainingBalance: totalAmt - paidAmt,
+                amount: `₹${paidAmt.toLocaleString()}`,
+                date: formattedDate,
+                status: statusText,
+                statusColor: statusColorVal
+              });
+            }
+            localStorage.setItem('novox_student_fees', JSON.stringify(initialFees));
+            setFeesList(initialFees);
+          } else {
+            setFeesList([]);
+          }
         }
       } catch (error) {
-        console.error('Error fetching fees:', error);
+        console.error('Error fetching fees page data:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchFees();
+    fetchData();
   }, []);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [viewItem, setViewItem] = useState(null);
@@ -46,6 +196,89 @@ const FeesContent = () => {
   // Filter state
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterDate, setFilterDate] = useState('');
+
+  // Find selected student details to see their courses
+  const selectedStudent = useMemo(() => {
+    return studentsList.find(s => s.id === selectedStudentId);
+  }, [selectedStudentId, studentsList]);
+
+  // Find their enrolled courses
+  const studentCourses = useMemo(() => {
+    if (!selectedStudent) return [];
+    if (!selectedStudent.student_courses) return [];
+    
+    return selectedStudent.student_courses.map(sc => {
+      const courseDetails = coursesList.find(c => c.id === sc.course_id);
+      return {
+        id: sc.course_id,
+        name: courseDetails?.name || courseDetails?.title || 'Unknown Course'
+      };
+    });
+  }, [selectedStudent, coursesList]);
+
+  // If a student has no courses enrolled, fallback to all courses
+  const coursesToSelect = useMemo(() => {
+    if (studentCourses.length > 0) {
+      return studentCourses;
+    }
+    return coursesList.map(c => ({ id: c.id, name: c.name || c.title || 'Unknown Course' }));
+  }, [studentCourses, coursesList]);
+
+  // Keep selected course ID in sync with the list
+  useEffect(() => {
+    if (coursesToSelect.length > 0) {
+      const exists = coursesToSelect.some(c => c.id === selectedCourseId);
+      if (!exists) {
+        setSelectedCourseId(coursesToSelect[0].id);
+      }
+    } else {
+      setSelectedCourseId('');
+    }
+  }, [coursesToSelect, selectedCourseId]);
+
+  // Dynamic status previews inside Record Fee Payment modal
+  const computedStatus = useMemo(() => {
+    const total = parseFloat(totalAmountInput) || 0;
+    const paid = parseFloat(paidAmountInput) || 0;
+    if (total <= 0) return 'Pending';
+    if (paid >= total) return 'Full Paid';
+    if (paid > 0) return 'Partially Paid';
+    return 'Pending';
+  }, [totalAmountInput, paidAmountInput]);
+
+  const editComputedStatus = useMemo(() => {
+    if (!editItem) return 'Pending';
+    const total = parseFloat(editItem.totalAmount) || 0;
+    const paid = parseFloat(editItem.paidAmount) || 0;
+    if (total <= 0) return 'Pending';
+    if (paid >= total) return 'Full Paid';
+    if (paid > 0) return 'Partially Paid';
+    return 'Pending';
+  }, [editItem?.totalAmount, editItem?.paidAmount]);
+
+  // Dynamic statistics calculations
+  const stats = useMemo(() => {
+    let totalCollections = 0;
+    let outstandingFees = 0;
+    let outstandingCount = 0;
+
+    feesList.forEach(fee => {
+      const paid = typeof fee.paidAmount === 'number' ? fee.paidAmount : (typeof fee.numericAmount === 'number' ? fee.numericAmount : parseInt(String(fee.amount).replace(/[^0-9]/g, ''), 10) || 0);
+      const balance = typeof fee.remainingBalance === 'number' ? fee.remainingBalance : (fee.status === 'Pending' ? paid : (fee.status === 'Partially Paid' ? Math.floor(paid * 0.4) : 0));
+
+      totalCollections += paid;
+      outstandingFees += balance;
+      if (balance > 0) {
+        outstandingCount += 1;
+      }
+    });
+
+    return {
+      totalCollections,
+      outstandingFees,
+      outstandingCount
+    };
+  }, [feesList]);
 
   const filteredData = useMemo(() => {
     return feesList.filter(fee => {
@@ -67,6 +300,49 @@ const FeesContent = () => {
 
   const submitFees = (e) => {
     e.preventDefault();
+    if (!selectedStudentId) {
+      alert("Please select a student");
+      return;
+    }
+    const student = studentsList.find(s => s.id === selectedStudentId);
+    const course = coursesToSelect.find(c => c.id === selectedCourseId) || coursesToSelect[0] || { id: '', name: 'General Course' };
+    
+    if (!student) return;
+
+    const totalFee = parseFloat(totalAmountInput) || 0;
+    const paidAmt = parseFloat(paidAmountInput) || 0;
+    const balance = Math.max(0, totalFee - paidAmt);
+
+    const status = paidAmt >= totalFee ? 'Full Paid' : (paidAmt > 0 ? 'Partially Paid' : 'Pending');
+    const statusColor = paidAmt >= totalFee ? 'green' : (paidAmt > 0 ? 'yellow' : 'red');
+
+    const newFeeRecord = {
+      id: `fee-${Date.now()}`,
+      studentId: student.id,
+      name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+      initials: `${student.first_name ? student.first_name[0] : ''}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() || 'ST',
+      course: course.name,
+      courseId: course.id,
+      type: paymentType,
+      totalAmount: totalFee,
+      paidAmount: paidAmt,
+      remainingBalance: balance,
+      amount: `₹${paidAmt.toLocaleString()}`,
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      status: status,
+      statusColor: statusColor
+    };
+
+    const updatedList = [newFeeRecord, ...feesList];
+    setFeesList(updatedList);
+    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
+
+    // Reset Form
+    setSelectedStudentId('');
+    setTotalAmountInput('');
+    setPaidAmountInput('');
+    setPaymentType('Full');
+
     setIsModalOpen(false);
     alert("Fees recorded successfully!");
   };
@@ -80,13 +356,35 @@ const FeesContent = () => {
   };
 
   const handleDelete = (id) => {
-    setFeesList(feesList.filter(fee => fee.id !== id));
+    const updatedList = feesList.filter(fee => fee.id !== id);
+    setFeesList(updatedList);
+    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
     setActiveDropdown(null);
+    alert("Record deleted successfully!");
   };
 
   const handleEditSubmit = (e) => {
     e.preventDefault();
-    setFeesList(feesList.map(fee => fee.id === editItem.id ? editItem : fee));
+    const totalFee = parseFloat(editItem.totalAmount) || 0;
+    const paidAmt = parseFloat(editItem.paidAmount) || 0;
+    const balance = Math.max(0, totalFee - paidAmt);
+    
+    const status = paidAmt >= totalFee ? 'Full Paid' : (paidAmt > 0 ? 'Partially Paid' : 'Pending');
+    const statusColor = paidAmt >= totalFee ? 'green' : (paidAmt > 0 ? 'yellow' : 'red');
+
+    const updatedItem = {
+      ...editItem,
+      totalAmount: totalFee,
+      paidAmount: paidAmt,
+      remainingBalance: balance,
+      amount: `₹${paidAmt.toLocaleString()}`,
+      status: status,
+      statusColor: statusColor
+    };
+
+    const updatedList = feesList.map(fee => fee.id === editItem.id ? updatedItem : fee);
+    setFeesList(updatedList);
+    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
     setEditItem(null);
     alert("Record updated successfully!");
   };
@@ -100,22 +398,36 @@ const FeesContent = () => {
     doc.setFontSize(11);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
     
-    const tableColumn = ["Student Name", "Course", "Payment Type", "Amount", "Date", "Status"];
-    const tableRows = filteredData.map(fee => [
-      fee.name,
-      fee.course,
-      fee.type,
-      fee.amount,
-      fee.date,
-      fee.status
-    ]);
+    const tableColumn = ["Student Name", "Course", "Payment Type", "Total Fee", "Paid Amount", "Remaining Balance", "Date", "Status"];
+    const tableRows = filteredData.map(fee => {
+      const total = typeof fee.totalAmount === 'number' 
+        ? fee.totalAmount 
+        : (typeof fee.numericAmount === 'number' ? fee.numericAmount : (parseInt(String(fee.amount || '').replace(/[^0-9]/g, ''), 10) || 0));
+      const paid = typeof fee.paidAmount === 'number' 
+        ? fee.paidAmount 
+        : (fee.status === 'Pending' ? 0 : total);
+      const balance = typeof fee.remainingBalance === 'number' 
+        ? fee.remainingBalance 
+        : Math.max(0, total - paid);
+      
+      return [
+        fee.name,
+        fee.course,
+        fee.type,
+        `INR ${total.toLocaleString()}`,
+        `INR ${paid.toLocaleString()}`,
+        `INR ${balance.toLocaleString()}`,
+        fee.date,
+        fee.status
+      ];
+    });
     
-    doc.autoTable({
+    autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
       startY: 35,
       theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 3 },
+      styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fillColor: [0, 63, 135] }
     });
     
@@ -127,7 +439,7 @@ const FeesContent = () => {
   }
 
   return (
-    <div className="p-[24px] flex flex-col gap-[24px] w-full relative">
+    <div className="p-[24px] flex flex-col gap-[24px] w-full relative bg-[#FAFBFC] min-h-full">
       {toast && (
         <div className={`fixed top-4 right-4 z-[9999] px-6 py-3 rounded-lg shadow-xl font-bold text-sm transform transition-all duration-300 translate-y-0 opacity-100 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
           {toast.message}
@@ -165,16 +477,16 @@ const FeesContent = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 border-b border-[#C2C6D4] h-auto xl:h-[136px]">
           <div className="p-[24px] flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#C2C6D4]">
             <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">TOTAL COLLECTIONS</p>
-            <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">₹284,500</h3>
+            <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">₹{stats.totalCollections.toLocaleString()}</h3>
             <div className="flex items-center gap-1 text-[11px] font-bold text-[#008A2E]">
-              <TrendingUp size={12} /> +12% vs last month
+              <TrendingUp size={12} /> Active collections
             </div>
           </div>
           <div className="p-[24px] flex flex-col justify-center border-b xl:border-b-0 xl:border-r border-[#C2C6D4]">
             <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">OUTSTANDING FEES</p>
-            <h3 className="text-[32px] font-bold text-[#D80000] leading-none mb-2">₹12,240</h3>
+            <h3 className="text-[32px] font-bold text-[#D80000] leading-none mb-2">₹{stats.outstandingFees.toLocaleString()}</h3>
             <div className="flex items-center gap-1 text-[11px] text-[#555F6B]">
-              From 18 students
+              From {stats.outstandingCount} student{stats.outstandingCount !== 1 && 's'}
             </div>
           </div>
           <div className="p-[24px] flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#C2C6D4]">
@@ -233,84 +545,109 @@ const FeesContent = () => {
 
         {/* Table */}
         <div className="w-full overflow-x-auto min-h-[400px]">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+          <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
               <tr className="border-b border-[#C2C6D4] bg-white">
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[220px]">Student Name</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[180px]">Course</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-center">Payment Type</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Amount</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Date</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[140px]">Status</th>
+                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[200px]">Student Name</th>
+                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[160px]">Course</th>
+                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-center w-[110px]">Payment Type</th>
+                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Total Fee</th>
+                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Paid Amount</th>
+                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Remaining Balance</th>
+                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[110px]">Date</th>
+                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[120px]">Status</th>
                 <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right">Action</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedData.map((fee) => (
-                <tr key={fee.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td className="py-[16px] px-[24px]">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center shrink-0 font-bold text-[11px] ${
-                        fee.statusColor === 'green' || fee.statusColor === 'yellow' ? 'bg-[#E5F0FF] text-[#003F87]' : 'bg-[#F3F4F6] text-[#555F6B]'
-                      }`}>
-                        {fee.initials}
-                      </div>
-                      <div className="text-[13px] font-bold text-slate-900 leading-tight">
-                        {fee.name.split(' ')[0]}<br/>{fee.name.split(' ').slice(1).join(' ')}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-[16px] px-[24px]">
-                    <div className="text-[13px] text-[#555F6B] leading-tight">
-                      {fee.course.split(' ')[0]} {fee.course.split(' ').length > 1 && fee.course.split(' ')[1]}<br/>
-                      {fee.course.split(' ').slice(2).join(' ')}
-                    </div>
-                  </td>
-                  <td className="py-[16px] px-[24px] text-center">
-                    <span className={`inline-block text-[11px] font-bold px-[12px] py-[4px] rounded-full border ${
-                      fee.type === 'Full' ? 'bg-[#E5F0FF] text-[#003F87] border-[#003F87]' : 'bg-[#F8FAFC] text-[#555F6B] border-[#C2C6D4]'
-                    }`}>
-                      {fee.type}
-                    </span>
-                  </td>
-                  <td className="py-[16px] px-[24px]">
-                    <div className="text-[14px] font-bold text-slate-900">{fee.amount}</div>
-                  </td>
-                  <td className="py-[16px] px-[24px]">
-                    <div className="text-[13px] text-[#555F6B] leading-tight">
-                      {fee.date.split(',')[0]},<br/>{fee.date.split(',')[1]}
-                    </div>
-                  </td>
-                  <td className="py-[16px] px-[24px]">
-                    {fee.statusColor === 'green' && (
-                      <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
-                        <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> {fee.status}
-                      </span>
-                    )}
-                    {fee.statusColor === 'yellow' && (
-                      <div className="inline-flex items-center gap-2 bg-[#FFF4E5] text-[#B26E00] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
-                        <span className="w-[6px] h-[6px] rounded-full bg-[#B26E00] shrink-0"></span> 
-                        <span className="leading-tight text-left">Partially<br/>Paid</span>
-                      </div>
-                    )}
-                    {fee.statusColor === 'red' && (
-                      <span className="inline-flex items-center gap-2 bg-[#FDE2E2] text-[#D80000] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
-                        <span className="w-[6px] h-[6px] rounded-full bg-[#D80000]"></span> {fee.status}
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-[16px] px-[24px] text-right relative">
-                    <button onClick={() => toggleDropdown(fee.id)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
-                    {activeDropdown === fee.id && (
-                      <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-[20] flex flex-col overflow-hidden">
-                        <button onClick={() => { setViewItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
-                        <button onClick={() => { setEditItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
-                        <button onClick={() => handleDelete(fee.id)} className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
-                      </div>
-                    )}
+              {filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="py-[32px] px-[24px] text-center text-[14px] text-[#555F6B]">
+                    No fee records found. Click "Add Fees" to create one.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                paginatedData.map((fee) => {
+                  const total = typeof fee.totalAmount === 'number' 
+                    ? fee.totalAmount 
+                    : (typeof fee.numericAmount === 'number' ? fee.numericAmount : (parseInt(String(fee.amount || '').replace(/[^0-9]/g, ''), 10) || 0));
+                  const paid = typeof fee.paidAmount === 'number' 
+                    ? fee.paidAmount 
+                    : (fee.status === 'Pending' ? 0 : total);
+                  const balance = typeof fee.remainingBalance === 'number' 
+                    ? fee.remainingBalance 
+                    : Math.max(0, total - paid);
+
+                  return (
+                    <tr key={fee.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                      <td className="py-[16px] px-[24px]">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center shrink-0 font-bold text-[11px] bg-[#E5F0FF] text-[#003F87]`}>
+                            {fee.initials}
+                          </div>
+                          <div className="text-[13px] font-bold text-slate-900 leading-tight">
+                            {fee.name}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-[16px] px-[24px]">
+                        <div className="text-[13px] text-[#555F6B] leading-tight">
+                          {fee.course}
+                        </div>
+                      </td>
+                      <td className="py-[16px] px-[24px] text-center">
+                        <span className={`inline-block text-[11px] font-bold px-[12px] py-[4px] rounded-full border ${
+                          fee.type === 'Full' ? 'bg-[#E5F0FF] text-[#003F87] border-[#003F87]' : 'bg-[#F8FAFC] text-[#555F6B] border-[#C2C6D4]'
+                        }`}>
+                          {fee.type}
+                        </span>
+                      </td>
+                      <td className="py-[16px] px-[24px] text-right">
+                        <div className="text-[14px] text-slate-600 font-medium">₹{total.toLocaleString()}</div>
+                      </td>
+                      <td className="py-[16px] px-[24px] text-right">
+                        <div className="text-[14px] font-bold text-[#003F87]">₹{paid.toLocaleString()}</div>
+                      </td>
+                      <td className="py-[16px] px-[24px] text-right">
+                        <div className={`text-[14px] font-bold ${balance > 0 ? 'text-[#D80000]' : 'text-slate-500'}`}>₹{balance.toLocaleString()}</div>
+                      </td>
+                      <td className="py-[16px] px-[24px]">
+                        <div className="text-[13px] text-[#555F6B] leading-tight">
+                          {fee.date}
+                        </div>
+                      </td>
+                      <td className="py-[16px] px-[24px]">
+                        {fee.statusColor === 'green' && (
+                          <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
+                            <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> {fee.status}
+                          </span>
+                        )}
+                        {fee.statusColor === 'yellow' && (
+                          <div className="inline-flex items-center gap-2 bg-[#FFF4E5] text-[#B26E00] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
+                            <span className="w-[6px] h-[6px] rounded-full bg-[#B26E00] shrink-0"></span> 
+                            <span className="leading-tight text-left">Partially Paid</span>
+                          </div>
+                        )}
+                        {fee.statusColor === 'red' && (
+                          <span className="inline-flex items-center gap-2 bg-[#FDE2E2] text-[#D80000] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
+                            <span className="w-[6px] h-[6px] rounded-full bg-[#D80000]"></span> {fee.status}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-[16px] px-[24px] text-right relative">
+                        <button onClick={() => toggleDropdown(fee.id)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                        {activeDropdown === fee.id && (
+                          <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-[20] flex flex-col overflow-hidden">
+                            <button onClick={() => { setViewItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
+                            <button onClick={() => { setEditItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
+                            <button onClick={() => handleDelete(fee.id)} className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -353,22 +690,105 @@ const FeesContent = () => {
 
       </div>
 
+      {/* Record Fee Payment Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <h2 className="text-lg font-bold text-slate-800">Record Fee Payment</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none">&times;</button>
             </div>
             <form onSubmit={submitFees} className="p-6 flex flex-col gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Student Name / ID</label>
-                <input type="text" required className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" placeholder="e.g. John Doe" />
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Select Student *</label>
+                <select
+                  required
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white text-slate-850"
+                >
+                  <option value="">-- Choose Student --</option>
+                  {studentsList.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.first_name} {s.last_name} ({s.student_code})
+                    </option>
+                  ))}
+                </select>
               </div>
+              
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Amount</label>
-                <input type="number" required className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" placeholder="e.g. 500" />
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Select Course *</label>
+                <select
+                  required
+                  value={selectedCourseId}
+                  onChange={(e) => setSelectedCourseId(e.target.value)}
+                  disabled={!selectedStudentId || coursesToSelect.length === 0}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white disabled:bg-slate-50 text-slate-850"
+                >
+                  {coursesToSelect.length === 0 ? (
+                    <option value="">-- No Courses Enrolled --</option>
+                  ) : (
+                    coursesToSelect.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))
+                  )}
+                </select>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Payment Type</label>
+                  <select
+                    value={paymentType}
+                    onChange={(e) => setPaymentType(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white text-slate-850"
+                  >
+                    <option value="Full">Full Payment</option>
+                    <option value="Installment">Installment</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status (Calculated)</label>
+                  <div className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm font-semibold text-slate-700">
+                    {computedStatus}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Total Fee (₹) *</label>
+                  <input 
+                    type="number" 
+                    required 
+                    value={totalAmountInput}
+                    onChange={(e) => setTotalAmountInput(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-850" 
+                    placeholder="e.g. 15000" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Paid Amount (₹) *</label>
+                  <input 
+                    type="number" 
+                    required 
+                    value={paidAmountInput}
+                    onChange={(e) => setPaidAmountInput(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-850" 
+                    placeholder="e.g. 9000" 
+                  />
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-md border border-slate-200 mt-2 flex justify-between items-center">
+                <span className="text-sm font-bold text-slate-700">Remaining Balance:</span>
+                <span className="text-base font-bold text-[#D80000]">
+                  ₹{Math.max(0, (parseFloat(totalAmountInput) || 0) - (parseFloat(paidAmountInput) || 0)).toLocaleString()}
+                </span>
+              </div>
+
               <div className="flex gap-3 justify-end mt-4">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E]">Save Payment</button>
@@ -379,79 +799,146 @@ const FeesContent = () => {
       )}
 
       {/* View Details Modal */}
-      {viewItem && (
-        <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-800">Fee Details</h2>
-              <button onClick={() => setViewItem(null)} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none">&times;</button>
-            </div>
-            <div className="p-6 flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="block text-xs font-bold text-slate-500 uppercase">Student Name</span>
-                  <span className="text-sm font-semibold text-slate-900">{viewItem.name}</span>
-                </div>
-                <div>
-                  <span className="block text-xs font-bold text-slate-500 uppercase">Course</span>
-                  <span className="text-sm font-semibold text-slate-900">{viewItem.course}</span>
-                </div>
-                <div>
-                  <span className="block text-xs font-bold text-slate-500 uppercase">Payment Type</span>
-                  <span className="text-sm font-semibold text-slate-900">{viewItem.type}</span>
-                </div>
-                <div>
-                  <span className="block text-xs font-bold text-slate-500 uppercase">Amount</span>
-                  <span className="text-sm font-semibold text-slate-900">{viewItem.amount}</span>
-                </div>
-                <div>
-                  <span className="block text-xs font-bold text-slate-500 uppercase">Date</span>
-                  <span className="text-sm font-semibold text-slate-900">{viewItem.date}</span>
-                </div>
-                <div>
-                  <span className="block text-xs font-bold text-slate-500 uppercase">Status</span>
-                  <span className={`text-sm font-bold ${viewItem.statusColor === 'green' ? 'text-[#008A2E]' : viewItem.statusColor === 'yellow' ? 'text-[#B26E00]' : 'text-[#D80000]'}`}>{viewItem.status}</span>
-                </div>
+      {viewItem && (() => {
+        const total = typeof viewItem.totalAmount === 'number' 
+          ? viewItem.totalAmount 
+          : (typeof viewItem.numericAmount === 'number' ? viewItem.numericAmount : (parseInt(String(viewItem.amount || '').replace(/[^0-9]/g, ''), 10) || 0));
+        const paid = typeof viewItem.paidAmount === 'number' 
+          ? viewItem.paidAmount 
+          : (viewItem.status === 'Pending' ? 0 : total);
+        const balance = typeof viewItem.remainingBalance === 'number' 
+          ? viewItem.remainingBalance 
+          : Math.max(0, total - paid);
+
+        return (
+          <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+              <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <h2 className="text-lg font-bold text-slate-800">Fee Details</h2>
+                <button onClick={() => setViewItem(null)} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none">&times;</button>
               </div>
-              <div className="flex justify-end mt-4 pt-4 border-t border-slate-200">
-                <button onClick={() => setViewItem(null)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Close</button>
+              <div className="p-6 flex flex-col gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="block text-xs font-bold text-slate-500 uppercase">Student Name</span>
+                    <span className="text-sm font-semibold text-slate-900">{viewItem.name}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-500 uppercase">Course</span>
+                    <span className="text-sm font-semibold text-slate-900">{viewItem.course}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-500 uppercase">Payment Type</span>
+                    <span className="text-sm font-semibold text-slate-900">{viewItem.type}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-500 uppercase">Total Fee</span>
+                    <span className="text-sm font-semibold text-slate-900">₹{total.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-500 uppercase">Paid Amount</span>
+                    <span className="text-sm font-semibold text-[#003F87] font-bold">₹{paid.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-500 uppercase">Remaining Balance</span>
+                    <span className="text-sm font-semibold text-[#D80000] font-bold">₹{balance.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-500 uppercase">Date</span>
+                    <span className="text-sm font-semibold text-slate-900">{viewItem.date}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-500 uppercase">Status</span>
+                    <span className={`text-sm font-bold ${viewItem.statusColor === 'green' ? 'text-[#008A2E]' : viewItem.statusColor === 'yellow' ? 'text-[#B26E00]' : 'text-[#D80000]'}`}>{viewItem.status}</span>
+                  </div>
+                </div>
+                <div className="flex justify-end mt-4 pt-4 border-t border-slate-200">
+                  <button onClick={() => setViewItem(null)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Close</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Edit Record Modal */}
       {editItem && (
         <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <h2 className="text-lg font-bold text-slate-800">Edit Fee Record</h2>
               <button onClick={() => setEditItem(null)} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none">&times;</button>
             </div>
             <form onSubmit={handleEditSubmit} className="p-6 flex flex-col gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Student Name</label>
-                <input type="text" required value={editItem.name} onChange={(e) => setEditItem({...editItem, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" />
+                <input type="text" disabled className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none bg-slate-50 text-sm font-medium" value={editItem.name} />
               </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Amount</label>
-                  <input type="text" required value={editItem.amount} onChange={(e) => setEditItem({...editItem, amount: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" />
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Total Fee (₹)</label>
+                  <input 
+                    type="number" 
+                    required 
+                    value={editItem.totalAmount || 0} 
+                    onChange={(e) => {
+                      const total = parseFloat(e.target.value) || 0;
+                      setEditItem({
+                        ...editItem,
+                        totalAmount: total,
+                        remainingBalance: Math.max(0, total - (editItem.paidAmount || 0))
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-850" 
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
-                  <select value={editItem.status} onChange={(e) => {
-                    const status = e.target.value;
-                    const statusColor = status === 'Full Paid' ? 'green' : status === 'Partially Paid' ? 'yellow' : 'red';
-                    setEditItem({...editItem, status, statusColor});
-                  }} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white">
-                    <option value="Full Paid">Full Paid</option>
-                    <option value="Partially Paid">Partially Paid</option>
-                    <option value="Pending">Pending</option>
-                  </select>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Paid Amount (₹)</label>
+                  <input 
+                    type="number" 
+                    required 
+                    value={editItem.paidAmount || 0} 
+                    onChange={(e) => {
+                      const paid = parseFloat(e.target.value) || 0;
+                      setEditItem({
+                        ...editItem,
+                        paidAmount: paid,
+                        remainingBalance: Math.max(0, (editItem.totalAmount || 0) - paid)
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-850" 
+                  />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Payment Type</label>
+                  <select
+                    value={editItem.type || 'Full'}
+                    onChange={(e) => setEditItem({ ...editItem, type: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white text-slate-850"
+                  >
+                    <option value="Full">Full Payment</option>
+                    <option value="Installment">Installment</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status (Calculated)</label>
+                  <div className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm font-semibold text-slate-700">
+                    {editComputedStatus}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-slate-50 p-4 rounded-md border border-slate-200 flex justify-between items-center">
+                <span className="text-sm font-bold text-slate-700">Remaining Balance:</span>
+                <span className="text-base font-bold text-[#D80000]">
+                  ₹{Math.max(0, (editItem.totalAmount || 0) - (editItem.paidAmount || 0)).toLocaleString()}
+                </span>
+              </div>
+
               <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200">
                 <button type="button" onClick={() => setEditItem(null)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E]">Save Changes</button>

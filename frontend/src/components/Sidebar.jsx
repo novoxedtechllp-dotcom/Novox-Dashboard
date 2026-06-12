@@ -14,7 +14,7 @@ const navItems = [
   { id: 'courses', label: 'Courses', icon: BookOpen },
   { id: 'attendance', label: 'Attendance', icon: Calendar },
   { id: 'leave', label: 'Leave Requests', icon: FileText },
-  // { id: 'fees', label: 'Fees', icon: CreditCard },
+  { id: 'fees', label: 'Fees', icon: CreditCard },
   // { id: 'payroll', label: 'Payroll', icon: Wallet },
   // { id: 'work-reports', label: 'Work Reports', icon: FileText },
   // { id: 'whatsapp-automation', label: 'WhatsApp Automation', icon: MessageSquare },
