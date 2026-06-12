@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Download, Plus, FileText, CheckCircle, TrendingUp, MoreVertical, Eye, Calendar, DollarSign, Briefcase } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -133,15 +133,15 @@ const PayrollContent = () => {
     doc.text(`Employee ID: ${item.employee_id}`, 20, 50);
     doc.text(`Period: ${months[item.month - 1]} ${item.year}`, 20, 60);
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: 70,
-      head: [['Description', 'Amount (₹)']],
+      head: [['Description', 'Amount (INR)']],
       body: [
         ['Basic Salary', item.basic_salary],
         ['Bonus', item.bonus],
         ['Deductions', item.deductions],
       ],
-      foot: [['Net Salary', item.net_salary]],
+      foot: [['Net Salary (INR)', item.net_salary]],
       theme: 'grid',
       headStyles: { fillColor: [0, 63, 135] },
       footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' }
