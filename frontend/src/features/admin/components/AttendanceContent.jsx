@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Calendar, RefreshCcw, MoreVertical, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import EmployeeCalendarModal from './EmployeeCalendarModal';
 
 const AttendanceContent = ({ employees = [], courses = [] }) => {
   const [students, setStudents] = useState([]);
@@ -19,6 +20,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
   const [courseFilter, setCourseFilter] = useState('All Categories');
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
+  const [selectedCalendarEmployee, setSelectedCalendarEmployee] = useState(null);
 
   // Fetch data from backend
   useEffect(() => {
@@ -31,6 +33,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
         }
 
         const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+        const selectedDate = dateFilter || new Date().toISOString().split('T')[0];
 
         // Fetch students
         const stdRes = await fetch('/api/v1/students', { headers });
@@ -40,9 +43,9 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
           setStudents(studs);
         }
 
-        // Fetch attendance
-        const studentAttRes = await fetch('/api/v1/attendance?type=student', { headers });
-        const employeeAttRes = await fetch('/api/v1/attendance?type=employee', { headers });
+        // Fetch attendance specifically for the selected date
+        const studentAttRes = await fetch(`/api/v1/attendance?type=student&from=${selectedDate}&to=${selectedDate}`, { headers });
+        const employeeAttRes = await fetch(`/api/v1/attendance?type=employee&from=${selectedDate}&to=${selectedDate}`, { headers });
         
         if (studentAttRes.ok) {
           const sData = await studentAttRes.json();
@@ -60,7 +63,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
       }
     };
     fetchData();
-  }, []);
+  }, [dateFilter]); // Refetch when dateFilter changes
 
   const handleRefresh = () => {
     setSearchQuery('');
@@ -92,8 +95,8 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
       
       if (res.ok) {
         // Re-fetch attendance
-        const studentAttRes = await fetch('/api/v1/attendance?type=student', { headers: { 'Authorization': `Bearer ${userInfo.token}` } });
-        const employeeAttRes = await fetch('/api/v1/attendance?type=employee', { headers: { 'Authorization': `Bearer ${userInfo.token}` } });
+        const studentAttRes = await fetch(`/api/v1/attendance?type=student&from=${selectedDate}&to=${selectedDate}`, { headers });
+        const employeeAttRes = await fetch(`/api/v1/attendance?type=employee&from=${selectedDate}&to=${selectedDate}`, { headers });
         
         if (studentAttRes.ok) {
           const sData = await studentAttRes.json();
@@ -146,8 +149,8 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
       });
       
       if (res.ok) {
-        const studentAttRes = await fetch('/api/v1/attendance?type=student', { headers: { 'Authorization': `Bearer ${userInfo.token}` } });
-        const employeeAttRes = await fetch('/api/v1/attendance?type=employee', { headers: { 'Authorization': `Bearer ${userInfo.token}` } });
+        const studentAttRes = await fetch(`/api/v1/attendance?type=student&from=${datePrefix}&to=${datePrefix}`, { headers });
+        const employeeAttRes = await fetch(`/api/v1/attendance?type=employee&from=${datePrefix}&to=${datePrefix}`, { headers });
         
         if (studentAttRes.ok) {
           const sData = await studentAttRes.json();
@@ -387,6 +390,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
                     </button>
                     {openActionMenuId === item.userId && (
                       <div className={`absolute right-[24px] ${index >= filteredData.length - 2 && filteredData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} w-[140px] bg-white border border-[#C2C6D4] shadow-lg rounded-[8px] z-50 overflow-hidden text-left flex flex-col`}>
+                        <button onClick={() => { setSelectedCalendarEmployee(item); setOpenActionMenuId(null); }} className="px-4 py-2 text-[12px] font-semibold text-[#003F87] hover:bg-slate-50 text-left border-b border-slate-100 transition-colors flex items-center gap-2"><Calendar size={14}/> View Calendar</button>
                         <button onClick={() => handleUpdateStatus(item.userId, item.type, 'PRESENT')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#008A2E] text-left border-b border-slate-100 transition-colors">Mark Present</button>
                         <button onClick={() => handleUpdateStatus(item.userId, item.type, 'LATE')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#B26E00] text-left border-b border-slate-100 transition-colors">Mark Late</button>
                         <button onClick={() => handleUpdateStatus(item.userId, item.type, 'ABSENT')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#D80000] text-left border-b border-slate-100 transition-colors">Mark Absent</button>
@@ -503,6 +507,12 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
             </form>
           </div>
         </div>
+      )}
+      {selectedCalendarEmployee && (
+        <EmployeeCalendarModal 
+          employee={selectedCalendarEmployee} 
+          onClose={() => setSelectedCalendarEmployee(null)} 
+        />
       )}
     </div>
   );

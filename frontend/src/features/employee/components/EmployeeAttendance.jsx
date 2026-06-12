@@ -6,31 +6,73 @@ const EmployeeAttendance = () => {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchAttendance = async () => {
-      setLoading(true);
-      try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
+  const fetchAttendance = async () => {
+    setLoading(true);
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      if (!userInfo || !userInfo.token) return;
 
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
-        
-        // Fetch attendance for the employee
-        const attRes = await fetch('/api/v1/attendance', { headers });
-        if (attRes.ok) {
-          const data = await attRes.json();
-          // Filter by the employee's ID just to be safe, although the backend might already do it
-          const myAttendance = data.filter(a => a.employee_id === userInfo.id || a.employee_id === userInfo.employee_profile_id);
-          setAttendance(myAttendance);
-        }
-      } catch (error) {
-        console.error('Error fetching attendance:', error);
-      } finally {
-        setLoading(false);
+      const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+      
+      // Fetch attendance for the employee
+      const attRes = await fetch('/api/v1/attendance', { headers });
+      if (attRes.ok) {
+        const data = await attRes.json();
+        // Backend returns response inside data.data usually, let's check
+        const attData = data.data || data;
+        const myAttendance = attData.filter(a => a.employee_id === userInfo.id || a.employee_id === userInfo.employee_profile_id);
+        setAttendance(myAttendance);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAttendance();
   }, []);
+
+  const handlePunchIn = async () => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const res = await fetch('/api/v1/attendance/check-in', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${userInfo.token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Checked in successfully');
+        fetchAttendance();
+      } else {
+        alert(data.message || 'Failed to check in');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error checking in');
+    }
+  };
+
+  const handlePunchOut = async () => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const res = await fetch('/api/v1/attendance/check-out', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${userInfo.token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Checked out successfully');
+        fetchAttendance();
+      } else {
+        alert(data.message || 'Failed to check out');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error checking out');
+    }
+  };
 
   const formatTime = (isoString) => {
     if (!isoString) return '-';
@@ -62,10 +104,10 @@ const EmployeeAttendance = () => {
           <p className="text-slate-500 text-[14px] mt-1">Track your daily punches and working hours</p>
         </div>
         <div className="flex gap-3">
-          <button className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-md font-bold text-[14px] flex items-center gap-2 transition-colors">
+          <button onClick={handlePunchIn} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-md font-bold text-[14px] flex items-center gap-2 transition-colors">
             <Clock size={18} /> Punch In
           </button>
-          <button className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-md font-bold text-[14px] flex items-center gap-2 transition-colors">
+          <button onClick={handlePunchOut} className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-md font-bold text-[14px] flex items-center gap-2 transition-colors">
             <Clock size={18} /> Punch Out
           </button>
         </div>
