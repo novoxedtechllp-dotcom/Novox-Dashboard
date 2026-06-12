@@ -12,7 +12,7 @@ const navItems = [
   { id: 'students', label: 'Students', icon: Users },
   { id: 'employees', label: 'Employees', icon: Briefcase },
   { id: 'courses', label: 'Courses', icon: BookOpen },
-  // { id: 'attendance', label: 'Attendance', icon: Calendar },
+  { id: 'attendance', label: 'Attendance', icon: Calendar },
   // { id: 'fees', label: 'Fees', icon: CreditCard },
   // { id: 'payroll', label: 'Payroll', icon: Wallet },
   // { id: 'work-reports', label: 'Work Reports', icon: FileText },

@@ -428,7 +428,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name *</label>
                   <input 
                     type="text" required value={newEmployee.name}
@@ -437,7 +437,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email *</label>
                   <input 
                     type="email" required value={newEmployee.email}
@@ -446,7 +446,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
                   <input 
                     type="tel" maxLength={10} required value={newEmployee.phone}
@@ -455,7 +455,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Password <span className="text-slate-300 normal-case font-normal">(optional)</span></label>
                   <input 
                     type="text" value={newEmployee.password}
@@ -464,7 +464,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
                   <CustomSelect
                     value={newEmployee.department}
@@ -474,7 +474,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Position (Designation)</label>
                   <input 
                     type="text" value={newEmployee.position}
@@ -483,13 +483,14 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mentoring Courses</label>
                   <CustomSelect
                     value={newEmployee.courseIds}
                     onChange={(val) => setNewEmployee({...newEmployee, courseIds: val})}
                     options={courses.map(c => ({ value: c.id, label: c.name }))}
                     multiple={true}
+                    openUpwards={true}
                     className="w-full"
                     selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
                     placeholder="Select courses..."
