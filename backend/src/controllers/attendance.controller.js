@@ -5,10 +5,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 // Helper function to resolve the target table and logical ID based on a generic userId
 const resolveUserEntity = async (userId, explicitType) => {
-  // If explicitType is provided by frontend (student/employee)
-  if (explicitType === 'student') return { table: 'student_attendance', column: 'student_id', id: userId };
-  if (explicitType === 'employee') return { table: 'employee_attendance', column: 'employee_id', id: userId };
-
   // Attempt to resolve by assuming userId is the UUID from the `users` table
   const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
   
@@ -31,6 +27,11 @@ const resolveUserEntity = async (userId, explicitType) => {
   // Fallback: Check if it's a raw employee_id
   const { data: isEmployee } = await supabase.from("employee_profiles").select("id").eq("id", userId).single();
   if (isEmployee) return { table: 'employee_attendance', column: 'employee_id', id: userId };
+
+  // If explicitType is provided by frontend (student/employee) and we haven't found it in users or profiles, just use it.
+  // This helps when the DB doesn't have the record yet but we want to fail gracefully at the DB level, or bulk inserts.
+  if (explicitType === 'student') return { table: 'student_attendance', column: 'student_id', id: userId };
+  if (explicitType === 'employee') return { table: 'employee_attendance', column: 'employee_id', id: userId };
 
   throw new ApiError(404, "Could not resolve user entity from provided userId");
 };
@@ -186,4 +187,137 @@ export const getAttendanceReport = asyncHandler(async (req, res) => {
   }
 
   return res.status(200).json(new ApiResponse(200, report, "Attendance report fetched successfully"));
+});
+
+// @desc    Employee Secure Check-In
+// @route   POST /api/v1/attendance/check-in
+export const checkInEmployee = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const entity = await resolveUserEntity(userId);
+  
+  // Get current IST time
+  const now = new Date();
+  const options = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+  const formatter = new Intl.DateTimeFormat('en-US', options);
+  const parts = formatter.formatToParts(now);
+  const getPart = (type) => parts.find(p => p.type === type).value;
+  
+  const istDateStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+  const istTimeStr = `${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+  const istTimestampStr = `${istDateStr}T${istTimeStr}+05:30`;
+  
+  // Logic for LATE (9:45 AM)
+  const hour = parseInt(getPart('hour'), 10);
+  const minute = parseInt(getPart('minute'), 10);
+  let status = 'PRESENT';
+  if (hour > 9 || (hour === 9 && minute > 45)) {
+    status = 'LATE';
+  }
+
+  // Check if already checked in today
+  const { data: existingRecord } = await supabase
+    .from('employee_attendance')
+    .select('*')
+    .eq('employee_id', entity.id)
+    .eq('attendance_date', istDateStr)
+    .maybeSingle();
+
+  // If already checked in and NOT checked out, prevent double check-in
+  if (existingRecord && existingRecord.check_in && !existingRecord.check_out) {
+    throw new ApiError(400, "You are already checked in today");
+  }
+
+  const payload = {
+    employee_id: entity.id,
+    attendance_date: istDateStr,
+    check_in: existingRecord?.check_in || istTimestampStr,
+    check_out: null, // Clear check-out so they are checked in again
+    status: existingRecord?.status || status // Keep original status (e.g. if they were LATE, they are still LATE)
+  };
+
+  const { data, error } = await supabase
+    .from('employee_attendance')
+    .upsert(payload, { onConflict: `employee_id,attendance_date` })
+    .select();
+
+  if (error) throw new ApiError(500, error.message || "Failed to check in");
+
+  return res.status(200).json(new ApiResponse(200, data[0], `Successfully checked in at ${istTimeStr} IST (${status})`));
+});
+
+// @desc    Employee Secure Check-Out
+// @route   POST /api/v1/attendance/check-out
+export const checkOutEmployee = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const entity = await resolveUserEntity(userId);
+  
+  // Get current IST time
+  const now = new Date();
+  const options = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+  const formatter = new Intl.DateTimeFormat('en-US', options);
+  const parts = formatter.formatToParts(now);
+  const getPart = (type) => parts.find(p => p.type === type).value;
+  
+  const istDateStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+  const istTimeStr = `${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
+  const istTimestampStr = `${istDateStr}T${istTimeStr}+05:30`;
+
+  // Find today's record
+  const { data: existingRecord } = await supabase
+    .from('employee_attendance')
+    .select('*')
+    .eq('employee_id', entity.id)
+    .eq('attendance_date', istDateStr)
+    .maybeSingle();
+
+  if (!existingRecord) {
+    throw new ApiError(400, "You have not checked in today");
+  }
+  if (existingRecord.check_out) {
+    throw new ApiError(400, "You have already checked out today");
+  }
+
+  const { data, error } = await supabase
+    .from('employee_attendance')
+    .update({ check_out: istTimestampStr })
+    .eq('id', existingRecord.id)
+    .select();
+
+  if (error) throw new ApiError(500, error.message || "Failed to check out");
+
+  return res.status(200).json(new ApiResponse(200, data[0], `Successfully checked out at ${istTimeStr} IST`));
+});
+
+// @desc    Get Today's Detailed Employee Attendance (Admin)
+// @route   GET /api/v1/attendance/today
+export const getTodayAttendance = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const options = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' };
+  const formatter = new Intl.DateTimeFormat('en-US', options);
+  const parts = formatter.formatToParts(now);
+  const istDateStr = `${parts.find(p => p.type === 'year').value}-${parts.find(p => p.type === 'month').value}-${parts.find(p => p.type === 'day').value}`;
+
+  const { data: employees, error: empError } = await supabase
+    .from('employee_profiles')
+    .select('id, first_name, last_name, avatar_url, designation')
+    .eq('status', 'ACTIVE');
+    
+  if (empError) throw new ApiError(500, "Failed to fetch employees");
+
+  const { data: attendance, error: attError } = await supabase
+    .from('employee_attendance')
+    .select('*')
+    .eq('attendance_date', istDateStr);
+
+  if (attError) throw new ApiError(500, "Failed to fetch attendance");
+
+  const report = employees.map(emp => {
+    const record = attendance.find(a => a.employee_id === emp.id);
+    return {
+      ...emp,
+      attendance: record || null
+    };
+  });
+
+  return res.status(200).json(new ApiResponse(200, report, "Today's attendance report fetched successfully"));
 });
