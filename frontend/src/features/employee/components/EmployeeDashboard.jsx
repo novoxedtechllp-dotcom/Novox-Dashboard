@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Calendar, AlertCircle, Users, BarChart2, LogIn, LogOut, MoreVertical } from 'lucide-react';
+import { Clock, Calendar, AlertCircle, Users, BarChart2, LogIn, LogOut, MoreVertical, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const EmployeeDashboard = () => {
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [attendanceRecord, setAttendanceRecord] = useState(null);
   const [monthlyStats, setMonthlyStats] = useState({ present: 0, halfDay: 0, late: 0, absent: 0 });
@@ -134,6 +136,12 @@ const EmployeeDashboard = () => {
             {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
+        <button 
+          onClick={() => navigate(window.location.pathname.replace('/dashboard', '/leave'))}
+          className="bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-[#003F87] px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-sm"
+        >
+          <FileText size={18} /> Request Leave
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
