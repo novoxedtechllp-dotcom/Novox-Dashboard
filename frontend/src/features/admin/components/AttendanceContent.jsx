@@ -237,13 +237,6 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
     return a.name.localeCompare(b.name);
   });
 
-  const total = sortedData.length;
-  const presentCount = sortedData.filter(d => d.status === 'PRESENT' || d.status === 'LATE' || d.status === 'HALF_DAY').length;
-  const lateCount = sortedData.filter(d => d.status === 'LATE').length;
-  
-  const presencePercent = total === 0 ? 0 : (presentCount / total * 100).toFixed(1);
-  const avgLatency = total === 0 ? 0 : Math.round((lateCount * 15) / total); // Mock calculation
-
   const uniqueCourses = ['All Categories', ...courses.map(c => c.title)];
 
   if (loading) {
@@ -419,42 +412,6 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
         </div>
       </div>
 
-      {/* Stats Cards Bottom */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-[24px] pt-[8px]">
-        {/* Overall Presence */}
-        <div className="bg-white rounded-[8px] border border-[#C2C6D4] p-[24px] flex flex-col justify-between h-[231px] shadow-sm">
-          <div>
-            <div className="w-[48px] h-[48px] rounded-full bg-[#E5F0FF] flex items-center justify-center text-[#003F87] mb-4">
-              <CheckCircle size={24} />
-            </div>
-            <p className="text-[12px] font-bold text-[#555F6B] uppercase tracking-wide mb-1">OVERALL PRESENCE</p>
-            <h3 className="text-[36px] font-bold text-[#003F87] leading-none">{presencePercent}%</h3>
-          </div>
-          <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#008A2E]">
-            <TrendingUp size={16} />
-            <span>Calculated from visible data</span>
-          </div>
-        </div>
-
-        {/* Average Latency */}
-        <div className="bg-white rounded-[8px] border border-[#C2C6D4] p-[24px] flex flex-col justify-between h-[231px] shadow-sm">
-          <div>
-            <div className="w-[48px] h-[48px] rounded-[8px] bg-[#FFF4E5] flex items-center justify-center text-[#B26E00] mb-4">
-              <Clock size={24} />
-            </div>
-            <p className="text-[12px] font-bold text-[#555F6B] uppercase tracking-wide mb-1">AVERAGE LATENCY</p>
-            <h3 className="text-[36px] font-bold text-[#003F87] leading-none">{avgLatency}m</h3>
-          </div>
-          <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#B26E00]">
-            <span className="w-3 border-b-[2px] border-current inline-block"></span>
-            <span>Based on late arrivals</span>
-          </div>
-        </div>
-        
-        {/* Placeholders for grid spacing as per Figma */}
-        <div className="border border-solid border-[#C2C6D4] rounded-[8px] h-[231px] bg-white hidden xl:block"></div>
-        <div className="border border-solid border-[#C2C6D4] rounded-[8px] h-[231px] bg-white hidden xl:block"></div>
-      </div>
 
       {editRecord && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">

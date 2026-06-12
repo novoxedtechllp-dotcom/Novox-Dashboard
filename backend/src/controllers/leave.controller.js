@@ -102,5 +102,5 @@ export const updateLeaveStatus = asyncHandler(async (req, res) => {
   if (error) throw new ApiError(500, error.message || "Failed to update leave status");
   if (!data || data.length === 0) throw new ApiError(404, "Leave request not found");
 
-  return res.status(200).json(new ApiResponse(200, data[0], \`Leave request \${status.toLowerCase()} successfully\`));
+  return res.status(200).json(new ApiResponse(200, data[0], `Leave request ${status.toLowerCase()} successfully`));
 });

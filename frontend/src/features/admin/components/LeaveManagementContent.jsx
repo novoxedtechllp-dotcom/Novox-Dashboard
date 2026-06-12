@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, CheckCircle, XCircle, Clock, MessageSquare, X, Send, AlertCircle } from 'lucide-react';
-import { apiClient } from '../../../../lib/apiClient';
+import { apiClient } from '../../../lib/apiClient';
 
 const LeaveManagementContent = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Send, FileText } from 'lucide-react';
-import { apiClient } from '../../../../lib/apiClient';
+import { apiClient } from '../../../lib/apiClient';
 
 const EmployeeLeave = () => {
   const [activeTab, setActiveTab] = useState('Request Leave');
