@@ -82,6 +82,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [courseToDelete, setCourseToDelete] = useState(null);
+  const [itemToDelete, setItemToDelete] = useState(null);
   const [courseToEdit, setCourseToEdit] = useState(null);
 
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
@@ -104,6 +105,9 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const [tasks, setTasks] = useState([]);
   const [newSubmodule, setNewSubmodule] = useState({ title: '', sequence_order: 1 });
   const [newTask, setNewTask] = useState({ title: '', sequence_order: 1, task_type: 'PRE_PLANNED' });
+  const [subtasks, setSubtasks] = useState([]);
+  const [expandedTaskId, setExpandedTaskId] = useState(null);
+  const [newSubtask, setNewSubtask] = useState({ title: '', description: '', sequence_order: 1 });
   
   const [topicsPerDay, setTopicsPerDay] = useState(2);
   const [holidayDate, setHolidayDate] = useState('');
@@ -285,11 +289,17 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       
       const allSubmodules = [];
       const allTasks = [];
+      const allSubtasks = [];
       fetchedModules.forEach(m => {
         if (m.course_submodules) {
           allSubmodules.push(...m.course_submodules);
           m.course_submodules.forEach(sm => {
-             if (sm.course_tasks) allTasks.push(...sm.course_tasks);
+             if (sm.course_tasks) {
+               allTasks.push(...sm.course_tasks);
+               sm.course_tasks.forEach(t => {
+                 if (t.course_task_subtasks) allSubtasks.push(...t.course_task_subtasks);
+               });
+             }
           });
         }
       });
@@ -300,6 +310,10 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       setTasks(prev => {
         const other = prev.filter(t => !allSubmodules.some(sm => sm.id === t.submodule_id));
         return [...other, ...allTasks];
+      });
+      setSubtasks(prev => {
+        const other = prev.filter(st => !allTasks.some(t => t.id === st.task_id));
+        return [...other, ...allSubtasks];
       });
     } catch (error) {
       console.error('Error fetching course details:', error);
@@ -345,6 +359,68 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       alert(error.message || 'Failed to add task');
     } finally {
       setIsAddingModule(false);
+    }
+  };
+
+  const handleAddSubtask = async (e, moduleId, submoduleId, taskId) => {
+    e.preventDefault();
+    if (!newSubtask.title) return;
+    try {
+      setIsAddingModule(true);
+      const headers = getAuthHeaders();
+      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules/${moduleId}/submodules/${submoduleId}/tasks/${taskId}/subtasks`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ title: newSubtask.title, description: newSubtask.description, sequence_order: Number(newSubtask.sequence_order) })
+      });
+      const resData = await parseApiResponse(response);
+      setSubtasks([...subtasks, resData.data]);
+      setNewSubtask({ title: '', description: '', sequence_order: subtasks.filter(st => st.task_id === taskId).length + 2 });
+    } catch (error) {
+      alert(error.message || 'Failed to add subtask');
+    } finally {
+      setIsAddingModule(false);
+    }
+  };
+
+  const handleToggleModuleStatus = async (moduleId, currentStatus) => {
+    try {
+      const headers = getAuthHeaders();
+      const newStatus = currentStatus === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED';
+      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules/${moduleId}/status`, {
+        method: 'PATCH', headers,
+        body: JSON.stringify({ status: newStatus })
+      });
+      await parseApiResponse(response);
+      setModules(modules.map(m => m.id === moduleId ? { ...m, status: newStatus } : m));
+    } catch (error) {
+      alert(error.message || 'Failed to update module status');
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return;
+    const { type, moduleId, submoduleId, taskId, subtaskId } = itemToDelete;
+    setIsDeleting(true);
+    try {
+      const headers = getAuthHeaders();
+      let url = `/api/v1/courses/${selectedCourse.id}/modules/${moduleId}`;
+      if (type === 'Submodule') url += `/submodules/${submoduleId}`;
+      if (type === 'Task') url += `/submodules/${submoduleId}/tasks/${taskId}`;
+      if (type === 'Subtask') url += `/submodules/${submoduleId}/tasks/${taskId}/subtasks/${subtaskId}`;
+
+      const response = await fetch(url, { method: 'DELETE', headers });
+      await parseApiResponse(response);
+
+      if (type === 'Module') setModules(modules.filter(m => m.id !== moduleId));
+      if (type === 'Submodule') setSubmodules(submodules.filter(s => s.id !== submoduleId));
+      if (type === 'Task') setTasks(tasks.filter(t => t.id !== taskId));
+      if (type === 'Subtask') setSubtasks(subtasks.filter(st => st.id !== subtaskId));
+      
+      setItemToDelete(null);
+    } catch (error) {
+      alert(error.message || `Failed to delete ${type.toLowerCase()}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -710,6 +786,29 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
         </div>
       )}
 
+      {/* Curriculum Item Delete Confirmation Modal */}
+      {itemToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setItemToDelete(null)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 flex flex-col gap-4 text-center animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="w-20 h-20 bg-rose-50 border-4 border-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Trash2 size={32} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900">Delete {itemToDelete.type}?</h3>
+            <p className="text-sm font-medium text-slate-500 leading-relaxed px-4">
+              Are you sure you want to delete <span className="font-bold text-slate-700">{itemToDelete.title}</span>? This permanently removes it and all its contents. This cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-center mt-6">
+              <button onClick={() => setItemToDelete(null)} className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors flex-1">
+                Cancel
+              </button>
+              <button onClick={handleConfirmDelete} disabled={isDeleting} className={`px-6 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all flex-1 ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-700'}`}>
+                {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* View Details Command Center Modal */}
       {selectedCourse && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8 animate-in fade-in duration-200" onClick={() => setSelectedCourse(null)}>
@@ -756,8 +855,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                 {[
                   { id: 'overview', icon: <BookOpen size={16} />, label: 'Overview' },
                   { id: 'students', icon: <User size={16} />, label: 'Students' },
-                  { id: 'modules', icon: <LayoutList size={16} />, label: 'Curriculum Builder' },
-                  { id: 'schedule', icon: <Calendar size={16} />, label: 'Master Schedule' }
+                  { id: 'modules', icon: <LayoutList size={16} />, label: 'Curriculum Builder' }
                 ].map(tab => (
                   <button 
                     key={tab.id}
@@ -952,8 +1050,23 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                   {m.description && <div className="text-xs font-medium text-slate-500 mt-0.5 line-clamp-1">{m.description}</div>}
                                 </div>
                               </div>
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${expandedModuleId === m.id ? 'bg-[#003F87] text-white rotate-180' : 'bg-slate-50 text-slate-400 group-hover:bg-[#003F87] group-hover:text-white'}`}>
-                                <ChevronDown size={18} />
+                              <div className="flex items-center gap-4">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleToggleModuleStatus(m.id, m.status); }}
+                                  className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-md tracking-wider border transition-colors ${m.status === 'PUBLISHED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'}`}
+                                >
+                                  {m.status === 'PUBLISHED' ? 'Published' : 'Draft'}
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setItemToDelete({ type: 'Module', moduleId: m.id, title: m.title }); }}
+                                  className="w-8 h-8 rounded-md flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                  title="Delete Module"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${expandedModuleId === m.id ? 'bg-[#003F87] text-white rotate-180' : 'bg-slate-50 text-slate-400 group-hover:bg-[#003F87] group-hover:text-white'}`}>
+                                  <ChevronDown size={18} />
+                                </div>
                               </div>
                             </div>
                             
@@ -994,6 +1107,13 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                             <div className="text-[#003F87] font-bold text-[10px] uppercase tracking-widest flex items-center gap-1">
                                               {expandedSubmoduleId === sm.id ? 'Hide Tasks' : 'Tasks'} <ChevronDown size={14} className={expandedSubmoduleId === sm.id ? 'rotate-180' : ''} />
                                             </div>
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); setItemToDelete({ type: 'Submodule', moduleId: m.id, submoduleId: sm.id, title: sm.title }); }}
+                                              className="w-6 h-6 rounded flex items-center justify-center text-red-300 hover:bg-red-50 hover:text-red-500 transition-colors ml-2"
+                                              title="Delete Topic"
+                                            >
+                                              <Trash2 size={14} />
+                                            </button>
                                           </div>
                                         </div>
                                         
@@ -1007,10 +1127,52 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                                 <p className="text-xs font-medium text-slate-400 italic">No tasks assigned to this topic.</p>
                                               ) : (
                                                 tasks.filter(t => t.submodule_id === sm.id).sort((a,b) => a.sequence_order - b.sequence_order).map(t => (
-                                                  <div key={t.id} className="bg-white border border-slate-200 py-2.5 px-4 rounded-lg flex gap-3 items-center">
-                                                    <div className="w-5 h-5 rounded bg-slate-100 text-slate-500 text-[10px] font-black flex items-center justify-center shrink-0">{t.sequence_order}</div>
-                                                    <div className="flex-1 text-sm font-semibold text-slate-700">{t.title}</div>
-                                                    <div className={`text-[9px] font-black uppercase px-2 py-1 rounded-md tracking-wider ${t.task_type === 'EXTRA' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#003F87]'}`}>{t.task_type === 'EXTRA' ? 'Bonus' : 'Required'}</div>
+                                                  <div key={t.id} className="bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col">
+                                                    <div className="py-2.5 px-4 flex gap-3 items-center cursor-pointer hover:bg-slate-50" onClick={() => setExpandedTaskId(expandedTaskId === t.id ? null : t.id)}>
+                                                      <div className="w-5 h-5 rounded bg-slate-100 text-slate-500 text-[10px] font-black flex items-center justify-center shrink-0">{t.sequence_order}</div>
+                                                      <div className="flex-1 text-sm font-semibold text-slate-700">{t.title}</div>
+                                                      <div className={`text-[9px] font-black uppercase px-2 py-1 rounded-md tracking-wider ${t.task_type === 'EXTRA' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#003F87]'}`}>{t.task_type === 'EXTRA' ? 'Bonus' : 'Required'}</div>
+                                                      <button
+                                                        onClick={(e) => { e.stopPropagation(); setItemToDelete({ type: 'Task', moduleId: m.id, submoduleId: sm.id, taskId: t.id, title: t.title }); }}
+                                                        className="w-6 h-6 rounded flex items-center justify-center text-red-300 hover:bg-red-50 hover:text-red-500 transition-colors ml-1"
+                                                        title="Delete Task"
+                                                      >
+                                                        <Trash2 size={14} />
+                                                      </button>
+                                                    </div>
+                                                    
+                                                    {expandedTaskId === t.id && (
+                                                      <div className="bg-slate-50 border-t border-slate-100 p-3 pl-12 flex flex-col gap-2">
+                                                        <h6 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Subtasks (Steps)</h6>
+                                                        {subtasks.filter(st => st.task_id === t.id).sort((a,b) => a.sequence_order - b.sequence_order).map(st => (
+                                                          <div key={st.id} className="flex gap-2 items-start bg-white p-2 rounded border border-slate-100">
+                                                            <div className="text-[10px] font-bold text-[#003F87] w-4 mt-0.5">{st.sequence_order}.</div>
+                                                            <div className="flex-1">
+                                                              <div className="text-xs font-bold text-slate-700">{st.title}</div>
+                                                              {st.description && <div className="text-[10px] text-slate-500 mt-0.5">{st.description}</div>}
+                                                            </div>
+                                                            <button
+                                                              onClick={(e) => { e.preventDefault(); setItemToDelete({ type: 'Subtask', moduleId: m.id, submoduleId: sm.id, taskId: t.id, subtaskId: st.id, title: st.title }); }}
+                                                              className="w-6 h-6 rounded flex items-center justify-center text-red-300 hover:bg-red-50 hover:text-red-500 transition-colors"
+                                                              title="Delete Step"
+                                                            >
+                                                              <Trash2 size={12} />
+                                                            </button>
+                                                          </div>
+                                                        ))}
+                                                        
+                                                        <form onSubmit={(e) => handleAddSubtask(e, m.id, sm.id, t.id)} className="flex flex-col gap-2 mt-2 bg-white p-2 rounded border border-blue-100">
+                                                          <div className="flex gap-2">
+                                                            <input type="text" placeholder="Subtask title..." required value={newSubtask.title} onChange={e => setNewSubtask({...newSubtask, title: e.target.value})} className="flex-1 text-xs p-1.5 bg-slate-50 border border-slate-100 rounded outline-none focus:border-[#003F87]" />
+                                                            <input type="number" placeholder="Seq" required value={newSubtask.sequence_order} onChange={e => setNewSubtask({...newSubtask, sequence_order: e.target.value})} className="w-12 text-xs p-1.5 bg-slate-50 border border-slate-100 rounded outline-none focus:border-[#003F87] text-center" />
+                                                          </div>
+                                                          <div className="flex gap-2">
+                                                            <input type="text" placeholder="Description (optional)" value={newSubtask.description} onChange={e => setNewSubtask({...newSubtask, description: e.target.value})} className="flex-1 text-[10px] p-1.5 bg-slate-50 border border-slate-100 rounded outline-none focus:border-[#003F87]" />
+                                                            <button type="submit" disabled={isAddingModule} className="px-3 py-1 bg-[#008A2E] text-white text-[10px] font-bold rounded uppercase tracking-wider hover:bg-[#006E24] disabled:opacity-50">Add Step</button>
+                                                          </div>
+                                                        </form>
+                                                      </div>
+                                                    )}
                                                   </div>
                                                 ))
                                               )}
@@ -1045,210 +1207,6 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                 </div>
               )}
 
-              {/* Schedules Tab - Master Plan */}
-              {activeTab === 'schedule' && (
-                <div className="flex flex-col gap-8 animate-in slide-in-from-bottom-4 duration-300 fade-in">
-                  
-                  {/* Auto Schedule Command Center */}
-                  <div className="bg-gradient-to-br from-blue-50 to-white p-6 md:p-8 rounded-2xl border border-blue-100 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-                      <Calendar size={120} />
-                    </div>
-                    
-                    <div className="flex items-center gap-3 mb-6 relative z-10">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-[#003F87] flex items-center justify-center shadow-md">
-                        <Zap size={20} className="text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-black text-slate-900 leading-tight">Auto-Schedule Engine</h3>
-                        <p className="text-xs font-medium text-slate-500">Automatically map curriculum topics to dates sequentially.</p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row md:items-end gap-6 pb-6 border-b border-blue-100 relative z-10">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Pace: Topics Per Day</label>
-                        <div className="flex items-center shadow-sm rounded-xl overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={() => setTopicsPerDay(prev => Math.max(1, Number(prev) - 1))}
-                            disabled={Number(topicsPerDay) <= 1}
-                            className="w-12 h-12 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all font-black text-xl flex items-center justify-center"
-                          >−</button>
-                          <div className="w-16 h-12 bg-white border-y border-slate-200 flex items-center justify-center text-xl font-black text-[#003F87]">
-                            {topicsPerDay}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setTopicsPerDay(prev => Math.min(10, Number(prev) + 1))}
-                            disabled={Number(topicsPerDay) >= 10}
-                            className="w-12 h-12 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all font-black text-xl flex items-center justify-center"
-                          >+</button>
-                        </div>
-                      </div>
-                      <button
-                        onClick={handlePreviewSchedule}
-                        disabled={previewLoading}
-                        className="px-6 py-3.5 bg-white border-2 border-[#003F87] text-[#003F87] text-sm font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-[#003F87] hover:text-white transition-all shadow-sm active:scale-95 min-w-[200px]"
-                      >
-                        {previewLoading ? (
-                          <><div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full"></div> Analyzing...</>
-                        ) : (
-                          <><Eye size={18} /> Preview Master Plan</>
-                        )}
-                      </button>
-                    </div>
-
-                    {/* Preview Results */}
-                    {schedulePreview && (
-                      <div className="mt-6 animate-in fade-in relative z-10">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center">
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Topics</div>
-                            <div className="text-2xl font-black text-slate-900 mt-1">{schedulePreview.total_topics}</div>
-                          </div>
-                          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center">
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Days Required</div>
-                            <div className="text-2xl font-black text-[#003F87] mt-1">{schedulePreview.total_days}</div>
-                          </div>
-                          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Start</div>
-                            <div className="text-[13px] font-bold text-slate-800 mt-1">{schedulePreview.start_date ? formatDateToDDMMYYYY(schedulePreview.start_date) : '—'}</div>
-                          </div>
-                          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center">
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target End</div>
-                            <div className="text-[13px] font-bold text-slate-800 mt-1">{schedulePreview.end_date ? formatDateToDDMMYYYY(schedulePreview.end_date) : '—'}</div>
-                          </div>
-                        </div>
-
-                        {schedulePreview.days && schedulePreview.days.length > 0 && (
-                          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-6 shadow-sm">
-                            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-                              <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest">Day-by-Day Breakdown</h4>
-                            </div>
-                            <div className="max-h-[320px] overflow-y-auto">
-                              {schedulePreview.days.map((day, dayIdx) => (
-                                <div key={day.date} className={`flex flex-col sm:flex-row border-b border-slate-100 last:border-b-0 ${dayIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
-                                  <div className="w-full sm:w-[160px] shrink-0 p-4 sm:border-r border-slate-100 flex sm:flex-col items-center sm:items-start justify-between sm:justify-start">
-                                    <div className="text-sm font-black text-[#003F87]">Day {dayIdx + 1}</div>
-                                    <div className="text-right sm:text-left mt-0 sm:mt-1">
-                                      <div className="text-xs font-bold text-slate-700">{formatDateToDDMMYYYY(day.date)}</div>
-                                      <div className="text-[10px] font-medium text-slate-400">{day.weekday}</div>
-                                    </div>
-                                  </div>
-                                  <div className="flex-1 p-4">
-                                    <div className="flex flex-col gap-2">
-                                      {day.topics.map((topic, topicIdx) => (
-                                        <div key={topic.id} className="flex items-start gap-3 bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
-                                          <div className="w-6 h-6 rounded bg-blue-50 text-[#003F87] text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
-                                            {topicIdx + 1}
-                                          </div>
-                                          <div className="text-[13px] text-slate-800 leading-snug">
-                                            <span className="font-black text-[#003F87]">{topic.module_sequence}.{topic.sequence_order}</span>
-                                            <span className="mx-2 text-slate-300">|</span>
-                                            <span className="font-bold">{topic.title}</span>
-                                            <div className="text-[10px] font-medium text-slate-400 mt-0.5">{topic.module_title}</div>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                          <button
-                            onClick={() => setSchedulePreview(null)}
-                            className="px-6 py-3 border border-slate-200 bg-white text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-colors"
-                          >Cancel Preview</button>
-                          <button
-                            onClick={handleAutoSchedule}
-                            disabled={applyingSchedule}
-                            className="px-8 py-3 bg-[#008A2E] text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-[#006E24] shadow-md active:scale-95 transition-all w-full sm:w-auto"
-                          >
-                            {applyingSchedule ? (
-                              <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div> Applying Plan...</>
-                            ) : (
-                              <><Zap size={18} /> Confirm & Apply Schedule</>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Manual Overrides */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Reschedule Box */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-                      <div>
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Shift Schedule</h3>
-                        <p className="text-xs font-medium text-slate-500 mt-1">Push all dates forward starting from a holiday.</p>
-                      </div>
-                      <div className="flex gap-4 items-end mt-auto pt-4 border-t border-slate-50">
-                        <div className="flex-1">
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Holiday Date</label>
-                          <input type="date" value={holidayDate} onChange={e => setHolidayDate(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#003F87] transition-all" />
-                        </div>
-                        <button onClick={handleAddHoliday} disabled={!holidayDate} className="px-6 py-2.5 bg-[#D80000] text-white text-sm font-bold rounded-xl hover:bg-[#B30000] disabled:opacity-50 transition-all shadow-sm">
-                          Shift Plan
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Move Topic Box */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
-                      <div>
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Reschedule Single Topic</h3>
-                        <p className="text-xs font-medium text-slate-500 mt-1">Move a specific topic to a different date.</p>
-                      </div>
-                      <div className="flex flex-col gap-4 mt-auto pt-4 border-t border-slate-50">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Target Topic</label>
-                          <select 
-                            value={moveTopic.submoduleId} 
-                            onChange={e => setMoveTopic({...moveTopic, submoduleId: e.target.value})} 
-                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#003F87] transition-all appearance-none"
-                          >
-                            <option value="" disabled>Select a topic...</option>
-                            {modules
-                              .filter(m => m.course_id === selectedCourse.id)
-                              .sort((a, b) => a.sequence_order - b.sequence_order)
-                              .map(m => {
-                                const moduleSubmodules = submodules
-                                  .filter(sm => sm.module_id === m.id)
-                                  .sort((a, b) => a.sequence_order - b.sequence_order);
-                                if (moduleSubmodules.length === 0) return null;
-                                return (
-                                  <optgroup key={m.id} label={`${m.sequence_order}. ${m.title}`}>
-                                    {moduleSubmodules.map(sm => (
-                                      <option key={sm.id} value={sm.id}>
-                                        {m.sequence_order}.{sm.sequence_order} {sm.title}
-                                      </option>
-                                    ))}
-                                  </optgroup>
-                                );
-                              })}
-                          </select>
-                        </div>
-                        <div className="flex gap-4 items-end">
-                          <div className="flex-1">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">New Date</label>
-                            <input type="date" value={moveTopic.targetDate} onChange={e => setMoveTopic({...moveTopic, targetDate: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#003F87] transition-all" />
-                          </div>
-                          <button onClick={handleMoveTopic} disabled={!moveTopic.submoduleId || !moveTopic.targetDate} className="px-6 py-2.5 bg-[#003F87] text-white text-sm font-bold rounded-xl hover:bg-[#002B5E] disabled:opacity-50 transition-all shadow-sm shrink-0">
-                            Move
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              )}
                 </>
               )}
             </div>

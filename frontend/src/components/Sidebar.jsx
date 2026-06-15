@@ -3,7 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Briefcase, BookOpen, Calendar, 
   CreditCard, Wallet, MessageSquare, Handshake, Trophy, 
-  GraduationCap, FileText, Globe, Settings, HelpCircle, Menu, LogOut
+  GraduationCap, FileText, Globe, Settings, HelpCircle, Menu, LogOut,
+  CheckSquare, ClipboardList
 } from 'lucide-react';
 
 const navItems = [
@@ -78,13 +79,13 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
             <div className="flex justify-between items-center">
               <div className="flex flex-col items-start px-2">
                 <img src="/novox-edtech-calicut-logo.png" alt="Novox Edtech" className="h-[44px] w-[180px] object-contain object-left -ml-2" />
-                <p className="text-[9px] font-bold text-[#555F6B] tracking-[0.15em] uppercase mt-2">
-                  Institutional Management
+                <p className="text-[9px] font-bold text-[#555F6B] tracking-[0.15em] uppercase mt-2 text-center w-[180px] -ml-2">
+                  {userRole === 'STUDENT' ? 'Student Portal' : 'Institutional Management'}
                 </p>
               </div>
               <button 
                 onClick={() => setIsOpen(!isOpen)}
-                className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+                className="lg:hidden p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all shrink-0 ml-1"
               >
                 <Menu size={20} />
               </button>
