@@ -14,7 +14,7 @@ const navItems = [
   { id: 'employees', label: 'Employees', icon: Briefcase },
   { id: 'courses', label: 'Courses', icon: BookOpen },
   { id: 'attendance', label: 'Attendance', icon: Calendar },
-  { id: 'leave', label: 'Leave Requests', icon: FileText },
+  { id: 'leave', label: 'Leave Management', icon: FileText },
   { id: 'fees', label: 'Fees', icon: CreditCard },
   // { id: 'payroll', label: 'Payroll', icon: Wallet },
   // { id: 'work-reports', label: 'Work Reports', icon: FileText },
@@ -52,7 +52,25 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
       hiddenItems.push('seo', 'blog');
     }
     
-    visibleNavItems = navItems.filter(item => !hiddenItems.includes(item.id));
+    if (userRole === 'STUDENT') {
+      hiddenItems.push('courses', 'students');
+    }
+    
+    visibleNavItems = navItems.filter(item => !hiddenItems.includes(item.id))
+      .map(item => {
+        if (item.id === 'leave') {
+          return { ...item, label: userRole === 'STUDENT' ? 'Leave Requests' : 'Leave Management' };
+        }
+        return item;
+      });
+  } else {
+    // Admin role
+    visibleNavItems = navItems.map(item => {
+        if (item.id === 'leave') {
+          return { ...item, label: 'Leave Management' };
+        }
+        return item;
+    });
   }
 
   return (

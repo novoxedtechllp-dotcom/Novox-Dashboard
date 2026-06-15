@@ -8,6 +8,8 @@ import LeaveManagementContent from './features/admin/components/LeaveManagementC
 import StudentsContent from './features/student/components/StudentsContent';
 import EmployeesContent from './features/admin/components/EmployeesContent';
 import StudentDashboard from './features/student/components/StudentDashboard';
+import StudentAttendance from './features/student/components/StudentAttendance';
+import StudentLeave from './features/student/components/StudentLeave';
 import CoursesContent from './features/admin/components/CoursesContent';
 import FeesContent from './features/admin/components/FeesContent';
 import SalesCrmContent from './features/employee/marketing/components/SalesCrmContent';
@@ -235,8 +237,8 @@ function App() {
                 <Route path={`${basePath}/dashboard`} element={userRole === 'STUDENT' ? <StudentDashboard userInfo={userInfo} /> : (userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />)} />
                 <Route path={`${basePath}/daily-plan`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/schedule`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
-                <Route path={`${basePath}/attendance`} element={userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />} />
-                <Route path={`${basePath}/leave`} element={(userRole === 'ADMIN' || isHR) ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />)} />
+                <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />)} />
+                <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave /> : ((userRole === 'ADMIN' || isHR) ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />))} />
                 <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />

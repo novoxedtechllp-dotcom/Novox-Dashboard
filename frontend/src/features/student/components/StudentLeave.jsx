@@ -1,0 +1,392 @@
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Send, FileText, Info, UploadCloud } from 'lucide-react';
+
+const StudentLeave = () => {
+  const [activeTab, setActiveTab] = useState('Request Leave');
+  const [formData, setFormData] = useState({
+    leaveType: 'Medical Leave',
+    startDate: '',
+    endDate: '',
+    reason: ''
+  });
+
+  const [leaveHistory, setLeaveHistory] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = React.useRef(null);
+
+  useEffect(() => {
+    fetchLeaves();
+  }, []);
+
+  const fetchLeaves = async () => {
+    try {
+      setIsLoading(true);
+      const mockLeaves = JSON.parse(localStorage.getItem('student_leaves_mock_db') || '[]');
+      // Sort by newest first
+      mockLeaves.sort((a, b) => new Date(b.applied_on) - new Date(a.applied_on));
+      setLeaveHistory(mockLeaves);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch leaves:", err);
+      setError("Failed to load leave history.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      const newLeave = {
+        id: 'mock-' + Date.now(),
+        type: formData.leaveType,
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        reason: formData.reason,
+        status: 'PENDING',
+        applied_on: new Date().toISOString(),
+        has_attachment: selectedFile ? true : false,
+      };
+
+      const existingLeaves = JSON.parse(localStorage.getItem('student_leaves_mock_db') || '[]');
+      localStorage.setItem('student_leaves_mock_db', JSON.stringify([newLeave, ...existingLeaves]));
+      
+      setSubmitSuccess(true);
+      
+      // Reset form
+      setFormData({
+        leaveType: 'Medical Leave',
+        startDate: '',
+        endDate: '',
+        reason: ''
+      });
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+
+      // Refresh list
+      fetchLeaves();
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSubmitSuccess(false), 3000);
+    } catch (err) {
+      console.error("Failed to submit leave request:", err);
+      setError(err.message || "Failed to submit leave request.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setSelectedFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleChange = (e) => {
+    e.preventDefault();
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'APPROVED':
+        return <span className="bg-[#E5F7ED] text-[#008A2E] px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5"><CheckCircle size={14} /> Approved</span>;
+      case 'REJECTED':
+        return <span className="bg-[#FDE2E2] text-[#D80000] px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5"><XCircle size={14} /> Rejected</span>;
+      default:
+        return <span className="bg-[#FFF4E5] text-[#B26E00] px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5"><Clock size={14} /> Pending</span>;
+    }
+  };
+
+  return (
+    <div className="p-[24px] bg-[#FAFBFC] min-h-full">
+      <div className="max-w-6xl mx-auto w-full">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-[24px] font-bold text-[#003F87]">Leave Requests</h2>
+            <p className="text-slate-500 text-[14px] mt-1">Apply for leave and track your request status</p>
+          </div>
+        </div>
+
+        <div className="flex gap-4 border-b border-[#E2E8F0] mb-6">
+          <button
+            onClick={() => setActiveTab('Request Leave')}
+            className={`pb-3 px-1 text-[14px] font-bold transition-all relative ${
+              activeTab === 'Request Leave' 
+                ? 'text-[#003F87]' 
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Request Leave
+            {activeTab === 'Request Leave' && (
+              <div className="absolute bottom-0 left-0 w-full h-[3px] bg-[#003F87] rounded-t-full"></div>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('My Leave History')}
+            className={`pb-3 px-1 text-[14px] font-bold transition-all relative ${
+              activeTab === 'My Leave History' 
+                ? 'text-[#003F87]' 
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            My Leave History
+            {activeTab === 'My Leave History' && (
+              <div className="absolute bottom-0 left-0 w-full h-[3px] bg-[#003F87] rounded-t-full"></div>
+            )}
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-[#FDE2E2] border border-[#D80000]/20 rounded-lg flex items-start gap-3">
+            <AlertCircle className="text-[#D80000] shrink-0 mt-0.5" size={18} />
+            <p className="text-[14px] font-bold text-[#D80000]">{error}</p>
+          </div>
+        )}
+
+        {activeTab === 'Request Leave' && (
+          <div className="max-w-4xl animate-in slide-in-from-bottom-4 duration-300 fade-in">
+            
+            {/* Form Column */}
+            <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm">
+              <div className="p-5 border-b border-[#E2E8F0] bg-slate-50">
+                <h3 className="font-bold text-slate-800 text-[15px] flex items-center gap-2">
+                  <FileText size={18} className="text-[#003F87]" />
+                  New Leave Application
+                </h3>
+              </div>
+              
+              <div className="p-6">
+                {submitSuccess && (
+                  <div className="mb-6 p-4 bg-[#E5F7ED] border border-[#008A2E]/20 rounded-lg flex items-start gap-3">
+                    <CheckCircle className="text-[#008A2E] shrink-0 mt-0.5" size={18} />
+                    <div>
+                      <h4 className="text-[14px] font-bold text-[#008A2E]">Leave Request Submitted</h4>
+                      <p className="text-[13px] text-[#008A2E]/80 mt-1">Your leave request has been sent to your mentor/administrator for approval. You can track its status in the history tab.</p>
+                    </div>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="mb-6 bg-slate-50 border border-slate-200 rounded-lg p-4 flex items-start gap-3">
+                    <Info className="text-slate-700 mt-0.5 shrink-0" size={18} />
+                    <p className="text-[13px] text-slate-600">
+                      Requests must be submitted at least 24 hours in advance for non-emergencies. Supporting documents may be required upon return.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Leave Type</label>
+                    <select
+                      name="leaveType"
+                      value={formData.leaveType}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors"
+                    >
+                      <option value="Medical Leave">Medical Leave</option>
+                      <option value="Sick Leave">Sick Leave</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-[13px] font-bold text-slate-700 mb-2">Start Date</label>
+                      <input
+                        type="date"
+                        name="startDate"
+                        value={formData.startDate}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[13px] font-bold text-slate-700 mb-2">End Date</label>
+                      <input
+                        type="date"
+                        name="endDate"
+                        value={formData.endDate}
+                        onChange={handleInputChange}
+                        required
+                        min={formData.startDate}
+                        className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                <div>
+                  <label className="block text-[13px] font-bold text-slate-700 mb-2">
+                    Reason for Leave {formData.leaveType === 'Other' && <span className="text-red-500">*</span>}
+                  </label>
+                  <textarea
+                    name="reason"
+                    value={formData.reason}
+                    onChange={handleInputChange}
+                    required={formData.leaveType === 'Other'}
+                    placeholder={formData.leaveType === 'Other' ? "Please specify the reason for 'Other'..." : "Please provide a brief reason for your leave request..."}
+                    rows="4"
+                    className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-3 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors resize-none"
+                  ></textarea>
+                </div>
+
+                <div>
+                  <label className="block text-[13px] font-bold text-slate-500 tracking-wider uppercase mb-2">Supporting Document (Optional)</label>
+                  <div 
+                    className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center transition-colors relative
+                      ${dragActive ? "border-[#003F87] bg-[#E5F0FF]" : "border-slate-300 hover:bg-slate-50"}
+                      ${selectedFile ? "bg-slate-50" : "cursor-pointer"}`}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => !selectedFile && fileInputRef.current?.click()}
+                  >
+                    <input 
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      onChange={handleChange}
+                      accept=".pdf,.png,.jpg,.jpeg"
+                    />
+                    
+                    {selectedFile ? (
+                      <div className="flex flex-col items-center w-full">
+                        <div className="flex items-center gap-3 bg-white border border-slate-200 py-2 px-4 rounded-lg shadow-sm">
+                          <FileText className="text-[#003F87]" size={20} />
+                          <div className="text-left max-w-[200px]">
+                            <p className="text-[13px] font-bold text-slate-800 truncate">{selectedFile.name}</p>
+                            <p className="text-[11px] text-slate-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                          </div>
+                          <button 
+                            type="button" 
+                            onClick={(e) => { e.stopPropagation(); handleRemoveFile(); }}
+                            className="ml-2 text-slate-400 hover:text-red-500 transition-colors"
+                            title="Remove file"
+                          >
+                            <XCircle size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <UploadCloud className={`mb-3 ${dragActive ? "text-[#003F87]" : "text-slate-500"}`} size={32} />
+                        <p className={`text-[14px] font-bold mb-1 ${dragActive ? "text-[#003F87]" : "text-slate-700"}`}>
+                          Click to upload or drag & drop
+                        </p>
+                        <p className="text-[12px] text-slate-500">PDF, PNG, JPG (Max 5MB)</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="bg-[#003F87] hover:bg-[#002B5E] text-white px-6 py-3 rounded-lg font-bold text-[14px] transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                      {isSubmitting ? (
+                        <>Processing...</>
+                      ) : (
+                        <>
+                          <Send size={16} />
+                          Submit Request
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+            
+          </div>
+        )}
+
+        {activeTab === 'My Leave History' && (
+          <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm animate-in slide-in-from-bottom-4 duration-300 fade-in">
+            {isLoading ? (
+              <div className="p-8 text-center text-slate-500">Loading leave history...</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-[11px] uppercase tracking-wider font-bold text-slate-500 border-b border-[#E2E8F0]">
+                      <th className="py-4 px-6">Leave Type</th>
+                      <th className="py-4 px-6">Duration</th>
+                      <th className="py-4 px-6">Reason</th>
+                      <th className="py-4 px-6">Applied On</th>
+                      <th className="py-4 px-6">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaveHistory.length > 0 ? leaveHistory.map((leave, index) => (
+                      <tr key={leave.id || index} className="border-b border-[#E2E8F0] hover:bg-slate-50 transition-colors text-[13px]">
+                        <td className="py-4 px-6 font-bold text-slate-800">{leave.type}</td>
+                        <td className="py-4 px-6 text-slate-600 font-medium">
+                          {leave.start_date} to {leave.end_date}
+                        </td>
+                        <td className="py-4 px-6 text-slate-600 max-w-[200px] truncate" title={leave.reason}>
+                          {leave.reason}
+                          {leave.admin_message && leave.status === 'REJECTED' && (
+                            <div className="text-[#D80000] text-[11px] mt-1 font-medium">Reason: {leave.admin_message}</div>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-slate-500">{new Date(leave.applied_on || leave.created_at).toLocaleDateString()}</td>
+                        <td className="py-4 px-6">{getStatusBadge(leave.status || 'PENDING')}</td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan="5" className="py-8 px-6 text-center text-slate-500">No leave requests found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default StudentLeave;
