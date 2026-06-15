@@ -20,6 +20,7 @@ import WorkReportsContent from './features/employee/components/WorkReportsConten
 import RecruitmentContent from './features/admin/components/RecruitmentContent';
 import BlogDashboardContent from './features/employee/marketing/components/BlogDashboardContent';
 import BlogAgentHub from './features/employee/marketing/components/BlogAgentHub';
+import BlogAgentEditor from './features/employee/marketing/components/BlogAgentEditor';
 import SettingsContent from './features/admin/components/SettingsContent';
 import EmployeeProfile from './features/employee/components/EmployeeProfile';
 import SupportContent from './features/admin/components/SupportContent';
@@ -256,7 +257,7 @@ function App() {
                 {canViewSeo && <Route path={`${basePath}/seo`} element={<SeoAgentContent />} />}
                 {canViewBlog && <Route path={`${basePath}/blog`} element={<BlogDashboardContent />} />}
                 {canViewBlog && <Route path={`${basePath}/blog-agent`} element={<BlogAgentHub />} />}
-                {canViewBlog && <Route path={`${basePath}/blog-agent/:site`} element={<BlogDashboardContent />} />}
+                {canViewBlog && <Route path={`${basePath}/blog-agent/:site`} element={<BlogAgentEditor />} />}
                 
                 <Route path="*" element={<Navigate to={`${basePath}/dashboard`} replace />} />
               </>
