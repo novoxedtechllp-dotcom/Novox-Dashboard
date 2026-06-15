@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, BookOpen, Calendar, 
   CreditCard, Wallet, MessageSquare, Handshake, Trophy, 
   GraduationCap, FileText, Globe, Settings, HelpCircle, Menu, LogOut,
-  CheckSquare, ClipboardList
+  CheckSquare, ClipboardList, User
 } from 'lucide-react';
 
 const navItems = [
@@ -32,7 +32,15 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   
   let visibleNavItems = navItems;
-  if (userRole !== 'ADMIN') {
+  if (userRole === 'STUDENT') {
+    visibleNavItems = [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'schedule', label: 'Schedule', icon: Calendar },
+      { id: 'attendance', label: 'Attendance', icon: Calendar },
+      { id: 'tasks', label: 'Tasks', icon: ClipboardList },
+      { id: 'profile', label: 'Profile', icon: User }
+    ];
+  } else if (userRole !== 'ADMIN') {
     const hiddenItems = [];
     
     // Evaluate hidden items based on role

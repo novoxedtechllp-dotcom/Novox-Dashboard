@@ -27,6 +27,8 @@ import StudentLogin from './features/auth/components/StudentLogin';
 import Signup from './features/auth/components/Signup';
 import Fab from './components/Fab';
 import DailyPlan from './features/employee/components/DailyPlan';
+import StudentTasks from './features/student/components/StudentTasks';
+import StudentProfile from './features/student/components/StudentProfile';
 
 // Employee Components
 import EmployeeSidebar from './features/employee/components/EmployeeSidebar';
@@ -241,7 +243,8 @@ function App() {
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
                 <Route path={`${basePath}/settings`} element={<SettingsContent />} />
-                <Route path={`${basePath}/profile`} element={<EmployeeProfile />} />
+                <Route path={`${basePath}/profile`} element={userRole === 'STUDENT' ? <StudentProfile userInfo={userInfo} /> : <EmployeeProfile />} />
+                <Route path={`${basePath}/tasks`} element={userRole === 'STUDENT' ? <StudentTasks userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
                 <Route path={`${basePath}/support`} element={<SupportContent />} />
 
                 {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} />} />}
