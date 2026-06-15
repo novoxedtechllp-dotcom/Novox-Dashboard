@@ -7,6 +7,7 @@ import AttendanceContent from './features/admin/components/AttendanceContent';
 import LeaveManagementContent from './features/admin/components/LeaveManagementContent';
 import StudentsContent from './features/student/components/StudentsContent';
 import EmployeesContent from './features/admin/components/EmployeesContent';
+import StudentDashboard from './features/student/components/StudentDashboard';
 import CoursesContent from './features/admin/components/CoursesContent';
 import FeesContent from './features/admin/components/FeesContent';
 import SalesCrmContent from './features/employee/marketing/components/SalesCrmContent';
@@ -22,6 +23,7 @@ import SettingsContent from './features/admin/components/SettingsContent';
 import EmployeeProfile from './features/employee/components/EmployeeProfile';
 import SupportContent from './features/admin/components/SupportContent';
 import Login from './features/auth/components/Login';
+import StudentLogin from './features/auth/components/StudentLogin';
 import Signup from './features/auth/components/Signup';
 import Fab from './components/Fab';
 import DailyPlan from './features/employee/components/DailyPlan';
@@ -165,7 +167,8 @@ function App() {
   const isSales = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'SALES';
   const isMarketing = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'MARKETING';
 
-  const basePath = isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : '/admin';
+  const basePath = userRole === 'STUDENT' ? '/student' :
+                   isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : '/admin';
 
   const canViewEmployees = userRole === 'ADMIN' || isHR;
   const canViewPayroll = userRole === 'ADMIN' || isHR;
@@ -187,7 +190,7 @@ function App() {
 
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
-      {isAuthenticated && userRole !== 'STUDENT' && (
+      {isAuthenticated && (
         <Sidebar 
           userRole={userRole} 
           isHR={isHR} 
@@ -201,11 +204,12 @@ function App() {
           onLogout={handleLogout}
         />
       )}
-      
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-white min-w-0">
-        {isAuthenticated && userRole !== 'STUDENT' && (
+
+      <div className={`flex-1 flex flex-col h-screen overflow-hidden relative transition-all duration-300 ${isSidebarOpen ? 'lg:pl-0' : 'lg:pl-0'}`}>
+        
+        {isAuthenticated && (
           <Header 
-            onLogout={handleLogout} 
+            userRole={userRole} 
             userInfo={userInfo} 
             basePath={basePath} 
             searchQuery={searchQuery} 
@@ -219,39 +223,18 @@ function App() {
             {!isAuthenticated ? (
               <>
                 <Route path="/login" element={<Login onLogin={handleLogin} />} />
+                <Route path="/student-login" element={<StudentLogin onLogin={handleLogin} />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </>
-            ) : userRole === 'STUDENT' ? (
-              <Route path="*" element={
-                <div className="flex flex-col h-full w-full bg-slate-50">
-                  <header className="bg-white border-b border-slate-200 p-4 flex justify-between items-center shrink-0">
-                    <div className="flex items-center gap-3">
-                      <img src="/novox-edtech-calicut-logo.png" alt="Novox Edtech" className="h-[32px] object-contain" />
-                      <h1 className="text-xl font-bold text-[#003F87]">Student Portal</h1>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm font-semibold text-slate-700">Welcome, {userInfo?.first_name || 'Student'}!</span>
-                      <button 
-                        onClick={handleLogout}
-                        className="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-sm rounded hover:bg-slate-200 transition-colors"
-                      >
-                        Log Out
-                      </button>
-                    </div>
-                  </header>
-                  <div className="flex-1 overflow-y-auto">
-                    <DailyPlan userType="STUDENT" userId={userInfo?.student_profile_id || userInfo?.id} />
-                  </div>
-                </div>
-              } />
             ) : (
               <>
                 <Route path="/" element={<Navigate to={`${basePath}/dashboard`} replace />} />
                 <Route path={basePath} element={<Navigate to={`${basePath}/dashboard`} replace />} />
                 
-                <Route path={`${basePath}/dashboard`} element={userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />} />
+                <Route path={`${basePath}/dashboard`} element={userRole === 'STUDENT' ? <StudentDashboard userInfo={userInfo} /> : (userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />)} />
                 <Route path={`${basePath}/daily-plan`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
+                <Route path={`${basePath}/schedule`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/attendance`} element={userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />} />
                 <Route path={`${basePath}/leave`} element={(userRole === 'ADMIN' || isHR) ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />)} />
                 <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
@@ -277,7 +260,7 @@ function App() {
             )}
           </Routes>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

@@ -55,7 +55,11 @@ export default function Login({ onLogin }) {
           return;
         }
         if (role === 'Employee' && userInfoToSave.role !== 'EMPLOYEE') {
-          setError('Invalid login panel. Please use the Employee panel.');
+          if (userInfoToSave.role === 'STUDENT') {
+            setError('Access Denied. Please use the Student Portal at /student-login.');
+          } else {
+            setError('Invalid login panel. Please use the Employee panel.');
+          }
           setLoading(false);
           return;
         }
