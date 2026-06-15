@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, BookOpen, Calendar, 
   CreditCard, Wallet, MessageSquare, Handshake, Trophy, 
   GraduationCap, FileText, Globe, Settings, HelpCircle, Menu, LogOut,
-  CheckSquare, ClipboardList
+  CheckSquare, ClipboardList, Bot
 } from 'lucide-react';
 
 const navItems = [
@@ -23,7 +23,7 @@ const navItems = [
   // { id: 'recruitment', label: 'Recruitment', icon: Users },
   // { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
   // { id: 'journey', label: 'Academic Journey', icon: GraduationCap },
-  // { id: 'blog', label: 'Blog Automation', icon: FileText },
+  { id: 'blog-agent', label: 'Blog Agent', icon: Bot },
   // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
@@ -49,7 +49,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
       hiddenItems.push('whatsapp-automation');
     }
     if (!isMarketing) {
-      hiddenItems.push('seo', 'blog');
+      hiddenItems.push('seo', 'blog-agent');
     }
     
     visibleNavItems = navItems.filter(item => !hiddenItems.includes(item.id));
