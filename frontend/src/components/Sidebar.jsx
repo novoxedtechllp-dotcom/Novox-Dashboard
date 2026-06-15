@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Briefcase, BookOpen, Calendar, 
   CreditCard, Wallet, MessageSquare, Handshake, Trophy, 
-  GraduationCap, FileText, Globe, Settings, HelpCircle 
+  GraduationCap, FileText, Globe, Settings, HelpCircle, Image
 } from 'lucide-react';
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { id: 'students', label: 'Students', icon: Users },
   { id: 'employees', label: 'Employees', icon: Briefcase },
   { id: 'courses', label: 'Courses', icon: BookOpen },
+  { id: 'gallery', label: 'Gallery', icon: Image },
   { id: 'attendance', label: 'Attendance', icon: Calendar },
   { id: 'fees', label: 'Fees', icon: CreditCard },
   { id: 'payroll', label: 'Payroll', icon: Wallet },
@@ -49,7 +50,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
       hiddenItems.push('whatsapp-automation');
     }
     if (!isMarketing) {
-      hiddenItems.push('seo', 'blog');
+      hiddenItems.push('seo', 'blog', 'gallery');
     }
     
     visibleNavItems = navItems.filter(item => !hiddenItems.includes(item.id));

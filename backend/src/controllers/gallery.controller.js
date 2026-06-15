@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import * as galleryService from "../services/gallery.service.js";
 import { uploadImageToCloudinary, deleteImageFromCloudinary } from "../services/cloudinary.service.js";
+import { cloudinary } from "../config/cloudinary.js";
 import { hashImageBuffer } from "../utils/hashImage.js";
 
 // -- Categories --
@@ -30,6 +31,15 @@ export const getGalleryImages = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, data, "Gallery images fetched successfully"));
 });
 
+export const getCloudinaryUsage = asyncHandler(async (req, res) => {
+  try {
+    const result = await cloudinary.api.usage();
+    return res.status(200).json(new ApiResponse(200, result, "Storage usage fetched successfully"));
+  } catch (error) {
+    throw new ApiError(500, "Failed to fetch Cloudinary usage");
+  }
+});
+
 export const uploadGalleryImage = asyncHandler(async (req, res) => {
   if (!req.file) {
     throw new ApiError(400, "Please upload an image file");
@@ -40,9 +50,31 @@ export const uploadGalleryImage = asyncHandler(async (req, res) => {
   const imageHash = hashImageBuffer(req.file.buffer);
 
   // Check for duplicate hash
-  const isDuplicate = await galleryService.checkImageDuplicateService(imageHash);
-  if (isDuplicate) {
-    throw new ApiError(409, "Duplicate image detected. This image has already been uploaded.");
+  const existingImage = await galleryService.checkImageDuplicateService(imageHash);
+  if (existingImage) {
+    if (!existingImage.is_deleted) {
+      throw new ApiError(409, "Duplicate image detected. This image has already been uploaded.");
+    }
+    // If it's soft-deleted, we restore it instead of inserting a new row (which violates UNIQUE constraint)
+    const cloudinaryMedia = await uploadImageToCloudinary(req.file.buffer, req.file.originalname);
+    
+    let parsedTags = [];
+    if (tags) {
+      try { parsedTags = JSON.parse(tags); } 
+      catch (e) { if (typeof tags === 'string') parsedTags = tags.split(',').map(tag => tag.trim()); }
+    }
+
+    const restoredImage = await galleryService.updateGalleryImageMetadataService(existingImage.id, {
+      title,
+      description,
+      cloudinary_url: cloudinaryMedia.secure_url,
+      cloudinary_public_id: cloudinaryMedia.public_id,
+      category_id: category_id || null,
+      tags: parsedTags,
+      is_deleted: false,
+      uploaded_by: req.user?.id || null,
+    });
+    return res.status(201).json(new ApiResponse(201, restoredImage, "Image restored successfully"));
   }
 
   // Upload to Cloudinary

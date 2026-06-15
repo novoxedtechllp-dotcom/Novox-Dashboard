@@ -6,7 +6,9 @@ export const uploadImageToCloudinary = async (fileBuffer, originalName) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: "novox_gallery",
-        public_id: originalName ? originalName.split('.')[0] : undefined,
+        public_id: originalName 
+          ? `${originalName.substring(0, originalName.lastIndexOf('.') !== -1 ? originalName.lastIndexOf('.') : originalName.length)}_${Date.now()}`
+          : undefined,
       },
       (error, result) => {
         if (error) {

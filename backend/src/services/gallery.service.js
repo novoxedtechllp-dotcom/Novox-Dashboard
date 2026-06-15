@@ -75,14 +75,13 @@ export const getGalleryImageByIdService = async (id) => {
 export const checkImageDuplicateService = async (imageHash) => {
   const { data, error } = await supabase
     .from("gallery_images")
-    .select("id")
-    .eq("image_hash", imageHash)
-    .eq("is_deleted", false);
+    .select("id, is_deleted")
+    .eq("image_hash", imageHash);
 
   if (error) {
     throw new Error(error.message || "Failed to check image duplicate");
   }
-  return data && data.length > 0;
+  return data && data.length > 0 ? data[0] : null;
 };
 
 export const addGalleryImageService = async (imageData) => {

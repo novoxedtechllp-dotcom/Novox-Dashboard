@@ -6,7 +6,8 @@ import {
   deleteGalleryImage,
   bulkDeleteGalleryImages,
   createCategory,
-  getCategories
+  getCategories,
+  getCloudinaryUsage
 } from "../controllers/gallery.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -19,6 +20,7 @@ const router = Router();
 // Public routes for fetching
 router.route("/").get(getGalleryImages);
 router.route("/categories").get(getCategories);
+router.route("/storage-usage").get(getCloudinaryUsage);
 
 // Protect all management operations (Admin only)
 router.use(verifyJWT);

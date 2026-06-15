@@ -19,6 +19,7 @@ import RecruitmentContent from './components/RecruitmentContent';
 import BlogDashboardContent from './components/BlogDashboardContent';
 import SettingsContent from './components/SettingsContent';
 import SupportContent from './components/SupportContent';
+import GalleryContent from './components/GalleryContent';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Fab from './components/Fab';
@@ -229,6 +230,7 @@ function App() {
   const canViewFees = userRole === 'ADMIN' || isHR || isSales;
   const canViewCourses = userRole === 'ADMIN' || isHR || isDesign || isDevelopment;
   const canViewJourney = userRole === 'ADMIN' || isDevelopment || isDesign || isHR || isSales; // General
+  const canViewGallery = userRole === 'ADMIN' || isMarketing;
 
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
@@ -267,6 +269,7 @@ function App() {
             {canViewJourney && <Route path={`${basePath}/journey`} element={<AcademicJourneyContent />} />}
             {canViewSeo && <Route path={`${basePath}/seo`} element={<SeoAgentContent />} />}
             {canViewBlog && <Route path={`${basePath}/blog`} element={<BlogDashboardContent />} />}
+            {canViewGallery && <Route path={`${basePath}/gallery`} element={<GalleryContent />} />}
             
             <Route path="*" element={<Navigate to={`${basePath}/dashboard`} replace />} />
           </Routes>
