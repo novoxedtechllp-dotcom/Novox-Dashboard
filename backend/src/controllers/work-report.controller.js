@@ -42,7 +42,7 @@ export const getReports = asyncHandler(async (req, res) => {
   const { projectId, employeeId, status, from, to } = req.query;
 
   let query = supabase.from("work_reports").select(`
-    id, report_type, work_done, blockers, submitted_at, approval_status,
+    id, report_type, work_done, blockers, submitted_at,
     projects(id, name),
     employee:employee_profiles!employee_id(id, first_name, last_name, employee_code),
     reviewer:employee_profiles!reviewed_by(id, first_name, last_name)
@@ -58,13 +58,6 @@ export const getReports = asyncHandler(async (req, res) => {
   }
 
   if (projectId) query = query.eq("project_id", projectId);
-  if (status) {
-    const validStatuses = ["PENDING", "APPROVED", "REJECTED"];
-    if (!validStatuses.includes(status.toUpperCase())) {
-      throw new ApiError(400, "status filter must be PENDING, APPROVED, or REJECTED");
-    }
-    query = query.eq("approval_status", status.toUpperCase());
-  }
   if (from) query = query.gte("submitted_at", from);
   if (to) query = query.lte("submitted_at", to);
 
@@ -80,7 +73,7 @@ export const getReportById = asyncHandler(async (req, res) => {
   const { reportId } = req.params;
 
   const { data, error } = await supabase.from("work_reports").select(`
-    id, report_type, work_done, blockers, submitted_at, approval_status,
+    id, report_type, work_done, blockers, submitted_at,
     projects(id, name, description),
     employee:employee_profiles!employee_id(id, first_name, last_name, employee_code, designation),
     reviewer:employee_profiles!reviewed_by(id, first_name, last_name)
@@ -98,48 +91,4 @@ export const getReportById = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, data, "Work report fetched successfully"));
 });
 
-// @desc    Approve a work report
-// @route   PATCH /api/v1/work-reports/:reportId/approve
-export const approveReport = asyncHandler(async (req, res) => {
-  const { reportId } = req.params;
 
-  const { data: existing } = await supabase.from("work_reports").select("approval_status").eq("id", reportId).single();
-  if (!existing) throw new ApiError(404, "Report not found");
-  if (existing.approval_status === "APPROVED") throw new ApiError(409, "Report is already approved");
-
-  const reviewer_id = await getEmployeeId(req.user.id);
-
-  const { data, error } = await supabase
-    .from("work_reports")
-    .update({ approval_status: "APPROVED", reviewed_by: reviewer_id })
-    .eq("id", reportId)
-    .select();
-
-  if (error) throw new ApiError(500, error.message || "Failed to approve report");
-  if (!data || data.length === 0) throw new ApiError(404, "Report not found");
-
-  return res.status(200).json(new ApiResponse(200, data[0], "Work report approved successfully"));
-});
-
-// @desc    Reject a work report
-// @route   PATCH /api/v1/work-reports/:reportId/reject
-export const rejectReport = asyncHandler(async (req, res) => {
-  const { reportId } = req.params;
-
-  const { data: existing } = await supabase.from("work_reports").select("approval_status").eq("id", reportId).single();
-  if (!existing) throw new ApiError(404, "Report not found");
-  if (existing.approval_status === "REJECTED") throw new ApiError(409, "Report is already rejected");
-
-  const reviewer_id = await getEmployeeId(req.user.id);
-
-  const { data, error } = await supabase
-    .from("work_reports")
-    .update({ approval_status: "REJECTED", reviewed_by: reviewer_id })
-    .eq("id", reportId)
-    .select();
-
-  if (error) throw new ApiError(500, error.message || "Failed to reject report");
-  if (!data || data.length === 0) throw new ApiError(404, "Report not found");
-
-  return res.status(200).json(new ApiResponse(200, data[0], "Work report rejected successfully"));
-});

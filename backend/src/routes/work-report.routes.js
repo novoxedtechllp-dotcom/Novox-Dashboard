@@ -2,9 +2,7 @@ import { Router } from "express";
 import {
   submitReport,
   getReports,
-  getReportById,
-  approveReport,
-  rejectReport
+  getReportById
 } from "../controllers/work-report.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -23,11 +21,5 @@ router.route("/")
 
 router.route("/:reportId")
   .get(readWriteAuth, getReportById);
-
-// Only Admins and HR can approve/reject reports
-const adminHrAuth = authorize({ roles: [ROLES.ADMIN], employeeRoles: [EMPLOYEE_ROLES.HR] });
-
-router.route("/:reportId/approve").patch(adminHrAuth, approveReport);
-router.route("/:reportId/reject").patch(adminHrAuth, rejectReport);
 
 export default router;

@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, BookOpen, Calendar, 
   CreditCard, Wallet, MessageSquare, Handshake, Trophy, 
   GraduationCap, FileText, Globe, Settings, HelpCircle, Menu, LogOut,
-  CheckSquare, ClipboardList, Bot
+  CheckSquare, ClipboardList, Bot, Image, User
 } from 'lucide-react';
 
 const navItems = [
@@ -13,8 +13,9 @@ const navItems = [
   { id: 'students', label: 'Students', icon: Users },
   { id: 'employees', label: 'Employees', icon: Briefcase },
   { id: 'courses', label: 'Courses', icon: BookOpen },
+  { id: 'gallery', label: 'Gallery', icon: Image },
   { id: 'attendance', label: 'Attendance', icon: Calendar },
-  { id: 'leave', label: 'Leave Requests', icon: FileText },
+  { id: 'leave', label: 'Leave Management', icon: FileText },
   { id: 'fees', label: 'Fees', icon: CreditCard },
   // { id: 'payroll', label: 'Payroll', icon: Wallet },
   // { id: 'work-reports', label: 'Work Reports', icon: FileText },
@@ -32,7 +33,16 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   
   let visibleNavItems = navItems;
-  if (userRole !== 'ADMIN') {
+  if (userRole === 'STUDENT') {
+    visibleNavItems = [
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'schedule', label: 'Schedule', icon: Calendar },
+      { id: 'attendance', label: 'Attendance', icon: Calendar },
+      { id: 'leave', label: 'Leave Requests', icon: FileText },
+      { id: 'tasks', label: 'Tasks', icon: ClipboardList },
+      { id: 'profile', label: 'Profile', icon: User }
+    ];
+  } else if (userRole !== 'ADMIN') {
     const hiddenItems = [];
     
     // Evaluate hidden items based on role
@@ -49,10 +59,28 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
       hiddenItems.push('whatsapp-automation');
     }
     if (!isMarketing) {
-      hiddenItems.push('seo', 'blog-agent');
+      hiddenItems.push('seo', 'blog-agent', 'gallery');
     }
     
-    visibleNavItems = navItems.filter(item => !hiddenItems.includes(item.id));
+    if (userRole === 'STUDENT') {
+      hiddenItems.push('courses', 'students');
+    }
+    
+    visibleNavItems = navItems.filter(item => !hiddenItems.includes(item.id))
+      .map(item => {
+        if (item.id === 'leave') {
+          return { ...item, label: userRole === 'STUDENT' ? 'Leave Requests' : 'Leave Management' };
+        }
+        return item;
+      });
+  } else {
+    // Admin role
+    visibleNavItems = navItems.map(item => {
+        if (item.id === 'leave') {
+          return { ...item, label: 'Leave Management' };
+        }
+        return item;
+    });
   }
 
   return (
@@ -104,7 +132,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
                   onClick={() => window.innerWidth < 1024 && setIsOpen && setIsOpen(false)}
                   className={`group flex items-center gap-[14px] px-[14px] py-[10px] rounded-xl transition-all duration-300 text-left w-full shrink-0 relative overflow-hidden
                     ${isActive 
-                      ? 'bg-blue-50/80 text-[#003F87] font-bold shadow-sm border border-blue-100/50' 
+                      ? 'bg-blue-100/80 text-[#003F87] font-bold shadow-sm' 
                       : 'text-slate-500 font-medium hover:bg-slate-50 hover:text-slate-800'
                     }`}
                 >
