@@ -281,7 +281,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
     return filtered;
   }, [employees, deptFilter, statusFilter, searchQuery]);
 
-  const uniqueDepts = ['All Departments', 'Development', 'Marketing', 'Sales', 'HR'];
+  const uniqueDepts = ['All Departments', 'Development', 'Marketing', 'Sales', 'HR', 'Accounts'];
 
   return (
     <div className="p-6 md:p-8 flex flex-col gap-8 w-full relative bg-[#FAFBFC] min-h-full">

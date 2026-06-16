@@ -65,7 +65,7 @@ CREATE TABLE employee_roles (
     role_name VARCHAR(50) UNIQUE NOT NULL
 );
 -- Optional defaults for roles:
-INSERT INTO employee_roles (role_name) VALUES ('SALES'), ('MARKETING'), ('DEVELOPMENT'), ('DESIGN'), ('HR');
+INSERT INTO employee_roles (role_name) VALUES ('SALES'), ('MARKETING'), ('DEVELOPMENT'), ('DESIGN'), ('HR'), ('ACCOUNTS');
 
 CREATE TABLE employee_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

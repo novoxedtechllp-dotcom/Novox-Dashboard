@@ -176,20 +176,21 @@ function App() {
   const isDevelopment = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'DEVELOPMENT';
   const isSales = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'SALES';
   const isMarketing = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'MARKETING';
+  const isAccounts = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'ACCOUNTS';
 
   const basePath = userRole === 'STUDENT' ? '/student' :
-                   isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : '/admin';
+                   isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : isAccounts ? '/accounts' : '/admin';
 
   const canViewEmployees = userRole === 'ADMIN' || isHR;
-  const canViewPayroll = userRole === 'ADMIN' || isHR;
+  const canViewPayroll = userRole === 'ADMIN' || isHR || isAccounts;
   const canViewRecruitment = userRole === 'ADMIN' || isHR;
   const canViewSalesCrm = userRole === 'ADMIN' || isSales;
   const canViewWhatsapp = userRole === 'ADMIN' || isSales || isMarketing;
   const canViewBlog = userRole === 'ADMIN' || isMarketing;
   const canViewSeo = userRole === 'ADMIN' || isMarketing;
-  const canViewFees = userRole === 'ADMIN' || isHR || isSales;
+  const canViewFees = userRole === 'ADMIN' || isHR || isSales || isAccounts;
   const canViewCourses = userRole === 'ADMIN' || userRole === 'EMPLOYEE';
-  const canViewJourney = userRole === 'ADMIN' || isDevelopment || isDesign || isHR || isSales; // General
+  const canViewJourney = userRole === 'ADMIN' || isDevelopment || isDesign || isHR || isSales || isAccounts; // General
   const canViewGallery = userRole === 'ADMIN' || isMarketing;
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -209,6 +210,7 @@ function App() {
           isDevelopment={isDevelopment} 
           isSales={isSales}
           isMarketing={isMarketing}
+          isAccounts={isAccounts}
           basePath={basePath}
           isOpen={isSidebarOpen}
           setIsOpen={setIsSidebarOpen}

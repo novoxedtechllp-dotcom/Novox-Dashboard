@@ -28,7 +28,7 @@ const navItems = [
   // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
-const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
+const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, isAccounts, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   
@@ -47,12 +47,15 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
     
     // Evaluate hidden items based on role
     if (!isHR) {
-      hiddenItems.push('employees', 'payroll', 'recruitment');
+      hiddenItems.push('employees', 'recruitment');
+    }
+    if (!(isHR || isAccounts)) {
+      hiddenItems.push('payroll');
     }
     if (!isSales) {
       hiddenItems.push('sales-crm');
     }
-    if (!(isHR || isSales)) {
+    if (!(isHR || isSales || isAccounts)) {
       hiddenItems.push('fees');
     }
     if (!(isSales || isMarketing)) {
