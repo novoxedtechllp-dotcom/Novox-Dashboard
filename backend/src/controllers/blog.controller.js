@@ -11,6 +11,8 @@ const proxyRequest = async (req, res, targetPath) => {
 
     const headers = {
       'Content-Type': 'application/json',
+      ...(req.headers['authorization'] && { 'authorization': req.headers['authorization'] }),
+      ...(req.headers['x-passcode'] && { 'x-passcode': req.headers['x-passcode'] }),
       ...(req.headers['x-site-id'] && { 'x-site-id': req.headers['x-site-id'] }),
       // Also check query for siteId as some endpoints accept it
       ...(req.query.siteId && { 'x-site-id': req.query.siteId }) 

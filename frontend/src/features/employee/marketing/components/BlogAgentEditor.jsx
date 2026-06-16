@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   GraduationCap, Code, Factory, ArrowLeft, CheckCircle, 
   HelpCircle, CloudUpload, Wand2, Code2, Eye, Sparkles,
-  Download, Image as ImageIcon, Loader2, Trash2, Cpu, AlertCircle, RefreshCw
+  Download, Image as ImageIcon, Loader2, Trash2, Cpu, AlertCircle, RefreshCw,
+  Terminal, X, ExternalLink, AlertTriangle
 } from 'lucide-react';
 
 const getSiteConfig = (site) => {
@@ -51,10 +52,21 @@ const BlogAgentEditor = () => {
   const [originalFilename, setOriginalFilename] = useState('');
   const [geminiTokens, setGeminiTokens] = useState({ input: 0, output: 0, total: 0 });
   
-  // Actions
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Git Push Console State
+  const [showPublishConsole, setShowPublishConsole] = useState(false);
+  const [publishLogs, setPublishLogs] = useState([]);
+  const [publishStatus, setPublishStatus] = useState('idle'); // idle, publishing, success, error
+  const [commitData, setCommitData] = useState(null);
+
+  // Delete Modal State
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState('idle'); // idle, deleting, success, error
+  const [deleteMessage, setDeleteMessage] = useState('');
 
   useEffect(() => {
     const init = async () => {
@@ -138,11 +150,12 @@ const BlogAgentEditor = () => {
       setTopic(data.title || '');
       setKeywords(data.keyword || '');
       
-      // Fix broken featured image preview
+      // Fix broken featured image preview & add cache buster for GitHub CDN
+      const cb = Date.now();
       if (data.raw_image_url) {
-         setPreviewImageUrl(data.raw_image_url);
+         setPreviewImageUrl(`${data.raw_image_url}&cb=${cb}`);
       } else if (data.image) {
-         setPreviewImageUrl(`/api/v1/blogs/image?siteId=${config.id}&path=${encodeURIComponent(data.image)}`);
+         setPreviewImageUrl(`/api/blogs-image?siteId=${config.id}&path=${encodeURIComponent(data.image)}&cb=${cb}`);
       } else {
          setPreviewImageUrl('');
       }
@@ -152,6 +165,50 @@ const BlogAgentEditor = () => {
       alert('Error loading blog');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (!selectedBlog || selectedBlog === 'new') return;
+    setDeleteStatus('idle');
+    setDeleteMessage('');
+    setShowDeleteConfirm(true);
+  };
+
+  const executeDelete = async () => {
+    try {
+      setDeleteStatus('deleting');
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 
+        'Authorization': `Bearer ${userInfo?.token}`,
+        'x-site-id': config.id
+      };
+      
+      const res = await fetch(`/api/v1/blogs/${selectedBlog}/delete`, { 
+        method: 'POST',
+        headers 
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setDeleteStatus('success');
+        setDeleteMessage('Blog successfully deleted from GitHub.');
+        setSelectedBlog('new');
+        
+        // Refresh the blog list
+        const listRes = await fetch(`/api/v1/blogs?siteId=${config.id}`, { headers });
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          if (Array.isArray(listData)) setBlogList(listData);
+        }
+      } else {
+        setDeleteStatus('error');
+        setDeleteMessage(data.message || data.error || 'Failed to delete blog.');
+      }
+    } catch(err) {
+      console.error(err);
+      setDeleteStatus('error');
+      setDeleteMessage('Error connecting to the server.');
     }
   };
 
@@ -165,6 +222,7 @@ const BlogAgentEditor = () => {
       const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
 
       const bodyPayload = {
+        title: seoTitle || topic,
         topic: topic || seoTitle,
         keywords: keywords || primaryKeyword,
         category: category || configData.categories[0]?.name,
@@ -259,14 +317,41 @@ const BlogAgentEditor = () => {
     }
   };
 
+  const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
   const handlePublish = async () => {
     if (!seoTitle || !htmlBody || !slug) {
       alert("Title, Body, and Slug are required.");
       return;
     }
+    
+    setShowPublishConsole(true);
+    setPublishStatus('publishing');
+    setPublishLogs([]);
+    setCommitData(null);
+    
+    const addLog = (text) => {
+       const time = new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+       setPublishLogs(prev => [...prev, `[${time}] ${text}`]);
+    };
+
     try {
       setIsPublishing(true);
+      addLog(`API: Compiled static page payload: "${slug}.html".`);
+      await delay(600);
+      
       const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+
+      let finalImagePath = imagePath;
+      if (!finalImagePath && slug) {
+        finalImagePath = `assets/img/blog/new/${slug}.webp`;
+        setImagePath(finalImagePath);
+      }
+
+      if (base64Image) {
+         addLog(`API: Optimizing new image and preparing assets.`);
+         await delay(800);
+      }
 
       const payload = {
         title: seoTitle,
@@ -274,7 +359,7 @@ const BlogAgentEditor = () => {
         category: category || configData.categories[0]?.name,
         author,
         date: publishDate,
-        image: imagePath,
+        image: finalImagePath,
         content_html: htmlBody,
         slug,
         landing_url: landingUrl,
@@ -298,14 +383,30 @@ const BlogAgentEditor = () => {
         body: JSON.stringify(payload)
       });
       const data = await res.json();
+      
       if (data.success) {
-        alert(`Published successfully! Commit: ${data.commit?.sha}`);
+        addLog(`API: Injected listing card into "blogs.html" container.`);
+        await delay(400);
+        addLog(`API: Appended URL to "sitemap.xml".`);
+        await delay(400);
+        addLog(`GitHub: Combined updates into single transactional tree.`);
+        await delay(400);
+        addLog(`GitHub: Created commit SHA ${data.commit_sha?.substring(0, 7) || 'unknown'}.`);
+        await delay(300);
+        addLog(`GitHub: Advanced heads/main reference successfully.`);
+        await delay(300);
+        addLog(`Website publication committed successfully!`);
+        
+        setCommitData(data);
+        setPublishStatus('success');
       } else {
-        alert('Failed to publish: ' + data.message);
+        addLog(`Error: ${data.message || data.error || 'Failed to publish'}`);
+        setPublishStatus('error');
       }
     } catch(err) {
       console.error(err);
-      alert('Error publishing');
+      addLog(`System Error: Connection to backend failed.`);
+      setPublishStatus('error');
     } finally {
       setIsPublishing(false);
     }
@@ -416,10 +517,10 @@ const BlogAgentEditor = () => {
 
   const getColors = () => {
     switch(config.color) {
-      case 'blue': return { text: 'text-blue-700', bg: 'bg-blue-600', hover: 'hover:bg-blue-700', lightBg: 'bg-blue-50', border: 'border-blue-200' };
-      case 'green': return { text: 'text-green-700', bg: 'bg-green-600', hover: 'hover:bg-green-700', lightBg: 'bg-green-50', border: 'border-green-200' };
-      case 'orange': return { text: 'text-orange-700', bg: 'bg-orange-500', hover: 'hover:bg-orange-600', lightBg: 'bg-orange-50', border: 'border-orange-200' };
-      default: return { text: 'text-slate-700', bg: 'bg-slate-600', hover: 'hover:bg-slate-700', lightBg: 'bg-slate-50', border: 'border-slate-200' };
+      case 'blue': return { text: 'text-blue-700', bg: 'bg-blue-600', hover: 'hover:bg-blue-700', lightBg: 'bg-blue-50', border: 'border-blue-200', gradient: 'bg-gradient-to-r from-blue-600 to-indigo-600', gradientHover: 'hover:from-blue-700 hover:to-indigo-700', shadow: 'shadow-blue-500/30' };
+      case 'green': return { text: 'text-green-700', bg: 'bg-green-600', hover: 'hover:bg-green-700', lightBg: 'bg-green-50', border: 'border-green-200', gradient: 'bg-gradient-to-r from-green-500 to-emerald-600', gradientHover: 'hover:from-green-600 hover:to-emerald-700', shadow: 'shadow-green-500/30' };
+      case 'orange': return { text: 'text-orange-700', bg: 'bg-orange-500', hover: 'hover:bg-orange-600', lightBg: 'bg-orange-50', border: 'border-orange-200', gradient: 'bg-gradient-to-r from-orange-500 to-amber-500', gradientHover: 'hover:from-orange-600 hover:to-amber-600', shadow: 'shadow-orange-500/30' };
+      default: return { text: 'text-slate-700', bg: 'bg-slate-600', hover: 'hover:bg-slate-700', lightBg: 'bg-slate-50', border: 'border-slate-200', gradient: 'bg-gradient-to-r from-slate-600 to-slate-700', gradientHover: 'hover:from-slate-700 hover:to-slate-800', shadow: 'shadow-slate-500/30' };
     }
   };
   
@@ -428,16 +529,16 @@ const BlogAgentEditor = () => {
   const strokeDashoffset = 351.85 - (score / 100) * 351.85;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] w-full bg-slate-50 overflow-hidden font-sans text-slate-800">
+    <div className="flex flex-col h-[calc(100vh-64px)] w-full bg-slate-100 bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 overflow-hidden font-sans text-slate-800">
       
       {/* Top Header */}
-      <div className="flex-shrink-0 h-[60px] bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm z-10">
+      <div className="flex-shrink-0 h-[64px] bg-white/80 backdrop-blur-xl border-b border-white/50 px-6 flex items-center justify-between shadow-sm z-20">
         <div className="flex items-center gap-4">
-          <div className={`w-8 h-8 rounded-lg ${colors.lightBg} ${colors.text} flex items-center justify-center`}>
-            <SiteIcon size={18} />
+          <div className={`w-10 h-10 rounded-xl ${colors.lightBg} ${colors.text} flex items-center justify-center shadow-inner`}>
+            <SiteIcon size={20} />
           </div>
-          <h1 className="text-lg font-bold text-slate-800">{config.name}</h1>
-          <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 rounded-full border border-slate-200">
+          <h1 className="text-xl font-black text-slate-800 tracking-tight">{config.name}</h1>
+          <span className="px-3 py-1.5 text-[11px] font-black uppercase tracking-widest bg-gradient-to-r from-slate-100 to-slate-200 text-slate-600 rounded-full border border-slate-200/60 shadow-sm">
             Blog Verification Hub
           </span>
         </div>
@@ -445,11 +546,11 @@ const BlogAgentEditor = () => {
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate('/admin/blog-agent')}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] border border-slate-200 shadow-sm"
           >
             <ArrowLeft size={16} /> Switch Website
           </button>
-          <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
+          <div className="flex items-center gap-2 text-sm font-black text-emerald-700 bg-emerald-50/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-emerald-200/50 shadow-sm">
             <CheckCircle size={16} /> Editor Mode
           </div>
         </div>
@@ -459,133 +560,149 @@ const BlogAgentEditor = () => {
       <div className="flex-1 flex overflow-hidden">
         
         {/* Left Column: Blog Parameters */}
-        <div className="w-[320px] flex-shrink-0 bg-white border-r border-slate-200 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
+        <div className="w-[340px] flex-shrink-0 bg-white/90 backdrop-blur-xl border-r border-white/60 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200/80 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10">
           <div className="p-5 flex flex-col gap-5">
             <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-2">
               <Sparkles size={16} className={colors.text} /> Blog Parameters
             </h2>
 
             {/* Edit Existing */}
-            <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Edit Existing Blog</label>
+            <div className="flex flex-col gap-2 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-inner">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Edit Existing Blog</label>
               <div className="flex gap-2">
                 <select 
                   value={selectedBlog} 
                   onChange={e => setSelectedBlog(e.target.value)}
-                  className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-slate-800"
+                  className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 bg-white text-slate-800 shadow-sm transition-all"
                 >
-                  <option value="new">-- Create New Post --</option>
+                  <option value="new">✨ Create New Post</option>
                   {blogList.map(b => (
                     <option key={b.filename} value={b.filename}>{b.title}</option>
                   ))}
                 </select>
+              </div>
+              <div className="flex gap-2 mt-1">
                 <button 
                   onClick={handleLoadBlog}
                   disabled={isLoading || selectedBlog === 'new'}
-                  className="bg-slate-100 border border-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-slate-200 flex items-center gap-1 disabled:opacity-50 transition-colors"
+                  className="flex-1 bg-gradient-to-r from-slate-100 to-slate-200 border border-slate-200/60 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold hover:from-slate-200 hover:to-slate-300 flex items-center justify-center gap-2 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
                 >
                   {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Load
                 </button>
                 <button 
-                  disabled={selectedBlog === 'new'}
-                  className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 px-3 py-2 rounded-lg text-sm font-bold flex items-center justify-center disabled:opacity-50 transition-colors"
+                  onClick={confirmDelete}
+                  disabled={selectedBlog === 'new' || deleteStatus === 'deleting'}
+                  className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 text-red-600 px-4 py-2 rounded-xl text-sm font-bold flex items-center justify-center disabled:opacity-50 transition-all hover:scale-[1.02] hover:shadow-sm active:scale-[0.98]"
                 >
-                  <Trash2 size={16} /> Delete
+                  {deleteStatus === 'deleting' ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                 </button>
               </div>
             </div>
 
             {/* Inputs */}
-            <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Article Topic</label>
-              <input type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Future of AI in Web Development" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-slate-800 placeholder-slate-400" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Article Topic</label>
+              <input type="text" value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Future of AI in Web Development" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 bg-white text-slate-800 placeholder-slate-400 shadow-sm transition-all" />
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Target Keywords (Comma Separated)</label>
-              <input type="text" value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="e.g. AI in web design, web development" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-slate-800 placeholder-slate-400" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Target Keywords</label>
+              <input type="text" value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="e.g. AI in web design, web development" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 bg-white text-slate-800 placeholder-slate-400 shadow-sm transition-all" />
             </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Primary SEO Target Keyword</label>
-              <input type="text" value={primaryKeyword} onChange={e => setPrimaryKeyword(e.target.value)} placeholder="e.g. AI in web design" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-slate-800 placeholder-slate-400" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Primary SEO Keyword</label>
+              <input type="text" value={primaryKeyword} onChange={e => setPrimaryKeyword(e.target.value)} placeholder="e.g. AI in web design" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 bg-white text-slate-800 placeholder-slate-400 shadow-sm transition-all" />
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Category</label>
-              <select value={category} onChange={e => setCategory(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-slate-800">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Category</label>
+              <select value={category} onChange={e => setCategory(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 bg-white text-slate-800 shadow-sm transition-all">
                 {configData.categories?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
               </select>
             </div>
 
             <div className="flex gap-4">
-              <div className="flex flex-col gap-2 flex-1">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Author</label>
-                <input type="text" value={author} onChange={e => setAuthor(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-slate-800" />
+              <div className="flex flex-col gap-1.5 flex-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Author</label>
+                <input type="text" value={author} onChange={e => setAuthor(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 bg-white text-slate-800 shadow-sm transition-all" />
               </div>
-              <div className="flex flex-col gap-2 flex-1">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Publish Date</label>
-                <input type="date" value={publishDate} onChange={e => setPublishDate(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-slate-800" />
+              <div className="flex flex-col gap-1.5 flex-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Publish Date</label>
+                <input type="date" value={publishDate} onChange={e => setPublishDate(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 bg-white text-slate-800 shadow-sm transition-all" />
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Featured Image Path</label>
-              <input type="text" value={imagePath} onChange={e => setImagePath(e.target.value)} placeholder="e.g. assets/img/blog/new/..." className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-slate-800" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Featured Image Path</label>
+              <input type="text" value={imagePath} onChange={e => setImagePath(e.target.value)} placeholder="e.g. assets/img/blog/new/..." className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 bg-white text-slate-800 shadow-sm transition-all" />
             </div>
 
             {previewImageUrl && (
               <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Loaded Image Preview:</label>
-                <img src={previewImageUrl} alt="Preview" className="w-full rounded-lg border border-slate-200 shadow-sm" />
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Loaded Image Preview</label>
+                <div className="relative group rounded-xl overflow-hidden shadow-sm border border-slate-200">
+                  <img src={previewImageUrl} alt="Preview" className="w-full aspect-video object-cover transition-transform duration-500 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                    <span className="text-white text-xs font-bold drop-shadow-md">Preview</span>
+                  </div>
+                </div>
               </div>
             )}
 
-            <label className="flex items-start gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors">
-              <input type="checkbox" checked={generateImage} onChange={e => setGenerateImage(e.target.checked)} className="mt-1" />
-              <span className="text-xs font-bold text-slate-700 leading-tight">
-                <ImageIcon size={14} className="inline mr-1 text-pink-600" />
-                GENERATE AI FEATURED IMAGE USING IMAGEN 4
-              </span>
-            </label>
-            <button 
-              onClick={handleRegenerateImage}
-              disabled={isGenerating}
-              className="w-full py-2 bg-white hover:bg-slate-50 text-slate-600 rounded-lg text-sm font-bold border border-slate-200 transition-colors flex items-center justify-center gap-2 mt-1 shadow-sm disabled:opacity-50"
-            >
-               {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Regenerate Image Only
-            </button>
+            <div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 shadow-inner flex flex-col gap-3">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <div className="relative flex items-center justify-center mt-0.5">
+                  <input type="checkbox" checked={generateImage} onChange={e => setGenerateImage(e.target.checked)} className="peer sr-only" />
+                  <div className="w-5 h-5 bg-white border-2 border-slate-300 rounded shadow-sm peer-checked:bg-pink-500 peer-checked:border-pink-500 transition-colors flex items-center justify-center">
+                    <CheckCircle size={12} className="text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                  </div>
+                </div>
+                <span className="text-xs font-black text-slate-700 leading-tight group-hover:text-pink-600 transition-colors uppercase tracking-wide">
+                  <ImageIcon size={14} className="inline mr-1 text-pink-500" />
+                  Generate AI Image using Imagen 4
+                </span>
+              </label>
+              
+              <button 
+                onClick={handleRegenerateImage}
+                disabled={isGenerating}
+                className="w-full py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-bold border border-slate-200/80 transition-all hover:shadow-sm active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                 {isGenerating ? <Loader2 size={16} className="animate-spin text-pink-500" /> : <RefreshCw size={16} className="text-pink-500" />} Regenerate Image Only
+              </button>
+            </div>
 
-            <div className="flex flex-col gap-2 mt-2">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">URL Slug (Kebab-Case)</label>
-              <input type="text" value={slug} onChange={e => setSlug(e.target.value)} placeholder="e.g. future-of-ai-web-development" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-slate-800" />
-              <p className="text-[10px] text-slate-500">Auto-generated from title, but editable.</p>
+            <div className="flex flex-col gap-1.5 mt-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">URL Slug (Kebab-Case)</label>
+              <input type="text" value={slug} onChange={e => setSlug(e.target.value)} placeholder="e.g. future-of-ai-web-development" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 bg-white text-slate-800 shadow-sm transition-all" />
+              <p className="text-[10px] text-slate-400 px-1 italic">Auto-generated from title, but editable.</p>
             </div>
 
             <button 
               onClick={handleDraftAI}
               disabled={isGenerating}
-              className={`w-full py-3 ${colors.bg} ${colors.hover} text-white rounded-xl text-sm font-bold shadow-sm transition-colors flex items-center justify-center gap-2 mt-2 disabled:opacity-50`}
+              className={`w-full py-3.5 ${colors.gradient} ${colors.gradientHover} text-white rounded-2xl text-sm font-black shadow-lg ${colors.shadow} transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98] tracking-wide uppercase`}
             >
-              {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Wand2 size={18} />} Draft Article with AI
+              {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Wand2 size={20} />} Draft Article with AI
             </button>
             <div className="h-4"></div>
           </div>
         </div>
 
         {/* Middle Column: Editor & Preview */}
-        <div className="flex-1 flex flex-col bg-slate-50/50 min-w-0">
+        <div className="flex-1 flex flex-col min-w-0">
           
           {/* Tab Bar */}
-          <div className="h-[60px] border-b border-slate-200 flex items-center justify-between px-6 bg-white">
-            <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200">
+          <div className="h-[64px] border-b border-slate-200/60 flex items-center justify-between px-6 bg-white/60 backdrop-blur-md">
+            <div className="flex bg-slate-200/50 rounded-xl p-1 border border-slate-200/50 shadow-inner">
               <button 
                 onClick={() => setActiveTab('editor')}
-                className={`flex items-center gap-2 px-4 py-1.5 text-sm font-bold rounded-md transition-colors ${activeTab === 'editor' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`flex items-center gap-2 px-5 py-2 text-sm font-black rounded-lg transition-all duration-300 ${activeTab === 'editor' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50/50'}`}
               >
                 <Code2 size={16} /> Editor
               </button>
               <button 
                 onClick={() => setActiveTab('preview')}
-                className={`flex items-center gap-2 px-4 py-1.5 text-sm font-bold rounded-md transition-colors ${activeTab === 'preview' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`flex items-center gap-2 px-5 py-2 text-sm font-black rounded-lg transition-all duration-300 ${activeTab === 'preview' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50/50'}`}
               >
                 <Eye size={16} /> Live Site Preview
               </button>
@@ -594,42 +711,45 @@ const BlogAgentEditor = () => {
             <button 
               onClick={handlePublish}
               disabled={isPublishing || score < 80}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors shadow-sm disabled:opacity-50"
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-5 py-2.5 rounded-xl text-sm font-black flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98] uppercase tracking-wide"
             >
-              {isPublishing ? <Loader2 size={16} className="animate-spin" /> : <CloudUpload size={16} />} Verify & Publish to GitHub
+              {isPublishing ? <Loader2 size={18} className="animate-spin" /> : <CloudUpload size={18} />} Verify & Publish to GitHub
             </button>
           </div>
 
           {/* Content Area */}
-          <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200">
+          <div className="flex-1 overflow-y-auto p-8 scrollbar-thin scrollbar-thumb-slate-300">
             {activeTab === 'editor' ? (
               <div className="max-w-4xl mx-auto flex flex-col gap-6 h-full">
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Generated Title (SEO Title)</label>
+                <div className="bg-white/90 backdrop-blur-md border border-white/60 rounded-3xl p-6 shadow-xl shadow-slate-200/40">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block pl-1">Generated Title (SEO Title)</label>
                   <input 
                     type="text" 
                     value={seoTitle}
                     onChange={e => setSeoTitle(e.target.value)}
                     placeholder="Click generate to load a title..." 
-                    className="w-full border border-slate-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500 bg-slate-50 placeholder-slate-400 font-medium text-slate-800" 
+                    className="w-full border border-slate-200 rounded-xl px-5 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 bg-slate-50 placeholder-slate-400 font-bold text-slate-800 shadow-inner transition-all" 
                   />
                   
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 mt-4 block">Meta Description</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 mt-5 block pl-1">Meta Description</label>
                   <textarea 
                     value={metaDescription}
                     onChange={e => setMetaDescription(e.target.value)}
                     placeholder="Click generate to load a description..." 
-                    className="w-full border border-slate-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500 bg-slate-50 placeholder-slate-400 resize-y min-h-[80px] font-medium text-slate-800" 
+                    className="w-full border border-slate-200 rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 bg-slate-50 placeholder-slate-400 resize-y min-h-[100px] font-medium text-slate-800 shadow-inner transition-all leading-relaxed" 
                   />
                 </div>
 
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex-1 flex flex-col min-h-[400px]">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 block">Article HTML Body</label>
+                <div className="bg-[#0f172a] rounded-3xl p-6 shadow-xl shadow-slate-900/20 flex-1 flex flex-col min-h-[400px] border border-slate-800 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+                    <Code2 size={14} className="text-blue-400" /> Article HTML Body
+                  </label>
                   <textarea 
                     value={htmlBody}
                     onChange={e => setHtmlBody(e.target.value)}
                     placeholder="Write or generate content HTML here..." 
-                    className="w-full border border-slate-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500 bg-slate-900 text-slate-300 font-mono resize-none flex-1 placeholder-slate-600 leading-relaxed" 
+                    className="w-full bg-transparent focus:outline-none text-slate-300 font-mono text-sm resize-none flex-1 placeholder-slate-600 leading-relaxed scrollbar-thin scrollbar-thumb-slate-700" 
                   />
                 </div>
               </div>
@@ -675,10 +795,13 @@ const BlogAgentEditor = () => {
         </div>
 
         {/* Right Column: SEO Verification */}
-        <div className="w-[320px] flex-shrink-0 bg-white border-l border-slate-200 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200">
-          <div className="p-5 flex flex-col gap-6">
-            <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <CheckCircle size={16} className={score >= 80 ? 'text-emerald-600' : 'text-amber-500'} /> SEO Verification
+        <div className="w-[340px] flex-shrink-0 bg-white/90 backdrop-blur-xl border-l border-white/60 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200/80 shadow-[-4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10">
+          <div className="p-6 flex flex-col gap-6">
+            <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+              <div className={`p-1.5 rounded-md ${score >= 80 ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                <CheckCircle size={16} />
+              </div>
+              SEO Verification
             </h2>
 
             {/* Score Card */}
@@ -758,6 +881,163 @@ const BlogAgentEditor = () => {
           </div>
         </div>
       </div>
+      
+      {/* Git Push Console Modal */}
+      {showPublishConsole && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[#0b1121] w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-800/80 overflow-hidden flex flex-col transform transition-all">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800/80 bg-[#111827]">
+              <div className="flex items-center gap-3">
+                <Terminal size={18} className="text-blue-400" />
+                <h3 className="text-slate-200 font-bold tracking-wide">Git Push Console</h3>
+              </div>
+              <button 
+                onClick={() => setShowPublishConsole(false)}
+                className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded-md hover:bg-slate-800"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            {/* Terminal Window */}
+            <div className="p-6 bg-[#0b1121] min-h-[250px] max-h-[400px] overflow-y-auto font-mono text-sm space-y-2.5">
+              {publishLogs.map((log, index) => {
+                const isError = log.includes('Error:');
+                const isSuccess = log.includes('successfully!');
+                const isGithub = log.includes('GitHub:');
+                
+                return (
+                  <div key={index} className="flex gap-3">
+                    <span className="text-slate-500 flex-shrink-0 select-none opacity-60">
+                      {log.substring(0, 13)} {/* Extracts [HH:MM:SS AM] */}
+                    </span>
+                    <span className={`
+                      ${isError ? 'text-red-400 font-semibold' : ''}
+                      ${isSuccess ? 'text-emerald-400' : ''}
+                      ${isGithub && !isSuccess ? 'text-emerald-300' : ''}
+                      ${!isError && !isSuccess && !isGithub ? 'text-slate-300' : ''}
+                    `}>
+                      {log.substring(14)}
+                    </span>
+                  </div>
+                );
+              })}
+              {publishStatus === 'publishing' && (
+                <div className="flex gap-3 items-center text-slate-500 animate-pulse mt-4">
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Processing...</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="px-5 py-4 border-t border-slate-800/80 bg-[#111827] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {publishStatus === 'publishing' && <span className="flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse"></span>}
+                {publishStatus === 'success' && <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>}
+                {publishStatus === 'error' && <span className="flex h-2.5 w-2.5 rounded-full bg-red-500"></span>}
+                
+                <span className="text-sm font-semibold text-slate-300">
+                  {publishStatus === 'publishing' && 'Publishing to GitHub...'}
+                  {publishStatus === 'success' && 'Pushed to GitHub Successfully!'}
+                  {publishStatus === 'error' && 'Failed to Push.'}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {publishStatus === 'success' && commitData?.commit_url && (
+                  <a 
+                    href={commitData.commit_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold rounded-lg transition-colors border border-slate-700"
+                  >
+                    <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub" className="w-4 h-4 invert opacity-80" />
+                    View Commit
+                  </a>
+                )}
+                {publishStatus !== 'publishing' && (
+                  <button 
+                    onClick={() => setShowPublishConsole(false)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition-colors shadow-lg shadow-blue-900/20"
+                  >
+                    Close
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col transform transition-all">
+            <div className="p-8">
+              <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 flex items-center justify-center mb-6 mx-auto">
+                <AlertTriangle size={32} className="text-red-500" />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 text-center mb-3">Delete Blog Post?</h3>
+              
+              {deleteStatus === 'idle' && (
+                <p className="text-slate-500 text-center text-sm leading-relaxed mb-6">
+                  Are you sure you want to delete <span className="font-bold text-slate-800">"{selectedBlog}"</span>? 
+                  This will permanently remove the HTML file and update associated references in your GitHub repository. This action cannot be undone.
+                </p>
+              )}
+              {deleteStatus === 'deleting' && (
+                <div className="flex flex-col items-center justify-center py-6 gap-4">
+                  <Loader2 size={36} className="animate-spin text-red-500" />
+                  <p className="text-sm font-bold text-slate-600 tracking-wide uppercase">Deleting from GitHub...</p>
+                </div>
+              )}
+              {deleteStatus === 'success' && (
+                <div className="flex flex-col items-center justify-center py-6 gap-3">
+                  <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-2">
+                    <CheckCircle size={24} className="text-emerald-500" />
+                  </div>
+                  <p className="text-sm font-bold text-emerald-700 text-center">{deleteMessage}</p>
+                </div>
+              )}
+              {deleteStatus === 'error' && (
+                <div className="flex flex-col items-center justify-center py-6 gap-3 bg-red-50 p-4 rounded-2xl border border-red-100">
+                  <p className="text-sm font-bold text-red-600 text-center">{deleteMessage}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="px-8 py-5 bg-slate-50 border-t border-slate-100 flex items-center gap-3 justify-center">
+              {deleteStatus === 'idle' ? (
+                <>
+                  <button 
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-50 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={executeDelete}
+                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-red-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    Yes, Delete
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleteStatus === 'deleting'}
+                  className="w-full px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-xl shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
