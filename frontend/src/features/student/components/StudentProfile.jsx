@@ -4,10 +4,15 @@ import {
   Phone, 
   MapPin, 
   GraduationCap, 
-  FileText, 
   Pencil,
   X,
-  AlertCircle
+  AlertCircle,
+  GitBranch,
+  Briefcase,
+  Camera,
+  Terminal,
+  User,
+  Upload
 } from 'lucide-react';
 
 const StudentProfile = ({ userInfo }) => {
@@ -29,10 +34,17 @@ const StudentProfile = ({ userInfo }) => {
     department: 'N/A',
     gpa: 'N/A',
     earnedCredits: 0,
-    totalCredits: 0
+    totalCredits: 0,
+    socialLinks: {
+      github: '',
+      linkedin: '',
+      instagram: '',
+      leetcode: ''
+    }
   });
 
   const [loading, setLoading] = useState(true);
+  const [showNotification, setShowNotification] = useState(false);
   
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -41,10 +53,44 @@ const StudentProfile = ({ userInfo }) => {
     lastName: '',
     phone: '',
     address: '',
-    avatarUrl: ''
+    avatarUrl: '',
+    socialLinks: {
+      github: '',
+      linkedin: '',
+      instagram: '',
+      leetcode: ''
+    }
   });
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const [isEditingSocials, setIsEditingSocials] = useState(false);
+  const [tempSocialLinks, setTempSocialLinks] = useState({
+    github: '',
+    linkedin: '',
+    instagram: '',
+    leetcode: ''
+  });
+
+  const handleSaveSocials = () => {
+    localStorage.setItem(`student_social_links_${studentId}`, JSON.stringify(tempSocialLinks));
+    setProfileData(prev => ({
+      ...prev,
+      socialLinks: { ...tempSocialLinks }
+    }));
+    setIsEditingSocials(false);
+    
+    if (tempSocialLinks.github || tempSocialLinks.linkedin) {
+      setShowNotification(false);
+    }
+  };
+
+  const toggleEditSocials = () => {
+    if (!isEditingSocials) {
+      setTempSocialLinks({ ...profileData.socialLinks });
+    }
+    setIsEditingSocials(!isEditingSocials);
+  };
 
   const fetchStudentData = async () => {
     if (!studentId || !token) {
@@ -133,11 +179,29 @@ const StudentProfile = ({ userInfo }) => {
         }
       }
 
+      const localSocialLinks = JSON.parse(localStorage.getItem(`student_social_links_${studentId}`) || '{}');
+      const mergedSocialLinks = {
+        github: localSocialLinks.github || '',
+        linkedin: localSocialLinks.linkedin || '',
+        instagram: localSocialLinks.instagram || '',
+        leetcode: localSocialLinks.leetcode || ''
+      };
+
+      const localAvatar = localStorage.getItem(`student_avatar_${studentId}`);
+
+      if (!mergedSocialLinks.github && !mergedSocialLinks.linkedin) {
+        setShowNotification(true);
+      } else {
+        setShowNotification(false);
+      }
+
       setProfileData(prev => ({
         ...prev,
         ...profileDetails,
+        avatar: localAvatar || profileDetails.avatar,
         ...courseInfo,
-        ...statsInfo
+        ...statsInfo,
+        socialLinks: mergedSocialLinks
       }));
 
     } catch (error) {
@@ -157,7 +221,8 @@ const StudentProfile = ({ userInfo }) => {
       lastName: profileData.lastName,
       phone: profileData.phone,
       address: profileData.address,
-      avatarUrl: profileData.avatar || ''
+      avatarUrl: profileData.avatar || '',
+      socialLinks: { ...profileData.socialLinks }
     });
     setErrorMsg('');
     setIsEditModalOpen(true);
@@ -183,12 +248,14 @@ const StudentProfile = ({ userInfo }) => {
         'Content-Type': 'application/json'
       };
       
+      const isBase64Avatar = editForm.avatarUrl && editForm.avatarUrl.startsWith('data:image');
+
       const payload = {
         first_name: editForm.firstName.trim(),
         last_name: editForm.lastName.trim(),
         phone: editForm.phone.trim(),
         address: editForm.address.trim(),
-        avatar_url: editForm.avatarUrl.trim() || null
+        avatar_url: isBase64Avatar ? profileData.avatar : (editForm.avatarUrl.trim() || null)
       };
 
       const res = await fetch(`/api/v1/students/${studentId}`, {
@@ -198,6 +265,14 @@ const StudentProfile = ({ userInfo }) => {
       });
 
       if (res.ok) {
+        localStorage.setItem(`student_social_links_${studentId}`, JSON.stringify(editForm.socialLinks));
+        
+        if (isBase64Avatar) {
+          localStorage.setItem(`student_avatar_${studentId}`, editForm.avatarUrl);
+        } else if (!editForm.avatarUrl) {
+          localStorage.removeItem(`student_avatar_${studentId}`);
+        }
+        
         setIsEditModalOpen(false);
         fetchStudentData();
       } else {
@@ -227,15 +302,39 @@ const StudentProfile = ({ userInfo }) => {
   const displayStatus = profileData.status === 'ACTIVE' ? 'Active Student' : (profileData.status ? `${profileData.status} Student` : 'N/A');
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FAFBFC] px-6 py-4 md:px-8 md:py-5">
+    <div className="flex flex-col min-h-screen bg-[#FAFBFC] p-4 md:p-6 lg:p-8">
       
       {/* Compact Header aligned matching Figma Dimensions */}
-      <div className="max-w-7xl mx-auto w-full mb-5 border-b border-slate-100 pb-3 flex flex-col justify-end">
-        <h1 className="text-[26px] font-extrabold text-[#003F87] leading-none mb-1 tracking-tight">Student Profile</h1>
-        <p className="text-slate-500 font-medium text-[12px] max-w-xl leading-relaxed">
-          Manage your academic identity and preferences.
-        </p>
+      <div className="max-w-7xl mx-auto w-full mb-6 border-b border-slate-100 pb-0 md:h-24 md:min-h-[96px] flex flex-col md:flex-row md:items-end justify-between">
+        <div className="mb-4 md:mb-0 pb-3 flex flex-col justify-end h-full">
+          <h1 className="text-[28px] font-extrabold text-[#003F87] leading-none mb-1.5 tracking-tight">Student Profile</h1>
+          <p className="text-slate-500 font-medium text-[13px] max-w-xl leading-relaxed">
+            Manage your academic identity and preferences.
+          </p>
+        </div>
+        
+        <div className="flex gap-6 shrink-0 pb-3">
+          <button 
+            onClick={openEditModal}
+            className="flex px-4 py-2 bg-white border border-[#003F87] text-[#003F87] hover:bg-[#003F87] hover:text-white rounded-lg text-sm font-bold items-center gap-2 transition-colors shadow-sm active:scale-95"
+          >
+            <Pencil size={14} /> Edit Profile
+          </button>
+        </div>
       </div>
+
+      {showNotification && (
+        <div className="max-w-7xl mx-auto w-full mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+          <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={20} />
+          <div className="flex-1">
+            <h4 className="text-[14px] font-bold text-amber-800">Action Required: Complete Your Profile</h4>
+            <p className="text-[13px] text-amber-700/80 mt-1">Please add your GitHub and LinkedIn profile links. These are required to help instructors review your projects and build your professional network.</p>
+          </div>
+          <button onClick={() => setShowNotification(false)} className="text-amber-400 hover:text-amber-600 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center min-h-[300px]">
@@ -243,11 +342,11 @@ const StudentProfile = ({ userInfo }) => {
         </div>
       ) : (
         /* Grid Layout matching mockup layout structure */
-        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           
           {/* ROW 1 Left: Academic Info Card */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] min-h-[220px] flex flex-col justify-between">
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm min-h-[220px] flex flex-col justify-between">
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-4 border-b border-slate-100">
                 {/* Profile Photo */}
                 <div className="relative w-[76px] h-[76px] shrink-0">
@@ -261,17 +360,19 @@ const StudentProfile = ({ userInfo }) => {
                       </div>
                     )}
                   </div>
-                  <button 
-                    onClick={openEditModal}
-                    className="absolute -bottom-1 -right-1 bg-[#003F87] border-2 border-white hover:bg-[#002b5e] w-6.5 h-6.5 rounded-full flex items-center justify-center text-white shadow-sm transition-transform active:scale-95"
-                  >
-                    <Pencil size={10} />
-                  </button>
                 </div>
 
                 {/* Name & Badges */}
                 <div className="flex-1 text-center sm:text-left pt-0.5">
-                  <h2 className="text-[20px] font-extrabold text-slate-800 leading-tight mb-2">{displayName || 'Student Profile'}</h2>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+                    <h2 className="text-[20px] font-extrabold text-slate-800 leading-tight">{displayName || 'Student Profile'}</h2>
+                    <button 
+                      onClick={openEditModal}
+                      className="sm:hidden self-center px-4 py-1.5 bg-white border border-[#003F87] text-[#003F87] hover:bg-slate-50 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                    >
+                      <Pencil size={12} /> Edit Profile
+                    </button>
+                  </div>
                   <div className="flex flex-wrap justify-center sm:justify-start gap-2">
                     <span className="text-[9px] font-extrabold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-md">
                       ID: {profileData.studentCode || 'N/A'}
@@ -310,7 +411,7 @@ const StudentProfile = ({ userInfo }) => {
 
           {/* ROW 1 Right: GPA Card */}
           <div className="h-full">
-            <div className="bg-[#003F87] rounded-2xl p-5 text-white flex flex-col justify-between min-h-[220px] h-full shadow-[0_8px_25px_rgba(0,63,135,0.08)] relative overflow-hidden">
+            <div className="bg-[#003F87] rounded-xl p-5 text-white flex flex-col justify-between min-h-[220px] h-full shadow-[0_8px_25px_rgba(0,63,135,0.08)] relative overflow-hidden">
               <div className="absolute top-[-20%] right-[-10%] w-48 h-48 rounded-full bg-blue-500/10 blur-xl"></div>
               
               <div className="relative z-10 flex flex-col justify-between h-full gap-4">
@@ -351,7 +452,7 @@ const StudentProfile = ({ userInfo }) => {
 
           {/* ROW 2 Left: Contact Information */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)]">
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm">
               <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2 mb-3.5 uppercase tracking-wider">
                 <svg className="w-4 h-4 text-[#003F87]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <rect width="18" height="18" x="3" y="3" rx="2" />
@@ -399,12 +500,135 @@ const StudentProfile = ({ userInfo }) => {
             </div>
           </div>
 
-          {/* Empty space next to contact info for grid alignment */}
-          <div className="hidden lg:block"></div>
+          {/* ROW 2 Right: Social Links */}
+          <div className="h-full">
+            <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm min-h-[200px]">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2 uppercase tracking-wider">
+                  <GitBranch className="w-4 h-4 text-[#003F87]" />
+                  Social Profiles
+                </h3>
+                {!isEditingSocials ? (
+                  <button
+                    onClick={toggleEditSocials}
+                    className="text-[12px] font-bold text-[#003F87] hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+                  >
+                    <Pencil size={12} />
+                    Edit Links
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={toggleEditSocials}
+                      className="text-[12px] font-bold text-slate-500 hover:text-slate-700 px-2 py-1.5 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveSocials}
+                      className="text-[12px] font-bold text-white bg-[#003F87] hover:bg-blue-800 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                    >
+                      Save
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                {/* GitHub */}
+                <div className="flex items-center justify-between border border-slate-100 rounded-lg p-3 hover:border-slate-200 transition-colors">
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-700">
+                      <GitBranch size={16} />
+                    </div>
+                    <span className="text-[13px] font-bold text-slate-700">GitHub</span>
+                  </div>
+                  {isEditingSocials ? (
+                    <input 
+                      type="url"
+                      value={tempSocialLinks.github}
+                      onChange={e => setTempSocialLinks({...tempSocialLinks, github: e.target.value})}
+                      placeholder="https://github.com/..."
+                      className="flex-1 min-w-0 max-w-[180px] sm:max-w-[200px] text-[12px] px-2.5 py-1.5 border border-slate-200 rounded-md outline-none focus:border-[#003F87]"
+                    />
+                  ) : profileData.socialLinks.github ? (
+                    <a href={profileData.socialLinks.github} target="_blank" rel="noreferrer" className="text-[12px] font-bold text-blue-600 hover:underline truncate max-w-[200px]">View</a>
+                  ) : (
+                    <span className="text-[11px] font-bold text-slate-400">Not Added</span>
+                  )}
+                </div>
 
-          {/* ROW 3: Large gray placeholder block matching mockup bottom */}
-          <div className="lg:col-span-3 bg-[#EAECEF]/30 border border-slate-100 h-36 rounded-2xl flex items-center justify-center">
-            {/* Visual placeholder matching the empty gray banner */}
+                {/* LinkedIn */}
+                <div className="flex items-center justify-between border border-slate-100 rounded-lg p-3 hover:border-slate-200 transition-colors">
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-[#0A66C2]">
+                      <Briefcase size={16} />
+                    </div>
+                    <span className="text-[13px] font-bold text-slate-700">LinkedIn</span>
+                  </div>
+                  {isEditingSocials ? (
+                    <input 
+                      type="url"
+                      value={tempSocialLinks.linkedin}
+                      onChange={e => setTempSocialLinks({...tempSocialLinks, linkedin: e.target.value})}
+                      placeholder="https://linkedin.com/..."
+                      className="flex-1 min-w-0 max-w-[180px] sm:max-w-[200px] text-[12px] px-2.5 py-1.5 border border-slate-200 rounded-md outline-none focus:border-[#003F87]"
+                    />
+                  ) : profileData.socialLinks.linkedin ? (
+                    <a href={profileData.socialLinks.linkedin} target="_blank" rel="noreferrer" className="text-[12px] font-bold text-blue-600 hover:underline truncate max-w-[200px]">View</a>
+                  ) : (
+                    <span className="text-[11px] font-bold text-slate-400">Not Added</span>
+                  )}
+                </div>
+
+                {/* Leetcode */}
+                <div className="flex items-center justify-between border border-slate-100 rounded-lg p-3 hover:border-slate-200 transition-colors">
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-orange-500">
+                      <Terminal size={16} />
+                    </div>
+                    <span className="text-[13px] font-bold text-slate-700">Leetcode</span>
+                  </div>
+                  {isEditingSocials ? (
+                    <input 
+                      type="url"
+                      value={tempSocialLinks.leetcode}
+                      onChange={e => setTempSocialLinks({...tempSocialLinks, leetcode: e.target.value})}
+                      placeholder="https://leetcode.com/..."
+                      className="flex-1 min-w-0 max-w-[180px] sm:max-w-[200px] text-[12px] px-2.5 py-1.5 border border-slate-200 rounded-md outline-none focus:border-[#003F87]"
+                    />
+                  ) : profileData.socialLinks.leetcode ? (
+                    <a href={profileData.socialLinks.leetcode} target="_blank" rel="noreferrer" className="text-[12px] font-bold text-blue-600 hover:underline truncate max-w-[200px]">View</a>
+                  ) : (
+                    <span className="text-[11px] font-bold text-slate-400">Not Added</span>
+                  )}
+                </div>
+
+                {/* Instagram */}
+                <div className="flex items-center justify-between border border-slate-100 rounded-lg p-3 hover:border-slate-200 transition-colors">
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-pink-600">
+                      <Camera size={16} />
+                    </div>
+                    <span className="text-[13px] font-bold text-slate-700">Instagram</span>
+                  </div>
+                  {isEditingSocials ? (
+                    <input 
+                      type="url"
+                      value={tempSocialLinks.instagram}
+                      onChange={e => setTempSocialLinks({...tempSocialLinks, instagram: e.target.value})}
+                      placeholder="https://instagram.com/..."
+                      className="flex-1 min-w-0 max-w-[180px] sm:max-w-[200px] text-[12px] px-2.5 py-1.5 border border-slate-200 rounded-md outline-none focus:border-[#003F87]"
+                    />
+                  ) : profileData.socialLinks.instagram ? (
+                    <a href={profileData.socialLinks.instagram} target="_blank" rel="noreferrer" className="text-[12px] font-bold text-blue-600 hover:underline truncate max-w-[200px]">View</a>
+                  ) : (
+                    <span className="text-[11px] font-bold text-slate-400">Not Added</span>
+                  )}
+                </div>
+
+              </div>
+            </div>
           </div>
 
         </div>
@@ -412,9 +636,15 @@ const StudentProfile = ({ userInfo }) => {
 
       {/* Edit Profile Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setIsEditModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
               <div>
                 <h3 className="text-lg font-black text-slate-800">Edit Profile</h3>
                 <p className="text-xs text-slate-500 mt-0.5">Update your personal contact details</p>
@@ -427,15 +657,25 @@ const StudentProfile = ({ userInfo }) => {
               </button>
             </div>
 
-            <form onSubmit={handleUpdateProfile} className="p-6 flex flex-col gap-4">
-              {errorMsg && (
-                <div className="bg-red-50 text-red-600 text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2">
-                  <AlertCircle size={14} />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
+            <div className="overflow-y-auto p-6 flex-1 custom-scrollbar">
+              <form onSubmit={handleUpdateProfile} className="flex flex-col gap-4">
+                {errorMsg && (
+                  <div className="bg-red-50 text-red-600 text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2">
+                    <AlertCircle size={14} />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
 
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Student ID</label>
+                  <input 
+                    type="text" 
+                    value={profileData.studentCode || 'N/A'}
+                    readOnly
+                    className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl outline-none text-slate-500 text-sm font-semibold cursor-not-allowed"
+                  />
+                </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">First Name *</label>
                   <input 
@@ -446,6 +686,9 @@ const StudentProfile = ({ userInfo }) => {
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Last Name</label>
                   <input 
@@ -455,59 +698,132 @@ const StudentProfile = ({ userInfo }) => {
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Phone Number</label>
-                <input 
-                  type="text" 
-                  maxLength={10}
-                  value={editForm.phone}
-                  onChange={e => setEditForm({ ...editForm, phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10) })}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
-                  placeholder="10-digit number"
-                />
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Phone Number</label>
+                  <input 
+                    type="text" 
+                    maxLength={10}
+                    value={editForm.phone}
+                    onChange={e => setEditForm({ ...editForm, phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10) })}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
+                    placeholder="10-digit number"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Residential Address</label>
                 <textarea 
-                  rows={3}
+                  rows={2}
                   value={editForm.address}
                   onChange={e => setEditForm({ ...editForm, address: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all resize-none"
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all resize-none"
                   placeholder="Enter full address"
                 />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Avatar Image URL</label>
-                <input 
-                  type="url" 
-                  value={editForm.avatarUrl}
-                  onChange={e => setEditForm({ ...editForm, avatarUrl: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
-                  placeholder="https://example.com/photo.jpg"
-                />
+              {/* Social Links Form Section */}
+              <div className="pt-2 border-t border-slate-100">
+                <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-wider mb-3">Social Profiles</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">GitHub URL</label>
+                    <input 
+                      type="url" 
+                      value={editForm.socialLinks.github}
+                      onChange={e => setEditForm({ ...editForm, socialLinks: { ...editForm.socialLinks, github: e.target.value } })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
+                      placeholder="https://github.com/..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">LinkedIn URL</label>
+                    <input 
+                      type="url" 
+                      value={editForm.socialLinks.linkedin}
+                      onChange={e => setEditForm({ ...editForm, socialLinks: { ...editForm.socialLinks, linkedin: e.target.value } })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
+                      placeholder="https://linkedin.com/in/..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Leetcode URL</label>
+                    <input 
+                      type="url" 
+                      value={editForm.socialLinks.leetcode}
+                      onChange={e => setEditForm({ ...editForm, socialLinks: { ...editForm.socialLinks, leetcode: e.target.value } })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
+                      placeholder="https://leetcode.com/u/..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Instagram URL</label>
+                    <input 
+                      type="url" 
+                      value={editForm.socialLinks.instagram}
+                      onChange={e => setEditForm({ ...editForm, socialLinks: { ...editForm.socialLinks, instagram: e.target.value } })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
+                      placeholder="https://instagram.com/..."
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-3 mt-3">
-                <button 
-                  type="button" 
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-50 rounded-xl text-sm transition-all"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={submitting}
-                  className="px-6 py-2.5 bg-[#003F87] hover:bg-[#002b5e] text-white font-bold rounded-xl text-sm transition-all flex items-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50"
-                >
-                  {submitting ? 'Saving...' : 'Save Changes'}
-                </button>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Profile Picture</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                    {editForm.avatarUrl ? (
+                      <img src={editForm.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50">
+                        <User size={24} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <label className="cursor-pointer bg-white border border-[#C2C6D4] text-slate-700 px-4 py-2 rounded-lg text-[13px] font-bold hover:bg-slate-50 transition-colors inline-flex items-center gap-2">
+                      <Upload size={14} />
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setEditForm({ ...editForm, avatarUrl: reader.result });
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      Choose Image
+                    </label>
+                    <p className="text-[11px] text-slate-500 mt-1">Upload a JPG, PNG or GIF.</p>
+                  </div>
+                </div>
               </div>
-            </form>
+
+                <div className="flex justify-end gap-3 mt-3">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-50 rounded-xl text-sm transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={submitting}
+                    className="px-6 py-2.5 bg-[#003F87] hover:bg-[#002b5e] text-white font-bold rounded-xl text-sm transition-all flex items-center gap-1.5 shadow-md active:scale-95 disabled:opacity-50"
+                  >
+                    {submitting ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
