@@ -21,6 +21,8 @@ import PayrollContent from './features/admin/components/PayrollContent';
 import WorkReportsContent from './features/employee/components/WorkReportsContent';
 import RecruitmentContent from './features/admin/components/RecruitmentContent';
 import BlogDashboardContent from './features/employee/marketing/components/BlogDashboardContent';
+import BlogAgentHub from './features/employee/marketing/components/BlogAgentHub';
+import BlogAgentEditor from './features/employee/marketing/components/BlogAgentEditor';
 import SettingsContent from './features/admin/components/SettingsContent';
 import EmployeeProfile from './features/employee/components/EmployeeProfile';
 import SupportContent from './features/admin/components/SupportContent';
@@ -40,6 +42,7 @@ import EmployeeTasks from './features/employee/components/EmployeeTasks';
 import EmployeeLeave from './features/employee/components/EmployeeLeave';
 import EmployeeAttendance from './features/employee/components/EmployeeAttendance';
 import EmployeeLeaves from './features/employee/components/EmployeeLeaves';
+import DailySchedule from './features/student/components/DailySchedule';
 
 // Mock data removed
 
@@ -237,7 +240,7 @@ function App() {
                 <Route path={basePath} element={<Navigate to={`${basePath}/dashboard`} replace />} />
                 
                 <Route path={`${basePath}/dashboard`} element={userRole === 'STUDENT' ? <StudentDashboard userInfo={userInfo} /> : (userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />)} />
-                <Route path={`${basePath}/daily-plan`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
+                <Route path={`${basePath}/daily-plan`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/schedule`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />)} />
                 <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave /> : ((userRole === 'ADMIN' || isHR) ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />))} />
@@ -259,6 +262,8 @@ function App() {
                 {canViewJourney && <Route path={`${basePath}/journey`} element={<AcademicJourneyContent />} />}
                 {canViewSeo && <Route path={`${basePath}/seo`} element={<SeoAgentContent />} />}
                 {canViewBlog && <Route path={`${basePath}/blog`} element={<BlogDashboardContent />} />}
+                {canViewBlog && <Route path={`${basePath}/blog-agent`} element={<BlogAgentHub />} />}
+                {canViewBlog && <Route path={`${basePath}/blog-agent/:site`} element={<BlogAgentEditor />} />}
                 
                 <Route path="*" element={<Navigate to={`${basePath}/dashboard`} replace />} />
               </>

@@ -13,6 +13,7 @@ import uploadRouter from "./routes/upload.routes.js";
 import profileRouter from "./routes/profile.routes.js";
 import galleryRouter from "./routes/gallery.routes.js";
 import leaveRouter from "./routes/leave.routes.js";
+import blogRouter from "./routes/blog.routes.js";
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use("/api/v1/work-reports", workReportRouter);
 app.use("/api/v1/upload", uploadRouter);
 app.use("/api/v1/profile", profileRouter);
 app.use("/api/v1/leaves", leaveRouter);
+app.use("/api/v1/blogs", blogRouter);
 app.use("/api/gallery", galleryRouter);
 
 app.use((err, req, res, next) => {

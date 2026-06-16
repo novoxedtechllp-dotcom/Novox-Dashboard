@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FileText, Eye, MousePointerClick, Share2, Plus, ArrowUpRight, TrendingUp } from 'lucide-react';
 import LoadingSpinner from '../../../../components/LoadingSpinner';
 
 const BlogDashboardContent = () => {
+  const navigate = useNavigate();
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -16,9 +18,17 @@ const BlogDashboardContent = () => {
         const response = await fetch('/api/v1/blogs', {
           headers: { 'Authorization': `Bearer ${userInfo.token}` }
         });
-        const resData = await response.json();
+        const textData = await response.text();
+        let resData;
+        try {
+          resData = JSON.parse(textData);
+        } catch (e) {
+          console.error('Failed to parse JSON, received:', textData.substring(0, 100));
+          return;
+        }
+
         if (response.ok) {
-          const bArray = resData.data?.blogs || resData.data || [];
+          const bArray = Array.isArray(resData) ? resData : (resData.data?.blogs || resData.data || []);
           setBlogs(bArray);
         }
       } catch (error) {
@@ -41,7 +51,10 @@ const BlogDashboardContent = () => {
           <h2 className="text-[20px] font-bold text-[#003F87]">Blog Automation Dashboard</h2>
           <p className="text-[13px] text-[#555F6B]">Track performance and analytics of published articles.</p>
         </div>
-        <button className="bg-[#003F87] text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors">
+        <button 
+          onClick={() => navigate('/admin/blog-agent')}
+          className="bg-[#003F87] text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors"
+        >
           <Plus size={16} /> New Draft
         </button>
       </div>
@@ -86,20 +99,22 @@ const BlogDashboardContent = () => {
           </thead>
           <tbody>
             {blogs.map((b, i) => (
-              <tr key={b.id} className={i !== blogs.length - 1 ? 'border-b border-slate-100 hover:bg-slate-50' : 'hover:bg-slate-50'}>
+              <tr key={b.filename} className={i !== blogs.length - 1 ? 'border-b border-slate-100 hover:bg-slate-50' : 'hover:bg-slate-50'}>
                 <td className="py-4 px-6">
                   <div className="font-bold text-slate-900 text-sm mb-1">{b.title}</div>
-                  <div className="text-xs font-medium text-slate-500 bg-slate-100 inline-block px-2 py-0.5 rounded">{b.source_platform}</div>
+                  <div className="text-xs font-medium text-slate-500 bg-slate-100 inline-block px-2 py-0.5 rounded">{b.filename}</div>
                 </td>
                 <td className="py-4 px-6 text-sm text-slate-600 font-medium">
-                  {new Date(b.publish_date).toLocaleDateString()}
+                  {b.dateStr || 'N/A'}
                 </td>
-                <td className="py-4 px-6 text-right font-bold text-slate-700">{b.views.toLocaleString()}</td>
-                <td className="py-4 px-6 text-right font-bold text-slate-700">{b.clicks.toLocaleString()}</td>
-                <td className="py-4 px-6 text-right">
-                  <span className="inline-flex items-center justify-center px-2.5 py-1 rounded bg-green-50 text-green-700 font-bold text-sm">
-                    {b.engagement_score}
-                  </span>
+                <td className="py-4 px-6 text-sm text-slate-400 font-medium text-right">
+                  -
+                </td>
+                <td className="py-4 px-6 text-sm text-slate-400 font-medium text-right">
+                  -
+                </td>
+                <td className="py-4 px-6 text-sm font-bold text-slate-400 text-right">
+                  -
                 </td>
               </tr>
             ))}

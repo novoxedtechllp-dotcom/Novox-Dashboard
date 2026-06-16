@@ -99,12 +99,12 @@ export const getCourseById = asyncHandler(async (req, res) => {
     .from("courses")
     .select(`id, name, description, track, duration_months, capacity, status, thumbnail_url, created_at,
 course_modules(
-  id, title, description, sequence_order, status,
+  id, course_id, title, description, sequence_order, status,
   course_submodules(
-    id, title, description, sequence_order, scheduled_date,
+    id, module_id, title, description, sequence_order, scheduled_date,
     course_tasks(
-      id, title, description, sequence_order, task_type, due_date,
-      course_task_subtasks(id, title, description, sequence_order)
+      id, submodule_id, title, description, sequence_order, task_type, due_date,
+      course_task_subtasks(id, task_id, title, description, sequence_order)
     )
   )
 ),
