@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail, GitBranch, Camera, Terminal } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail, GitBranch, Camera, Terminal, Calendar, IndianRupee } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const getAuthHeaders = () => {
@@ -71,6 +71,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [studentFees, setStudentFees] = useState([]);
 
   const fetchStudents = useCallback(async (currentOwnershipFilter, currentDepartmentFilter) => {
     setLoading(true);
@@ -125,6 +126,16 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   useEffect(() => {
     const loadTimer = setTimeout(() => { fetchStudents(ownershipFilter, departmentFilter); }, 0);
+    
+    try {
+      const storedFees = localStorage.getItem('novox_student_fees');
+      if (storedFees) {
+        setStudentFees(JSON.parse(storedFees));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    
     return () => clearTimeout(loadTimer);
   }, [fetchStudents, ownershipFilter, departmentFilter]);
 
@@ -561,6 +572,14 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
                       <GraduationCap size={14} className="text-slate-400" /> <span>{Math.max(student.courses_count || 0, studentEnrolledCourses.length)} Courses</span>
                     </div>
+                    {studentFees.find(f => f.studentId === student.id) && (
+                      <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mt-1">
+                        <IndianRupee size={14} className="text-rose-400" /> 
+                        <span className="text-rose-600 font-bold">
+                          Balance: ₹{(studentFees.find(f => f.studentId === student.id)?.remainingBalance || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -12,7 +12,10 @@ import {
   Camera,
   Terminal,
   User,
-  Upload
+  Upload,
+  CreditCard,
+  Receipt,
+  IndianRupee
 } from 'lucide-react';
 
 const StudentProfile = ({ userInfo }) => {
@@ -71,6 +74,9 @@ const StudentProfile = ({ userInfo }) => {
     instagram: '',
     leetcode: ''
   });
+
+  const [studentFees, setStudentFees] = useState([]);
+  const [feeTotals, setFeeTotals] = useState({ total: 0, paid: 0, balance: 0 });
 
   const handleSaveSocials = () => {
     localStorage.setItem(`student_social_links_${studentId}`, JSON.stringify(tempSocialLinks));
@@ -212,6 +218,25 @@ const StudentProfile = ({ userInfo }) => {
   };
 
   useEffect(() => {
+    try {
+      const storedFees = localStorage.getItem('novox_student_fees');
+      if (storedFees && studentId) {
+        const allFees = JSON.parse(storedFees);
+        const myFees = allFees.filter(f => f.studentId === studentId);
+        setStudentFees(myFees);
+        
+        const total = myFees.reduce((sum, f) => sum + (Number(f.totalAmount) || 0), 0);
+        const paid = myFees.reduce((sum, f) => sum + (Number(f.paidAmount) || 0), 0);
+        const balance = myFees.reduce((sum, f) => sum + (Number(f.remainingBalance) || 0), 0);
+        
+        setFeeTotals({ total, paid, balance });
+      }
+    } catch(e) {
+      console.error(e);
+    }
+  }, [studentId]);
+
+  useEffect(() => {
     fetchStudentData();
   }, [studentId, token]);
 
@@ -341,7 +366,8 @@ const StudentProfile = ({ userInfo }) => {
           <div className="w-10 h-10 border-4 border-slate-200 border-t-[#003F87] rounded-full animate-spin"></div>
         </div>
       ) : (
-        /* Grid Layout matching mockup layout structure */
+        <>
+        {/* Grid Layout matching mockup layout structure */}
         <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           
           {/* ROW 1 Left: Academic Info Card */}
@@ -632,6 +658,93 @@ const StudentProfile = ({ userInfo }) => {
           </div>
 
         </div>
+
+          {/* ROW 3: Financial Overview */}
+          <div className="w-full mt-6 mb-8">
+            <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2 mb-4">
+              <CreditCard className="w-5 h-5 text-[#003F87]" />
+              Financial Overview
+            </h3>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column: Summary */}
+              <div className="lg:col-span-1 flex flex-col gap-4">
+                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                      <Receipt size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Course Fees</p>
+                      <h4 className="text-lg font-black text-slate-800">₹{feeTotals.total.toLocaleString()}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                      <IndianRupee size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Amount Paid</p>
+                      <h4 className="text-lg font-black text-emerald-600">₹{feeTotals.paid.toLocaleString()}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#003F87] rounded-xl border border-[#003F87] p-5 shadow-md relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3"></div>
+                  <div className="flex items-center gap-3 relative z-10">
+                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white backdrop-blur-sm">
+                      <CreditCard size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-blue-200 uppercase tracking-wider">Remaining Balance</p>
+                      <h4 className="text-2xl font-black text-white">₹{feeTotals.balance.toLocaleString()}</h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Transaction History */}
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-xl border border-slate-100 shadow-sm h-full flex flex-col">
+                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Recent Transactions</h4>
+                  </div>
+                  <div className="p-5 flex-1 overflow-y-auto custom-scrollbar max-h-[300px]">
+                    {studentFees.length > 0 ? (
+                      <div className="flex flex-col gap-3">
+                        {studentFees.map((fee, idx) => (
+                          <div key={fee.id || idx} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors bg-slate-50/50">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-slate-800">{fee.course} Fee Payment</span>
+                              <span className="text-xs font-medium text-slate-500 mt-0.5">{fee.date} • {fee.type}</span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-sm font-black text-emerald-600">₹{(Number(fee.paidAmount) || 0).toLocaleString()}</span>
+                              <span className={`text-[10px] font-black uppercase tracking-wider mt-1 ${fee.status === 'Full Paid' ? 'text-emerald-500' : fee.status === 'Partially Paid' ? 'text-amber-500' : 'text-rose-500'}`}>
+                                {fee.status}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+                        <Receipt size={32} className="mb-3 text-slate-300" />
+                        <p className="text-sm font-bold">No transactions found</p>
+                        <p className="text-xs text-slate-400 mt-1">There are no fee records available.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </>
       )}
 
       {/* Edit Profile Modal */}
