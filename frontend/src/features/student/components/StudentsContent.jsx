@@ -63,6 +63,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   });
 
   const [newEnrollment, setNewEnrollment] = useState('');
+  const [payInitialFee, setPayInitialFee] = useState(false);
   const [newDocName, setNewDocName] = useState('');
   const [ownershipFilter, setOwnershipFilter] = useState('All Students');
   const [isUploading, setIsUploading] = useState(false);
@@ -321,7 +322,38 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       const resData = await response.json();
       if (response.ok) {
         setStudentCourses([...studentCourses, { ...resData.data, student_id: activeStudent.id }]);
+        
+        // Record the initial ₹5,000 fee locally
+        const courseData = courses.find(c => c.id === newEnrollment);
+        const courseName = courseData?.title || courseData?.name || 'Unknown Course';
+        const feeId = 'FEE-' + Math.floor(1000 + Math.random() * 9000);
+        
+        const newFeeRecord = {
+          id: feeId,
+          studentId: activeStudent.id,
+          name: `${activeStudent.first_name} ${activeStudent.last_name}`.trim(),
+          initials: `${activeStudent.first_name?.[0] || ''}${activeStudent.last_name?.[0] || ''}`.toUpperCase(),
+          course: courseName,
+          type: 'Full',
+          amount: '₹5,000',
+          numericAmount: 5000,
+          totalAmount: 5000,
+          paidAmount: payInitialFee ? 5000 : 0,
+          remainingBalance: payInitialFee ? 0 : 5000,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          rawDate: new Date().toISOString(),
+          status: payInitialFee ? 'Paid' : 'Pending',
+          statusColor: payInitialFee ? 'green' : 'red'
+        };
+
+        const existingFees = JSON.parse(localStorage.getItem('novox_student_fees') || '[]');
+        const updatedFees = [newFeeRecord, ...existingFees];
+        localStorage.setItem('novox_student_fees', JSON.stringify(updatedFees));
+        setStudentFees(updatedFees);
+        
         setNewEnrollment('');
+        setPayInitialFee(false);
+        alert('Course enrolled and initial fee recorded successfully!');
       } else {
         alert(resData.message || 'Failed to enroll course');
       }
@@ -1113,6 +1145,20 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                         className="w-full"
                         selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all"
                       />
+                      {newEnrollment && (
+                        <div className="mt-3 flex items-center gap-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                          <input 
+                            type="checkbox" 
+                            id="payInitialFee" 
+                            checked={payInitialFee}
+                            onChange={(e) => setPayInitialFee(e.target.checked)}
+                            className="w-4 h-4 text-[#003F87] rounded border-blue-300 focus:ring-[#003F87]"
+                          />
+                          <label htmlFor="payInitialFee" className="text-sm font-bold text-[#003F87] cursor-pointer">
+                            Mark initial ₹5,000 enrollment fee as Paid
+                          </label>
+                        </div>
+                      )}
                     </div>
                     <button 
                       onClick={handleEnrollCourse}

@@ -68,6 +68,8 @@ const StudentProfile = ({ userInfo }) => {
   const [errorMsg, setErrorMsg] = useState('');
 
   const [isEditingSocials, setIsEditingSocials] = useState(false);
+  const [transactionPage, setTransactionPage] = useState(1);
+  const transactionsPerPage = 5;
   const [tempSocialLinks, setTempSocialLinks] = useState({
     github: '',
     linkedin: '',
@@ -713,23 +715,50 @@ const StudentProfile = ({ userInfo }) => {
                   <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                     <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Recent Transactions</h4>
                   </div>
-                  <div className="p-5 flex-1 overflow-y-auto custom-scrollbar max-h-[300px]">
+                  <div className="p-5 flex-1 flex flex-col justify-between">
                     {studentFees.length > 0 ? (
-                      <div className="flex flex-col gap-3">
-                        {studentFees.map((fee, idx) => (
-                          <div key={fee.id || idx} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors bg-slate-50/50">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-bold text-slate-800">{fee.course} Fee Payment</span>
-                              <span className="text-xs font-medium text-slate-500 mt-0.5">{fee.date} • {fee.type}</span>
+                      <div className="flex flex-col h-full">
+                        <div className="flex flex-col gap-3 min-h-[380px]">
+                          {studentFees.slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage).map((fee, idx) => (
+                            <div key={fee.id || idx} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors bg-slate-50/50">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-800">{fee.course} Fee Payment</span>
+                                <span className="text-xs font-medium text-slate-500 mt-0.5">{fee.date} • {fee.type}</span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-sm font-black text-emerald-600">₹{(Number(fee.paidAmount) || 0).toLocaleString()}</span>
+                                <span className={`text-[10px] font-black uppercase tracking-wider mt-1 ${fee.status === 'Paid' || fee.status === 'Full Paid' ? 'text-emerald-500' : fee.status === 'Partially Paid' ? 'text-amber-500' : 'text-rose-500'}`}>
+                                  {fee.status}
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex flex-col items-end">
-                              <span className="text-sm font-black text-emerald-600">₹{(Number(fee.paidAmount) || 0).toLocaleString()}</span>
-                              <span className={`text-[10px] font-black uppercase tracking-wider mt-1 ${fee.status === 'Full Paid' ? 'text-emerald-500' : fee.status === 'Partially Paid' ? 'text-amber-500' : 'text-rose-500'}`}>
-                                {fee.status}
-                              </span>
-                            </div>
+                          ))}
+                        </div>
+                        {studentFees.length > transactionsPerPage && (
+                          <div className="mt-4 pt-4 border-t border-slate-100 flex justify-center items-center gap-2">
+                            <button 
+                              onClick={() => setTransactionPage(p => Math.max(1, p - 1))}
+                              disabled={transactionPage === 1}
+                              className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold"
+                            >&lt;</button>
+                            {Array.from({ length: Math.ceil(studentFees.length / transactionsPerPage) }, (_, i) => i + 1).map(page => (
+                              <button 
+                                key={page}
+                                onClick={() => setTransactionPage(page)}
+                                className={`w-10 h-10 flex items-center justify-center rounded-lg font-bold transition-all shadow-sm ${
+                                  transactionPage === page ? 'bg-[#003F87] text-white shadow-[#003F87]/20' : 'text-slate-600 hover:bg-slate-50 border border-slate-200 bg-white'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            ))}
+                            <button 
+                              onClick={() => setTransactionPage(p => Math.min(Math.ceil(studentFees.length / transactionsPerPage), p + 1))}
+                              disabled={transactionPage === Math.ceil(studentFees.length / transactionsPerPage)}
+                              className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold"
+                            >&gt;</button>
                           </div>
-                        ))}
+                        )}
                       </div>
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
