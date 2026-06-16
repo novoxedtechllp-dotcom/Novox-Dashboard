@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 const StudentProfile = ({ userInfo }) => {
-  const studentId = userInfo?.id || userInfo?.student_profile_id;
+  const studentId = userInfo?.student_profile_id || userInfo?.id;
   const token = userInfo?.token || sessionStorage.getItem('token');
   
   const [profileData, setProfileData] = useState({
@@ -63,6 +63,7 @@ const StudentProfile = ({ userInfo }) => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [avatarError, setAvatarError] = useState(false);
 
   const [isEditingSocials, setIsEditingSocials] = useState(false);
   const [tempSocialLinks, setTempSocialLinks] = useState({
@@ -117,7 +118,9 @@ const StudentProfile = ({ userInfo }) => {
             address: s.address || '',
             avatar: s.avatar_url || null,
             joiningDate: s.joining_date || '',
-            status: s.status || ''
+            status: s.status || '',
+            guardianName: s.guardian_name || '',
+            guardianPhone: s.parent_phone || ''
           };
         }
       }
@@ -125,19 +128,15 @@ const StudentProfile = ({ userInfo }) => {
       // 2. Fetch Course/Progress info
       const progressRes = await fetch(`/api/v1/students/${studentId}/progress`, { headers });
       let courseInfo = {
-        course: 'No Course Enrolled',
-        department: 'N/A'
+        courses: []
       };
       if (progressRes.ok) {
         const resData = await progressRes.json();
         const progressList = resData.data || [];
-        if (progressList.length > 0) {
-          const primaryCourse = progressList[0];
-          courseInfo = {
-            course: primaryCourse.courses?.name || 'Enrolled Course',
-            department: primaryCourse.courses?.track || 'N/A'
-          };
-        }
+        courseInfo.courses = progressList.map(p => ({
+          course: p.courses?.name || 'Enrolled Course',
+          department: p.courses?.track || 'N/A'
+        }));
       }
 
       // 3. Fetch Tasks to calculate GPA & Credits dynamically
@@ -187,8 +186,7 @@ const StudentProfile = ({ userInfo }) => {
         leetcode: localSocialLinks.leetcode || ''
       };
 
-      const localAvatar = localStorage.getItem(`student_avatar_${studentId}`);
-
+    
       if (!mergedSocialLinks.github && !mergedSocialLinks.linkedin) {
         setShowNotification(true);
       } else {
@@ -198,7 +196,7 @@ const StudentProfile = ({ userInfo }) => {
       setProfileData(prev => ({
         ...prev,
         ...profileDetails,
-        avatar: localAvatar || profileDetails.avatar,
+        avatar: profileDetails.avatar,
         ...courseInfo,
         ...statsInfo,
         socialLinks: mergedSocialLinks
@@ -208,6 +206,7 @@ const StudentProfile = ({ userInfo }) => {
       console.error('Error loading profile page data:', error);
     } finally {
       setLoading(false);
+      setAvatarError(false);
     }
   };
 
@@ -215,17 +214,27 @@ const StudentProfile = ({ userInfo }) => {
     fetchStudentData();
   }, [studentId, token]);
 
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState(null);
+
   const openEditModal = () => {
     setEditForm({
       firstName: profileData.firstName,
       lastName: profileData.lastName,
       phone: profileData.phone,
+      guardianName: profileData.guardianName,
+      guardianPhone: profileData.guardianPhone,
       address: profileData.address,
-      avatarUrl: profileData.avatar || '',
       socialLinks: { ...profileData.socialLinks }
     });
+    setSelectedAvatarFile(null);
     setErrorMsg('');
     setIsEditModalOpen(true);
+  };
+
+  const handleAvatarFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedAvatarFile(e.target.files[0]);
+    }
   };
 
   const handleUpdateProfile = async (e) => {
@@ -243,19 +252,39 @@ const StudentProfile = ({ userInfo }) => {
     setErrorMsg('');
 
     try {
+      let finalAvatarUrl = profileData.avatar;
+      
+      if (selectedAvatarFile) {
+        const formData = new FormData();
+        formData.append('file', selectedAvatarFile);
+
+        const uploadRes = await fetch('/api/v1/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+
+        const uploadData = await uploadRes.json();
+        if (uploadRes.ok && uploadData.data?.url) {
+          finalAvatarUrl = uploadData.data.url;
+        } else {
+          throw new Error(uploadData.message || "File upload failed");
+        }
+      }
+
       const headers = {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       };
-      
-      const isBase64Avatar = editForm.avatarUrl && editForm.avatarUrl.startsWith('data:image');
 
       const payload = {
         first_name: editForm.firstName.trim(),
         last_name: editForm.lastName.trim(),
         phone: editForm.phone.trim(),
+        guardian_name: editForm.guardianName?.trim() || null,
+        parent_phone: editForm.guardianPhone?.trim() || null,
         address: editForm.address.trim(),
-        avatar_url: isBase64Avatar ? profileData.avatar : (editForm.avatarUrl.trim() || null)
+        avatar_url: finalAvatarUrl
       };
 
       const res = await fetch(`/api/v1/students/${studentId}`, {
@@ -267,12 +296,17 @@ const StudentProfile = ({ userInfo }) => {
       if (res.ok) {
         localStorage.setItem(`student_social_links_${studentId}`, JSON.stringify(editForm.socialLinks));
         
-        if (isBase64Avatar) {
-          localStorage.setItem(`student_avatar_${studentId}`, editForm.avatarUrl);
-        } else if (!editForm.avatarUrl) {
-          localStorage.removeItem(`student_avatar_${studentId}`);
+        // Update session storage so global header updates immediately
+        if (finalAvatarUrl !== profileData.avatar) {
+          const userInfoStr = sessionStorage.getItem('userInfo');
+          if (userInfoStr) {
+            const userInfo = JSON.parse(userInfoStr);
+            userInfo.avatar_url = finalAvatarUrl;
+            sessionStorage.setItem('userInfo', JSON.stringify(userInfo));
+            window.dispatchEvent(new Event('userInfoUpdated'));
+          }
         }
-        
+
         setIsEditModalOpen(false);
         fetchStudentData();
       } else {
@@ -351,8 +385,13 @@ const StudentProfile = ({ userInfo }) => {
                 {/* Profile Photo */}
                 <div className="relative w-[76px] h-[76px] shrink-0">
                   <div className="w-full h-full rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
-                    {profileData.avatar ? (
-                      <img src={profileData.avatar} alt={displayName} className="w-full h-full object-cover" />
+                    {profileData.avatar && !avatarError ? (
+                      <img 
+                        src={profileData.avatar} 
+                        alt={displayName} 
+                        className="w-full h-full object-cover" 
+                        onError={() => setAvatarError(true)}
+                      />
                     ) : (
                       <div className="text-[#003F87] font-black text-2xl">
                         {profileData.firstName ? profileData.firstName[0] : 'S'}
@@ -386,13 +425,20 @@ const StudentProfile = ({ userInfo }) => {
 
               {/* Sub-grid Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 pt-4">
-                <div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Current Course</span>
-                  <span className="text-sm font-extrabold text-slate-800 leading-snug">{profileData.course}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Department</span>
-                  <span className="text-sm font-extrabold text-slate-800 leading-snug">{profileData.department}</span>
+                <div className="sm:col-span-2">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Enrolled Courses</span>
+                  <div className="flex flex-col gap-2">
+                    {profileData.courses && profileData.courses.length > 0 ? (
+                      profileData.courses.map((c, idx) => (
+                        <div key={idx} className="bg-slate-50 border border-slate-100 p-2.5 rounded-lg">
+                          <span className="text-sm font-extrabold text-slate-800 leading-snug block">{c.course}</span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{c.department}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-sm font-extrabold text-slate-800 leading-snug block">No Course Enrolled</span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Admission Date</span>
@@ -484,6 +530,19 @@ const StudentProfile = ({ userInfo }) => {
                     <span className="text-sm font-semibold text-slate-700 leading-snug">{profileData.phone || 'N/A'}</span>
                   </div>
                 </div>
+
+                {/* Guardian Phone */}
+                {(profileData.guardianPhone || profileData.guardianName) && (
+                  <div className="flex gap-4 items-center">
+                    <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 text-slate-400">
+                      <Phone size={14} />
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">Guardian Phone {profileData.guardianName ? `(${profileData.guardianName})` : ''}</span>
+                      <span className="text-sm font-semibold text-slate-700 leading-snug">{profileData.guardianPhone || 'N/A'}</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Address */}
                 <div className="flex gap-4 items-center">
@@ -688,6 +747,16 @@ const StudentProfile = ({ userInfo }) => {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Profile Picture</label>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleAvatarFileChange}
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Last Name</label>
@@ -720,6 +789,30 @@ const StudentProfile = ({ userInfo }) => {
                   className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all resize-none"
                   placeholder="Enter full address"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Guardian Name</label>
+                  <input 
+                    type="text" 
+                    value={editForm.guardianName || ''}
+                    onChange={e => setEditForm({ ...editForm, guardianName: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
+                    placeholder="Parent / Guardian Name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Guardian Phone</label>
+                  <input 
+                    type="text" 
+                    maxLength={10}
+                    value={editForm.guardianPhone || ''}
+                    onChange={e => setEditForm({ ...editForm, guardianPhone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10) })}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
+                    placeholder="10-digit number"
+                  />
+                </div>
               </div>
 
               {/* Social Links Form Section */}

@@ -11,7 +11,7 @@ const StudentDashboard = ({ userInfo }) => {
   const [showNotification, setShowNotification] = useState(false);
 
   useEffect(() => {
-    const studentId = userInfo?.id || userInfo?.student_profile_id;
+    const studentId = userInfo?.student_profile_id || userInfo?.id;
     if (studentId) {
       const localSocialLinks = JSON.parse(localStorage.getItem(`student_social_links_${studentId}`) || '{}');
       if (!localSocialLinks.github && !localSocialLinks.linkedin) {

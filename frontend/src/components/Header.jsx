@@ -37,12 +37,15 @@ const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', set
     displayName = userInfo?.role === 'ADMIN' ? 'Admin User' : 'User';
   }
   const displayEmail = userInfo?.email || 'admin@novoxedtech.com';
+  
   let roleTitle = 'Super Admin';
   if (userInfo?.role === 'EMPLOYEE') {
     roleTitle = userInfo?.designation || 'Employee';
   } else if (userInfo?.role === 'STUDENT') {
     roleTitle = 'Student';
   }
+
+  const [avatarError, setAvatarError] = useState(false);
 
   return (
     <header className="h-[72px] min-h-[72px] bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 md:px-8 flex items-center justify-between sticky top-0 z-40 shadow-sm">
@@ -88,8 +91,13 @@ const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', set
               )}
             </div>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center shrink-0 border border-slate-200 shadow-sm overflow-hidden transition-transform group-hover:scale-105">
-              {userInfo?.avatar_url ? (
-                <img src={userInfo.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+              {userInfo?.avatar_url && !avatarError ? (
+                <img 
+                  src={userInfo.avatar_url} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover" 
+                  onError={() => setAvatarError(true)}
+                />
               ) : (
                 <User size={18} className="text-[#003F87]/60" />
               )}

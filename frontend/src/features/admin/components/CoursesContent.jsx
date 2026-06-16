@@ -818,8 +818,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
             <div className="bg-white px-8 py-8 border-b border-slate-100 flex items-start justify-between shrink-0 relative overflow-hidden">
               <div className="absolute right-0 top-0 w-1/3 h-full bg-gradient-to-l from-blue-50/50 to-transparent pointer-events-none"></div>
               
-              <div className="flex items-center gap-6 relative z-10 w-full pr-12">
-                <div className="w-24 h-24 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 relative z-10 w-full pr-8 sm:pr-12">
+                <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
                   {selectedCourse.imgUrl ? (
                     <img src={selectedCourse.imgUrl} alt="Thumbnail" className="w-full h-full object-cover" />
                   ) : (
@@ -831,7 +831,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                     <span className="bg-[#E5F0FF] text-[#003F87] text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-widest">{selectedCourse.category}</span>
                     <span className={`text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-widest ${selectedCourse.status === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700' : selectedCourse.status === 'ARCHIVED' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{selectedCourse.status || 'DRAFT'}</span>
                   </div>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-2 line-clamp-1">{selectedCourse.title}</h2>
+                  <h2 className="text-xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight mb-2 line-clamp-2">{selectedCourse.title}</h2>
                   <div className="flex items-center gap-4 text-sm font-medium text-slate-500">
                     <div className="flex items-center gap-1.5"><Clock size={14} className="text-slate-400" /> <span>{selectedCourse.duration_months ? `${selectedCourse.duration_months} Months` : selectedCourse.duration}</span></div>
                     <div className="w-1 h-1 rounded-full bg-slate-300"></div>
@@ -1040,17 +1040,17 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                             
                             {/* Module Header */}
                             <div 
-                              className="flex justify-between items-center p-5 cursor-pointer hover:bg-blue-50/30 transition-colors"
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 cursor-pointer hover:bg-blue-50/30 transition-colors"
                               onClick={() => setExpandedModuleId(expandedModuleId === m.id ? null : m.id)}
                             >
-                              <div className="flex gap-5 items-center">
+                              <div className="flex gap-4 items-start sm:items-center flex-1">
                                 <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#003F87] font-black flex items-center justify-center shrink-0 border border-blue-100 text-lg group-hover:bg-[#003F87] group-hover:text-white transition-colors">{m.sequence_order}</div>
                                 <div>
                                   <div className="text-base font-black text-slate-900">{m.title}</div>
-                                  {m.description && <div className="text-xs font-medium text-slate-500 mt-0.5 line-clamp-1">{m.description}</div>}
+                                  {m.description && <div className="text-xs font-medium text-slate-500 mt-0.5 line-clamp-2 sm:line-clamp-1">{m.description}</div>}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-3 sm:gap-4 justify-between sm:justify-end w-full sm:w-auto">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleToggleModuleStatus(m.id, m.status); }}
                                   className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-md tracking-wider border transition-colors ${m.status === 'PUBLISHED' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'}`}
@@ -1102,7 +1102,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                               {sm.title}
                                             </div>
                                           </div>
-                                          <div className="flex items-center gap-4 justify-between sm:justify-end">
+                                          <div className="flex items-center gap-4 justify-between sm:justify-end w-full sm:w-auto mt-2 sm:mt-0">
                                             {sm.scheduled_date && <div className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-md uppercase tracking-wider">Plan: {formatDateToDDMMYYYY(sm.scheduled_date)}</div>}
                                             <div className="text-[#003F87] font-bold text-[10px] uppercase tracking-widest flex items-center gap-1">
                                               {expandedSubmoduleId === sm.id ? 'Hide Tasks' : 'Tasks'} <ChevronDown size={14} className={expandedSubmoduleId === sm.id ? 'rotate-180' : ''} />
@@ -1128,10 +1128,10 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                               ) : (
                                                 tasks.filter(t => t.submodule_id === sm.id).sort((a,b) => a.sequence_order - b.sequence_order).map(t => (
                                                   <div key={t.id} className="bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col">
-                                                    <div className="py-2.5 px-4 flex gap-3 items-center cursor-pointer hover:bg-slate-50" onClick={() => setExpandedTaskId(expandedTaskId === t.id ? null : t.id)}>
+                                                    <div className="py-2.5 px-4 flex flex-wrap sm:flex-nowrap gap-3 items-center cursor-pointer hover:bg-slate-50" onClick={() => setExpandedTaskId(expandedTaskId === t.id ? null : t.id)}>
                                                       <div className="w-5 h-5 rounded bg-slate-100 text-slate-500 text-[10px] font-black flex items-center justify-center shrink-0">{t.sequence_order}</div>
-                                                      <div className="flex-1 text-sm font-semibold text-slate-700">{t.title}</div>
-                                                      <div className={`text-[9px] font-black uppercase px-2 py-1 rounded-md tracking-wider ${t.task_type === 'EXTRA' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#003F87]'}`}>{t.task_type === 'EXTRA' ? 'Bonus' : 'Required'}</div>
+                                                      <div className="flex-1 text-sm font-semibold text-slate-700 min-w-[150px]">{t.title}</div>
+                                                      <div className={`text-[9px] font-black uppercase px-2 py-1 rounded-md tracking-wider ml-auto sm:ml-0 ${t.task_type === 'EXTRA' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#003F87]'}`}>{t.task_type === 'EXTRA' ? 'Bonus' : 'Required'}</div>
                                                       <button
                                                         onClick={(e) => { e.stopPropagation(); setItemToDelete({ type: 'Task', moduleId: m.id, submoduleId: sm.id, taskId: t.id, title: t.title }); }}
                                                         className="w-6 h-6 rounded flex items-center justify-center text-red-300 hover:bg-red-50 hover:text-red-500 transition-colors ml-1"
