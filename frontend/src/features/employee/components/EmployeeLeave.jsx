@@ -3,6 +3,7 @@ import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Send, FileText } fr
 import { apiClient } from '../../../lib/apiClient';
 
 const EmployeeLeave = () => {
+  const [viewMode, setViewMode] = useState('My Record');
   const [activeTab, setActiveTab] = useState('Request Leave');
   const [formData, setFormData] = useState({
     leaveType: 'Sick Leave',
@@ -12,6 +13,7 @@ const EmployeeLeave = () => {
   });
 
   const [leaveHistory, setLeaveHistory] = useState([]);
+  const [studentLeaves, setStudentLeaves] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,6 +21,7 @@ const EmployeeLeave = () => {
 
   useEffect(() => {
     fetchLeaves();
+    fetchStudentLeaves();
   }, []);
 
   const fetchLeaves = async () => {
@@ -32,6 +35,43 @@ const EmployeeLeave = () => {
       setError("Failed to load leave history.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchStudentLeaves = () => {
+    try {
+      const mockLeaves = JSON.parse(localStorage.getItem('student_leaves_mock_db') || '[]');
+      // Sort by newest first
+      mockLeaves.sort((a, b) => new Date(b.applied_on) - new Date(a.applied_on));
+      setStudentLeaves(mockLeaves);
+    } catch (err) {
+      console.error("Failed to load student leaves from local storage", err);
+    }
+  };
+
+  const handleApproveStudentLeave = (id) => {
+    try {
+      const mockLeaves = JSON.parse(localStorage.getItem('student_leaves_mock_db') || '[]');
+      const updatedLeaves = mockLeaves.map(leave => 
+        leave.id === id ? { ...leave, status: 'APPROVED' } : leave
+      );
+      localStorage.setItem('student_leaves_mock_db', JSON.stringify(updatedLeaves));
+      setStudentLeaves(updatedLeaves);
+    } catch (err) {
+      alert("Failed to approve student leave");
+    }
+  };
+
+  const handleRejectStudentLeave = (id) => {
+    try {
+      const mockLeaves = JSON.parse(localStorage.getItem('student_leaves_mock_db') || '[]');
+      const updatedLeaves = mockLeaves.map(leave => 
+        leave.id === id ? { ...leave, status: 'REJECTED', admin_message: 'Rejected by Mentor' } : leave
+      );
+      localStorage.setItem('student_leaves_mock_db', JSON.stringify(updatedLeaves));
+      setStudentLeaves(updatedLeaves);
+    } catch (err) {
+      alert("Failed to reject student leave");
     }
   };
 
@@ -94,32 +134,19 @@ const EmployeeLeave = () => {
         </div>
       </div>
 
-      <div className="flex gap-4 border-b border-[#E2E8F0] mb-6">
+      {/* Top Level Toggle */}
+      <div className="flex bg-[#F8FAFC] rounded-[4px] p-[4px] border border-[#C2C6D4] w-fit mb-6 shadow-sm">
         <button
-          onClick={() => setActiveTab('Request Leave')}
-          className={`pb-3 px-1 text-[14px] font-bold transition-all relative ${
-            activeTab === 'Request Leave' 
-              ? 'text-[#003F87]' 
-              : 'text-slate-500 hover:text-slate-700'
-          }`}
+          onClick={() => setViewMode('My Record')}
+          className={`px-8 py-2 rounded-[4px] text-[14px] font-semibold transition-all ${viewMode === 'My Record' ? 'bg-[#003F87] text-white shadow-md' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
         >
-          Request Leave
-          {activeTab === 'Request Leave' && (
-            <div className="absolute bottom-0 left-0 w-full h-[3px] bg-[#003F87] rounded-t-full"></div>
-          )}
+          My Record
         </button>
         <button
-          onClick={() => setActiveTab('My Leave History')}
-          className={`pb-3 px-1 text-[14px] font-bold transition-all relative ${
-            activeTab === 'My Leave History' 
-              ? 'text-[#003F87]' 
-              : 'text-slate-500 hover:text-slate-700'
-          }`}
+          onClick={() => setViewMode('Students')}
+          className={`px-8 py-2 rounded-[4px] text-[14px] font-semibold transition-all ${viewMode === 'Students' ? 'bg-[#003F87] text-white shadow-md' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
         >
-          My Leave History
-          {activeTab === 'My Leave History' && (
-            <div className="absolute bottom-0 left-0 w-full h-[3px] bg-[#003F87] rounded-t-full"></div>
-          )}
+          Students
         </button>
       </div>
 
@@ -130,8 +157,39 @@ const EmployeeLeave = () => {
         </div>
       )}
 
-      {activeTab === 'Request Leave' && (
-        <div className="max-w-4xl animate-in slide-in-from-bottom-4 duration-300 fade-in">
+      {viewMode === 'My Record' && (
+        <>
+          <div className="flex gap-4 border-b border-[#E2E8F0] mb-6">
+            <button
+              onClick={() => setActiveTab('Request Leave')}
+              className={`pb-3 px-1 text-[14px] font-bold transition-all relative ${
+                activeTab === 'Request Leave' 
+                  ? 'text-[#003F87]' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Request Leave
+              {activeTab === 'Request Leave' && (
+                <div className="absolute bottom-0 left-0 w-full h-[3px] bg-[#003F87] rounded-t-full"></div>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('My Leave History')}
+              className={`pb-3 px-1 text-[14px] font-bold transition-all relative ${
+                activeTab === 'My Leave History' 
+                  ? 'text-[#003F87]' 
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              My Leave History
+              {activeTab === 'My Leave History' && (
+                <div className="absolute bottom-0 left-0 w-full h-[3px] bg-[#003F87] rounded-t-full"></div>
+              )}
+            </button>
+          </div>
+
+          {activeTab === 'Request Leave' && (
+            <div className="max-w-4xl animate-in slide-in-from-bottom-4 duration-300 fade-in">
           
           {/* Form Column */}
           <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm">
@@ -274,6 +332,73 @@ const EmployeeLeave = () => {
               </table>
             </div>
           )}
+        </div>
+      )}
+      </>
+      )}
+
+      {viewMode === 'Students' && (
+        <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm animate-in slide-in-from-bottom-4 duration-300 fade-in">
+          <div className="p-5 border-b border-[#E2E8F0] bg-slate-50">
+            <h3 className="font-bold text-slate-800 text-[15px] flex items-center gap-2">
+              <FileText size={18} className="text-[#003F87]" />
+              Manage Student Leaves
+            </h3>
+            <p className="text-[13px] text-slate-500 mt-1">Review and approve/reject leave requests from your assigned students.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-white text-[11px] uppercase tracking-wider font-bold text-slate-500 border-b border-[#E2E8F0]">
+                  <th className="py-4 px-6">Leave Type</th>
+                  <th className="py-4 px-6">Duration</th>
+                  <th className="py-4 px-6">Reason</th>
+                  <th className="py-4 px-6">Applied On</th>
+                  <th className="py-4 px-6">Status</th>
+                  <th className="py-4 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {studentLeaves.length > 0 ? studentLeaves.map((leave) => (
+                  <tr key={leave.id} className="border-b border-[#E2E8F0] hover:bg-slate-50 transition-colors text-[13px]">
+                    <td className="py-4 px-6 font-bold text-slate-800">{leave.type}</td>
+                    <td className="py-4 px-6 text-slate-600 font-medium">
+                      {leave.start_date} to {leave.end_date}
+                    </td>
+                    <td className="py-4 px-6 text-slate-600 max-w-[200px] truncate" title={leave.reason}>
+                      {leave.reason}
+                    </td>
+                    <td className="py-4 px-6 text-slate-500">{new Date(leave.applied_on).toLocaleDateString()}</td>
+                    <td className="py-4 px-6">{getStatusBadge(leave.status)}</td>
+                    <td className="py-4 px-6 text-right">
+                      {leave.status === 'PENDING' && (
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleApproveStudentLeave(leave.id)}
+                            className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                            title="Approve"
+                          >
+                            <CheckCircle size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleRejectStudentLeave(leave.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Reject"
+                          >
+                            <XCircle size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan="6" className="py-8 px-6 text-center text-slate-500">No student leave requests found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

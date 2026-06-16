@@ -8,6 +8,8 @@ import LeaveManagementContent from './features/admin/components/LeaveManagementC
 import StudentsContent from './features/student/components/StudentsContent';
 import EmployeesContent from './features/admin/components/EmployeesContent';
 import StudentDashboard from './features/student/components/StudentDashboard';
+import StudentAttendance from './features/student/components/StudentAttendance';
+import StudentLeave from './features/student/components/StudentLeave';
 import CoursesContent from './features/admin/components/CoursesContent';
 import FeesContent from './features/admin/components/FeesContent';
 import SalesCrmContent from './features/employee/marketing/components/SalesCrmContent';
@@ -30,6 +32,8 @@ import Signup from './features/auth/components/Signup';
 import GalleryContent from './components/GalleryContent';
 import Fab from './components/Fab';
 import DailyPlan from './features/employee/components/DailyPlan';
+import StudentTasks from './features/student/components/StudentTasks';
+import StudentProfile from './features/student/components/StudentProfile';
 
 // Employee Components
 import EmployeeSidebar from './features/employee/components/EmployeeSidebar';
@@ -39,6 +43,7 @@ import EmployeeTasks from './features/employee/components/EmployeeTasks';
 import EmployeeLeave from './features/employee/components/EmployeeLeave';
 import EmployeeAttendance from './features/employee/components/EmployeeAttendance';
 import EmployeeLeaves from './features/employee/components/EmployeeLeaves';
+import DailySchedule from './features/student/components/DailySchedule';
 
 // Mock data removed
 
@@ -237,15 +242,16 @@ function App() {
                 <Route path={basePath} element={<Navigate to={`${basePath}/dashboard`} replace />} />
                 
                 <Route path={`${basePath}/dashboard`} element={userRole === 'STUDENT' ? <StudentDashboard userInfo={userInfo} /> : (userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />)} />
-                <Route path={`${basePath}/daily-plan`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
+                <Route path={`${basePath}/daily-plan`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/schedule`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
-                <Route path={`${basePath}/attendance`} element={userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />} />
-                <Route path={`${basePath}/leave`} element={(userRole === 'ADMIN' || isHR) ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />)} />
+                <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />)} />
+                <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave /> : ((userRole === 'ADMIN' || isHR) ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />))} />
                 <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
                 <Route path={`${basePath}/settings`} element={<SettingsContent />} />
-                <Route path={`${basePath}/profile`} element={<EmployeeProfile />} />
+                <Route path={`${basePath}/profile`} element={userRole === 'STUDENT' ? <StudentProfile userInfo={userInfo} /> : <EmployeeProfile />} />
+                <Route path={`${basePath}/tasks`} element={userRole === 'STUDENT' ? <StudentTasks userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
                 <Route path={`${basePath}/support`} element={<SupportContent />} />
 
                 {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} />} />}
