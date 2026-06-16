@@ -52,6 +52,11 @@ const GalleryContent = () => {
   const [editForm, setEditForm] = useState({ title: '', description: '' });
   const [isEditing, setIsEditing] = useState(false);
   
+  // Category Management
+  const [showCategoryManageModal, setShowCategoryManageModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -91,9 +96,40 @@ const GalleryContent = () => {
       if (response.ok) {
         const result = await response.json();
         setCategories(result.data || []);
+      } else {
+        console.error('Failed to fetch categories:', response.statusText);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    setIsCreatingCategory(true);
+    try {
+      const slug = newCategoryName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const response = await fetch('/api/gallery/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ name: newCategoryName.trim(), slug })
+      });
+      if (response.ok) {
+        setNewCategoryName('');
+        setShowCategoryManageModal(false);
+        fetchCategories();
+      } else {
+        const err = await response.json();
+        alert(`Failed to create category: ${err.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error creating category:', error);
+      alert(`Network error creating category: ${error.message}`);
+    } finally {
+      setIsCreatingCategory(false);
     }
   };
 
@@ -105,6 +141,9 @@ const GalleryContent = () => {
         const result = await response.json();
         const fetchedImages = Array.isArray(result?.data) ? result.data : [];
         setImages(fetchedImages);
+      } else {
+        const err = await response.json();
+        console.error('Failed to fetch gallery images:', err);
       }
     } catch (error) {
       console.error('Error fetching gallery data:', error);
@@ -179,7 +218,7 @@ const GalleryContent = () => {
     let completed = 0;
     for (const id of selectedIds) {
       try {
-        await fetch(`/api/gallery/${id}`, {
+        const response = await fetch(`/api/gallery/${id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -187,8 +226,13 @@ const GalleryContent = () => {
           },
           body: JSON.stringify({ category_id: newBulkCategory })
         });
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.message || 'Failed to update category');
+        }
       } catch (err) {
-        console.error('Failed to update category for', id);
+        console.error('Failed to update category for', id, err);
+        alert(`Failed to update category: ${err.message}`);
       }
       completed++;
     }
@@ -223,9 +267,13 @@ const GalleryContent = () => {
         if (previewImage && previewImage.id === editImage.id) {
           setPreviewImage({ ...previewImage, ...editForm });
         }
+      } else {
+        const errData = await response.json();
+        alert(`Failed to save edit: ${errData.message || response.statusText}`);
       }
     } catch (err) {
       console.error(err);
+      alert(`Network error saving edit: ${err.message}`);
     } finally {
       setIsEditing(false);
       setEditImage(null);
@@ -253,13 +301,31 @@ const GalleryContent = () => {
       }
 
       try {
-        await fetch('/api/gallery/upload', {
+        const response = await fetch('/api/gallery/upload', {
           method: 'POST',
           headers: getAuthHeaders(),
           body: formData
         });
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            alert('Your session has expired or you do not have permission. Please log in again.');
+            sessionStorage.removeItem('userInfo');
+            window.location.href = '/';
+            throw new Error('Unauthorized');
+          }
+
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errData = await response.json();
+            throw new Error(errData.message || 'Upload failed');
+          } else {
+            const textData = await response.text();
+            throw new Error(textData ? textData.substring(0, 100) : `Server responded with status ${response.status} but no error message.`);
+          }
+        }
       } catch (err) {
         console.error('Upload failed for', file.name, err);
+        alert(`Upload failed for ${file.name}: ${err.message}`);
       }
       completed++;
       setUploadProgress(Math.round((completed / uploadFiles.length) * 100));
@@ -414,13 +480,21 @@ const GalleryContent = () => {
           <h1 className="text-2xl font-bold text-slate-800">Gallery Management</h1>
           <p className="text-slate-500 mt-1">Manage gallery images and view your gallery collection.</p>
         </div>
-        <button 
-          onClick={() => setShowUploadModal(true)}
-          className="flex items-center gap-2 bg-[#003F87] text-white px-4 py-2 rounded-md hover:bg-blue-800 transition-colors font-medium"
-        >
-          <Plus size={18} />
-          Upload Images
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setShowCategoryManageModal(true)}
+            className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-200 transition-colors font-medium border border-slate-300"
+          >
+            Manage Categories
+          </button>
+          <button 
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 bg-[#003F87] text-white px-4 py-2 rounded-md hover:bg-blue-800 transition-colors font-medium"
+          >
+            <Plus size={18} />
+            Upload Images
+          </button>
+        </div>
       </div>
 
       {/* 2. Top Statistics Cards */}
@@ -845,6 +919,55 @@ const GalleryContent = () => {
                 className="px-4 py-2 text-sm font-medium text-white bg-[#003F87] hover:bg-blue-800 rounded transition-colors disabled:opacity-50"
               >
                 {isChangingCategory ? 'Updating...' : 'Update'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Management Modal */}
+      {showCategoryManageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Manage Categories</h3>
+            
+            <div className="mb-6 max-h-40 overflow-y-auto border border-slate-200 rounded p-2">
+              {categories.length > 0 ? categories.map(cat => (
+                <div key={cat.id} className="text-sm text-slate-700 py-1 px-2 border-b last:border-b-0 border-slate-100">
+                  {cat.name} <span className="text-slate-400 text-xs ml-2">({cat.slug})</span>
+                </div>
+              )) : (
+                <div className="text-sm text-slate-500 p-2">No categories yet.</div>
+              )}
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">New Category Name</label>
+                <input 
+                  type="text" 
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="e.g. Annual Day"
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#003F87]"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowCategoryManageModal(false)}
+                disabled={isCreatingCategory}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors"
+              >
+                Close
+              </button>
+              <button 
+                onClick={handleCreateCategory}
+                disabled={isCreatingCategory || !newCategoryName.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-[#003F87] hover:bg-blue-800 rounded transition-colors disabled:opacity-50"
+              >
+                {isCreatingCategory ? 'Creating...' : 'Create Category'}
               </button>
             </div>
           </div>
