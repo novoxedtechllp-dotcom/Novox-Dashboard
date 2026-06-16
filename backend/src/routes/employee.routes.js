@@ -9,12 +9,16 @@ import {
   deleteEmployeeDocument,
   assignCourse,
   removeCourse,
-  getEmployeeReport
+  getEmployeeReport,
+  getEmployeeDailyPlan,
+  getAvailableTeachingTopics,
+  scheduleTeachingTopic
 } from "../controllers/employee.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/authorize.middleware.js";
 import { ROLES, EMPLOYEE_ROLES } from "../constants/roles.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 router.use(verifyJWT);
@@ -23,6 +27,9 @@ router.use(verifyJWT);
 router.route("/").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), getEmployees);
 router.route("/reports").get(authorize({ roles: [ROLES.ADMIN], employeeRoles: [EMPLOYEE_ROLES.HR] }), getEmployeeReport);
 router.route("/:employeeId").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), getEmployeeById);
+router.route("/:employeeId/daily-plan").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), getEmployeeDailyPlan);
+router.route("/:employeeId/available-topics").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), getAvailableTeachingTopics);
+router.route("/:employeeId/topics/:submoduleId/schedule").patch(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), scheduleTeachingTopic);
 
 // Only Admin / HR can create, update, delete
 const writeAuth = authorize({ roles: [ROLES.ADMIN], employeeRoles: [EMPLOYEE_ROLES.HR] });

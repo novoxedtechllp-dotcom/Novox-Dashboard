@@ -7,8 +7,8 @@ DROP TABLE IF EXISTS
   salary_slips, payroll, 
   work_reports, project_members, projects, 
   automated_alerts_log, employee_attendance, student_attendance, 
-  student_courses, student_documents, students, 
-  course_schedules, course_instructors, course_modules, courses, 
+  student_tasks, student_courses, student_documents, students, 
+  course_tasks, course_submodules, course_schedules, course_instructors, course_modules, courses, 
   employee_documents, employee_profiles, employee_roles, 
   user_sessions, users 
 CASCADE;
@@ -19,7 +19,7 @@ DROP TYPE IF EXISTS
   STUDENT_STATUS, STUDENT_COURSE_STATUS, ATTENDANCE_STATUS, REPORT_TYPE, 
   PAYROLL_STATUS, PAYMENT_METHOD, CRM_STAGE, ACTIVITY_TYPE, 
   CAMPAIGN_STATUS, SENDER_TYPE, CANDIDATE_STATUS, INTERVIEW_RESULT, AUDIT_ACTION, 
-  PROJECT_STATUS, CONVERSATION_STATUS, PLATFORM_TYPE 
+  PROJECT_STATUS, CONVERSATION_STATUS, PLATFORM_TYPE, TASK_STATUS, TASK_TYPE
 CASCADE;
 
 -- Recreate Types
@@ -31,6 +31,8 @@ CREATE TYPE COURSE_STATUS AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
 CREATE TYPE STUDENT_STATUS AS ENUM ('ACTIVE', 'COMPLETED', 'DROPPED');
 CREATE TYPE STUDENT_COURSE_STATUS AS ENUM ('IN_PROGRESS', 'COMPLETED', 'DROPPED');
 CREATE TYPE ATTENDANCE_STATUS AS ENUM ('PRESENT', 'ABSENT', 'LATE', 'HALF_DAY');
+CREATE TYPE TASK_STATUS AS ENUM ('PENDING', 'SUBMITTED', 'GRADED');
+CREATE TYPE TASK_TYPE AS ENUM ('PRE_PLANNED', 'EXTRA');
 CREATE TYPE REPORT_TYPE AS ENUM ('DAILY', 'WEEKLY');
 CREATE TYPE PAYROLL_STATUS AS ENUM ('PENDING', 'PAID');
 CREATE TYPE PAYMENT_METHOD AS ENUM ('CASH', 'UPI', 'CARD', 'BANK');
@@ -77,6 +79,7 @@ CREATE TABLE employee_profiles (
     role_id UUID NOT NULL REFERENCES employee_roles(id),
     salary NUMERIC(12,2) NOT NULL,
     status EMPLOYEE_STATUS DEFAULT 'ACTIVE',
+    avatar_url TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -97,6 +100,7 @@ CREATE TABLE courses (
     duration_months INTEGER NOT NULL,
     capacity INTEGER NOT NULL,
     status COURSE_STATUS DEFAULT 'DRAFT',
+    thumbnail_url TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -106,6 +110,26 @@ CREATE TABLE course_modules (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     sequence_order INTEGER NOT NULL
+);
+
+CREATE TABLE course_submodules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    module_id UUID NOT NULL REFERENCES course_modules(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    sequence_order INTEGER NOT NULL,
+    scheduled_date DATE
+);
+
+CREATE TABLE course_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    submodule_id UUID NOT NULL REFERENCES course_submodules(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    sequence_order INTEGER NOT NULL,
+    task_type TASK_TYPE DEFAULT 'PRE_PLANNED',
+    due_date DATE,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE course_instructors (
@@ -173,6 +197,7 @@ CREATE TABLE students (
     address TEXT,
     joining_date DATE NOT NULL,
     status STUDENT_STATUS DEFAULT 'ACTIVE',
+    avatar_url TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -192,6 +217,18 @@ CREATE TABLE student_courses (
     progress_percentage DECIMAL(5,2) DEFAULT 0.00,
     completion_status STUDENT_COURSE_STATUS DEFAULT 'IN_PROGRESS',
     UNIQUE (student_id, course_id)
+);
+
+CREATE TABLE student_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES course_tasks(id) ON DELETE CASCADE,
+    status TASK_STATUS DEFAULT 'PENDING',
+    submission_url TEXT,
+    grade VARCHAR(50),
+    feedback TEXT,
+    submitted_at TIMESTAMP,
+    UNIQUE(student_id, task_id)
 );
 
 -- 4. ATTENDANCE MODULE
@@ -425,3 +462,18 @@ CREATE INDEX idx_audit_logs_created ON audit_logs(created_at DESC);
 CREATE INDEX idx_gallery_images_hash ON gallery_images(image_hash);
 CREATE INDEX idx_gallery_images_category ON gallery_images(category_id);
 CREATE INDEX idx_gallery_categories_slug ON gallery_categories(slug);
+
+-- 15. LEAVE MANAGEMENT MODULE
+CREATE TABLE IF NOT EXISTS leaves (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID NOT NULL REFERENCES employee_profiles(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    reason TEXT NOT NULL,
+    status APPROVAL_STATUS DEFAULT 'PENDING',
+    admin_message TEXT,
+    applied_on TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_leaves_employee_id ON leaves(employee_id);

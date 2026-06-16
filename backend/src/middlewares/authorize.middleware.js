@@ -16,7 +16,9 @@ export const authorize = ({ roles = [], employeeRoles = [] } = {}) => {
       isAuthorized = true;
     }
 
-    if (employeeRoles.length > 0 && employeeRoles.includes(req.user.employeeRole)) {
+    const employeeRole = req.user.employeeRole || req.user.employee_role;
+
+    if (employeeRoles.length > 0 && employeeRoles.includes(employeeRole)) {
       isAuthorized = true;
     }
 
