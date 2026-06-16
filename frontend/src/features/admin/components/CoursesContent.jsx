@@ -126,6 +126,69 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
   const [isAddingModule, setIsAddingModule] = useState(false);
 
+  const handleDragStart = (e, type, id) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('type', type);
+    e.dataTransfer.setData('id', String(id));
+  };
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+  const handleDrop = async (e, type, targetId, parentId = null) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const draggedType = e.dataTransfer.getData('type');
+    const draggedId = e.dataTransfer.getData('id');
+
+    if (draggedType !== type || String(draggedId) === String(targetId)) return;
+
+    let items = [];
+    let setItems = null;
+    let endpoint = '';
+    
+    if (type === 'Module') {
+      items = modules.filter(m => m.course_id === selectedCourse.id).sort((a,b) => a.sequence_order - b.sequence_order);
+      setItems = (newItems) => setModules(prev => [...prev.filter(m => m.course_id !== selectedCourse.id), ...newItems]);
+      endpoint = `/api/v1/courses/${selectedCourse.id}/modules/reorder`;
+    } else if (type === 'Submodule') {
+      items = submodules.filter(sm => sm.module_id === parentId).sort((a,b) => a.sequence_order - b.sequence_order);
+      setItems = (newItems) => setSubmodules(prev => [...prev.filter(sm => sm.module_id !== parentId), ...newItems]);
+      endpoint = `/api/v1/courses/${selectedCourse.id}/modules/${parentId}/submodules/reorder`;
+    } else if (type === 'Task') {
+      items = tasks.filter(t => t.submodule_id === parentId).sort((a,b) => a.sequence_order - b.sequence_order);
+      setItems = (newItems) => setTasks(prev => [...prev.filter(t => t.submodule_id !== parentId), ...newItems]);
+      const sm = submodules.find(s => s.id === parentId);
+      endpoint = `/api/v1/courses/${selectedCourse.id}/modules/${sm?.module_id}/submodules/${parentId}/tasks/reorder`;
+    } else if (type === 'Subtask') {
+      items = subtasks.filter(st => st.task_id === parentId).sort((a,b) => a.sequence_order - b.sequence_order);
+      setItems = (newItems) => setSubtasks(prev => [...prev.filter(st => st.task_id !== parentId), ...newItems]);
+      const t = tasks.find(x => x.id === parentId);
+      const sm = submodules.find(x => x.id === t?.submodule_id);
+      endpoint = `/api/v1/courses/${selectedCourse.id}/modules/${sm?.module_id}/submodules/${sm?.id}/tasks/${parentId}/subtasks/reorder`;
+    }
+
+    const draggedIndex = items.findIndex(item => String(item.id) === String(draggedId));
+    const targetIndex = items.findIndex(item => String(item.id) === String(targetId));
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newItems = [...items];
+    const [removed] = newItems.splice(draggedIndex, 1);
+    newItems.splice(targetIndex, 0, removed);
+    const reordered = newItems.map((item, index) => ({ ...item, sequence_order: index + 1 }));
+
+    setItems(reordered);
+    try {
+      const headers = getAuthHeaders();
+      await fetch(endpoint, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ order: reordered.map(i => ({ id: i.id, sequence_order: i.sequence_order })) })
+      });
+    } catch (err) {
+      alert('Failed to save reorder');
+    }
+  };
+
   const getMentorName = (mentorId) => {
     const emp = employees.find(e => String(e.id) === String(mentorId));
     return emp ? emp.name : 'Unassigned';
@@ -1036,7 +1099,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                         </div>
                       ) : (
                         modules.filter(m => m.course_id === selectedCourse.id).sort((a, b) => a.sequence_order - b.sequence_order).map(m => (
-                          <div key={m.id} className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden group">
+                          <div key={m.id} draggable onDragStart={(e) => handleDragStart(e, 'Module', m.id)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'Module', m.id)} className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden group cursor-move">
                             
                             {/* Module Header */}
                             <div 
@@ -1091,7 +1154,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                     <p className="text-sm font-medium text-slate-400 italic py-2">No topics defined in this module yet.</p>
                                   ) : (
                                     submodules.filter(sm => sm.module_id === m.id).sort((a,b) => a.sequence_order - b.sequence_order).map(sm => (
-                                      <div key={sm.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-[0_2px_4px_rgba(0,0,0,0.01)] hover:border-blue-200 transition-colors">
+                                      <div key={sm.id} draggable onDragStart={(e) => handleDragStart(e, 'Submodule', sm.id)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'Submodule', sm.id, m.id)} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-[0_2px_4px_rgba(0,0,0,0.01)] hover:border-blue-200 transition-colors cursor-move">
                                         <div 
                                           className="flex flex-col sm:flex-row sm:items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors gap-3"
                                           onClick={() => setExpandedSubmoduleId(expandedSubmoduleId === sm.id ? null : sm.id)}
@@ -1127,7 +1190,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                                 <p className="text-xs font-medium text-slate-400 italic">No tasks assigned to this topic.</p>
                                               ) : (
                                                 tasks.filter(t => t.submodule_id === sm.id).sort((a,b) => a.sequence_order - b.sequence_order).map(t => (
-                                                  <div key={t.id} className="bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col">
+                                                  <div key={t.id} draggable onDragStart={(e) => handleDragStart(e, 'Task', t.id)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'Task', t.id, sm.id)} className="bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col cursor-move">
                                                     <div className="py-2.5 px-4 flex flex-wrap sm:flex-nowrap gap-3 items-center cursor-pointer hover:bg-slate-50" onClick={() => setExpandedTaskId(expandedTaskId === t.id ? null : t.id)}>
                                                       <div className="w-5 h-5 rounded bg-slate-100 text-slate-500 text-[10px] font-black flex items-center justify-center shrink-0">{t.sequence_order}</div>
                                                       <div className="flex-1 text-sm font-semibold text-slate-700 min-w-[150px]">{t.title}</div>
@@ -1145,7 +1208,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                                       <div className="bg-slate-50 border-t border-slate-100 p-3 pl-12 flex flex-col gap-2">
                                                         <h6 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Subtasks (Steps)</h6>
                                                         {subtasks.filter(st => st.task_id === t.id).sort((a,b) => a.sequence_order - b.sequence_order).map(st => (
-                                                          <div key={st.id} className="flex gap-2 items-start bg-white p-2 rounded border border-slate-100">
+                                                          <div key={st.id} draggable onDragStart={(e) => handleDragStart(e, 'Subtask', st.id)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'Subtask', st.id, t.id)} className="flex gap-2 items-start bg-white p-2 rounded border border-slate-100 cursor-move">
                                                             <div className="text-[10px] font-bold text-[#003F87] w-4 mt-0.5">{st.sequence_order}.</div>
                                                             <div className="flex-1">
                                                               <div className="text-xs font-bold text-slate-700">{st.title}</div>

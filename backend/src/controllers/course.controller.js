@@ -918,3 +918,43 @@ export const deleteCourseSubtask = asyncHandler(async (req, res) => {
 
   return res.status(200).json(new ApiResponse(200, null, "Subtask deleted successfully"));
 });
+// ==========================================
+// MODULE REVIEWS
+// ==========================================
+
+export const submitSubmoduleReview = asyncHandler(async (req, res) => {
+  const { submoduleId } = req.params;
+  const { review_text, suggestion_text } = req.body;
+  const { data: student, error: studentError } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", req.user.id)
+    .single();
+
+  if (studentError || !student) throw new ApiError(403, "Only students can submit module reviews");
+  const student_id = student.id;
+
+  const { data, error } = await supabase
+    .from("course_submodule_reviews")
+    .insert([{ submodule_id: submoduleId, student_id, review_text, suggestion_text }])
+    .select()
+    .single();
+
+  if (error) throw new ApiError(500, error.message);
+  return res.status(201).json(new ApiResponse(201, data, "Review submitted successfully"));
+});
+
+export const getSubmoduleReviews = asyncHandler(async (req, res) => {
+  const { data, error } = await supabase
+    .from("course_submodule_reviews")
+    .select(`
+      *,
+      course_submodules ( title, course_modules ( course_id, courses ( name ) ) ),
+      students ( first_name, last_name, student_code, avatar_url )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new ApiError(500, error.message);
+  return res.status(200).json(new ApiResponse(200, data, "Reviews fetched successfully"));
+});
+

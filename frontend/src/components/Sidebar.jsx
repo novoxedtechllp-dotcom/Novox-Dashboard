@@ -9,7 +9,7 @@ import {
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'daily-plan', label: 'Daily Schedule', icon: BookOpen },
+  { id: 'daily-plan', label: 'Action Plan', icon: BookOpen },
   { id: 'students', label: 'Students', icon: Users },
   { id: 'employees', label: 'Employees', icon: Briefcase },
   { id: 'courses', label: 'Courses', icon: BookOpen },
@@ -36,7 +36,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
   if (userRole === 'STUDENT') {
     visibleNavItems = [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'schedule', label: 'Schedule', icon: Calendar },
+      { id: 'daily-plan', label: 'Action Plan', icon: Calendar },
       { id: 'attendance', label: 'Attendance', icon: Calendar },
       { id: 'leave', label: 'Leave Requests', icon: FileText },
       { id: 'tasks', label: 'Tasks', icon: ClipboardList },
