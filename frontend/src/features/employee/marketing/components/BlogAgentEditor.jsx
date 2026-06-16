@@ -67,9 +67,11 @@ const BlogAgentEditor = () => {
         if (cfgRes.ok) {
           const cfgData = await cfgRes.json();
           if (cfgData[config.id]) {
-            setConfigData(cfgData[config.id]);
-            if (cfgData[config.id].categories && cfgData[config.id].categories.length > 0) {
-              setCategory(cfgData[config.id].categories[0].name);
+            const activeConfig = cfgData[config.id];
+            setConfigData(activeConfig);
+            if (activeConfig.categories && activeConfig.categories.length > 0) {
+              setCategory(activeConfig.categories[0].name);
+              setLandingUrl(activeConfig.defaultLandingUrl || 'services.html');
             }
           }
         }
@@ -91,6 +93,15 @@ const BlogAgentEditor = () => {
       setSlug(seoTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''));
     }
   }, [seoTitle, slug]);
+
+  useEffect(() => {
+    if (configData.categories && category) {
+      const match = configData.categories.find(c => c.name === category);
+      if (match) {
+        setLandingUrl(match.url);
+      }
+    }
+  }, [category, configData.categories]);
 
   const handleLoadBlog = async () => {
     if (!selectedBlog || selectedBlog === 'new') return;
@@ -189,8 +200,15 @@ const BlogAgentEditor = () => {
   const handleDraftAI = async () => {
     const selectedCategory = category || configData.categories[0]?.name;
 
-    if (!topic || !keywords || !selectedCategory || !author || !primaryKeyword || !landingUrl) {
-      alert("All fields (Topic, Keywords, Category, Author, Primary Keyword, and Landing Page URL) are required before generating.");
+    const missingFields = [];
+    if (!topic.trim()) missingFields.push("Article Topic");
+    if (!keywords.trim()) missingFields.push("Target Keywords");
+    if (!selectedCategory || selectedCategory === "Loading...") missingFields.push("Category");
+    if (!author.trim()) missingFields.push("Author");
+    if (!primaryKeyword.trim()) missingFields.push("Primary Keyword");
+
+    if (missingFields.length > 0) {
+      alert(`Cannot draft: The following fields are missing or loading:\n• ${missingFields.join("\n•  ")}`);
       return;
     }
 
@@ -489,10 +507,6 @@ const BlogAgentEditor = () => {
             <div className="flex flex-col gap-2">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Primary SEO Target Keyword</label>
               <input type="text" value={primaryKeyword} onChange={e => setPrimaryKeyword(e.target.value)} placeholder="e.g. AI in web design" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-slate-800 placeholder-slate-400" />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Target Landing Page URL</label>
-              <input type="text" value={landingUrl} onChange={e => setLandingUrl(e.target.value)} placeholder="mern-stack-course-detail.html" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white text-slate-800 placeholder-slate-400" />
             </div>
 
             <div className="flex flex-col gap-2">

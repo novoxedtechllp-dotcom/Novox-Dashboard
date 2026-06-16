@@ -54,6 +54,9 @@ app.use("/api/v1/leaves", leaveRouter);
 app.use("/api/v1/blogs", blogRouter);
 app.use("/api/gallery", galleryRouter);
 
+import { streamImage } from "./controllers/blog.controller.js";
+app.use("/api/blogs-image", streamImage);
+
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
   return res.status(statusCode).json({
