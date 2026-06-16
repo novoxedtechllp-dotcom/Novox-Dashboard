@@ -38,6 +38,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { id: 'schedule', label: 'Schedule', icon: Calendar },
       { id: 'attendance', label: 'Attendance', icon: Calendar },
+      { id: 'leave', label: 'Leave Requests', icon: FileText },
       { id: 'tasks', label: 'Tasks', icon: ClipboardList },
       { id: 'profile', label: 'Profile', icon: User }
     ];
@@ -131,7 +132,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
                   onClick={() => window.innerWidth < 1024 && setIsOpen && setIsOpen(false)}
                   className={`group flex items-center gap-[14px] px-[14px] py-[10px] rounded-xl transition-all duration-300 text-left w-full shrink-0 relative overflow-hidden
                     ${isActive 
-                      ? 'bg-blue-50/80 text-[#003F87] font-bold shadow-sm border border-blue-100/50' 
+                      ? 'bg-blue-100/80 text-[#003F87] font-bold shadow-sm' 
                       : 'text-slate-500 font-medium hover:bg-slate-50 hover:text-slate-800'
                     }`}
                 >

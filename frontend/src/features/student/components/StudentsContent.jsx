@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail, GitBranch, Camera, Terminal } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const getAuthHeaders = () => {
@@ -1022,6 +1022,52 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                         <div className="flex justify-between items-center">
                           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">System Status</div>
                           <div className="text-[15px] font-bold text-[#008A2E]">{activeStudent.status}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm md:col-span-2">
+                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2"><GitBranch size={18} className="text-[#003F87]" /> Social Profiles</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* GitHub */}
+                        <div className="flex flex-col gap-2 p-4 rounded-xl border border-slate-100 bg-slate-50">
+                          <div className="flex items-center gap-2 text-slate-700">
+                            <GitBranch size={16} /> <span className="text-xs font-bold uppercase tracking-wider">GitHub</span>
+                          </div>
+                          {(() => {
+                            const link = JSON.parse(localStorage.getItem(`student_social_links_${activeStudent.id}`) || '{}').github;
+                            return link ? <a href={link} target="_blank" rel="noreferrer" className="text-sm font-bold text-[#003F87] hover:underline truncate">{link.replace('https://', '').replace('http://', '')}</a> : <span className="text-sm text-slate-400 font-medium">Not Provided</span>;
+                          })()}
+                        </div>
+                        {/* LinkedIn */}
+                        <div className="flex flex-col gap-2 p-4 rounded-xl border border-slate-100 bg-slate-50">
+                          <div className="flex items-center gap-2 text-[#0A66C2]">
+                            <Briefcase size={16} /> <span className="text-xs font-bold uppercase tracking-wider">LinkedIn</span>
+                          </div>
+                          {(() => {
+                            const link = JSON.parse(localStorage.getItem(`student_social_links_${activeStudent.id}`) || '{}').linkedin;
+                            return link ? <a href={link} target="_blank" rel="noreferrer" className="text-sm font-bold text-[#003F87] hover:underline truncate">{link.replace('https://', '').replace('http://', '')}</a> : <span className="text-sm text-slate-400 font-medium">Not Provided</span>;
+                          })()}
+                        </div>
+                        {/* Leetcode */}
+                        <div className="flex flex-col gap-2 p-4 rounded-xl border border-slate-100 bg-slate-50">
+                          <div className="flex items-center gap-2 text-orange-500">
+                            <Terminal size={16} /> <span className="text-xs font-bold uppercase tracking-wider">Leetcode</span>
+                          </div>
+                          {(() => {
+                            const link = JSON.parse(localStorage.getItem(`student_social_links_${activeStudent.id}`) || '{}').leetcode;
+                            return link ? <a href={link} target="_blank" rel="noreferrer" className="text-sm font-bold text-[#003F87] hover:underline truncate">{link.replace('https://', '').replace('http://', '')}</a> : <span className="text-sm text-slate-400 font-medium">Not Provided</span>;
+                          })()}
+                        </div>
+                        {/* Instagram */}
+                        <div className="flex flex-col gap-2 p-4 rounded-xl border border-slate-100 bg-slate-50">
+                          <div className="flex items-center gap-2 text-pink-600">
+                            <Camera size={16} /> <span className="text-xs font-bold uppercase tracking-wider">Instagram</span>
+                          </div>
+                          {(() => {
+                            const link = JSON.parse(localStorage.getItem(`student_social_links_${activeStudent.id}`) || '{}').instagram;
+                            return link ? <a href={link} target="_blank" rel="noreferrer" className="text-sm font-bold text-[#003F87] hover:underline truncate">{link.replace('https://', '').replace('http://', '')}</a> : <span className="text-sm text-slate-400 font-medium">Not Provided</span>;
+                          })()}
                         </div>
                       </div>
                     </div>
