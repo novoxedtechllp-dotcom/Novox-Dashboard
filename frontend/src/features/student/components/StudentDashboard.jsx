@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCheck, CheckCircle2, Database, BookOpen, Clock, MapPin, MessageSquare, ChevronRight, CheckSquare } from 'lucide-react';
+import { UserCheck, CheckCircle2, Database, BookOpen, Clock, MapPin, MessageSquare, ChevronRight, CheckSquare, AlertCircle, X } from 'lucide-react';
 
 const StudentDashboard = ({ userInfo }) => {
   const [attendancePercent, setAttendancePercent] = useState(0);
@@ -8,8 +8,17 @@ const StudentDashboard = ({ userInfo }) => {
   const [todaySessions, setTodaySessions] = useState([]);
   const [pendingTasks, setPendingTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showNotification, setShowNotification] = useState(false);
 
   useEffect(() => {
+    const studentId = userInfo?.id || userInfo?.student_profile_id;
+    if (studentId) {
+      const localSocialLinks = JSON.parse(localStorage.getItem(`student_social_links_${studentId}`) || '{}');
+      if (!localSocialLinks.github && !localSocialLinks.linkedin) {
+        setShowNotification(true);
+      }
+    }
+
     const fetchDashboardData = async () => {
       try {
         const token = userInfo?.token || sessionStorage.getItem('token');
@@ -86,6 +95,20 @@ const StudentDashboard = ({ userInfo }) => {
         {/* Left Column (Main) */}
         <div className="flex-1 flex flex-col gap-6">
           
+          {showNotification && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-start gap-4 shadow-sm animate-in fade-in slide-in-from-top-2">
+              <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={20} />
+              <div className="flex-1">
+                <h4 className="text-[14px] font-bold text-amber-800">Action Required: Complete Your Profile</h4>
+                <p className="text-[13px] text-amber-700/80 mt-1 mb-2">Please add your GitHub and LinkedIn profile links. These are required to help instructors review your projects and build your professional network.</p>
+                <a href="/student/profile" className="inline-block text-[12px] font-bold text-amber-700 hover:text-amber-900 underline">Go to My Profile →</a>
+              </div>
+              <button onClick={() => setShowNotification(false)} className="text-amber-400 hover:text-amber-600 transition-colors p-1">
+                <X size={18} />
+              </button>
+            </div>
+          )}
+
           {/* Welcome Banner */}
           <div className="bg-[#003F87] rounded-2xl p-8 text-white relative overflow-hidden shadow-sm">
             {/* Abstract Background Shapes */}

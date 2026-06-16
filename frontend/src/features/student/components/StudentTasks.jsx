@@ -246,7 +246,6 @@ const StudentTasks = ({ userInfo }) => {
         <div className="flex gap-6 shrink-0 pb-0">
           {[
             { id: 'ALL', label: 'All Tasks' },
-            { id: 'HOMEWORK', label: 'Homework' },
             { id: 'QUIZ', label: 'Quiz' },
             { id: 'PROJECT', label: 'Project' }
           ].map(tab => (
@@ -292,7 +291,7 @@ const StudentTasks = ({ userInfo }) => {
                   <div 
                     key={task.id} 
                     onClick={() => openDetailsModal(task)}
-                    className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] hover:shadow-[0_12px_36px_rgba(0,63,135,0.06)] hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between min-h-[190px] cursor-pointer group"
+                    className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between min-h-[190px] cursor-pointer group"
                   >
                     <div>
                       <div className="flex justify-between items-center mb-3.5">
@@ -441,7 +440,7 @@ const StudentTasks = ({ userInfo }) => {
                     <div 
                       key={task.id} 
                       onClick={() => openDetailsModal(task)}
-                      className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_4px_12px_rgba(0,0,0,0.01)] hover:shadow-[0_12px_36px_rgba(0,63,135,0.06)] hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between min-h-[170px] cursor-pointer group"
+                      className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between min-h-[170px] cursor-pointer group"
                     >
                       <div>
                         <div className="flex justify-between items-center mb-3.5">
