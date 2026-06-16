@@ -100,6 +100,7 @@ function App() {
 
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(!!initialUserInfo);
+  const [logoutPath, setLogoutPath] = useState('/login');
   const [userRole, setUserRole] = useState(initialUserInfo ? initialUserInfo.role : null);
   const [userInfo, setUserInfo] = useState(initialUserInfo);
   const [searchQuery, setSearchQuery] = useState('');
@@ -157,6 +158,7 @@ function App() {
   };
 
   const handleLogout = () => {
+    setLogoutPath(userRole === 'STUDENT' ? '/student-login' : '/login');
     setIsAuthenticated(false);
     setUserRole(null);
     setUserInfo(null);
@@ -220,6 +222,7 @@ function App() {
             searchQuery={searchQuery} 
             setSearchQuery={setSearchQuery} 
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            onLogout={handleLogout}
           />
         )}
 
@@ -230,7 +233,7 @@ function App() {
                 <Route path="/login" element={<Login onLogin={handleLogin} />} />
                 <Route path="/student-login" element={<StudentLogin onLogin={handleLogin} />} />
                 <Route path="/signup" element={<Signup />} />
-                <Route path="*" element={<Navigate to="/login" replace />} />
+                <Route path="*" element={<Navigate to={logoutPath} replace />} />
               </>
             ) : (
               <>
