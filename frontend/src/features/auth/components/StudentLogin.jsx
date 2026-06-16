@@ -41,9 +41,12 @@ export default function StudentLogin({ onLogin }) {
           return;
         }
 
+        // Save to session storage for persistence across reloads
+        sessionStorage.setItem('userInfo', JSON.stringify(userInfoToSave));
+
         // Pass to parent
-        onLogin(userInfoToSave);
-        navigate('/'); // Redirect to standard base path which routes to student portal
+        onLogin(userInfoToSave.role);
+        navigate('/student/dashboard'); // Redirect directly to student dashboard
       } else {
         setError("Invalid email or password!");
         setLoading(false);
@@ -63,7 +66,7 @@ export default function StudentLogin({ onLogin }) {
         };
         sessionStorage.setItem('userInfo', JSON.stringify(mockStudentUser));
         if (onLogin) onLogin('STUDENT');
-        navigate('/student');
+        navigate('/student/dashboard');
         return;
       }
 

@@ -34,7 +34,7 @@ const StudentTasks = ({ userInfo }) => {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const studentId = userInfo?.id || userInfo?.student_profile_id;
+  const studentId = userInfo?.student_profile_id || userInfo?.id;
   const token = userInfo?.token || sessionStorage.getItem('token');
 
   const fetchTasks = async () => {
