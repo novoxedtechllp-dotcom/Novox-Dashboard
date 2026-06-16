@@ -1,321 +1,474 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Download, Plus, FileText, CheckCircle, TrendingUp, MoreVertical, Eye, Calendar, DollarSign, Briefcase } from 'lucide-react';
-import LoadingSpinner from '../../../components/LoadingSpinner';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import React, { useState, useMemo } from 'react';
+import { 
+  Landmark, 
+  CheckCircle, 
+  AlertCircle, 
+  Calendar, 
+  Search, 
+  Download, 
+  PlayCircle, 
+  Eye, 
+  Wallet, 
+  Info,
+  ChevronLeft,
+  ChevronRight,
+  Briefcase
+} from 'lucide-react';
 
-const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const initialEmployees = [];
 
 const PayrollContent = () => {
-  const [toast, setToast] = useState(null);
-  const alert = (message) => {
-    const isError = typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error'));
-    setToast({ message, type: isError ? 'error' : 'success' });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const [payrollData, setPayrollData] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchPayroll = async () => {
-      setLoading(true);
-      try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
-        
-        const response = await fetch('/api/v1/payroll', {
-          headers: { 'Authorization': `Bearer ${userInfo.token}` }
-        });
-        const resData = await response.json();
-        if (response.ok) {
-          const prArray = resData.data?.payroll || resData.data || [];
-          setPayrollData(prArray);
-        }
-      } catch (error) {
-        console.error('Error fetching payroll:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPayroll();
-  }, []);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState(null);
-  const [viewItem, setViewItem] = useState(null);
-  
-  // New Payroll Form State
-  const [newPayroll, setNewPayroll] = useState({
-    employee_id: '',
-    employee_name: '',
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-    basic_salary: '',
-    bonus: 0,
-    deductions: 0
+  const [employees, setEmployees] = useState(initialEmployees);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${yyyy}-${mm}`;
   });
-
-  const [sortBy, setSortBy] = useState('Newest');
-
-  // Pagination & Sorting
-  const sortedData = useMemo(() => {
-    let data = [...payrollData];
-    switch (sortBy) {
-      case 'Highest Salary':
-        return data.sort((a, b) => Number(b.net_salary) - Number(a.net_salary));
-      case 'Lowest Salary':
-        return data.sort((a, b) => Number(a.net_salary) - Number(b.net_salary));
-      case 'A-Z':
-        return data.sort((a, b) => a.employee_name.localeCompare(b.employee_name));
-      case 'Z-A':
-        return data.sort((a, b) => b.employee_name.localeCompare(a.employee_name));
-      case 'Newest':
-      default:
-        return data; // Default is order of addition (newest first based on handleGeneratePayroll)
-    }
-  }, [payrollData, sortBy]);
-
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(() => new Date().getFullYear());
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
-  const paginatedData = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const [payrollStatusMap, setPayrollStatusMap] = useState({});
 
-  const calculateNet = (basic, bonus, deductions) => {
-    return (Number(basic) || 0) + (Number(bonus) || 0) - (Number(deductions) || 0);
-  };
-
-  const handleGeneratePayroll = async (e) => {
-    e.preventDefault();
-    
-    const payload = {
-      ...newPayroll,
-      net_salary: calculateNet(newPayroll.basic_salary, newPayroll.bonus, newPayroll.deductions),
-      status: 'PENDING',
-      payment_date: new Date().toISOString().split('T')[0]
-    };
-
-    try {
-      // Simulate API call POST /api/v1/payroll/process
-      // const response = await fetch('/api/v1/payroll/process', { method: 'POST', body: JSON.stringify(payload) });
-      // if (response.ok) { ... }
+  const currentEmployees = useMemo(() => {
+    return initialEmployees.map(emp => {
+      const d = new Date();
+      const currentYearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       
-      const newRecord = {
-        id: `pay-${Date.now()}`,
-        ...payload
+      let defaultStatus = emp.status;
+      if (selectedMonth < currentYearMonth) {
+        defaultStatus = 'PAID';
+      } else if (selectedMonth > currentYearMonth) {
+        defaultStatus = 'PENDING';
+      }
+      
+      const statusOverride = payrollStatusMap[selectedMonth]?.[emp.id];
+      return {
+        ...emp,
+        status: statusOverride || defaultStatus
       };
-      
-      setPayrollData([newRecord, ...payrollData]);
-      setIsModalOpen(false);
-      setNewPayroll({
-        employee_id: '', employee_name: '', month: new Date().getMonth() + 1, year: new Date().getFullYear(), basic_salary: '', bonus: 0, deductions: 0
-      });
-      alert('Payroll generated successfully!');
-    } catch (error) {
-      console.error('Error generating payroll', error);
-    }
-  };
-
-  const toggleDropdown = (id) => {
-    setActiveDropdown(activeDropdown === id ? null : id);
-  };
-
-  const handleDownloadPayslip = (payrollId) => {
-    // Simulate GET /api/v1/payroll/:payrollId/payslip
-    const item = payrollData.find(p => p.id === payrollId);
-    if (!item) return;
-
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text("Payslip", 105, 20, null, null, "center");
-    
-    doc.setFontSize(12);
-    doc.text(`Employee Name: ${item.employee_name}`, 20, 40);
-    doc.text(`Employee ID: ${item.employee_id}`, 20, 50);
-    doc.text(`Period: ${months[item.month - 1]} ${item.year}`, 20, 60);
-    
-    autoTable(doc, {
-      startY: 70,
-      head: [['Description', 'Amount (INR)']],
-      body: [
-        ['Basic Salary', item.basic_salary],
-        ['Bonus', item.bonus],
-        ['Deductions', item.deductions],
-      ],
-      foot: [['Net Salary (INR)', item.net_salary]],
-      theme: 'grid',
-      headStyles: { fillColor: [0, 63, 135] },
-      footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' }
     });
-    
-    doc.save(`payslip_${item.employee_name}_${months[item.month - 1]}_${item.year}.pdf`);
-    setActiveDropdown(null);
+  }, [selectedMonth, payrollStatusMap]);
+
+  const formatMonthDisplay = (monthStr) => {
+    if (!monthStr) return '';
+    const [year, month] = monthStr.split('-');
+    const date = new Date(year, parseInt(month) - 1, 1);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
+  
+  const itemsPerPage = 5;
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
   };
 
-  const totalPaid = useMemo(() => {
-    return payrollData.filter(p => p.status === 'PAID').reduce((acc, curr) => acc + Number(curr.net_salary), 0);
-  }, [payrollData]);
+  // Stats Calculations
+  const stats = useMemo(() => {
+    const total = currentEmployees.reduce((sum, emp) => sum + emp.netPayable, 0);
+    const paid = currentEmployees
+      .filter(emp => emp.status === 'PAID')
+      .reduce((sum, emp) => sum + emp.netPayable, 0);
+    const pending = currentEmployees
+      .filter(emp => emp.status === 'PENDING')
+      .reduce((sum, emp) => sum + emp.netPayable, 0);
 
-  const pendingCount = useMemo(() => {
-    return payrollData.filter(p => p.status === 'PENDING').length;
-  }, [payrollData]);
+    return { total, paid, pending };
+  }, [currentEmployees]);
 
-  if (loading) {
-    return <LoadingSpinner text="Loading payroll data..." />;
-  }
+  // Filtered employees
+  const filteredEmployees = useMemo(() => {
+    return currentEmployees.filter(emp => 
+      emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      emp.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      emp.role.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [currentEmployees, searchQuery]);
+
+  // Paginated employees
+  const paginatedEmployees = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredEmployees.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredEmployees, currentPage]);
+
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+
+  const handlePayIndividual = (id, name) => {
+    setPayrollStatusMap(prev => ({
+      ...prev,
+      [selectedMonth]: {
+        ...(prev[selectedMonth] || {}),
+        [id]: 'PAID'
+      }
+    }));
+    showToast(`Salary successfully disbursed to ${name}!`);
+  };
+
+  const handleRunPayroll = () => {
+    const pendingCount = currentEmployees.filter(emp => emp.status === 'PENDING').length;
+    if (pendingCount === 0) {
+      showToast("All payrolls are already processed!");
+      return;
+    }
+    
+    const newMonthStatus = {};
+    currentEmployees.forEach(emp => {
+      newMonthStatus[emp.id] = 'PAID';
+    });
+
+    setPayrollStatusMap(prev => ({
+      ...prev,
+      [selectedMonth]: {
+        ...(prev[selectedMonth] || {}),
+        ...newMonthStatus
+      }
+    }));
+    showToast(`Successfully processed payroll for ${pendingCount} employees!`);
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['Employee ID', 'Name', 'Role', 'Base Salary (₹)', 'Leaves', 'Late Days', 'Net Payable (₹)', 'Status'];
+    const rows = currentEmployees.map(emp => [
+      emp.id,
+      emp.name,
+      emp.role,
+      emp.baseSalary,
+      emp.leaves,
+      emp.lateDays,
+      emp.netPayable,
+      emp.status
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Payroll_Export_${formatMonthDisplay(selectedMonth).replace(' ', '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("CSV Exported successfully!");
+  };
+
+  const getInitials = (name) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
 
   return (
-    <div className="p-[24px] flex flex-col gap-[24px] w-full relative">
-      {toast && (
-        <div className={`fixed top-4 right-4 z-[9999] px-6 py-3 rounded-lg shadow-xl font-bold text-sm transform transition-all duration-300 translate-y-0 opacity-100 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
-          {toast.message}
+    <div className="p-6 md:p-8 flex flex-col gap-6 w-full relative bg-[#F8FAFC]">
+      
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-[9999] bg-[#003F87] text-white px-5 py-3 rounded-xl shadow-lg font-semibold text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-3 duration-200">
+          <CheckCircle size={16} />
+          {toastMessage}
         </div>
       )}
+
       {/* Header Container */}
-      <div className="w-full flex justify-between items-end h-[60px]">
-        <div className="flex flex-col justify-end">
-          <div className="text-[11px] font-semibold text-[#003F87] mb-1 flex items-center gap-1">
-            <span className="text-[#555F6B]">HR / Admin</span> &gt; Payroll
+      <div className="w-full flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-[24px] font-bold text-[#003F87] leading-tight">Payroll Management</h1>
+          <div className="hidden md:block h-6 w-[1px] bg-[#C2C6D4]"></div>
+          <div className="flex items-center gap-1.5 text-slate-500 text-[13px] font-medium mt-0.5">
+            <Calendar size={15} className="text-slate-400" />
+            <span>Salaries Disbursed on 20th of every month</span>
           </div>
-          <h2 className="text-[24px] font-bold text-[#003F87] leading-tight">Payroll Management</h2>
         </div>
-        <div className="flex items-center gap-[12px]">
-          <button onClick={() => setIsModalOpen(true)} className="bg-[#003F87] text-white px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors shadow-sm">
-            <Plus size={16} /> Generate Payroll
+
+        {/* Action Buttons in Header */}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleExportCSV}
+            className="flex items-center justify-center gap-2 px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 rounded-xl text-[13px] font-bold h-[42px] transition-colors shadow-sm"
+          >
+            <Download size={15} />
+            <span>Export CSV</span>
+          </button>
+          
+          <button 
+            onClick={handleRunPayroll}
+            className="flex items-center justify-center gap-2 px-5 py-2 bg-[#003F87] hover:bg-[#002F66] text-white rounded-xl text-[13px] font-bold h-[42px] transition-colors shadow-sm"
+          >
+            <PlayCircle size={16} />
+            <span>Run Payroll</span>
           </button>
         </div>
       </div>
 
-      {/* Main Container */}
+      {/* Structured Container matching Fees page */}
       <div className="w-full bg-white border border-[#C2C6D4] rounded-[16px] flex flex-col overflow-hidden shadow-sm">
         
-        {/* Tabs & Filters */}
-        <div className="flex justify-between items-center h-[61px] border-b border-[#C2C6D4] px-[24px]">
+        {/* Tabs Row */}
+        <div className="flex items-center h-[61px] border-b border-[#C2C6D4] px-[24px]">
           <button className="h-full flex items-center gap-2 text-[#003F87] font-bold text-[14px] border-b-[3px] border-[#003F87] px-[8px]">
             <Briefcase size={18} /> Payroll History
           </button>
-          
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-semibold text-slate-500">Sort by:</span>
-            <select 
-              value={sortBy} 
-              onChange={(e) => setSortBy(e.target.value)} 
-              className="bg-[#F8FAFC] border border-[#E2E8F0] text-slate-700 text-[12px] rounded-md px-2 py-1 outline-none font-medium cursor-pointer"
-            >
-              <option value="Newest">Newest First</option>
-              <option value="Highest Salary">Highest Salary</option>
-              <option value="Lowest Salary">Lowest Salary</option>
-              <option value="A-Z">Name (A-Z)</option>
-              <option value="Z-A">Name (Z-A)</option>
-            </select>
-          </div>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid inside Container */}
         <div className="grid grid-cols-1 md:grid-cols-3 border-b border-[#C2C6D4] h-auto md:h-[136px]">
+          
+          {/* Total Payroll */}
           <div className="p-[24px] flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#C2C6D4]">
-            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">TOTAL PAYOUT (YTD)</p>
-            <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">₹{totalPaid.toLocaleString()}</h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-[#008A2E]">
-              <TrendingUp size={12} /> Disbursed successfully
-            </div>
-          </div>
-          <div className="p-[24px] flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#C2C6D4]">
-            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">PENDING PROCESSING</p>
-            <h3 className="text-[32px] font-bold text-[#B26E00] leading-none mb-2">{pendingCount} Records</h3>
-            <div className="flex items-center gap-1 text-[11px] text-[#555F6B]">
-              Awaiting authorization
-            </div>
-          </div>
-          <div className="p-[24px] flex flex-col justify-center">
-            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">SYSTEM STATUS</p>
-            <h3 className="text-[24px] font-bold text-slate-900 leading-none mb-2 flex items-center gap-2">
-              <CheckCircle size={24} className="text-[#008A2E]" /> Active
+            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">Total Payroll This Month</p>
+            <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">
+              ₹{stats.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </h3>
-            <div className="flex items-center gap-1 text-[11px] text-[#555F6B]">
-              Payroll Engine V1
+            <div className="flex items-center gap-1 text-[11px] font-bold text-[#003F87] bg-blue-50/50 px-2 py-0.5 rounded-full w-max">
+              +4.2% vs last mo
             </div>
           </div>
+
+          {/* Total Paid */}
+          <div className="p-[24px] flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#C2C6D4]">
+            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">Total Paid</p>
+            <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">
+              ₹{stats.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </h3>
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
+              <div 
+                className="bg-[#008A2E] h-full transition-all duration-500 rounded-full" 
+                style={{ width: `${stats.total > 0 ? (stats.paid / stats.total) * 100 : 0}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Total Pending */}
+          <div className="p-[24px] flex flex-col justify-center">
+            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">Total Pending</p>
+            <h3 className="text-[32px] font-bold text-[#D80000] leading-none mb-2">
+              ₹{stats.pending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </h3>
+            <div className="flex items-center gap-1 text-[11px] font-bold text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full w-max">
+              Due in 5 Days
+            </div>
+          </div>
+
         </div>
 
-        {/* Table */}
-        <div className="w-full overflow-x-auto min-h-[400px]">
+        {/* Filters bar inside Container */}
+        <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-slate-50">
+          
+          {/* Month Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Cycle Month:</span>
+            <div className="relative">
+              <button 
+                onClick={() => {
+                  const [yr] = selectedMonth.split('-');
+                  setPickerYear(parseInt(yr));
+                  setIsDatePickerOpen(!isDatePickerOpen);
+                }}
+                className="flex items-center bg-white border border-[#C2C6D4] rounded-md px-3.5 py-1.5 outline-none hover:border-[#003F87] h-[36px] shadow-sm text-[13px] font-bold text-slate-700 min-w-[150px] justify-between gap-2 transition-all"
+              >
+                <div className="flex items-center gap-2">
+                  <Calendar size={14} className="text-slate-400 shrink-0" />
+                  <span>{formatMonthDisplay(selectedMonth)}</span>
+                </div>
+                <span className="text-[10px] text-slate-400">▼</span>
+              </button>
+
+              {isDatePickerOpen && (
+                <>
+                  {/* Click outside backdrop */}
+                  <div className="fixed inset-0 z-[100]" onClick={() => setIsDatePickerOpen(false)}></div>
+                  
+                  {/* Custom popover dropdown */}
+                  <div className="absolute left-0 top-full mt-2 bg-white border border-[#C2C6D4] rounded-xl shadow-xl z-[101] p-3 w-[260px] animate-in fade-in slide-in-from-top-2 duration-150">
+                    
+                    {/* Header: Year Selector */}
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                      <button 
+                        type="button"
+                        onClick={() => setPickerYear(y => y - 1)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 font-bold transition-all text-lg"
+                      >
+                        &lsaquo;
+                      </button>
+                      <span className="font-extrabold text-[14px] text-slate-800">{pickerYear}</span>
+                      <button 
+                        type="button"
+                        onClick={() => setPickerYear(y => y + 1)}
+                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 font-bold transition-all text-lg"
+                      >
+                        &rsaquo;
+                      </button>
+                    </div>
+
+                    {/* Months Grid */}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                      ].map((monthName, idx) => {
+                        const monthStr = String(idx + 1).padStart(2, '0');
+                        const targetMonthVal = `${pickerYear}-${monthStr}`;
+                        const isSelected = selectedMonth === targetMonthVal;
+                        
+                        return (
+                          <button
+                            key={monthName}
+                            type="button"
+                            onClick={() => {
+                              setSelectedMonth(targetMonthVal);
+                              setIsDatePickerOpen(false);
+                              showToast(`Cycle switched to ${formatMonthDisplay(targetMonthVal)}`);
+                            }}
+                            className={`py-2 rounded-lg text-[12px] font-bold transition-all text-center ${
+                              isSelected
+                                ? 'bg-[#003F87] text-white shadow-sm'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                          >
+                            {monthName}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Search bar */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Search:</span>
+            <div className="flex items-center bg-white border border-[#C2C6D4] rounded-md px-3.5 py-1.5 h-[36px] w-full sm:w-[260px] shadow-sm transition-all focus-within:border-[#003F87]">
+              <Search size={14} className="text-slate-400 mr-2 shrink-0" />
+              <input 
+                type="text" 
+                placeholder="Search employee..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="bg-transparent border-none outline-none text-[13px] w-full text-slate-700 placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+
+        </div>
+
+        {/* Table inside Container */}
+        <div className="w-full overflow-x-auto min-h-[350px]">
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
-              <tr className="border-b border-[#C2C6D4] bg-white">
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Employee</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Period</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right">Basic Salary</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right">Net Salary</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Payment Date</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[120px]">Status</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right">Action</th>
+              <tr className="border-b border-[#C2C6D4] bg-white text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">
+                <th className="py-[16px] px-[24px]">Employee ID & Name</th>
+                <th className="py-[16px] px-[24px]">Base Salary</th>
+                <th className="py-[16px] px-[24px]">Leaves</th>
+                <th className="py-[16px] px-[24px]">Late Days</th>
+                <th className="py-[16px] px-[24px]">Net Payable</th>
+                <th className="py-[16px] px-[24px]">Status</th>
+                <th className="py-[16px] px-[24px] text-center w-[120px]">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {paginatedData.map((payroll) => (
-                <tr key={payroll.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+            <tbody className="divide-y divide-slate-100">
+              {paginatedEmployees.map((emp) => (
+                <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
+                  
+                  {/* ID & Name */}
                   <td className="py-[16px] px-[24px]">
-                    <div className="text-[13px] font-bold text-slate-900">{payroll.employee_name}</div>
-                    <div className="text-[11px] text-slate-500">{payroll.employee_id}</div>
-                  </td>
-                  <td className="py-[16px] px-[24px]">
-                    <div className="flex items-center gap-2 text-[13px] text-[#555F6B] font-medium">
-                      <Calendar size={14} className="text-slate-400" />
-                      {months[payroll.month - 1]} {payroll.year}
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 shadow-sm ${emp.avatarBg}`}>
+                        {getInitials(emp.name)}
+                      </div>
+                      <div>
+                        <div className="text-[13px] font-bold text-slate-900 leading-tight">{emp.name}</div>
+                        <div className="text-[11px] font-semibold text-slate-400 mt-0.5">{emp.id} • {emp.role}</div>
+                      </div>
                     </div>
                   </td>
-                  <td className="py-[16px] px-[24px] text-right">
-                    <div className="text-[13px] text-slate-600">₹{Number(payroll.basic_salary).toLocaleString()}</div>
+
+                  {/* Base Salary */}
+                  <td className="py-[16px] px-[24px] text-[13px] font-semibold text-slate-600">
+                    ₹{emp.baseSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="py-[16px] px-[24px] text-right">
-                    <div className="text-[14px] font-bold text-slate-900">₹{Number(payroll.net_salary).toLocaleString()}</div>
+
+                  {/* Leaves */}
+                  <td className="py-[16px] px-[24px] text-[13px] font-semibold text-slate-600">
+                    {emp.leaves} {emp.leaves === 1 ? 'day' : 'days'}
                   </td>
+
+                  {/* Late Days */}
+                  <td className="py-[16px] px-[24px] text-[13px] font-semibold text-slate-600">
+                    {emp.lateDays} {emp.lateDays === 1 ? 'day' : 'days'}
+                  </td>
+
+                  {/* Net Payable */}
+                  <td className="py-[16px] px-[24px] text-[13px] font-bold text-slate-900">
+                    ₹{emp.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </td>
+
+                  {/* Status */}
                   <td className="py-[16px] px-[24px]">
-                    <div className="text-[13px] text-[#555F6B]">{payroll.payment_date || '-'}</div>
-                  </td>
-                  <td className="py-[16px] px-[24px]">
-                    {payroll.status === 'PAID' ? (
-                      <span className="inline-flex items-center gap-1.5 bg-[#E5F7ED] text-[#008A2E] px-[10px] py-[4px] rounded-full text-[10px] font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#008A2E]"></span> PAID
+                    {emp.status === 'PAID' ? (
+                      <span className="inline-flex items-center gap-1.5 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#008A2E]"></span>
+                        <span>PAID</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 bg-[#FFF4E5] text-[#B26E00] px-[10px] py-[4px] rounded-full text-[10px] font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#B26E00]"></span> PENDING
+                      <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-600 px-[12px] py-[4px] rounded-full text-[11px] font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                        <span>PENDING</span>
                       </span>
                     )}
                   </td>
-                  <td className="py-[16px] px-[24px] text-right relative">
-                    <button onClick={() => toggleDropdown(payroll.id)} className="text-[#555F6B] hover:text-[#003F87]">
-                      <MoreVertical size={18} />
-                    </button>
-                    {activeDropdown === payroll.id && (
-                      <div className="absolute right-[24px] top-[40px] bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[160px] z-[20] flex flex-col overflow-hidden">
-                        <button onClick={() => { setViewItem(payroll); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left">
-                          <Eye size={14} /> View Details
-                        </button>
-                        <button onClick={() => handleDownloadPayslip(payroll.id)} className="flex items-center gap-2 px-4 py-2 text-sm text-[#003F87] hover:bg-slate-50 w-full text-left">
-                          <Download size={14} /> Download Payslip
-                        </button>
-                      </div>
+
+                  {/* Action */}
+                  <td className="py-[16px] px-[24px] text-center">
+                    {emp.status === 'PAID' ? (
+                      <button 
+                        onClick={() => setSelectedEmployee(emp)}
+                        className="p-2 text-slate-400 hover:text-[#003F87] hover:bg-blue-50/50 rounded-lg transition-all"
+                        title="View Details"
+                      >
+                        <Eye size={16} />
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handlePayIndividual(emp.id, emp.name)}
+                        className="p-2 text-red-500 hover:text-white hover:bg-red-500 rounded-lg transition-all shadow-sm border border-red-100 hover:border-red-500"
+                        title="Disburse Salary"
+                      >
+                        <Wallet size={16} />
+                      </button>
                     )}
                   </td>
+
                 </tr>
               ))}
-              {paginatedData.length === 0 && (
+
+              {filteredEmployees.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="py-[32px] text-center text-slate-500">No payroll records found.</td>
+                  <td colSpan="7" className="py-12 text-center text-[13px] font-medium text-slate-400">
+                    No employee records found matching your search.
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
-        {totalPages > 0 && (
+        {/* Container Footer / Pagination */}
+        {filteredEmployees.length > 0 && (
           <div className="p-[16px] px-[24px] bg-white flex justify-between items-center border-t border-[#C2C6D4]">
-            <div className="text-[13px] text-[#555F6B] font-medium">
-              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, payrollData.length)} of {payrollData.length} entries
-            </div>
+            <span className="text-[13px] text-[#555F6B] font-medium">
+              Showing {Math.min(filteredEmployees.length, (currentPage - 1) * itemsPerPage + 1)} to {Math.min(filteredEmployees.length, currentPage * itemsPerPage)} of {filteredEmployees.length} employees
+            </span>
+            
             <div className="flex items-center gap-1">
               <button 
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -323,14 +476,18 @@ const PayrollContent = () => {
                 className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] transition-colors ${
                   currentPage === 1 ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-[#555F6B] bg-white hover:bg-slate-50'
                 }`}
-              >&lt;</button>
+              >
+                <ChevronLeft size={15} />
+              </button>
               
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <button 
                   key={page}
                   onClick={() => setCurrentPage(page)}
                   className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] font-semibold transition-colors ${
-                    currentPage === page ? 'bg-[#003F87] text-white font-bold' : 'text-[#555F6B] hover:bg-slate-100'
+                    currentPage === page 
+                      ? 'bg-[#003F87] text-white font-bold' 
+                      : 'text-[#555F6B] hover:bg-slate-100'
                   }`}
                 >
                   {page}
@@ -343,131 +500,109 @@ const PayrollContent = () => {
                 className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] transition-colors ${
                   currentPage === totalPages ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-[#555F6B] bg-white hover:bg-slate-50'
                 }`}
-              >&gt;</button>
+              >
+                <ChevronRight size={15} />
+              </button>
             </div>
           </div>
         )}
+
       </div>
 
-      {/* Generate Payroll Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-800">Process New Payroll</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none">&times;</button>
-            </div>
-            <form onSubmit={handleGeneratePayroll} className="p-6 flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Employee Name</label>
-                  <input type="text" required value={newPayroll.employee_name} onChange={e => setNewPayroll({...newPayroll, employee_name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" placeholder="e.g. Jane Doe" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Employee ID</label>
-                  <input type="text" required value={newPayroll.employee_id} onChange={e => setNewPayroll({...newPayroll, employee_id: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" placeholder="e.g. emp-123" />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Month</label>
-                  <select required value={newPayroll.month} onChange={e => setNewPayroll({...newPayroll, month: parseInt(e.target.value)})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white">
-                    {months.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Year</label>
-                  <input type="number" required value={newPayroll.year} onChange={e => setNewPayroll({...newPayroll, year: parseInt(e.target.value)})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Basic Salary</label>
-                  <input type="number" required value={newPayroll.basic_salary} onChange={e => setNewPayroll({...newPayroll, basic_salary: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bonus</label>
-                  <input type="number" value={newPayroll.bonus} onChange={e => setNewPayroll({...newPayroll, bonus: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Deductions</label>
-                  <input type="number" value={newPayroll.deductions} onChange={e => setNewPayroll({...newPayroll, deductions: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm" placeholder="0" />
-                </div>
-              </div>
-
-              <div className="bg-slate-50 p-4 rounded-md border border-slate-200 mt-2 flex justify-between items-center">
-                <span className="text-sm font-bold text-slate-700">Calculated Net Salary:</span>
-                <span className="text-xl font-bold text-[#003F87]">₹{calculateNet(newPayroll.basic_salary, newPayroll.bonus, newPayroll.deductions).toLocaleString()}</span>
-              </div>
-
-              <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E]">Process & Generate</button>
-              </div>
-            </form>
-          </div>
+      {/* Payout Notification Info Banner (matches bottom layout) */}
+      <div className="w-full bg-[#EBF3FC] border border-blue-100 rounded-2xl p-4 flex gap-3.5 items-start mt-2">
+        <div className="w-8 h-8 rounded-lg bg-[#003F87]/10 flex items-center justify-center shrink-0 mt-0.5">
+          <Info size={16} className="text-[#003F87]" />
         </div>
-      )}
+        <div>
+          <p className="text-[13px] leading-relaxed text-[#003F87] font-semibold">
+            Next Payout Date: <span className="font-bold text-slate-900">
+              {(() => {
+                if (!selectedMonth) return '';
+                const [year, month] = selectedMonth.split('-');
+                const date = new Date(year, parseInt(month) - 1, 20);
+                return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+              })()}
+            </span>. All pending salaries are scheduled for disbursement on this date. Ensure all leave adjustments are finalized by the 15th.
+          </p>
+        </div>
+      </div>
 
-      {/* View Details Modal */}
-      {viewItem && (
-        <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-800">Payroll Details</h2>
-              <button onClick={() => setViewItem(null)} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none">&times;</button>
+      {/* Details View Modal */}
+      {selectedEmployee && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col animate-in scale-in-95 duration-200 border border-slate-100">
+            <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-[15px] font-bold text-slate-950">Employee Payslip Breakdown</h2>
+              <button 
+                onClick={() => setSelectedEmployee(null)} 
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors font-bold text-lg"
+              >
+                &times;
+              </button>
             </div>
-            <div className="p-6 flex flex-col gap-5">
-              
-              <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">{viewItem.employee_name}</h3>
-                  <p className="text-xs text-slate-500">ID: {viewItem.employee_id}</p>
+            
+            <div className="p-6 flex flex-col gap-4">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-[13px] shrink-0 shadow-sm ${selectedEmployee.avatarBg}`}>
+                  {getInitials(selectedEmployee.name)}
                 </div>
-                <div className={`px-3 py-1 rounded-full text-xs font-bold ${viewItem.status === 'PAID' ? 'bg-[#E5F7ED] text-[#008A2E]' : 'bg-[#FFF4E5] text-[#B26E00]'}`}>
-                  {viewItem.status}
+                <div>
+                  <h3 className="text-[14px] font-bold text-slate-900">{selectedEmployee.name}</h3>
+                  <p className="text-[11px] font-semibold text-slate-400">{selectedEmployee.id} • {selectedEmployee.role}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 text-[12px] py-1">
                 <div>
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Period</span>
-                  <span className="text-sm font-semibold text-slate-900">{months[viewItem.month - 1]} {viewItem.year}</span>
+                  <span className="block text-slate-400 font-medium">Payroll Period</span>
+                  <span className="font-bold text-slate-800">{formatMonthDisplay(selectedMonth)}</span>
                 </div>
                 <div>
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Payment Date</span>
-                  <span className="text-sm font-semibold text-slate-900">{viewItem.payment_date || 'N/A'}</span>
+                  <span className="block text-slate-400 font-medium">Status</span>
+                  <span className="inline-flex items-center gap-1 bg-[#E5F7ED] text-[#008A2E] px-2 py-0.5 rounded-full text-[10px] font-bold mt-0.5">
+                    PAID
+                  </span>
                 </div>
               </div>
 
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3 mt-2">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-600">Basic Salary</span>
-                  <span className="font-semibold">₹{Number(viewItem.basic_salary).toLocaleString()}</span>
+              <div className="bg-slate-50 rounded-xl p-4.5 border border-slate-100 space-y-3 mt-1">
+                <div className="flex justify-between items-center text-[12px] font-medium">
+                  <span className="text-slate-500">Base Salary</span>
+                  <span className="text-slate-800 font-semibold">₹{selectedEmployee.baseSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-600">Bonus</span>
-                  <span className="font-semibold text-[#008A2E]">+ ₹{Number(viewItem.bonus).toLocaleString()}</span>
+                
+                <div className="flex justify-between items-center text-[12px] font-medium">
+                  <span className="text-slate-500">Leaves ({selectedEmployee.leaves} days)</span>
+                  <span className="text-amber-600 font-semibold">- ₹{((selectedEmployee.baseSalary / 30) * selectedEmployee.leaves).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-600">Deductions</span>
-                  <span className="font-semibold text-[#D80000]">- ₹{Number(viewItem.deductions).toLocaleString()}</span>
+
+                <div className="flex justify-between items-center text-[12px] font-medium">
+                  <span className="text-slate-500">Late Days ({selectedEmployee.lateDays} days)</span>
+                  <span className="text-amber-600 font-semibold">- ₹{((selectedEmployee.baseSalary / 60) * selectedEmployee.lateDays).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
-                <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
-                  <span className="font-bold text-slate-900">Net Salary</span>
-                  <span className="text-lg font-bold text-[#003F87]">₹{Number(viewItem.net_salary).toLocaleString()}</span>
+
+                <div className="pt-3.5 border-t border-slate-200 flex justify-between items-center">
+                  <span className="text-[13px] font-bold text-slate-950">Net Paid Amount</span>
+                  <span className="text-[16px] font-black text-[#003F87]">
+                    ₹{selectedEmployee.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex justify-end mt-2 pt-4 border-t border-slate-200">
-                <button onClick={() => setViewItem(null)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Close</button>
+              <div className="flex justify-end gap-2.5 mt-2 pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => setSelectedEmployee(null)} 
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-[12px] font-bold text-slate-600 transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };

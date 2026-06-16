@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter, Calendar } from 'lucide-react';
+import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -550,19 +550,16 @@ const FeesContent = () => {
         </div>
       )}
       {/* Header Container */}
-      <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 min-h-[60px]">
-        <div className="flex flex-col justify-end">
-          <div className="text-[11px] font-semibold text-[#003F87] mb-1 flex items-center gap-1">
-            <span className="text-[#555F6B]">Financials</span> &gt; Management
-          </div>
-          <h2 className="text-[24px] font-bold text-[#003F87] leading-tight">Financial Dashboard</h2>
+      <div className="w-full flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div>
+          <h2 className="text-[24px] font-bold text-[#003F87] leading-tight">Fee Management System</h2>
         </div>
         <div className="flex items-center gap-[12px]">
           <button onClick={handleExportPDF} className="bg-white border border-[#C2C6D4] shadow-sm text-[#555F6B] px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors">
-            <Download size={16} /> Export Report
+            <Download size={16} /> Export Summary
           </button>
           <button onClick={() => setIsModalOpen(true)} className="bg-[#003F87] text-white px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors shadow-sm">
-            <Plus size={16} /> Add Fees
+            <CreditCard size={16} /> Record Payment
           </button>
         </div>
       </div>
