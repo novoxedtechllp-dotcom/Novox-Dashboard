@@ -136,18 +136,20 @@ function App() {
         })
         .catch(err => console.error('Failed to fetch courses:', err));
 
-      // Fetch employees
-      fetch('/api/v1/employees', { headers })
-        .then(res => {
-          if (!res.ok) throw new Error(`Employees API error: ${res.status}`);
-          return res.json();
-        })
-        .then(resData => {
-          if (resData?.data) {
-            setEmployees(resData.data.map(mapEmployeeFromApi));
-          }
-        })
-        .catch(err => console.error('Failed to fetch employees:', err));
+      // Fetch employees (Only if not STUDENT)
+      if (userInfo.role !== 'STUDENT') {
+        fetch('/api/v1/employees', { headers })
+          .then(res => {
+            if (!res.ok) throw new Error(`Employees API error: ${res.status}`);
+            return res.json();
+          })
+          .then(resData => {
+            if (resData?.data) {
+              setEmployees(resData.data.map(mapEmployeeFromApi));
+            }
+          })
+          .catch(err => console.error('Failed to fetch employees:', err));
+      }
     }
   }, [isAuthenticated, userInfo]);
 
@@ -250,7 +252,7 @@ function App() {
                 <Route path={`${basePath}/daily-plan`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/schedule`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />)} />
-                <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave /> : ((userRole === 'ADMIN' || isHR) ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />))} />
+                <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave /> : (userRole === 'ADMIN' ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />))} />
                 <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
