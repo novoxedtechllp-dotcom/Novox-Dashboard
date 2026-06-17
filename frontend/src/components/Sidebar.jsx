@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, BookOpen, Calendar, 
   CreditCard, Wallet, MessageSquare, Handshake, Trophy, 
   GraduationCap, FileText, Globe, Settings, HelpCircle, Menu, LogOut,
-  CheckSquare, ClipboardList, Bot, Image, User
+  CheckSquare, ClipboardList, Bot, Image, User,
 } from 'lucide-react';
 
 const navItems = [
@@ -18,7 +18,7 @@ const navItems = [
   { id: 'leave', label: 'Leave Management', icon: FileText },
   { id: 'fees', label: 'Fees', icon: CreditCard },
   // { id: 'payroll', label: 'Payroll', icon: Wallet },
-  // { id: 'work-reports', label: 'Work Reports', icon: FileText },
+  { id: 'work-reports', label: 'Work Reports', icon: FileText },
   // { id: 'whatsapp-automation', label: 'WhatsApp Automation', icon: MessageSquare },
   // { id: 'sales-crm', label: 'Sales CRM', icon: Handshake },
   // { id: 'recruitment', label: 'Recruitment', icon: Users },
@@ -42,7 +42,8 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
       { id: 'tasks', label: 'Tasks', icon: ClipboardList },
       { id: 'profile', label: 'Profile', icon: User }
     ];
-  } else if (userRole !== 'ADMIN') {
+  }
+   else if (userRole !== 'ADMIN') {
     const hiddenItems = [];
     
     // Evaluate hidden items based on role
