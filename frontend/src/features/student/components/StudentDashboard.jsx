@@ -192,10 +192,7 @@ const StudentDashboard = ({ userInfo }) => {
           {/* Today Session */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-slate-50 flex justify-between items-center">
-              <h3 className="font-bold text-slate-800 text-lg">Today Session</h3>
-              <button className="text-[12px] font-bold text-[#003F87] hover:underline flex items-center">
-                Full Schedule <ChevronRight size={14} />
-              </button>
+              <h3 className="font-bold text-slate-800 text-lg">Today's Sessions</h3>
             </div>
             
             <div className="p-6 flex-1 flex flex-col">
@@ -223,11 +220,7 @@ const StudentDashboard = ({ userInfo }) => {
                           <span className="flex items-center gap-1.5"><BookOpen size={14} /> Module: {session.course_modules?.title || 'General'}</span>
                         </div>
                         
-                        <div className="flex items-center gap-3">
-                          <button className="bg-[#003F87] text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-[#002b5e] transition-colors">
-                            Start Topic
-                          </button>
-                        </div>
+
                       </div>
                     </div>
                   ))}
