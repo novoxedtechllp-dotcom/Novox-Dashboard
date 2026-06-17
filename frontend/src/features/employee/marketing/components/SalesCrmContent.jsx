@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, Mail, MessageSquare, Plus, ChevronRight, TrendingUp, Users, BookOpen, Zap, MoreHorizontal, Paperclip, RefreshCw, CheckSquare } from 'lucide-react';
+import { Phone, Mail, MessageSquare, Plus, ChevronRight, TrendingUp, Users, BookOpen, Zap, MoreHorizontal, Paperclip, RefreshCw, CheckSquare, Search, X } from 'lucide-react';
 import LoadingSpinner from '../../../../components/LoadingSpinner';
 
 // ─── Mock / fallback data (replace with real API calls) ───────────────────────
@@ -17,6 +17,118 @@ const MOCK_SOURCES = [
   { id: 'src-2', source_name: 'Referral' },
   { id: 'src-3', source_name: 'Social' },
 ];
+
+// ─── Unique course list derived from leads ─────────────────────────────────────
+const getUniqueCourses = (leads) => {
+  const courses = leads.map(l => l.course).filter(Boolean);
+  return [...new Set(courses)];
+};
+
+// ─── Filter Bar ───────────────────────────────────────────────────────────────
+function FilterBar({ searchTerm, onSearchChange, selectedCourse, onCourseChange, courses, onReset }) {
+  const hasActiveFilter = searchTerm || selectedCourse;
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '10px 24px',
+      background: '#fff',
+      borderBottom: '1px solid #E8EEF7',
+      flexWrap: 'wrap',
+    }}>
+      {/* Filters label */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#555F6B', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+        </svg>
+        Filters:
+      </div>
+
+      {/* Search Input */}
+      <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 300 }}>
+        <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#999' }}>
+          <Search size={13} />
+        </div>
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={e => onSearchChange(e.target.value)}
+          placeholder="Search institutional data..."
+          style={{
+            width: '100%',
+            padding: '7px 30px 7px 30px',
+            border: '1px solid #D8E0EC',
+            borderRadius: 8,
+            fontSize: 12,
+            color: '#333',
+            outline: 'none',
+            boxSizing: 'border-box',
+            fontFamily: 'inherit',
+            background: '#FAFBFD',
+          }}
+        />
+        {searchTerm && (
+          <button
+            onClick={() => onSearchChange('')}
+            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#999', padding: 0, display: 'flex', alignItems: 'center' }}
+          >
+            <X size={12} />
+          </button>
+        )}
+      </div>
+
+      {/* Course Dropdown */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: '#003F87', textTransform: 'uppercase', letterSpacing: 0.5 }}>COURSE</span>
+        <select
+          value={selectedCourse}
+          onChange={e => onCourseChange(e.target.value)}
+          style={{
+            padding: '7px 28px 7px 10px',
+            border: '1px solid #D8E0EC',
+            borderRadius: 8,
+            fontSize: 12,
+            color: '#333',
+            background: '#FAFBFD',
+            outline: 'none',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            appearance: 'none',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 8px center',
+            minWidth: 130,
+          }}
+        >
+          <option value="">All Courses</option>
+          {courses.map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Reset Button */}
+      <button
+        onClick={onReset}
+        style={{
+          background: 'none',
+          border: 'none',
+          fontSize: 13,
+          fontWeight: 700,
+          color: hasActiveFilter ? '#003F87' : '#AAB4C2',
+          cursor: hasActiveFilter ? 'pointer' : 'default',
+          padding: '6px 4px',
+          flexShrink: 0,
+          transition: 'color .15s',
+        }}
+      >
+        Reset
+      </button>
+    </div>
+  );
+}
 
 // ─── Color avatar helper ───────────────────────────────────────────────────────
 const AVATAR_COLORS = ['#003F87','#1565C0','#1976D2','#2196F3','#0288D1','#00796B','#388E3C','#F57C00','#7B1FA2'];
@@ -400,6 +512,10 @@ const SalesCrmContent = () => {
   const [activeLead, setActiveLead] = useState(null);
   const [messages, setMessages] = useState({});
 
+  // ── Filter state ──────────────────────────────────────────────────────────
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('');
+
   const stages = ['NEW', 'CONTACTED', 'INTERESTED', 'COUNSELLING', 'ENROLLED', 'LOST'];
 
   useEffect(() => {
@@ -431,6 +547,25 @@ const SalesCrmContent = () => {
 
   const getSourceName = (id) => (sources.find(s => s.id === id)?.source_name ?? 'Unknown');
 
+  // ── Filtered leads ─────────────────────────────────────────────────────────
+  const filteredLeads = leads.filter(lead => {
+    const matchesSearch = !searchTerm ||
+      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.phone.includes(searchTerm) ||
+      (lead.course && lead.course.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (lead.note && lead.note.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const matchesCourse = !selectedCourse || lead.course === selectedCourse;
+
+    return matchesSearch && matchesCourse;
+  });
+
+  const handleReset = () => {
+    setSearchTerm('');
+    setSelectedCourse('');
+  };
+
   const handleAddLead = (lead) => {
     setLeads(prev => [...prev, lead]);
     setIsAddOpen(false);
@@ -446,43 +581,79 @@ const SalesCrmContent = () => {
     setMessages(prev => ({ ...prev, [leadId]: [...(prev[leadId] || []), msg] }));
   };
 
+  const uniqueCourses = getUniqueCourses(leads);
+
   if (loading) return <LoadingSpinner text="Loading CRM data..." />;
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, width: '100%', height: '100%', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, -apple-system, sans-serif', background: '#F0F4FA', minHeight: '100vh' }}>
-      {/* Page header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22, fontWeight: 800, color: '#003F87' }}>Lead Insights</span>
-          </div>
-          <p style={{ margin: 0, fontSize: 13, color: '#777', marginTop: 2 }}>Manage leads and track your sales pipeline.</p>
-        </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#555', background: '#fff', border: '1px solid #D8E0EC', borderRadius: 8, padding: '6px 12px' }}>
-            📅 Oct 1 – Oct 31, 2023
-          </div>
-          <span style={{ fontSize: 11, color: '#27AE60', background: '#E8F5E9', padding: '4px 10px', borderRadius: 20, fontWeight: 700 }}>Last updated: Just now</span>
-          <button onClick={() => setIsAddOpen(true)} style={{ background: '#003F87', color: '#fff', border: 'none', borderRadius: 9, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Plus size={15} /> Add Lead
-          </button>
-        </div>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, -apple-system, sans-serif', background: '#F0F4FA', minHeight: '100vh' }}>
 
-      {/* Insights */}
-      <InsightsHeader />
+      {/* ── Filter Bar (full-width, outside padding) ── */}
+      <FilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        selectedCourse={selectedCourse}
+        onCourseChange={setSelectedCourse}
+        courses={uniqueCourses}
+        onReset={handleReset}
+      />
 
-      {/* Kanban */}
-      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, flex: 1 }}>
-        {stages.map(stage => (
-          <KanbanColumn
-            key={stage}
-            stage={stage}
-            leads={leads}
-            getSourceName={getSourceName}
-            onOpenDetails={(lead) => setActiveLead(lead)}
-          />
-        ))}
+      {/* ── Main content area ── */}
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, flex: 1 }}>
+
+        {/* Page header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 22, fontWeight: 800, color: '#003F87' }}>Lead Insights</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 13, color: '#777', marginTop: 2 }}>Manage leads and track your sales pipeline.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#555', background: '#fff', border: '1px solid #D8E0EC', borderRadius: 8, padding: '6px 12px' }}>
+              📅 Oct 1 – Oct 31, 2023
+            </div>
+            <span style={{ fontSize: 11, color: '#27AE60', background: '#E8F5E9', padding: '4px 10px', borderRadius: 20, fontWeight: 700 }}>Last updated: Just now</span>
+            <button onClick={() => setIsAddOpen(true)} style={{ background: '#003F87', color: '#fff', border: 'none', borderRadius: 9, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Plus size={15} /> Add Lead
+            </button>
+          </div>
+        </div>
+
+        {/* Insights */}
+        <InsightsHeader />
+
+        {/* Active filter indicator */}
+        {(searchTerm || selectedCourse) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#555F6B' }}>
+            <span>Showing <strong style={{ color: '#003F87' }}>{filteredLeads.length}</strong> of {leads.length} leads</span>
+            {searchTerm && (
+              <span style={{ background: '#E8EEF7', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                Search: "{searchTerm}"
+                <button onClick={() => setSearchTerm('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: 0, display: 'flex', alignItems: 'center' }}><X size={10} /></button>
+              </span>
+            )}
+            {selectedCourse && (
+              <span style={{ background: '#E8EEF7', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                Course: {selectedCourse}
+                <button onClick={() => setSelectedCourse('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: 0, display: 'flex', alignItems: 'center' }}><X size={10} /></button>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Kanban */}
+        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, flex: 1 }}>
+          {stages.map(stage => (
+            <KanbanColumn
+              key={stage}
+              stage={stage}
+              leads={filteredLeads}
+              getSourceName={getSourceName}
+              onOpenDetails={(lead) => setActiveLead(lead)}
+            />
+          ))}
+        </div>
       </div>
 
       {/* FAB */}
