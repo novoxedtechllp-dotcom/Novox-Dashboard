@@ -34,6 +34,7 @@ import Fab from './components/Fab';
 import DailyPlan from './features/employee/components/DailyPlan';
 import StudentTasks from './features/student/components/StudentTasks';
 import StudentProfile from './features/student/components/StudentProfile';
+import StudentAcademicJourney from './features/student/components/StudentAcademicJourney';
 
 // Employee Components
 import EmployeeSidebar from './features/employee/components/EmployeeSidebar';
@@ -259,6 +260,7 @@ function App() {
                 <Route path={`${basePath}/settings`} element={<SettingsContent />} />
                 <Route path={`${basePath}/profile`} element={userRole === 'STUDENT' ? <StudentProfile userInfo={userInfo} /> : <EmployeeProfile />} />
                 <Route path={`${basePath}/tasks`} element={userRole === 'STUDENT' ? <StudentTasks userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
+                <Route path={`${basePath}/journey`} element={userRole === 'STUDENT' ? <StudentAcademicJourney userInfo={userInfo} /> : (canViewJourney ? <AcademicJourneyContent /> : <Navigate to={`${basePath}/dashboard`} />)} />
                 <Route path={`${basePath}/support`} element={<SupportContent />} />
 
                 {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} />} />}
@@ -268,7 +270,6 @@ function App() {
                 {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} />} />}
                 {canViewRecruitment && <Route path={`${basePath}/recruitment`} element={<RecruitmentContent />} />}
                 {canViewWhatsapp && <Route path={`${basePath}/whatsapp-automation`} element={<WhatsappContent />} />}
-                {canViewJourney && <Route path={`${basePath}/journey`} element={<AcademicJourneyContent />} />}
                 {canViewSeo && <Route path={`${basePath}/seo`} element={<SeoAgentContent />} />}
                 {canViewBlog && <Route path={`${basePath}/blog`} element={<BlogDashboardContent />} />}
                 {canViewBlog && <Route path={`${basePath}/blog-agent`} element={<BlogAgentHub />} />}

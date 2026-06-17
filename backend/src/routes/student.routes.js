@@ -17,7 +17,9 @@ import {
   updateStudentTask,
   getStudentDailyPlan,
   submitStudentTask,
-  reviewStudentTask
+  reviewStudentTask,
+  getStudentSubmoduleProgress,
+  toggleStudentSubmoduleProgress
 } from "../controllers/student.controller.js";
 
 import { getAcademicJourney } from "../controllers/journey.controller.js";
@@ -60,6 +62,8 @@ router.route("/:studentId/courses/:courseId")
   .put(writeAuth, updateStudentCourse)
   .delete(writeAuth, removeStudentCourse);
 router.route("/:studentId/progress").get(readAuth, getStudentProgress);
+router.route("/:studentId/progress/submodules").get(readAuth, getStudentSubmoduleProgress);
+router.route("/:studentId/progress/submodules/:submoduleId").post(readAuth, toggleStudentSubmoduleProgress);
 
 router.route("/:studentId/tasks").get(readAuth, getStudentTasks);
 router.route("/:studentId/tasks/:taskId").put(readAuth, updateStudentTask);
