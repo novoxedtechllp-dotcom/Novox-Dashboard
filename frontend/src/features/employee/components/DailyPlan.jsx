@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, BookOpen, CheckCircle, Plus, LayoutList, X, ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Clock, User } from 'lucide-react';
+import { Calendar as CalendarIcon, BookOpen, CheckCircle, Plus, LayoutList, X, ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Clock, User, MessageSquare } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 
 const getAuthHeaders = () => {
@@ -64,6 +64,7 @@ const DailyPlan = ({ userType, userId }) => {
   const [isCurriculumModalOpen, setIsCurriculumModalOpen] = useState(false);
   const [employeesList, setEmployeesList] = useState([]);
   const [selectedAdminEmployeeId, setSelectedAdminEmployeeId] = useState('');
+  const [reviews, setReviews] = useState([]);
 
   // Date array for custom date selector (3 days before, today, 3 days after)
   const [dateRange, setDateRange] = useState([]);
@@ -128,7 +129,21 @@ const DailyPlan = ({ userType, userId }) => {
   useEffect(() => {
     fetchDailyPlan();
     fetchAvailableTopics();
+    if (userType === 'ADMIN' || userType === 'EMPLOYEE') fetchReviews();
   }, [selectedDate, userType, userId, selectedAdminEmployeeId]);
+
+  const fetchReviews = async () => {
+    try {
+      const headers = getAuthHeaders();
+      const res = await fetch('/api/v1/courses/daily-plan/reviews', { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setReviews(data.data || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchDailyPlan = async () => {
     if (!userId && userType !== 'ADMIN') return;
@@ -270,7 +285,7 @@ const DailyPlan = ({ userType, userId }) => {
       {/* Header & Date Navigation Banner */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Daily Schedule</h2>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Action Plan</h2>
           <p className="text-slate-500 text-sm mt-1 flex items-center gap-2">
             <CalendarDays size={14} /> Plan and manage your curriculum seamlessly.
           </p>
@@ -490,6 +505,44 @@ const DailyPlan = ({ userType, userId }) => {
                             </form>
                           </div>
                         )}
+                        {/* Submodule Reviews */}
+                        {(() => {
+                          const submoduleReviews = reviews.filter(r => r.submodule_id === submodule.id);
+                          if (submoduleReviews.length === 0) return null;
+                          return (
+                            <div className="mt-4 pt-4 border-t border-slate-200">
+                              <h5 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <MessageSquare size={14} className="text-slate-400" /> Student Feedback
+                              </h5>
+                              <div className="flex flex-col gap-3">
+                                {submoduleReviews.map(review => (
+                                  <div key={review.id} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden">
+                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-400"></div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-[10px]">
+                                        {review.students?.first_name?.[0]}{review.students?.last_name?.[0]}
+                                      </div>
+                                      <span className="text-xs font-bold text-slate-800">{review.students?.first_name} {review.students?.last_name}</span>
+                                    </div>
+                                    {review.review_text && (
+                                      <div>
+                                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Review</div>
+                                        <p className="text-xs text-slate-700 leading-relaxed">{review.review_text}</p>
+                                      </div>
+                                    )}
+                                    {review.suggestion_text && (
+                                      <div>
+                                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Suggestion</div>
+                                        <p className="text-xs text-slate-700 leading-relaxed">{review.suggestion_text}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                       </div>
                     </div>
                   </div>
@@ -499,6 +552,7 @@ const DailyPlan = ({ userType, userId }) => {
           </div>
         </div>
       </div>
+
 
       {isCurriculumModalOpen && (
         <CurriculumSelectorModal

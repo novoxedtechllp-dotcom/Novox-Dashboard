@@ -34,7 +34,9 @@ import {
   reorderSubtasks,
   addCourseSubtask,
   updateCourseSubtask,
-  deleteCourseSubtask
+  deleteCourseSubtask,
+  submitSubmoduleReview,
+  getSubmoduleReviews
 } from "../controllers/course.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -46,6 +48,7 @@ const router = Router();
 router.use(verifyJWT);
 
 // Read
+router.route("/daily-plan/reviews").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), getSubmoduleReviews);
 router.route("/daily-plan").get(authorize({ roles: [ROLES.ADMIN] }), getAdminDailyPlan);
 router.route("/").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT] }), getCourses);
 router.route("/:courseId").get(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT] }), getCourseById);
@@ -75,11 +78,13 @@ router.route("/:courseId/modules").post(writeAuth, addCourseModule);
 router.route("/:courseId/modules/reorder").patch(writeAuth, reorderModules);
 router.route("/:courseId/modules/:moduleId").put(writeAuth, updateCourseModule).delete(writeAuth, deleteCourseModule);
 router.route("/:courseId/modules/:moduleId/status").patch(writeAuth, patchModuleStatus);
+// router.route("/:courseId/modules/:moduleId/reviews").post(authorize({ roles: [ROLES.STUDENT] }), submitModuleReview);
 
 // ── Submodules ────────────────────────────────────────────────
 router.route("/:courseId/modules/:moduleId/submodules").post(writeAuth, addCourseSubmodule);
 router.route("/:courseId/modules/:moduleId/submodules/reorder").patch(writeAuth, reorderSubmodules);
 router.route("/:courseId/modules/:moduleId/submodules/:submoduleId").put(writeAuth, updateCourseSubmodule).delete(writeAuth, deleteCourseSubmodule);
+router.route("/:courseId/modules/:moduleId/submodules/:submoduleId/reviews").post(authorize({ roles: [ROLES.STUDENT] }), submitSubmoduleReview);
 
 // ── Tasks ─────────────────────────────────────────────────────
 router.route("/:courseId/modules/:moduleId/submodules/:submoduleId/tasks").post(writeAuth, addCourseTask);
