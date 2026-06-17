@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Plus, Briefcase, UploadCloud, FileText, Trash2, Clock, X, ExternalLink } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Plus, Briefcase, UploadCloud, FileText, Trash2, Clock, X, ExternalLink, ChevronDown, Check } from "lucide-react";
 import LoadingSpinner from "../../../components/LoadingSpinner";
 
 // Backward-compatible parser for legacy reports that stored metadata in work_done text
@@ -31,6 +31,53 @@ const cleanLegacyReport = (report) => {
     projectArea: projectArea || "General Task",
     attachment: attachmentUrl ? { name: attachmentName || "Attachment", url: attachmentUrl } : null
   };
+};
+
+const CustomSelect = ({ label, options, value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find(o => o.value === value) || options[0] || { label: "Select..." };
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="flex-1 max-w-xs relative" ref={dropdownRef}>
+      <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">{label}</label>
+      <div 
+        className={`w-full bg-slate-50 border ${isOpen ? 'border-[#003F87] ring-1 ring-[#003F87]' : 'border-[#E2E8F0]'} text-[14px] text-slate-700 px-3 py-2.5 rounded-lg flex justify-between items-center cursor-pointer hover:border-[#003F87] transition-all duration-200 shadow-sm`}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="font-medium truncate pr-4">{selectedOption.label}</span>
+        <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#003F87]' : ''}`} />
+      </div>
+      
+      {isOpen && (
+        <div className="absolute z-20 w-full mt-2 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-60 overflow-auto py-1 animate-in fade-in zoom-in-95 duration-100">
+          {options.map((option) => (
+            <div
+              key={option.value}
+              className={`px-3 py-2.5 cursor-pointer text-[14px] transition-colors flex justify-between items-center ${option.value === value ? 'bg-[#F0F5FF] text-[#003F87] font-bold' : 'text-slate-700 hover:bg-slate-50 font-medium'}`}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+            >
+              <span className="truncate pr-2">{option.label}</span>
+              {option.value === value && <Check size={16} className="text-[#003F87] shrink-0" />}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const WorkReportsContent = () => {
@@ -263,35 +310,30 @@ const WorkReportsContent = () => {
 
         {userRole === "ADMIN" && (
           <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
-            <div className="flex-1 max-w-xs">
-              <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">Select Employee</label>
-              <select
-                value={selectedEmployee}
-                onChange={(e) => setSelectedEmployee(e.target.value)}
-                className="w-full bg-slate-50 border border-[#E2E8F0] text-[14px] text-slate-700 px-3 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] font-medium"
-              >
-                <option value="ALL">All Employees</option>
-                {employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.first_name} {emp.last_name} ({emp.employee_code || 'N/A'})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CustomSelect 
+              label="Select Employee"
+              value={selectedEmployee}
+              onChange={setSelectedEmployee}
+              options={[
+                { value: "ALL", label: "All Employees" },
+                ...employees.map(emp => ({
+                  value: emp.id,
+                  label: `${emp.first_name} ${emp.last_name} (${emp.employee_code || 'N/A'})`
+                }))
+              ]}
+            />
             
-            <div className="flex-1 max-w-xs">
-              <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">Date Range</label>
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full bg-slate-50 border border-[#E2E8F0] text-[14px] text-slate-700 px-3 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] font-medium"
-              >
-                <option value="TODAY">Today's Reports</option>
-                <option value="THIS_MONTH">This Month</option>
-                <option value="PREVIOUS_MONTH">Previous Month</option>
-                <option value="ALL_TIME">All Time</option>
-              </select>
-            </div>
+            <CustomSelect 
+              label="Date Range"
+              value={dateFilter}
+              onChange={setDateFilter}
+              options={[
+                { value: "TODAY", label: "Today's Reports" },
+                { value: "THIS_MONTH", label: "This Month" },
+                { value: "PREVIOUS_MONTH", label: "Previous Month" },
+                { value: "ALL_TIME", label: "All Time" },
+              ]}
+            />
           </div>
         )}
 
