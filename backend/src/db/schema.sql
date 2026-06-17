@@ -448,13 +448,14 @@ CREATE TABLE gallery_images (
     description TEXT,
     cloudinary_url TEXT NOT NULL,
     cloudinary_public_id VARCHAR(255) NOT NULL,
-    image_hash TEXT UNIQUE NOT NULL,
+    image_hash TEXT NOT NULL,
     tags TEXT[],
     uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
     website_id UUID REFERENCES gallery_websites(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    is_deleted BOOLEAN DEFAULT FALSE
+    is_deleted BOOLEAN DEFAULT FALSE,
+    CONSTRAINT gallery_images_image_hash_website_id_key UNIQUE NULLS NOT DISTINCT (image_hash, website_id)
 );
 
 CREATE TABLE gallery_image_categories (
