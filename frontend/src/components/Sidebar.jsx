@@ -9,7 +9,7 @@ import {
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'daily-plan', label: 'Daily Schedule', icon: BookOpen },
+  { id: 'daily-plan', label: 'Action Plan', icon: BookOpen },
   { id: 'students', label: 'Students', icon: Users },
   { id: 'employees', label: 'Employees', icon: Briefcase },
   { id: 'courses', label: 'Courses', icon: BookOpen },
@@ -28,7 +28,7 @@ const navItems = [
   // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
-const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
+const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, isAccounts, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   
@@ -36,7 +36,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
   if (userRole === 'STUDENT') {
     visibleNavItems = [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'schedule', label: 'Schedule', icon: Calendar },
+      { id: 'daily-plan', label: 'Action Plan', icon: Calendar },
       { id: 'attendance', label: 'Attendance', icon: Calendar },
       { id: 'leave', label: 'Leave Requests', icon: FileText },
       { id: 'tasks', label: 'Tasks', icon: ClipboardList },
@@ -47,12 +47,15 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
     
     // Evaluate hidden items based on role
     if (!isHR) {
-      hiddenItems.push('employees', 'payroll', 'recruitment');
+      hiddenItems.push('employees', 'recruitment');
+    }
+    if (!(isHR || isAccounts)) {
+      hiddenItems.push('payroll');
     }
     if (!isSales) {
       hiddenItems.push('sales-crm');
     }
-    if (!(isHR || isSales)) {
+    if (!(isHR || isSales || isAccounts)) {
       hiddenItems.push('fees');
     }
     if (!(isSales || isMarketing)) {

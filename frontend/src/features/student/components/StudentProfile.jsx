@@ -725,6 +725,40 @@ const StudentProfile = ({ userInfo }) => {
                   </div>
                 )}
 
+              <div className="flex flex-col items-center justify-center pt-2 pb-4">
+                <div className="relative group">
+                  <div className="w-24 h-24 rounded-full overflow-hidden bg-slate-100 border-2 border-slate-200">
+                    {editForm.avatarUrl ? (
+                      <img src={editForm.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50">
+                        <User size={32} />
+                      </div>
+                    )}
+                  </div>
+                  <label className="absolute bottom-0 right-0 w-8 h-8 bg-white border border-[#C2C6D4] text-slate-700 rounded-full flex items-center justify-center cursor-pointer shadow-sm hover:bg-slate-50 transition-colors">
+                    <Upload size={14} />
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      className="hidden" 
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          handleAvatarFileChange(e);
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setEditForm({ ...editForm, avatarUrl: reader.result });
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2 font-medium">JPG, PNG or GIF. Max 5MB.</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Student ID</label>
@@ -747,15 +781,6 @@ const StudentProfile = ({ userInfo }) => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Profile Picture</label>
-                <input 
-                  type="file" 
-                  accept="image/*"
-                  onChange={handleAvatarFileChange}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
-                />
-              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -862,42 +887,7 @@ const StudentProfile = ({ userInfo }) => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Profile Picture</label>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
-                    {editForm.avatarUrl ? (
-                      <img src={editForm.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50">
-                        <User size={24} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <label className="cursor-pointer bg-white border border-[#C2C6D4] text-slate-700 px-4 py-2 rounded-lg text-[13px] font-bold hover:bg-slate-50 transition-colors inline-flex items-center gap-2">
-                      <Upload size={14} />
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        className="hidden" 
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setEditForm({ ...editForm, avatarUrl: reader.result });
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                      Choose Image
-                    </label>
-                    <p className="text-[11px] text-slate-500 mt-1">Upload a JPG, PNG or GIF.</p>
-                  </div>
-                </div>
-              </div>
+
 
                 <div className="flex justify-end gap-3 mt-3">
                   <button 

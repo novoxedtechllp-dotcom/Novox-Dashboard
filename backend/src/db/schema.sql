@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS
   work_reports, project_members, projects, 
   automated_alerts_log, employee_attendance, student_attendance, 
   student_tasks, student_courses, student_documents, students, 
-  course_tasks, course_submodules, course_schedules, course_instructors, course_modules, courses, 
+  course_module_reviews, course_task_subtasks, course_tasks, course_submodules, course_schedules, course_instructors, course_modules, courses, 
   employee_documents, employee_profiles, employee_roles, 
   user_sessions, users 
 CASCADE;
@@ -65,7 +65,7 @@ CREATE TABLE employee_roles (
     role_name VARCHAR(50) UNIQUE NOT NULL
 );
 -- Optional defaults for roles:
-INSERT INTO employee_roles (role_name) VALUES ('SALES'), ('MARKETING'), ('DEVELOPMENT'), ('DESIGN'), ('HR');
+INSERT INTO employee_roles (role_name) VALUES ('SALES'), ('MARKETING'), ('DEVELOPMENT'), ('DESIGN'), ('HR'), ('ACCOUNTS');
 
 CREATE TABLE employee_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -109,7 +109,8 @@ CREATE TABLE course_modules (
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    sequence_order INTEGER NOT NULL
+    sequence_order INTEGER NOT NULL,
+    status COURSE_STATUS DEFAULT 'DRAFT'
 );
 
 CREATE TABLE course_submodules (
@@ -130,6 +131,24 @@ CREATE TABLE course_tasks (
     task_type TASK_TYPE DEFAULT 'PRE_PLANNED',
     due_date DATE,
     created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE course_task_subtasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES course_tasks(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    sequence_order INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS course_submodule_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  submodule_id UUID NOT NULL REFERENCES course_submodules(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  review_text TEXT NOT NULL,
+  suggestion_text TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 CREATE TABLE course_instructors (

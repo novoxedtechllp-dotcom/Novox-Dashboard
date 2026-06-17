@@ -643,10 +643,14 @@ const getStudentDailyPlan = asyncHandler(async (req, res) => {
     .from("course_submodules")
     .select(`
       *,
-      course_modules!inner(course_id, title, courses(name)),
-      course_tasks(*)
+      course_modules!inner(id, course_id, title, status, courses(name)),
+      course_tasks(
+        *,
+        course_task_subtasks(*)
+      )
     `)
     .in("course_modules.course_id", courseIds)
+    .eq("course_modules.status", "PUBLISHED")
     .eq("scheduled_date", date)
     .order("sequence_order", { ascending: true });
 

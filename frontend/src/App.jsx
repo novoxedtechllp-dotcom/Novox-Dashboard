@@ -176,20 +176,21 @@ function App() {
   const isDevelopment = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'DEVELOPMENT';
   const isSales = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'SALES';
   const isMarketing = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'MARKETING';
+  const isAccounts = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'ACCOUNTS';
 
   const basePath = userRole === 'STUDENT' ? '/student' :
-                   isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : '/admin';
+                   isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : isAccounts ? '/accounts' : '/admin';
 
   const canViewEmployees = userRole === 'ADMIN' || isHR;
-  const canViewPayroll = userRole === 'ADMIN' || isHR;
+  const canViewPayroll = userRole === 'ADMIN' || isHR || isAccounts;
   const canViewRecruitment = userRole === 'ADMIN' || isHR;
   const canViewSalesCrm = userRole === 'ADMIN' || isSales;
   const canViewWhatsapp = userRole === 'ADMIN' || isSales || isMarketing;
   const canViewBlog = userRole === 'ADMIN' || isMarketing;
   const canViewSeo = userRole === 'ADMIN' || isMarketing;
-  const canViewFees = userRole === 'ADMIN' || isHR || isSales;
+  const canViewFees = userRole === 'ADMIN' || isHR || isSales || isAccounts;
   const canViewCourses = userRole === 'ADMIN' || userRole === 'EMPLOYEE';
-  const canViewJourney = userRole === 'ADMIN' || isDevelopment || isDesign || isHR || isSales; // General
+  const canViewJourney = userRole === 'ADMIN' || isDevelopment || isDesign || isHR || isSales || isAccounts; // General
   const canViewGallery = userRole === 'ADMIN' || isMarketing;
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -209,6 +210,7 @@ function App() {
           isDevelopment={isDevelopment} 
           isSales={isSales}
           isMarketing={isMarketing}
+          isAccounts={isAccounts}
           basePath={basePath}
           isOpen={isSidebarOpen}
           setIsOpen={setIsSidebarOpen}
@@ -246,7 +248,7 @@ function App() {
                 
                 <Route path={`${basePath}/dashboard`} element={userRole === 'STUDENT' ? <StudentDashboard userInfo={userInfo} /> : (userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />)} />
                 <Route path={`${basePath}/daily-plan`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
-                <Route path={`${basePath}/schedule`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
+                <Route path={`${basePath}/schedule`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />)} />
                 <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave /> : ((userRole === 'ADMIN' || isHR) ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />))} />
                 <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
