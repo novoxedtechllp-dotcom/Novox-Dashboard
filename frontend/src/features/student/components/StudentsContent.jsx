@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail, GitBranch, Camera, Terminal } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail, GitBranch, Camera, Terminal, Calendar, IndianRupee } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const getAuthHeaders = () => {
@@ -63,6 +63,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   });
 
   const [newEnrollment, setNewEnrollment] = useState('');
+  const [payInitialFee, setPayInitialFee] = useState(false);
   const [newDocName, setNewDocName] = useState('');
   const [ownershipFilter, setOwnershipFilter] = useState('All Students');
   const [isUploading, setIsUploading] = useState(false);
@@ -71,6 +72,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [studentFees, setStudentFees] = useState([]);
 
   const fetchStudents = useCallback(async (currentOwnershipFilter, currentDepartmentFilter) => {
     setLoading(true);
@@ -125,6 +127,16 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   useEffect(() => {
     const loadTimer = setTimeout(() => { fetchStudents(ownershipFilter, departmentFilter); }, 0);
+    
+    try {
+      const storedFees = localStorage.getItem('novox_student_fees');
+      if (storedFees) {
+        setStudentFees(JSON.parse(storedFees));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    
     return () => clearTimeout(loadTimer);
   }, [fetchStudents, ownershipFilter, departmentFilter]);
 
@@ -310,7 +322,38 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       const resData = await response.json();
       if (response.ok) {
         setStudentCourses([...studentCourses, { ...resData.data, student_id: activeStudent.id }]);
+        
+        // Record the initial ₹5,000 fee locally
+        const courseData = courses.find(c => c.id === newEnrollment);
+        const courseName = courseData?.title || courseData?.name || 'Unknown Course';
+        const feeId = 'FEE-' + Math.floor(1000 + Math.random() * 9000);
+        
+        const newFeeRecord = {
+          id: feeId,
+          studentId: activeStudent.id,
+          name: `${activeStudent.first_name} ${activeStudent.last_name}`.trim(),
+          initials: `${activeStudent.first_name?.[0] || ''}${activeStudent.last_name?.[0] || ''}`.toUpperCase(),
+          course: courseName,
+          type: 'Full',
+          amount: '₹5,000',
+          numericAmount: 5000,
+          totalAmount: 5000,
+          paidAmount: payInitialFee ? 5000 : 0,
+          remainingBalance: payInitialFee ? 0 : 5000,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          rawDate: new Date().toISOString(),
+          status: payInitialFee ? 'Paid' : 'Pending',
+          statusColor: payInitialFee ? 'green' : 'red'
+        };
+
+        const existingFees = JSON.parse(localStorage.getItem('novox_student_fees') || '[]');
+        const updatedFees = [newFeeRecord, ...existingFees];
+        localStorage.setItem('novox_student_fees', JSON.stringify(updatedFees));
+        setStudentFees(updatedFees);
+        
         setNewEnrollment('');
+        setPayInitialFee(false);
+        alert('Course enrolled and initial fee recorded successfully!');
       } else {
         alert(resData.message || 'Failed to enroll course');
       }
@@ -561,6 +604,14 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
                       <GraduationCap size={14} className="text-slate-400" /> <span>{Math.max(student.courses_count || 0, studentEnrolledCourses.length)} Courses</span>
                     </div>
+                    {studentFees.find(f => f.studentId === student.id) && (
+                      <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mt-1">
+                        <IndianRupee size={14} className="text-rose-400" /> 
+                        <span className="text-rose-600 font-bold">
+                          Balance: ₹{(studentFees.find(f => f.studentId === student.id)?.remainingBalance || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1094,6 +1145,20 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                         className="w-full"
                         selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all"
                       />
+                      {newEnrollment && (
+                        <div className="mt-3 flex items-center gap-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                          <input 
+                            type="checkbox" 
+                            id="payInitialFee" 
+                            checked={payInitialFee}
+                            onChange={(e) => setPayInitialFee(e.target.checked)}
+                            className="w-4 h-4 text-[#003F87] rounded border-blue-300 focus:ring-[#003F87]"
+                          />
+                          <label htmlFor="payInitialFee" className="text-sm font-bold text-[#003F87] cursor-pointer">
+                            Mark initial ₹5,000 enrollment fee as Paid
+                          </label>
+                        </div>
+                      )}
                     </div>
                     <button 
                       onClick={handleEnrollCourse}

@@ -152,9 +152,27 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
             })}
           </nav>
 
-          {/* Bottom Action (Logout) */}
-          {onLogout && (
-            <div className="mt-auto pt-4 border-t border-slate-100 shrink-0 pr-3">
+          {/* Bottom Action (Settings & Logout) */}
+          <div className="mt-auto pt-4 border-t border-slate-100 shrink-0 pr-3 flex flex-col gap-1.5">
+            {userRole === 'ADMIN' && (
+              <Link
+                to={`${basePath}/settings`}
+                onClick={() => window.innerWidth < 1024 && setIsOpen && setIsOpen(false)}
+                className={`group flex items-center gap-[14px] px-[14px] py-[10px] rounded-xl transition-all duration-300 text-left w-full shrink-0 relative overflow-hidden
+                  ${activeTab === 'settings' 
+                    ? 'bg-blue-50/80 text-[#003F87] font-bold shadow-sm border border-blue-100/50' 
+                    : 'text-slate-500 font-medium hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+              >
+                {activeTab === 'settings' && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#003F87] rounded-r-full"></div>
+                )}
+                <Settings size={18} className={`transition-transform duration-300 group-hover:scale-110 ${activeTab === 'settings' ? 'text-[#003F87]' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                <span className="text-[14px] leading-none whitespace-nowrap mt-0.5">Settings</span>
+              </Link>
+            )}
+
+            {onLogout && (
               <button
                 onClick={onLogout}
                 className="group flex items-center gap-[14px] px-[14px] py-[10px] rounded-xl transition-all duration-300 text-left w-full text-[#D80000] font-medium hover:bg-red-50 hover:shadow-sm"
@@ -162,8 +180,8 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
                 <LogOut size={18} className="text-[#D80000]/80 group-hover:text-[#D80000] transition-transform duration-300 group-hover:-translate-x-1" />
                 <span className="text-[14px] leading-none whitespace-nowrap mt-0.5">Log Out</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </aside>
     </>
