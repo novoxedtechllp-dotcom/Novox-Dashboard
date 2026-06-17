@@ -12,7 +12,10 @@ import {
   Camera,
   Terminal,
   User,
-  Upload
+  Upload,
+  CreditCard,
+  Receipt,
+  IndianRupee
 } from 'lucide-react';
 
 const StudentProfile = ({ userInfo }) => {
@@ -66,12 +69,17 @@ const StudentProfile = ({ userInfo }) => {
   const [avatarError, setAvatarError] = useState(false);
 
   const [isEditingSocials, setIsEditingSocials] = useState(false);
+  const [transactionPage, setTransactionPage] = useState(1);
+  const transactionsPerPage = 5;
   const [tempSocialLinks, setTempSocialLinks] = useState({
     github: '',
     linkedin: '',
     instagram: '',
     leetcode: ''
   });
+
+  const [studentFees, setStudentFees] = useState([]);
+  const [feeTotals, setFeeTotals] = useState({ total: 0, paid: 0, balance: 0 });
 
   const handleSaveSocials = () => {
     localStorage.setItem(`student_social_links_${studentId}`, JSON.stringify(tempSocialLinks));
@@ -135,7 +143,8 @@ const StudentProfile = ({ userInfo }) => {
         const progressList = resData.data || [];
         courseInfo.courses = progressList.map(p => ({
           course: p.courses?.name || 'Enrolled Course',
-          department: p.courses?.track || 'N/A'
+          department: p.courses?.track || 'N/A',
+          price: p.courses?.price || '₹0'
         }));
       }
 
@@ -150,45 +159,58 @@ const StudentProfile = ({ userInfo }) => {
         const resData = await tasksRes.json();
         const tasksList = resData.data || [];
         
-        if (tasksList.length > 0) {
-          const total = tasksList.length;
-          const approved = tasksList.filter(t => t.status === 'APPROVED').length;
-          
-          statsInfo = {
-            earnedCredits: approved * 10,
-            totalCredits: total * 10
-          };
+        let totalC = 0;
+        let earnedC = 0;
+        let totalPoints = 0;
 
-          let sumGrades = 0;
-          let gradedCount = 0;
-          tasksList.forEach(t => {
-            if (t.grade) {
-              const numericPart = t.grade.replace(/[^0-9.]/g, '');
-              const val = parseFloat(numericPart);
-              if (!isNaN(val)) {
-                const normalized = val > 10 ? (val / 100) * 4.0 : val;
-                sumGrades += normalized;
-                gradedCount++;
-              }
-            }
-          });
-          if (gradedCount > 0) {
-            statsInfo.gpa = (sumGrades / gradedCount).toFixed(2);
+        tasksList.forEach(task => {
+          const credits = task.course_tasks?.points || 10;
+          totalC += credits;
+          if (task.status === 'COMPLETED') {
+            earnedC += credits;
+            const score = task.score || 0;
+            // Rough conversion: 90+ = 4.0, 80+ = 3.0, etc.
+            let pt = 0;
+            if (score >= 90) pt = 4.0;
+            else if (score >= 80) pt = 3.0;
+            else if (score >= 70) pt = 2.0;
+            else if (score >= 60) pt = 1.0;
+            
+            totalPoints += (pt * credits);
           }
-        }
+        });
+
+        const gpa = earnedC > 0 ? (totalPoints / earnedC).toFixed(1) : 'N/A';
+        statsInfo = {
+          gpa,
+          earnedCredits: earnedC,
+          totalCredits: totalC
+        };
       }
 
-      const localSocialLinks = JSON.parse(localStorage.getItem(`student_social_links_${studentId}`) || '{}');
-      const mergedSocialLinks = {
-        github: localSocialLinks.github || '',
-        linkedin: localSocialLinks.linkedin || '',
-        instagram: localSocialLinks.instagram || '',
-        leetcode: localSocialLinks.leetcode || ''
-      };
+      // 4. Load stored social links
+      const storedSocialLinks = localStorage.getItem(`student_social_links_${studentId}`);
+      let mergedSocialLinks = { ...profileData.socialLinks };
+      if (storedSocialLinks) {
+        try {
+          mergedSocialLinks = { ...mergedSocialLinks, ...JSON.parse(storedSocialLinks) };
+        } catch (e) {
+          console.error("Error parsing stored social links:", e);
+        }
+      } else if (profileDetails.socialLinks) {
+         mergedSocialLinks = { ...mergedSocialLinks, ...profileDetails.socialLinks };
+      }
 
-    
-      if (!mergedSocialLinks.github && !mergedSocialLinks.linkedin) {
+      // 5. Optionally fetch notifications from localStorage or similar if needed
+      // (Mock logic kept simple here)
+      const mockNotifications = localStorage.getItem('mock_notifications') 
+        ? JSON.parse(localStorage.getItem('mock_notifications')) 
+        : [];
+      const hasRecentDocs = mockNotifications.some(n => n.type === 'document' && n.studentId === studentId);
+      
+      if (hasRecentDocs) {
         setShowNotification(true);
+        setTimeout(() => setShowNotification(false), 5000);
       } else {
         setShowNotification(false);
       }
@@ -209,6 +231,29 @@ const StudentProfile = ({ userInfo }) => {
       setAvatarError(false);
     }
   };
+
+  useEffect(() => {
+    try {
+      const storedFees = localStorage.getItem('novox_student_fees');
+      let myFees = [];
+      if (storedFees && studentId) {
+        const allFees = JSON.parse(storedFees);
+        myFees = allFees.filter(f => f.studentId === studentId);
+      }
+      setStudentFees(myFees);
+    } catch(e) {
+      console.error(e);
+    }
+  }, [studentId]);
+
+  useEffect(() => {
+    const hasEnrolledCourses = profileData.courses && profileData.courses.length > 0;
+    const total = hasEnrolledCourses ? profileData.courses.reduce((sum, c) => sum + (parseInt(String(c.price || '0').replace(/[^0-9]/g, ''), 10) || 0), 0) : 0;
+    const paid = studentFees.reduce((sum, f) => sum + (Number(f.paidAmount) || parseInt(String(f.amount).replace(/[^0-9]/g, ''), 10) || 0), 0);
+    const balance = Math.max(0, total - paid);
+    
+    setFeeTotals({ total, paid, balance });
+  }, [studentFees, profileData.courses]);
 
   useEffect(() => {
     fetchStudentData();
@@ -375,7 +420,8 @@ const StudentProfile = ({ userInfo }) => {
           <div className="w-10 h-10 border-4 border-slate-200 border-t-[#003F87] rounded-full animate-spin"></div>
         </div>
       ) : (
-        /* Grid Layout matching mockup layout structure */
+        <>
+        {/* Grid Layout matching mockup layout structure */}
         <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           
           {/* ROW 1 Left: Academic Info Card */}
@@ -691,6 +737,120 @@ const StudentProfile = ({ userInfo }) => {
           </div>
 
         </div>
+
+          {/* ROW 3: Financial Overview */}
+          <div className="w-full mt-6 mb-8">
+            <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2 mb-4">
+              <CreditCard className="w-5 h-5 text-[#003F87]" />
+              Financial Overview
+            </h3>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column: Summary */}
+              <div className="lg:col-span-1 flex flex-col gap-4">
+                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                      <Receipt size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Course Fees</p>
+                      <h4 className="text-lg font-black text-slate-800">₹{feeTotals.total.toLocaleString()}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                      <IndianRupee size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Amount Paid</p>
+                      <h4 className="text-lg font-black text-emerald-600">₹{feeTotals.paid.toLocaleString()}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#003F87] rounded-xl border border-[#003F87] p-5 shadow-md relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3"></div>
+                  <div className="flex items-center gap-3 relative z-10">
+                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white backdrop-blur-sm">
+                      <CreditCard size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-blue-200 uppercase tracking-wider">Remaining Balance</p>
+                      <h4 className="text-2xl font-black text-white">₹{feeTotals.balance.toLocaleString()}</h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Transaction History */}
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-xl border border-slate-100 shadow-sm h-full flex flex-col">
+                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Recent Transactions</h4>
+                  </div>
+                  <div className="p-5 flex-1 flex flex-col justify-between">
+                    {studentFees.length > 0 ? (
+                      <div className="flex flex-col h-full">
+                        <div className="flex flex-col gap-3 min-h-[380px]">
+                          {studentFees.slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage).map((fee, idx) => (
+                            <div key={fee.id || idx} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors bg-slate-50/50">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-800">{fee.course} Fee Payment</span>
+                                <span className="text-xs font-medium text-slate-500 mt-0.5">{fee.date} • {fee.type}</span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-sm font-black text-emerald-600">₹{(Number(fee.paidAmount) || 0).toLocaleString()}</span>
+                                <span className={`text-[10px] font-black uppercase tracking-wider mt-1 ${fee.status === 'Paid' || fee.status === 'Full Paid' ? 'text-emerald-500' : fee.status === 'Partially Paid' ? 'text-amber-500' : 'text-rose-500'}`}>
+                                  {fee.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {studentFees.length > transactionsPerPage && (
+                          <div className="mt-4 pt-4 border-t border-slate-100 flex justify-center items-center gap-2">
+                            <button 
+                              onClick={() => setTransactionPage(p => Math.max(1, p - 1))}
+                              disabled={transactionPage === 1}
+                              className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold"
+                            >&lt;</button>
+                            {Array.from({ length: Math.ceil(studentFees.length / transactionsPerPage) }, (_, i) => i + 1).map(page => (
+                              <button 
+                                key={page}
+                                onClick={() => setTransactionPage(page)}
+                                className={`w-10 h-10 flex items-center justify-center rounded-lg font-bold transition-all shadow-sm ${
+                                  transactionPage === page ? 'bg-[#003F87] text-white shadow-[#003F87]/20' : 'text-slate-600 hover:bg-slate-50 border border-slate-200 bg-white'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            ))}
+                            <button 
+                              onClick={() => setTransactionPage(p => Math.min(Math.ceil(studentFees.length / transactionsPerPage), p + 1))}
+                              disabled={transactionPage === Math.ceil(studentFees.length / transactionsPerPage)}
+                              className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold"
+                            >&gt;</button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+                        <Receipt size={32} className="mb-3 text-slate-300" />
+                        <p className="text-sm font-bold">No transactions found</p>
+                        <p className="text-xs text-slate-400 mt-1">There are no fee records available.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </>
       )}
 
       {/* Edit Profile Modal */}

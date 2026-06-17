@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail, GitBranch, Camera, Terminal } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail, GitBranch, Camera, Terminal, Calendar, IndianRupee, CreditCard } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const getAuthHeaders = () => {
@@ -63,6 +63,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   });
 
   const [newEnrollment, setNewEnrollment] = useState('');
+  const [payInitialFee, setPayInitialFee] = useState(false);
   const [newDocName, setNewDocName] = useState('');
   const [ownershipFilter, setOwnershipFilter] = useState('All Students');
   const [isUploading, setIsUploading] = useState(false);
@@ -71,6 +72,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [studentFees, setStudentFees] = useState([]);
 
   const fetchStudents = useCallback(async (currentOwnershipFilter, currentDepartmentFilter) => {
     setLoading(true);
@@ -125,6 +127,16 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
 
   useEffect(() => {
     const loadTimer = setTimeout(() => { fetchStudents(ownershipFilter, departmentFilter); }, 0);
+    
+    try {
+      const storedFees = localStorage.getItem('novox_student_fees');
+      if (storedFees) {
+        setStudentFees(JSON.parse(storedFees));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    
     return () => clearTimeout(loadTimer);
   }, [fetchStudents, ownershipFilter, departmentFilter]);
 
@@ -310,7 +322,38 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       const resData = await response.json();
       if (response.ok) {
         setStudentCourses([...studentCourses, { ...resData.data, student_id: activeStudent.id }]);
+        
+        // Record the initial ₹5,000 fee locally
+        const courseData = courses.find(c => c.id === newEnrollment);
+        const courseName = courseData?.title || courseData?.name || 'Unknown Course';
+        const feeId = 'FEE-' + Math.floor(1000 + Math.random() * 9000);
+        
+        const newFeeRecord = {
+          id: feeId,
+          studentId: activeStudent.id,
+          name: `${activeStudent.first_name} ${activeStudent.last_name}`.trim(),
+          initials: `${activeStudent.first_name?.[0] || ''}${activeStudent.last_name?.[0] || ''}`.toUpperCase(),
+          course: courseName,
+          type: 'Full',
+          amount: '₹5,000',
+          numericAmount: 5000,
+          totalAmount: 5000,
+          paidAmount: payInitialFee ? 5000 : 0,
+          remainingBalance: payInitialFee ? 0 : 5000,
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          rawDate: new Date().toISOString(),
+          status: payInitialFee ? 'Paid' : 'Pending',
+          statusColor: payInitialFee ? 'green' : 'red'
+        };
+
+        const existingFees = JSON.parse(localStorage.getItem('novox_student_fees') || '[]');
+        const updatedFees = [newFeeRecord, ...existingFees];
+        localStorage.setItem('novox_student_fees', JSON.stringify(updatedFees));
+        setStudentFees(updatedFees);
+        
         setNewEnrollment('');
+        setPayInitialFee(false);
+        alert('Course enrolled and initial fee recorded successfully!');
       } else {
         alert(resData.message || 'Failed to enroll course');
       }
@@ -561,6 +604,14 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
                       <GraduationCap size={14} className="text-slate-400" /> <span>{Math.max(student.courses_count || 0, studentEnrolledCourses.length)} Courses</span>
                     </div>
+                    {studentFees.find(f => f.studentId === student.id) && (
+                      <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mt-1">
+                        <IndianRupee size={14} className="text-rose-400" /> 
+                        <span className="text-rose-600 font-bold">
+                          Balance: ₹{(studentFees.find(f => f.studentId === student.id)?.remainingBalance || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1019,10 +1070,42 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Joining Date</div>
                           <div className="text-[15px] font-bold text-slate-800">{new Date(activeStudent.joining_date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>
                         </div>
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center pb-4 border-b border-slate-50">
                           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">System Status</div>
                           <div className="text-[15px] font-bold text-[#008A2E]">{activeStudent.status}</div>
                         </div>
+                        {(() => {
+                          const activeStudentCourses = studentCourses.filter(sc => sc.student_id === activeStudent.id);
+                          const storedFeesStr = localStorage.getItem('novox_student_fees');
+                          let totalFeesPaid = 0;
+                          if (storedFeesStr) {
+                            const allFees = JSON.parse(storedFeesStr);
+                            const studentFees = allFees.filter(f => f.studentId === activeStudent.id);
+                            totalFeesPaid = studentFees.reduce((sum, f) => sum + (Number(f.paidAmount) || parseInt(String(f.amount).replace(/[^0-9]/g, ''), 10) || 0), 0);
+                          }
+                          const totalFeesRequired = activeStudentCourses.reduce((sum, sc) => {
+                            const courseData = courses.find(c => c.id === sc.course_id);
+                            return sum + (parseInt(String(courseData?.price || '0').replace(/[^0-9]/g, ''), 10) || 0);
+                          }, 0);
+                          const remainingBalance = Math.max(0, totalFeesRequired - totalFeesPaid);
+                          
+                          return (
+                            <>
+                              <div className="flex justify-between items-center pb-4 border-b border-slate-50">
+                                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Fees</div>
+                                <div className="text-[15px] font-bold text-slate-800">₹{totalFeesRequired.toLocaleString('en-IN')}</div>
+                              </div>
+                              <div className="flex justify-between items-center pb-4 border-b border-slate-50">
+                                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Paid</div>
+                                <div className="text-[15px] font-bold text-emerald-600">₹{totalFeesPaid.toLocaleString('en-IN')}</div>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Remaining Balance</div>
+                                <div className="text-[15px] font-bold text-rose-600">₹{remainingBalance.toLocaleString('en-IN')}</div>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -1094,6 +1177,20 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                         className="w-full"
                         selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all"
                       />
+                      {newEnrollment && (
+                        <div className="mt-3 flex items-center gap-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                          <input 
+                            type="checkbox" 
+                            id="payInitialFee" 
+                            checked={payInitialFee}
+                            onChange={(e) => setPayInitialFee(e.target.checked)}
+                            className="w-4 h-4 text-[#003F87] rounded border-blue-300 focus:ring-[#003F87]"
+                          />
+                          <label htmlFor="payInitialFee" className="text-sm font-bold text-[#003F87] cursor-pointer">
+                            Mark initial ₹5,000 enrollment fee as Paid
+                          </label>
+                        </div>
+                      )}
                     </div>
                     <button 
                       onClick={handleEnrollCourse}
@@ -1115,6 +1212,16 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                     ) : (
                       studentCourses.filter(sc => sc.student_id === activeStudent.id).map(sc => {
                         const courseData = courses.find(c => c.id === sc.course_id);
+                        const storedFeesStr = localStorage.getItem('novox_student_fees');
+                        let coursePaid = 0;
+                        if (storedFeesStr) {
+                          const allFees = JSON.parse(storedFeesStr);
+                          const courseFees = allFees.filter(f => f.studentId === activeStudent.id && f.courseId === sc.course_id);
+                          coursePaid = courseFees.reduce((sum, f) => sum + (Number(f.paidAmount) || parseInt(String(f.amount).replace(/[^0-9]/g, ''), 10) || 0), 0);
+                        }
+                        const courseTotal = parseInt(String(courseData?.price || '0').replace(/[^0-9]/g, ''), 10) || 0;
+                        const courseBalance = Math.max(0, courseTotal - coursePaid);
+
                         return (
                           <div key={sc.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all gap-6 group">
                             <div className="flex items-center gap-5">
@@ -1133,13 +1240,25 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                               </div>
                             </div>
                             <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto pl-19 md:pl-0 border-t border-slate-50 pt-4 md:pt-0 md:border-0">
-                              <div className="flex-1 md:flex-none">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="text-xs font-black text-slate-500 uppercase tracking-widest">Progress</div>
-                                  <span className="text-sm font-black text-[#003F87]">{sc.progress_percentage}%</span>
+                              <div className="flex flex-col gap-3">
+                                <div>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Progress</div>
+                                    <span className="text-xs font-black text-[#003F87]">{sc.progress_percentage}%</span>
+                                  </div>
+                                  <div className="w-full md:w-40 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                                    <div className="h-full bg-gradient-to-r from-blue-500 to-[#003F87] rounded-full" style={{ width: `${sc.progress_percentage}%` }}></div>
+                                  </div>
                                 </div>
-                                <div className="w-full md:w-48 h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                                  <div className="h-full bg-gradient-to-r from-blue-500 to-[#003F87] rounded-full" style={{ width: `${sc.progress_percentage}%` }}></div>
+                                <div>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Fee</span>
+                                    <span className="text-xs font-bold text-slate-700">₹{courseTotal.toLocaleString()}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Balance</span>
+                                    <span className="text-xs font-bold text-rose-500">₹{courseBalance.toLocaleString()}</span>
+                                  </div>
                                 </div>
                               </div>
                               <button onClick={() => setCourseToRemove({ studentId: activeStudent.id, courseId: sc.course_id })} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-rose-500 rounded-full transition-all shrink-0 bg-slate-50" title="Remove Course">
