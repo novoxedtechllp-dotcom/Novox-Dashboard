@@ -359,7 +359,25 @@ export const addCourseTask = asyncHandler(async (req, res) => {
     .select();
 
   if (error) throw new ApiError(500, error.message || "Failed to add course task");
-  return res.status(201).json(new ApiResponse(201, data[0], "Course task added successfully"));
+  
+  const newTask = data[0];
+
+  // Auto-assign to all students enrolled in this course
+  const { data: studentsEnrolled } = await supabase
+    .from("student_courses")
+    .select("student_id")
+    .eq("course_id", courseId);
+
+  if (studentsEnrolled && studentsEnrolled.length > 0) {
+    const tasksToAssign = studentsEnrolled.map(s => ({
+      student_id: s.student_id,
+      task_id: newTask.id,
+      status: 'NOT_STARTED'
+    }));
+    await supabase.from("student_tasks").insert(tasksToAssign);
+  }
+
+  return res.status(201).json(new ApiResponse(201, newTask, "Course task added successfully"));
 });
 
 export const updateCourseTask = asyncHandler(async (req, res) => {

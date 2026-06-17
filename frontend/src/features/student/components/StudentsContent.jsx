@@ -1327,6 +1327,44 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                           
                           <p className="text-sm font-medium text-slate-600 mb-6 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">{task.course_tasks?.description}</p>
                           
+                          {(() => {
+                            const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
+                            const isAdmin = userInfo.role === 'ADMIN';
+                            const isTeacher = task.course_tasks?.course_submodules?.course_modules?.courses?.instructor_id === userInfo.employee_profile_id;
+                            const canViewResources = isAdmin || isTeacher;
+                            
+                            return task.task_submission_resources && task.task_submission_resources.length > 0 && (
+                              <div className="mb-6">
+                                <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Submitted Work</h5>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {task.task_submission_resources.map(res => (
+                                    <div key={res.id} className="bg-slate-50 border border-slate-100 rounded-xl p-3 flex items-start gap-3 relative">
+                                      <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                        {res.resource_type === 'LINK' ? <LinkIcon size={14} /> : res.resource_type === 'FILE' ? <FileText size={14} /> : <BookOpen size={14} />}
+                                      </div>
+                                      <div className="flex-1 overflow-hidden">
+                                        <div className="text-xs font-bold text-slate-700 truncate">{res.label || (res.resource_type === 'FILE' ? 'Uploaded File' : 'Submission')}</div>
+                                        {canViewResources ? (
+                                          res.resource_type === 'NOTE' ? (
+                                            <div className="text-[11px] text-slate-500 mt-1 line-clamp-3 italic">"{res.content}"</div>
+                                          ) : (
+                                            <a href={res.content} target="_blank" rel="noopener noreferrer" className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline truncate block mt-0.5">
+                                              View Material
+                                            </a>
+                                          )
+                                        ) : (
+                                          <div className="text-[10px] font-black text-rose-500 mt-1 uppercase tracking-wide flex items-center gap-1">
+                                            <AlertCircle size={10} /> Access Denied
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
                           <div className="flex flex-wrap gap-4 items-center">
                             {task.status === 'PENDING' && (
                               <button onClick={() => handleUpdateTaskStatus(task.id, task.status)} className="px-6 py-2.5 bg-[#003F87] text-white text-sm font-bold rounded-xl hover:bg-[#002B5E] shadow-sm active:scale-95 transition-all">

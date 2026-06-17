@@ -501,11 +501,13 @@ CREATE INDEX idx_gallery_categories_website ON gallery_categories(website_id);
 -- 15. LEAVE MANAGEMENT MODULE
 CREATE TABLE IF NOT EXISTS leaves (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL REFERENCES employee_profiles(id) ON DELETE CASCADE,
+    employee_id UUID REFERENCES employee_profiles(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
     type VARCHAR(50) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     reason TEXT NOT NULL,
+    document_url TEXT,
     status APPROVAL_STATUS DEFAULT 'PENDING',
     admin_message TEXT,
     applied_on TIMESTAMP DEFAULT NOW()
