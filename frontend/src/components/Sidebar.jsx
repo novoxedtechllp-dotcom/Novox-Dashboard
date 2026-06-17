@@ -40,6 +40,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
       { id: 'attendance', label: 'Attendance', icon: Calendar },
       { id: 'leave', label: 'Leave Requests', icon: FileText },
       { id: 'tasks', label: 'Tasks', icon: ClipboardList },
+      { id: 'jobs', label: 'Job Portal', icon: Briefcase },
       { id: 'profile', label: 'Profile', icon: User }
     ];
   }
