@@ -13,10 +13,10 @@ const getEmployeeId = async (userId) => {
 // @desc    Submit a work report
 // @route   POST /api/v1/work-reports
 export const submitReport = asyncHandler(async (req, res) => {
-  const { project_id, report_type, work_done, blockers } = req.body;
+  const { report_type, work_done, blockers, project_area, attachment_url, attachment_name } = req.body;
   
-  if (!project_id || !report_type || !work_done) {
-    throw new ApiError(400, "project_id, report_type, and work_done are required");
+  if (!report_type || !work_done) {
+    throw new ApiError(400, "report_type and work_done are required");
   }
 
   const validTypes = ["DAILY", "WEEKLY"];
@@ -28,7 +28,15 @@ export const submitReport = asyncHandler(async (req, res) => {
 
   const { data, error } = await supabase
     .from("work_reports")
-    .insert([{ employee_id, project_id, report_type: report_type.toUpperCase(), work_done, blockers }])
+    .insert([{ 
+      employee_id, 
+      report_type: report_type.toUpperCase(), 
+      work_done, 
+      blockers,
+      project_area: project_area || 'General Task',
+      attachment_url: attachment_url || null,
+      attachment_name: attachment_name || null
+    }])
     .select();
 
   if (error) throw new ApiError(500, error.message || "Failed to submit report");
@@ -39,13 +47,11 @@ export const submitReport = asyncHandler(async (req, res) => {
 // @desc    Get work reports (Admin/HR gets all, Employee gets own)
 // @route   GET /api/v1/work-reports
 export const getReports = asyncHandler(async (req, res) => {
-  const { projectId, employeeId, status, from, to } = req.query;
+  const { employeeId, from, to } = req.query;
 
   let query = supabase.from("work_reports").select(`
-    id, report_type, work_done, blockers, submitted_at,
-    projects(id, name),
-    employee:employee_profiles!employee_id(id, first_name, last_name, employee_code),
-    reviewer:employee_profiles!reviewed_by(id, first_name, last_name)
+    id, employee_id, report_type, work_done, blockers, submitted_at, project_area, attachment_url, attachment_name,
+    employee:employee_profiles!employee_id(id, first_name, last_name, employee_code, designation)
   `).order("submitted_at", { ascending: false });
 
   if (req.user.role === "EMPLOYEE" && req.user.employeeRole !== "HR") {
@@ -57,7 +63,6 @@ export const getReports = asyncHandler(async (req, res) => {
     query = query.eq("employee_id", employeeId);
   }
 
-  if (projectId) query = query.eq("project_id", projectId);
   if (from) query = query.gte("submitted_at", from);
   if (to) query = query.lte("submitted_at", to);
 
@@ -73,10 +78,8 @@ export const getReportById = asyncHandler(async (req, res) => {
   const { reportId } = req.params;
 
   const { data, error } = await supabase.from("work_reports").select(`
-    id, report_type, work_done, blockers, submitted_at,
-    projects(id, name, description),
-    employee:employee_profiles!employee_id(id, first_name, last_name, employee_code, designation),
-    reviewer:employee_profiles!reviewed_by(id, first_name, last_name)
+    id, employee_id, report_type, work_done, blockers, submitted_at, project_area, attachment_url, attachment_name,
+    employee:employee_profiles!employee_id(id, first_name, last_name, employee_code, designation)
   `).eq("id", reportId).single();
 
   if (error) throw new ApiError(404, "Work report not found");
@@ -90,5 +93,3 @@ export const getReportById = asyncHandler(async (req, res) => {
 
   return res.status(200).json(new ApiResponse(200, data, "Work report fetched successfully"));
 });
-
-
