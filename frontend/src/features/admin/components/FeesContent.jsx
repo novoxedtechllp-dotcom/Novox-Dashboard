@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter, Calendar, CreditCard } from 'lucide-react';
+import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter, Calendar, CreditCard, User, Search } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -35,6 +35,7 @@ const FeesContent = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
   const [feesList, setFeesList] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
   const [coursesList, setCoursesList] = useState([]);
@@ -253,90 +254,51 @@ const FeesContent = () => {
 
         const studentCourse = coursesList.find(c => c.id === student.student_courses[0].course_id);
         const courseName = studentCourse?.name || studentCourse?.title || 'General Course';
-        const totalCourseFee = 48000; // Total capped fee as per business logic
+        const totalCourseFee = parseInt(String(studentCourse?.price || '0').replace(/[^0-9]/g, ''), 10) || 0;
         
         const studentPayments = feesList.filter(fee => fee.studentId === student.id);
         
-        let enrollmentDate = new Date(student.joining_date || new Date(filterYear, 0, 1));
-        const earliestCourse = student.student_courses.reduce((earliest, sc) => {
-          const d = new Date(sc.enrolled_at);
-          return isNaN(d) ? earliest : (d < earliest ? d : earliest);
-        }, new Date());
-        if (!isNaN(earliestCourse)) {
-          enrollmentDate = earliestCourse;
-        }
-        
-        const enrollMonth = enrollmentDate.getMonth();
-        const enrollYear = enrollmentDate.getFullYear();
-        
-        const monthsSinceEnrollment = (filterYear - enrollYear) * 12 + (filterMonth - enrollMonth);
-        if (monthsSinceEnrollment < 0) return null;
-
-        // Calculate expected accumulation capped at totalCourseFee
-        let expectedUntilLastMonth = monthsSinceEnrollment === 0 ? 0 : 5000 + (monthsSinceEnrollment - 1) * 10000;
-        let expectedUntilThisMonth = 5000 + monthsSinceEnrollment * 10000;
-
-        expectedUntilLastMonth = Math.min(totalCourseFee, expectedUntilLastMonth);
-        expectedUntilThisMonth = Math.min(totalCourseFee, expectedUntilThisMonth);
-
-        let paidPast = 0;
+        let totalPaidOverall = 0;
         studentPayments.forEach(fee => {
-          const feeDate = new Date(fee.date);
-          if (!isNaN(feeDate)) {
-            const fm = feeDate.getMonth();
-            const fy = feeDate.getFullYear();
-            if (fy < filterYear || (fy === filterYear && fm < filterMonth)) {
-               paidPast += (typeof fee.paidAmount === 'number' ? fee.paidAmount : parseInt(String(fee.amount).replace(/[^0-9]/g, ''), 10) || 0);
-            }
-          }
+           totalPaidOverall += (typeof fee.paidAmount === 'number' ? fee.paidAmount : parseInt(String(fee.amount).replace(/[^0-9]/g, ''), 10) || 0);
         });
 
-        const arrears = Math.max(0, expectedUntilLastMonth - paidPast);
-        const totalDue = Math.max(0, expectedUntilThisMonth - paidPast);
-        const currentExpected = Math.max(0, totalDue - arrears);
-
-        let paidThisMonth = 0;
-        studentPayments.forEach(fee => {
-          const feeDate = new Date(fee.date);
-          if (!isNaN(feeDate)) {
-            if (feeDate.getMonth() === filterMonth && feeDate.getFullYear() === filterYear) {
-               paidThisMonth += (typeof fee.paidAmount === 'number' ? fee.paidAmount : parseInt(String(fee.amount).replace(/[^0-9]/g, ''), 10) || 0);
-            }
-          }
-        });
-
-        const remainingBalance = Math.max(0, totalDue - paidThisMonth);
+        const remainingBalance = Math.max(0, totalCourseFee - totalPaidOverall);
         let status = 'Pending';
-        if (remainingBalance === 0 && totalDue > 0) status = 'Paid';
-        else if (paidThisMonth > 0) status = 'Partially Paid';
-        else if (totalDue === 0) status = 'Paid';
+        if (remainingBalance === 0 && totalCourseFee > 0) status = 'Full Paid';
+        else if (totalPaidOverall > 0) status = 'Partially Paid';
+        else if (totalCourseFee === 0) status = 'Full Paid';
 
         return {
-          id: `due-${student.id}`,
+          id: `bal-${student.id}`,
           studentId: student.id,
+          studentCode: student.student_code || '',
           name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
           initials: `${student.first_name ? student.first_name[0] : ''}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() || 'ST',
           course: courseName,
-          arrears,
-          currentExpected,
-          totalDue,
-          paidThisMonth,
+          totalCourseFee,
+          totalPaidOverall,
           remainingBalance,
           status
         };
       }).filter(item => item !== null);
 
-      if (filterStatus !== 'All') {
-        return list.filter(item => {
-          if (filterStatus === 'Full Paid' && item.status !== 'Paid') return false;
-          if (filterStatus === 'Partially Paid' && item.status !== 'Partially Paid') return false;
-          if (filterStatus === 'Pending' && item.status !== 'Pending') return false;
-          return true;
-        });
+      let filteredList = list;
+      
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        filteredList = filteredList.filter(item => 
+          item.name.toLowerCase().includes(q) || 
+          (item.studentCode && item.studentCode.toLowerCase().includes(q))
+        );
       }
-      return list;
+
+      if (filterStatus !== 'All') {
+        filteredList = filteredList.filter(item => item.status === filterStatus);
+      }
+      return filteredList;
     }
-  }, [feesList, studentsList, activeTab, filterMonth, filterYear, filterStatus, coursesList]);
+  }, [feesList, studentsList, activeTab, filterMonth, filterYear, filterStatus, coursesList, searchQuery]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -522,7 +484,7 @@ const FeesContent = () => {
             onClick={() => setActiveTab('DUE_THIS_MONTH')}
             className={`h-full flex items-center gap-2 font-bold text-[14px] px-[8px] transition-colors ${activeTab === 'DUE_THIS_MONTH' ? 'text-[#003F87] border-b-[3px] border-[#003F87]' : 'text-[#555F6B] hover:text-[#003F87]'}`}
           >
-            <DollarSign size={18} /> Due This Month
+            <User size={18} /> Student Balances
           </button>
         </div>
 
@@ -553,6 +515,18 @@ const FeesContent = () => {
 
         {/* Filters */}
         <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-slate-50">
+          <div className="flex items-center gap-2 flex-1">
+            <div className="relative w-full max-w-md">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Search student by name or ID..." 
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="w-full pl-9 pr-4 py-1.5 text-[13px] border border-[#C2C6D4] rounded-md outline-none focus:border-[#003F87] transition-colors"
+              />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Filter size={16} className="text-[#555F6B]" />
             <span className="text-[12px] font-bold text-[#555F6B] uppercase">Status:</span>
@@ -613,11 +587,9 @@ const FeesContent = () => {
                 <tr className="border-b border-[#C2C6D4] bg-white">
                   <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[200px]">Student Name</th>
                   <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[160px]">Course</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Monthly Base</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[160px]">Previous month Balance</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Total Due</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Paid This Month</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[180px]">Breakdown</th>
+                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[140px]">Total Fee</th>
+                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[140px]">Total Paid</th>
+                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[140px]">Remaining Balance</th>
                   <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[120px]">Status</th>
                 </tr>
               )}
@@ -729,31 +701,24 @@ const FeesContent = () => {
                           <div className="text-[13px] text-[#555F6B] leading-tight">{due.course}</div>
                         </td>
                         <td className="py-[16px] px-[24px] text-right">
-                          <div className="text-[14px] text-slate-600 font-medium">₹{due.currentExpected.toLocaleString()}</div>
+                          <div className="text-[14px] text-slate-600 font-medium">₹{due.totalCourseFee.toLocaleString()}</div>
                         </td>
                         <td className="py-[16px] px-[24px] text-right">
-                          <div className={`text-[14px] font-bold ${due.arrears > 0 ? 'text-[#D80000]' : 'text-slate-500'}`}>₹{due.arrears.toLocaleString()}</div>
+                          <div className="text-[14px] font-bold text-[#008A2E]">₹{due.totalPaidOverall.toLocaleString()}</div>
                         </td>
                         <td className="py-[16px] px-[24px] text-right">
-                          <div className="text-[14px] font-black text-slate-900">₹{due.totalDue.toLocaleString()}</div>
-                        </td>
-                        <td className="py-[16px] px-[24px] text-right">
-                          <div className="text-[14px] font-bold text-[#008A2E]">₹{due.paidThisMonth.toLocaleString()}</div>
+                          <div className={`text-[14px] font-bold ${due.remainingBalance > 0 ? 'text-[#D80000]' : 'text-slate-500'}`}>₹{due.remainingBalance.toLocaleString()}</div>
                         </td>
                         <td className="py-[16px] px-[24px]">
-                          <div className="text-[11px] text-[#555F6B] leading-tight">
-                            ₹{due.currentExpected.toLocaleString()} (Base)<br/>+ ₹{due.arrears.toLocaleString()} (Previous month Balance)
-                          </div>
-                        </td>
-                        <td className="py-[16px] px-[24px]">
-                          {due.status === 'Paid' ? (
+                          {due.status === 'Full Paid' ? (
                             <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
-                              <CheckCircle size={12} /> Paid
+                              <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> Fully Paid
                             </span>
                           ) : due.status === 'Partially Paid' ? (
-                            <span className="inline-flex items-center gap-2 bg-[#FFF4E5] text-[#B26E00] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
-                              <span className="w-[6px] h-[6px] rounded-full bg-[#B26E00] shrink-0"></span> Partial
-                            </span>
+                            <div className="inline-flex items-center gap-2 bg-[#FFF4E5] text-[#B26E00] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
+                              <span className="w-[6px] h-[6px] rounded-full bg-[#B26E00] shrink-0"></span> 
+                              <span className="leading-tight text-left">Partially Paid</span>
+                            </div>
                           ) : (
                             <span className="inline-flex items-center gap-2 bg-[#FDE2E2] text-[#D80000] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
                               <span className="w-[6px] h-[6px] rounded-full bg-[#D80000]"></span> Pending

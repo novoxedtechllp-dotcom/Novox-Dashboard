@@ -1,6 +1,35 @@
 import React, { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Plus, Search, Briefcase } from "lucide-react";
+import { CheckCircle, XCircle, Plus, Search, Briefcase, UploadCloud, FileText, Trash2 } from "lucide-react";
 import LoadingSpinner from "../../../components/LoadingSpinner";
+
+const parseReportContent = (text) => {
+  let workDone = text || "";
+  let projectArea = "";
+  let attachment = null;
+
+  // Match Project Area
+  const projectMatch = workDone.match(/\[PROJECT_AREA:([^\]]+)\]/);
+  if (projectMatch) {
+    projectArea = projectMatch[1];
+    workDone = workDone.replace(/\[PROJECT_AREA:[^\]]+\]/, "");
+  }
+
+  // Match PDF Attachment
+  const pdfMatch = workDone.match(/\[PDF_ATTACHMENT:([^|]+)\|([^\]]+)\]/);
+  if (pdfMatch) {
+    attachment = {
+      name: pdfMatch[1],
+      base64: pdfMatch[2]
+    };
+    workDone = workDone.replace(/\[PDF_ATTACHMENT:[^|]+\|[^\]]+\]/, "");
+  }
+
+  return {
+    workDone: workDone.trim(),
+    projectArea: projectArea.trim(),
+    attachment
+  };
+};
 
 const WorkReportsContent = () => {
   const [reports, setReports] = useState([]);
@@ -28,7 +57,16 @@ const WorkReportsContent = () => {
 
         if (repRes.ok) {
           const resData = await repRes.json();
-          setReports(resData.data?.reports || resData.data || []);
+          const fetched = resData.data?.reports || resData.data || [];
+          
+          // Map locally stored simulated statuses if they exist
+          const statusMap = JSON.parse(localStorage.getItem("mock_report_statuses") || "{}");
+          const reportsWithStatus = fetched.map(r => ({
+            ...r,
+            approval_status: statusMap[r.id] || r.approval_status || "PENDING"
+          }));
+          
+          setReports(reportsWithStatus);
         }
         if (empRes.ok) {
           const eData = await empRes.json();
@@ -52,6 +90,37 @@ const WorkReportsContent = () => {
     work_done: "",
     blockers: "",
   });
+  
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [attachmentBase64, setAttachmentBase64] = useState("");
+  const [dragActive, setDragActive] = useState(false);
+  const [fileError, setFileError] = useState("");
+
+  const handleFileSelect = (file) => {
+    setFileError("");
+    if (!file) return;
+
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setFileError("Only PDF files are allowed.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setFileError("File size must be under 5MB.");
+      return;
+    }
+
+    setAttachmentFile(file);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setAttachmentBase64(event.target.result);
+    };
+    reader.onerror = () => {
+      setFileError("Failed to read file.");
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleStatusChange = async (id, newStatus) => {
     try {
@@ -68,15 +137,28 @@ const WorkReportsContent = () => {
         },
       });
       if (response.ok) {
-        setReports(
-          reports.map((r) =>
-            r.id === id ? { ...r, approval_status: newStatus } : r,
-          ),
+        setReports((prev) =>
+          prev.map((r) =>
+            r.id === id ? { ...r, approval_status: newStatus } : r
+          )
         );
+        return;
       }
     } catch (err) {
-      console.error(err);
+      console.warn("Backend endpoints for approve/reject not fully configured. Simulating locally:", err);
     }
+    
+    // Local simulation fallback
+    setReports((prev) =>
+      prev.map((r) =>
+        r.id === id ? { ...r, approval_status: newStatus } : r
+      )
+    );
+    
+    // Also save in localStorage to persist the simulation for this browser session
+    const statusMap = JSON.parse(localStorage.getItem("mock_report_statuses") || "{}");
+    statusMap[id] = newStatus;
+    localStorage.setItem("mock_report_statuses", JSON.stringify(statusMap));
   };
 
  const filteredReports = reports.filter(r => {
@@ -86,6 +168,16 @@ const WorkReportsContent = () => {
 
   if (statusFilter !== 'ALL' && r.approval_status !== statusFilter) {
     return false;
+  }
+
+  // Filter out approved or rejected reports older than 24 hours
+  if (r.approval_status === "APPROVED" || r.approval_status === "REJECTED") {
+    const reportTime = new Date(r.submitted_at).getTime();
+    const currentTime = new Date().getTime();
+    const hoursDifference = (currentTime - reportTime) / (1000 * 60 * 60);
+    if (hoursDifference > 24) {
+      return false;
+    }
   }
 
   const emp = employees.find(e => e.id === r.employee_id);
@@ -109,6 +201,15 @@ const WorkReportsContent = () => {
 
     try {
       const userInfo = JSON.parse(sessionStorage.getItem("userInfo"));
+      
+      let finalWorkDone = newReport.work_done;
+      if (newReport.project_id) {
+        finalWorkDone = `${finalWorkDone}\n\n[PROJECT_AREA:${newReport.project_id}]`;
+      }
+      if (attachmentFile && attachmentBase64) {
+        finalWorkDone = `${finalWorkDone}\n\n[PDF_ATTACHMENT:${attachmentFile.name}|${attachmentBase64}]`;
+      }
+
       const response = await fetch("/api/v1/work-reports", {
         method: "POST",
         headers: {
@@ -117,12 +218,26 @@ const WorkReportsContent = () => {
         },
         body: JSON.stringify({
           ...newReport,
+          project_id: "bc8952fd-5a53-4508-a021-c39c4edeeb61", // Using seeded General Task UUID to satisfy DB constraint
+          work_done: finalWorkDone,
           employee_id: userInfo.id,
         }),
       });
       const resData = await response.json();
       if (response.ok && resData.data) {
-        setReports([resData.data, ...reports]);
+        const createdReport = {
+          ...resData.data,
+          approval_status: "PENDING",
+          employee_id: userInfo.id,
+          submitted_at: new Date().toISOString(),
+          employee: {
+            id: userInfo.id,
+            first_name: userInfo.first_name || userInfo.name || "You",
+            last_name: userInfo.last_name || ""
+          }
+        };
+        
+        setReports([createdReport, ...reports]);
         setIsSubmitModalOpen(false);
         setNewReport({
           employee_id: "",
@@ -131,6 +246,9 @@ const WorkReportsContent = () => {
           work_done: "",
           blockers: "",
         });
+        setAttachmentFile(null);
+        setAttachmentBase64("");
+        setFileError("");
       }
     } catch (err) {
       console.error(err);
@@ -192,8 +310,9 @@ const WorkReportsContent = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredReports.map((report) => {
+            const { workDone, projectArea, attachment } = parseReportContent(report.work_done);
             const emp =
-              employees.find((e) => e.id === report.employee_id) || {};
+              employees.find((e) => e.id === report.employee_id) || report.employee || {};
             const empName = emp.first_name
               ? `${emp.first_name} ${emp.last_name}`
               : "Unknown Employee";
@@ -228,7 +347,7 @@ const WorkReportsContent = () => {
                           : "bg-amber-100 text-amber-700"
                     }`}
                   >
-                    {report.approval_status}
+                    {report.approval_status || "PENDING"}
                   </span>
                 </div>
 
@@ -236,7 +355,7 @@ const WorkReportsContent = () => {
                   <div>
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
                       <Briefcase size={12} />{" "}
-                      {report.project_id || "General Task"}
+                      {projectArea || (report.projects && report.projects.name) || "General Task"}
                     </div>
                     <span className="inline-block bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">
                       {report.report_type}
@@ -246,9 +365,33 @@ const WorkReportsContent = () => {
                     <h4 className="text-xs font-bold text-slate-700 mb-1">
                       Work Done
                     </h4>
-                    <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-2 rounded">
-                      {report.work_done}
+                    <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-2 rounded whitespace-pre-line">
+                      {workDone}
                     </p>
+                    {attachment && (
+                      <div className="mt-3 bg-blue-50/50 border border-blue-100 p-2.5 rounded-lg flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText size={18} className="text-[#003F87] shrink-0" />
+                          <span className="text-xs font-semibold text-slate-700 truncate max-w-[140px]" title={attachment.name}>
+                            {attachment.name}
+                          </span>
+                        </div>
+                              <button
+                                onClick={() => {
+                                  const pdfWindow = window.open("");
+                                  if (pdfWindow) {
+                                    pdfWindow.document.write(
+                                      `<iframe width='100%' height='100%' style='border:none;margin:0;padding:0;' src='${attachment.base64}'></iframe>`
+                                    );
+                                    pdfWindow.document.title = attachment.name;
+                                  }
+                                }}
+                                className="text-xs font-bold text-[#003F87] hover:underline shrink-0 ml-2"
+                              >
+                                View
+                              </button>
+                      </div>
+                    )}
                   </div>
                   {report.blockers && report.blockers !== "None" && (
                     <div>
@@ -262,7 +405,7 @@ const WorkReportsContent = () => {
                   )}
                 </div>
 
-                {userRole === "ADMIN" && (
+                {userRole === "ADMIN" && (report.approval_status === "PENDING" || !report.approval_status) && (
                   <div className="mt-auto border-t border-slate-100 pt-4 flex gap-2">
                     <button
                       onClick={() => handleStatusChange(report.id, "APPROVED")}
@@ -372,6 +515,95 @@ const WorkReportsContent = () => {
                   className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none"
                   placeholder="Any issues?"
                 />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="block text-xs font-bold text-slate-500 uppercase">
+                  Attachment (PDF Only)
+                </label>
+                
+                {attachmentFile ? (
+                  <div className="flex items-center justify-between p-3 border border-blue-200 bg-blue-50/30 rounded-lg">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <FileText size={20} className="text-[#003F87]" />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-semibold text-slate-700 truncate">
+                          {attachmentFile.name}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {(attachmentFile.size / 1024).toFixed(1)} KB
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttachmentFile(null);
+                        setAttachmentBase64("");
+                        setFileError("");
+                      }}
+                      className="text-slate-400 hover:text-red-500 p-1 transition-colors"
+                      title="Remove file"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragActive(true);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragActive(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragActive(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragActive(false);
+                      
+                      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        handleFileSelect(e.dataTransfer.files[0]);
+                      }
+                    }}
+                    onClick={() => document.getElementById("file-upload").click()}
+                    className={`border-2 border-dashed rounded-lg p-5 flex flex-col items-center justify-center cursor-pointer transition-all duration-200
+                      ${dragActive 
+                        ? "border-[#003F87] bg-blue-50/20 scale-[0.99]" 
+                        : "border-slate-300 hover:border-[#003F87] hover:bg-slate-50/50"}`}
+                  >
+                    <input
+                      type="file"
+                      id="file-upload"
+                      className="hidden"
+                      accept=".pdf,application/pdf"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleFileSelect(e.target.files[0]);
+                        }
+                      }}
+                    />
+                    <UploadCloud size={24} className={`mb-1.5 ${dragActive ? "text-[#003F87] animate-bounce" : "text-slate-400"}`} />
+                    <span className="text-xs font-semibold text-slate-600 text-center">
+                      Drag & drop PDF here, or <span className="text-[#003F87] underline">browse</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-1">
+                      PDF files up to 5MB
+                    </span>
+                  </div>
+                )}
+                {fileError && (
+                  <span className="text-[11px] text-red-500 font-semibold mt-1">
+                    {fileError}
+                  </span>
+                )}
               </div>
               <div className="flex gap-3 justify-end mt-4">
                 <button

@@ -143,7 +143,8 @@ const StudentProfile = ({ userInfo }) => {
         const progressList = resData.data || [];
         courseInfo.courses = progressList.map(p => ({
           course: p.courses?.name || 'Enrolled Course',
-          department: p.courses?.track || 'N/A'
+          department: p.courses?.track || 'N/A',
+          price: p.courses?.price || '₹0'
         }));
       }
 
@@ -158,45 +159,58 @@ const StudentProfile = ({ userInfo }) => {
         const resData = await tasksRes.json();
         const tasksList = resData.data || [];
         
-        if (tasksList.length > 0) {
-          const total = tasksList.length;
-          const approved = tasksList.filter(t => t.status === 'APPROVED').length;
-          
-          statsInfo = {
-            earnedCredits: approved * 10,
-            totalCredits: total * 10
-          };
+        let totalC = 0;
+        let earnedC = 0;
+        let totalPoints = 0;
 
-          let sumGrades = 0;
-          let gradedCount = 0;
-          tasksList.forEach(t => {
-            if (t.grade) {
-              const numericPart = t.grade.replace(/[^0-9.]/g, '');
-              const val = parseFloat(numericPart);
-              if (!isNaN(val)) {
-                const normalized = val > 10 ? (val / 100) * 4.0 : val;
-                sumGrades += normalized;
-                gradedCount++;
-              }
-            }
-          });
-          if (gradedCount > 0) {
-            statsInfo.gpa = (sumGrades / gradedCount).toFixed(2);
+        tasksList.forEach(task => {
+          const credits = task.course_tasks?.points || 10;
+          totalC += credits;
+          if (task.status === 'COMPLETED') {
+            earnedC += credits;
+            const score = task.score || 0;
+            // Rough conversion: 90+ = 4.0, 80+ = 3.0, etc.
+            let pt = 0;
+            if (score >= 90) pt = 4.0;
+            else if (score >= 80) pt = 3.0;
+            else if (score >= 70) pt = 2.0;
+            else if (score >= 60) pt = 1.0;
+            
+            totalPoints += (pt * credits);
           }
-        }
+        });
+
+        const gpa = earnedC > 0 ? (totalPoints / earnedC).toFixed(1) : 'N/A';
+        statsInfo = {
+          gpa,
+          earnedCredits: earnedC,
+          totalCredits: totalC
+        };
       }
 
-      const localSocialLinks = JSON.parse(localStorage.getItem(`student_social_links_${studentId}`) || '{}');
-      const mergedSocialLinks = {
-        github: localSocialLinks.github || '',
-        linkedin: localSocialLinks.linkedin || '',
-        instagram: localSocialLinks.instagram || '',
-        leetcode: localSocialLinks.leetcode || ''
-      };
+      // 4. Load stored social links
+      const storedSocialLinks = localStorage.getItem(`student_social_links_${studentId}`);
+      let mergedSocialLinks = { ...profileData.socialLinks };
+      if (storedSocialLinks) {
+        try {
+          mergedSocialLinks = { ...mergedSocialLinks, ...JSON.parse(storedSocialLinks) };
+        } catch (e) {
+          console.error("Error parsing stored social links:", e);
+        }
+      } else if (profileDetails.socialLinks) {
+         mergedSocialLinks = { ...mergedSocialLinks, ...profileDetails.socialLinks };
+      }
 
-    
-      if (!mergedSocialLinks.github && !mergedSocialLinks.linkedin) {
+      // 5. Optionally fetch notifications from localStorage or similar if needed
+      // (Mock logic kept simple here)
+      const mockNotifications = localStorage.getItem('mock_notifications') 
+        ? JSON.parse(localStorage.getItem('mock_notifications')) 
+        : [];
+      const hasRecentDocs = mockNotifications.some(n => n.type === 'document' && n.studentId === studentId);
+      
+      if (hasRecentDocs) {
         setShowNotification(true);
+        setTimeout(() => setShowNotification(false), 5000);
       } else {
         setShowNotification(false);
       }
@@ -221,21 +235,25 @@ const StudentProfile = ({ userInfo }) => {
   useEffect(() => {
     try {
       const storedFees = localStorage.getItem('novox_student_fees');
+      let myFees = [];
       if (storedFees && studentId) {
         const allFees = JSON.parse(storedFees);
-        const myFees = allFees.filter(f => f.studentId === studentId);
-        setStudentFees(myFees);
-        
-        const total = myFees.reduce((sum, f) => sum + (Number(f.totalAmount) || 0), 0);
-        const paid = myFees.reduce((sum, f) => sum + (Number(f.paidAmount) || 0), 0);
-        const balance = myFees.reduce((sum, f) => sum + (Number(f.remainingBalance) || 0), 0);
-        
-        setFeeTotals({ total, paid, balance });
+        myFees = allFees.filter(f => f.studentId === studentId);
       }
+      setStudentFees(myFees);
     } catch(e) {
       console.error(e);
     }
   }, [studentId]);
+
+  useEffect(() => {
+    const hasEnrolledCourses = profileData.courses && profileData.courses.length > 0;
+    const total = hasEnrolledCourses ? profileData.courses.reduce((sum, c) => sum + (parseInt(String(c.price || '0').replace(/[^0-9]/g, ''), 10) || 0), 0) : 0;
+    const paid = studentFees.reduce((sum, f) => sum + (Number(f.paidAmount) || parseInt(String(f.amount).replace(/[^0-9]/g, ''), 10) || 0), 0);
+    const balance = Math.max(0, total - paid);
+    
+    setFeeTotals({ total, paid, balance });
+  }, [studentFees, profileData.courses]);
 
   useEffect(() => {
     fetchStudentData();
