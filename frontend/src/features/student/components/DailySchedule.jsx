@@ -60,6 +60,18 @@ const DailySchedule = () => {
         const courseName = sm.course_modules?.courses?.name;
         const moduleId = sm.course_modules?.id;
         const moduleTitle = sm.course_modules?.title;
+        const moduleSequence = sm.course_modules?.sequence_order || 0;
+        
+        // Sort tasks within this submodule
+        if (sm.course_tasks && Array.isArray(sm.course_tasks)) {
+          sm.course_tasks.sort((a, b) => (a.sequence_order || 0) - (b.sequence_order || 0));
+          // Also sort subtasks
+          sm.course_tasks.forEach(task => {
+            if (task.course_task_subtasks && Array.isArray(task.course_task_subtasks)) {
+              task.course_task_subtasks.sort((a, b) => (a.sequence_order || 0) - (b.sequence_order || 0));
+            }
+          });
+        }
         
         if (!grouped[courseId]) {
           grouped[courseId] = { id: courseId, name: courseName, modules: {} };
@@ -68,6 +80,7 @@ const DailySchedule = () => {
           grouped[courseId].modules[moduleId] = { 
             id: moduleId, 
             title: moduleTitle, 
+            sequence_order: moduleSequence,
             submodules: [] 
           };
         }
@@ -76,7 +89,7 @@ const DailySchedule = () => {
       
       setDailyPlan(Object.values(grouped).map(c => ({
         ...c,
-        modules: Object.values(c.modules)
+        modules: Object.values(c.modules).sort((a, b) => a.sequence_order - b.sequence_order)
       })));
       
     } catch (err) {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   Clock, 
   Calendar, 
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 const StudentTasks = ({ userInfo }) => {
+  const location = useLocation();
   const [courseStructure, setCourseStructure] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('ALL'); // ALL, HOMEWORK, QUIZ, PROJECT
@@ -61,8 +63,9 @@ const StudentTasks = ({ userInfo }) => {
       const syllabusResponses = await Promise.all(syllabusPromises);
       const courses = syllabusResponses.map(res => res.data).filter(Boolean);
 
-      // 3. Fetch Student Tasks for statuses
-      const tasksRes = await fetch(`/api/v1/students/${studentId}/tasks`, { headers });
+      // 3. Fetch Student Tasks for statuses using the resolved actual student ID
+      const actualStudentId = studentData.data.id;
+      const tasksRes = await fetch(`/api/v1/students/${actualStudentId}/tasks`, { headers });
       let studentTasksList = [];
       if (tasksRes.ok) {
         const tasksData = await tasksRes.json();
@@ -216,6 +219,49 @@ const StudentTasks = ({ userInfo }) => {
       })));
     }
   };
+
+  useEffect(() => {
+    if (courseStructure.length > 0 && location.state?.targetTaskId) {
+      const { targetModuleId, targetSubmoduleId, targetTaskId } = location.state;
+      
+      // Find the specific task using task_id
+      let foundTask = null;
+      courseStructure.forEach(course => {
+        course.modules?.forEach(mod => {
+          mod.submodules?.forEach(sub => {
+            sub.tasks?.forEach(task => {
+              if (task.task_id === targetTaskId) foundTask = task;
+            });
+          });
+        });
+      });
+
+      if (foundTask) {
+        setExpandedSections(prev => ({
+          ...prev,
+          [targetModuleId]: true,
+          [foundTask.id]: true
+        }));
+        
+        setActiveSubmoduleId(targetSubmoduleId);
+        
+        // This properly triggers the NOT_STARTED -> IN_PROGRESS transition and calls the API
+        openDetailsModal(foundTask);
+        
+        setTimeout(() => {
+          const el = document.getElementById(`task-${foundTask.id}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('ring-2', 'ring-[#003F87]', 'ring-offset-2');
+            setTimeout(() => el.classList.remove('ring-2', 'ring-[#003F87]', 'ring-offset-2'), 2000);
+          }
+        }, 300);
+      }
+      
+      // Clear state so it doesn't run again on normal re-renders
+      window.history.replaceState({}, document.title);
+    }
+  }, [courseStructure, location.state]);
 
   const handleSubmitWork = async (e) => {
     e.preventDefault();
@@ -443,8 +489,9 @@ const StudentTasks = ({ userInfo }) => {
                                             return (
                                               <div 
                                                 key={task.id} 
+                                                id={`task-${task.id}`}
                                                 onClick={() => toggleSection(task.id)}
-                                                className="group flex flex-col p-4 rounded-xl border border-slate-100 bg-white hover:border-[#003F87]/30 hover:shadow-sm transition-all cursor-pointer"
+                                                className="group flex flex-col p-4 rounded-xl border border-slate-100 bg-white hover:border-[#003F87]/30 hover:shadow-sm transition-all cursor-pointer scroll-mt-24"
                                               >
                                                 <div className="flex items-center justify-between gap-4">
                                                   <div className="flex items-center gap-4 flex-1">
@@ -603,17 +650,7 @@ const StudentTasks = ({ userInfo }) => {
                 </div>
               </div>
 
-              {selectedTask.status === 'IN_PROGRESS' && (
-                <div>
-                  <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase mb-1.5">
-                    <span>Task Completion</span>
-                    <span className="text-slate-600 font-extrabold">{selectedTask.completion}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-[#003F87] h-full rounded-full" style={{ width: `${selectedTask.completion}%` }}></div>
-                  </div>
-                </div>
-              )}
+
 
               {selectedTask.subtasks && selectedTask.subtasks.length > 0 && (
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
