@@ -28,7 +28,7 @@ const navItems = [
   // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
-const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, isAccounts, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
+const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, isSales, isMarketing, isAccounts, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   

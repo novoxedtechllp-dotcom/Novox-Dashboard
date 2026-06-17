@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import apiClient from '../../../lib/apiClient';
 import { 
   CheckCircle, 
   Plus, 
@@ -10,18 +11,14 @@ import {
   CreditCard, 
   MessageSquare, 
   Handshake, 
-  Filter 
+  Filter,
+  Calendar,
+  Image,
+  FileText,
+  Bot 
 } from 'lucide-react';
 
-const initialRoles = [
-  { id: 'super-admin', name: 'Super Admin', desc: 'Full system access' },
-  { id: 'design', name: 'Design', desc: 'UI/UX & Product Design' },
-  { id: 'development', name: 'Development', desc: 'Software Engineering' },
-  { id: 'sales', name: 'Sales', desc: 'CRM & Lead Conversion' },
-  { id: 'marketing', name: 'Marketing', desc: 'Campaigns & WhatsApp Hub' },
-  { id: 'hr', name: 'HR', desc: 'Recruitment & Operations' },
-  { id: 'accountant', name: 'Accountant', desc: 'Fee Collections & Payroll' }
-];
+
 
 const initialPermissions = {
   'super-admin': {
@@ -97,10 +94,10 @@ const SettingsContent = () => {
   const [toastText, setToastText] = useState('Permissions saved successfully.');
 
   // Roles & Permissions state
-  const [roles, setRoles] = useState(initialRoles);
+  const [roles, setRoles] = useState([{ id: 'super-admin', name: 'Super Admin', desc: 'Full system access' }]);
   const [selectedRoleId, setSelectedRoleId] = useState('super-admin');
-  const [permissions, setPermissions] = useState(initialPermissions);
-  const [staff, setStaff] = useState(initialStaff);
+  const [permissions, setPermissions] = useState({});
+  const [staff, setStaff] = useState({});
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffRole, setNewStaffRole] = useState('');
@@ -108,6 +105,67 @@ const SettingsContent = () => {
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDesc, setNewRoleDesc] = useState('');
   const [assignFilter, setAssignFilter] = useState('all');
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const { data } = await apiClient.get('/roles');
+        if (data?.data) {
+          const fetchedRoles = data.data.roles.map(r => ({
+            id: r.id,
+            name: r.role_name,
+            desc: r.description || 'Role'
+          }));
+          
+          const fetchedPerms = {};
+          data.data.roles.forEach(r => {
+            fetchedPerms[r.id] = r.permissions || {};
+          });
+
+          // Add super admin locally
+          fetchedRoles.unshift({ id: 'super-admin', name: 'Super Admin', desc: 'Full system access' });
+          
+          // Full access for super-admin
+          fetchedPerms['super-admin'] = {
+            students: { view: true, create: true, edit: true, delete: true, export: true },
+            employees: { view: true, create: true, edit: true, delete: true, export: true },
+            courses: { view: true, create: true, edit: true, delete: true, export: true },
+            fees: { view: true, create: true, edit: true, delete: true, export: true },
+            sales: { view: true, create: true, edit: true, delete: true, export: true },
+            attendance: { view: true, create: true, edit: true, delete: true, export: true },
+            gallery: { view: true, create: true, edit: true, delete: true, export: true },
+            leave: { view: true, create: true, edit: true, delete: true, export: true },
+            'work-reports': { view: true, create: true, edit: true, delete: true, export: true },
+            'blog-agent': { view: true, create: true, edit: true, delete: true, export: true }
+          };
+
+          setRoles(fetchedRoles);
+          setPermissions(fetchedPerms);
+
+          // Map staff
+          const staffMap = { 'super-admin': [] };
+          data.data.roles.forEach(r => staffMap[r.id] = []);
+          
+          if (data.data.staff) {
+            data.data.staff.forEach(s => {
+              if (s.role_id && staffMap[s.role_id]) {
+                staffMap[s.role_id].push({
+                  name: `${s.first_name} ${s.last_name}`,
+                  role: s.designation,
+                  avatar: s.avatar_url || `${s.first_name[0]}${s.last_name[0]}`
+                });
+              }
+            });
+          }
+          setStaff(staffMap);
+        }
+      } catch (err) {
+        console.error('Failed to fetch roles', err);
+      }
+    };
+    fetchRoles();
+  }, []);
+
 
   const filteredStaffList = useMemo(() => {
     const list = staff[selectedRoleId] || [];
@@ -319,7 +377,7 @@ const SettingsContent = () => {
               <input 
                 type="checkbox"
                 checked={isAllViewChecked}
-                onChange={toggleSelectAllView}
+                onChange={toggleSelectAllView} disabled={selectedRoleId === 'super-admin'}
                 className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4 h-4 cursor-pointer accent-[#003F87]"
               />
               <span>Select All View</span>
@@ -341,13 +399,17 @@ const SettingsContent = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {[
-                  { key: 'students', label: 'Students', icon: GraduationCap },
-                  { key: 'employees', label: 'Employees', icon: Briefcase },
-                  { key: 'courses', label: 'Courses', icon: BookOpen },
-                  { key: 'fees', label: 'Fees & Revenue', icon: CreditCard },
-                  { key: 'whatsapp', label: 'WhatsApp Hub', icon: MessageSquare },
-                  { key: 'sales', label: 'Sales CRM', icon: Handshake },
-                ].map((mod) => {
+    { key: 'students', label: 'Students', icon: GraduationCap },
+    { key: 'employees', label: 'Employees', icon: Briefcase },
+    { key: 'courses', label: 'Courses', icon: BookOpen },
+    { key: 'fees', label: 'Fees & Revenue', icon: CreditCard },
+    { key: 'sales', label: 'Sales CRM', icon: Handshake },
+    { key: 'attendance', label: 'Attendance', icon: Calendar },
+    { key: 'gallery', label: 'Gallery', icon: Image },
+    { key: 'leave', label: 'Leave Management', icon: FileText },
+    { key: 'work-reports', label: 'Work Reports', icon: FileText },
+    { key: 'blog-agent', label: 'Blog Agent', icon: Bot },
+  ].map((mod) => {
                   const currentPerm = (permissions[selectedRoleId] && permissions[selectedRoleId][mod.key]) || { view: false, create: false, edit: false, delete: false, export: false };
                   const Icon = mod.icon;
                   
@@ -365,7 +427,7 @@ const SettingsContent = () => {
                         <input 
                           type="checkbox"
                           checked={currentPerm.view}
-                          onChange={() => togglePermission(mod.key, 'view')}
+                          onChange={() => togglePermission(mod.key, 'view')} disabled={selectedRoleId === 'super-admin'}
                           className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                         />
                       </td>
@@ -374,7 +436,7 @@ const SettingsContent = () => {
                         <input 
                           type="checkbox"
                           checked={currentPerm.create}
-                          onChange={() => togglePermission(mod.key, 'create')}
+                          onChange={() => togglePermission(mod.key, 'create')} disabled={selectedRoleId === 'super-admin'}
                           className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                         />
                       </td>
@@ -383,7 +445,7 @@ const SettingsContent = () => {
                         <input 
                           type="checkbox"
                           checked={currentPerm.edit}
-                          onChange={() => togglePermission(mod.key, 'edit')}
+                          onChange={() => togglePermission(mod.key, 'edit')} disabled={selectedRoleId === 'super-admin'}
                           className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                         />
                       </td>
@@ -392,7 +454,7 @@ const SettingsContent = () => {
                         <input 
                           type="checkbox"
                           checked={currentPerm.delete}
-                          onChange={() => togglePermission(mod.key, 'delete')}
+                          onChange={() => togglePermission(mod.key, 'delete')} disabled={selectedRoleId === 'super-admin'}
                           className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                         />
                       </td>
@@ -401,7 +463,7 @@ const SettingsContent = () => {
                         <input 
                           type="checkbox"
                           checked={currentPerm.export}
-                          onChange={() => togglePermission(mod.key, 'export')}
+                          onChange={() => togglePermission(mod.key, 'export')} disabled={selectedRoleId === 'super-admin'}
                           className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                         />
                       </td>

@@ -62,7 +62,9 @@ CREATE TABLE users (
 
 CREATE TABLE employee_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    role_name VARCHAR(50) UNIQUE NOT NULL
+    role_name VARCHAR(50) UNIQUE NOT NULL,
+    description VARCHAR(255),
+    permissions JSONB DEFAULT '{}'::jsonb
 );
 -- Optional defaults for roles:
 INSERT INTO employee_roles (role_name) VALUES ('SALES'), ('MARKETING'), ('DEVELOPMENT'), ('DESIGN'), ('HR'), ('ACCOUNTS');
