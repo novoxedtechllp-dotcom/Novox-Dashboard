@@ -426,11 +426,19 @@ CREATE TABLE audit_logs (
 );
 
 -- 14. GALLERY MODULE
+CREATE TABLE gallery_websites (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE gallery_categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) UNIQUE NOT NULL,
     parent_id UUID REFERENCES gallery_categories(id) ON DELETE CASCADE,
+    website_id UUID REFERENCES gallery_websites(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -441,12 +449,18 @@ CREATE TABLE gallery_images (
     cloudinary_url TEXT NOT NULL,
     cloudinary_public_id VARCHAR(255) NOT NULL,
     image_hash TEXT UNIQUE NOT NULL,
-    category_id UUID REFERENCES gallery_categories(id) ON DELETE SET NULL,
     tags TEXT[],
     uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    website_id UUID REFERENCES gallery_websites(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE gallery_image_categories (
+    image_id UUID REFERENCES gallery_images(id) ON DELETE CASCADE,
+    category_id UUID REFERENCES gallery_categories(id) ON DELETE CASCADE,
+    PRIMARY KEY (image_id, category_id)
 );
 
 -- Indexes
@@ -460,8 +474,9 @@ CREATE INDEX idx_work_reports_date ON work_reports(submitted_at);
 CREATE INDEX idx_notifications_user_unread ON notifications(user_id) WHERE is_read = FALSE;
 CREATE INDEX idx_audit_logs_created ON audit_logs(created_at DESC);
 CREATE INDEX idx_gallery_images_hash ON gallery_images(image_hash);
-CREATE INDEX idx_gallery_images_category ON gallery_images(category_id);
+CREATE INDEX idx_gallery_images_website ON gallery_images(website_id);
 CREATE INDEX idx_gallery_categories_slug ON gallery_categories(slug);
+CREATE INDEX idx_gallery_categories_website ON gallery_categories(website_id);
 
 -- 15. LEAVE MANAGEMENT MODULE
 CREATE TABLE IF NOT EXISTS leaves (
