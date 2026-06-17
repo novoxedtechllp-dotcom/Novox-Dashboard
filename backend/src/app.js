@@ -40,6 +40,11 @@ app.use(
 app.use(express.static("public"));
 app.use(cookieParser());
 
+// Health check for keep-alive pings
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // Routes
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/students", studentRouter);
