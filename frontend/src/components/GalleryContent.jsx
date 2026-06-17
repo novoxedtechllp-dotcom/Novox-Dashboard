@@ -11,7 +11,13 @@ const CATEGORY_STYLES = {
   DEFAULT: { bgColor: 'bg-slate-100', textColor: 'text-slate-700' }
 };
 
+
+
 const GalleryContent = () => {
+  const [websites, setWebsites] = useState([]);
+  const [selectedWebsite, setSelectedWebsite] = useState('');
+  const [showWebsiteModal, setShowWebsiteModal] = useState(false);
+  const [newWebsiteName, setNewWebsiteName] = useState('');
   const [images, setImages] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,14 +44,14 @@ const GalleryContent = () => {
   
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFiles, setUploadFiles] = useState([]);
-  const [uploadCategory, setUploadCategory] = useState('');
+  const [uploadCategories, setUploadCategories] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // Change Category Modal
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [isChangingCategory, setIsChangingCategory] = useState(false);
-  const [newBulkCategory, setNewBulkCategory] = useState('');
+  const [newBulkCategories, setNewBulkCategories] = useState([]);
 
   // Edit Modal
   const [editImage, setEditImage] = useState(null);
@@ -60,10 +66,16 @@ const GalleryContent = () => {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    fetchCategories();
-    fetchGalleryData();
+    fetchWebsites();
     fetchCloudinaryUsage();
   }, []);
+
+  useEffect(() => {
+    if (selectedWebsite) {
+      fetchCategories();
+      fetchGalleryData();
+    }
+  }, [selectedWebsite]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -90,17 +102,75 @@ const GalleryContent = () => {
     return userInfo?.token ? { 'Authorization': `Bearer ${userInfo.token}` } : {};
   };
 
+  const fetchWebsites = async () => {
+    try {
+      const res = await fetch('/api/gallery/websites', { headers: getAuthHeaders(), cache: 'no-store' });
+      if (res.ok) {
+        const result = await res.json();
+        setWebsites(result.data || []);
+        if (result.data?.length > 0) setSelectedWebsite(result.data[0].id);
+      }
+    } catch (e) { console.error(e); }
+  };
+
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/gallery/categories', { headers: getAuthHeaders() });
+      console.log('Fetching categories for website_id:', selectedWebsite);
+      const response = await fetch(`/api/gallery/categories?website_id=${selectedWebsite}`, { headers: getAuthHeaders(), cache: 'no-store' });
       if (response.ok) {
         const result = await response.json();
+        console.log('Categories fetched:', result);
         setCategories(result.data || []);
       } else {
         console.error('Failed to fetch categories:', response.statusText);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
+    }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if(!window.confirm("Are you sure you want to delete this category?")) return;
+    try {
+      const res = await fetch(`/api/gallery/categories/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if(res.ok) fetchCategories();
+      else alert("Failed to delete category");
+    } catch(e) { console.error(e); }
+  };
+
+  const handleCreateWebsite = async () => {
+    if (!newWebsiteName.trim()) return;
+    try {
+      const slug = newWebsiteName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const res = await fetch('/api/gallery/websites', { method: 'POST', headers: {'Content-Type': 'application/json', ...getAuthHeaders()}, body: JSON.stringify({ name: newWebsiteName.trim(), slug }) });
+      if(res.ok) {
+        setNewWebsiteName('');
+        setShowWebsiteModal(false);
+        fetchWebsites();
+      }
+    } catch(e) { console.error(e); }
+  };
+
+  const handleDeleteWebsite = async (siteId, siteName) => {
+    if (!window.confirm(`Are you absolutely sure you want to completely delete "${siteName}" and all its categories and images? This action cannot be undone.`)) return;
+    
+    try {
+      const res = await fetch(`/api/gallery/websites/${siteId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        if (selectedWebsite === siteId) {
+          setSelectedWebsite('');
+        }
+        fetchWebsites();
+      } else {
+        const err = await res.json();
+        alert(`Failed to delete website: ${err.message}`);
+      }
+    } catch(e) {
+      console.error(e);
+      alert(`Network error: ${e.message}`);
     }
   };
 
@@ -115,7 +185,7 @@ const GalleryContent = () => {
           'Content-Type': 'application/json',
           ...getAuthHeaders()
         },
-        body: JSON.stringify({ name: newCategoryName.trim(), slug })
+        body: JSON.stringify({ name: newCategoryName.trim(), slug, website_id: selectedWebsite })
       });
       if (response.ok) {
         setNewCategoryName('');
@@ -136,7 +206,7 @@ const GalleryContent = () => {
   const fetchGalleryData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/gallery?t=${Date.now()}`, { headers: getAuthHeaders() });
+      const response = await fetch(`/api/gallery?t=${Date.now()}&website_id=${selectedWebsite}`, { headers: getAuthHeaders() });
       if (response.ok) {
         const result = await response.json();
         const fetchedImages = Array.isArray(result?.data) ? result.data : [];
@@ -154,9 +224,9 @@ const GalleryContent = () => {
 
   const fetchCloudinaryUsage = async () => {
     try {
-      const response = await fetch('/api/gallery/storage-usage', { headers: getAuthHeaders() });
-      if (response.ok) {
-        const data = await response.json();
+      const res = await fetch('/api/gallery/storage-usage', { headers: getAuthHeaders(), cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
         if (data.data?.storage) {
           const usageBytes = data.data.storage.usage || 0;
           const limitBytes = data.data.storage.limit || (5 * 1024 * 1024 * 1024); // fallback 5GB
@@ -212,7 +282,7 @@ const GalleryContent = () => {
   };
 
   const handleChangeCategory = async () => {
-    if (!newBulkCategory || selectedIds.size === 0) return;
+    if (newBulkCategories.length === 0 || selectedIds.size === 0) return;
     setIsChangingCategory(true);
     
     let completed = 0;
@@ -224,7 +294,7 @@ const GalleryContent = () => {
             'Content-Type': 'application/json',
             ...getAuthHeaders()
           },
-          body: JSON.stringify({ category_id: newBulkCategory })
+          body: JSON.stringify({ category_ids: newBulkCategories })
         });
         if (!response.ok) {
           const errData = await response.json();
@@ -239,7 +309,7 @@ const GalleryContent = () => {
     
     setIsChangingCategory(false);
     setShowCategoryModal(false);
-    setNewBulkCategory('');
+    setNewBulkCategories([]);
     setSelectedIds(new Set()); // Deselect all after bulk update
     fetchGalleryData();
   };
@@ -296,9 +366,10 @@ const GalleryContent = () => {
       const formData = new FormData();
       formData.append('image', file);
       formData.append('title', file.name);
-      if (uploadCategory) {
-        formData.append('category_id', uploadCategory);
+      if (uploadCategories.length > 0) {
+        formData.append('category_ids', JSON.stringify(uploadCategories));
       }
+      formData.append('website_id', selectedWebsite);
 
       try {
         const response = await fetch('/api/gallery/upload', {
@@ -334,7 +405,7 @@ const GalleryContent = () => {
     setIsUploading(false);
     setShowUploadModal(false);
     setUploadFiles([]);
-    setUploadCategory('');
+    setUploadCategories([]);
     setUploadProgress(0);
     fetchGalleryData();
     fetchCloudinaryUsage();
@@ -376,10 +447,8 @@ const GalleryContent = () => {
     const matchesSearch = titleStr.includes(searchQuery.toLowerCase()) || 
                           descStr.includes(searchQuery.toLowerCase());
                           
-    const catName = typeof img.category === 'object' ? img.category?.name : img.category;
-    const itemCat = String(catName || 'EVENTS').toUpperCase();
-    const matchesCategory = selectedCategory === 'All Categories' || 
-                            itemCat === selectedCategory.toUpperCase();
+    const imgCategories = img.categories ? img.categories.map(c => typeof c.category === 'object' ? c.category.name : '').filter(Boolean) : [];
+    const matchesCategory = selectedCategory === 'All Categories' || imgCategories.some(cat => String(cat).toUpperCase() === selectedCategory.toUpperCase());
                             
     let matchesDate = true;
     if (selectedDate && img.created_at) {
@@ -497,6 +566,41 @@ const GalleryContent = () => {
         </div>
       </div>
 
+      {/* 1.5 Website Selection Tabs */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg w-fit border border-slate-200">
+          {websites.map(site => (
+            <button
+              key={site.id}
+              onClick={() => { setSelectedWebsite(site.id); setSelectedIds(new Set()); setCurrentPage(1); }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                handleDeleteWebsite(site.id, site.name);
+              }}
+              className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 group ${
+                selectedWebsite === site.id 
+                  ? 'bg-white text-[#003F87] shadow border border-slate-200' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              {site.name}
+              {selectedWebsite === site.id && (
+                <div 
+                  onClick={(e) => { e.stopPropagation(); handleDeleteWebsite(site.id, site.name); }}
+                  className="hover:bg-slate-100 p-1 rounded-full text-slate-400 hover:text-red-500 transition-colors ml-1"
+                  title="Delete Site"
+                >
+                  <X size={14} />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setShowWebsiteModal(true)} className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-200 transition-colors font-medium border border-slate-300 h-fit">
+          <Plus size={16}/> New Site
+        </button>
+      </div>
+
       {/* 2. Top Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm flex items-center justify-between">
@@ -576,8 +680,11 @@ const GalleryContent = () => {
         ) : paginatedImages.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-24">
             {paginatedImages.map((img) => {
-              const catName = typeof img.category === 'object' ? img.category?.name : img.category;
-              const catKey = String(catName || 'EVENTS').toUpperCase();
+              let catName = typeof img.category === 'object' ? img.category?.name : img.category;
+              if (!catName && img.categories && img.categories.length > 0) {
+                catName = img.categories.map(c => typeof c.category === 'object' ? c.category?.name : '').filter(Boolean).join(', ');
+              }
+              const catKey = String(catName || 'EVENTS').split(',')[0].trim().toUpperCase();
               const badgeStyle = CATEGORY_STYLES[catKey] || CATEGORY_STYLES.DEFAULT;
               const isSelected = selectedIds.has(img.id);
               
@@ -722,6 +829,26 @@ const GalleryContent = () => {
         </div>
       </div>
 
+      {/* Website Manage Modal */}
+      {showWebsiteModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="text-lg font-bold text-slate-800">Add New Website</h3>
+              <button onClick={() => setShowWebsiteModal(false)} className="text-slate-400 hover:text-slate-600 bg-white rounded-full p-1 shadow-sm"><X size={20} /></button>
+            </div>
+            <div className="p-6">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Website Name</label>
+              <input type="text" className="w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-[#003F87] focus:border-transparent outline-none mb-4" placeholder="e.g. Novox Global" value={newWebsiteName} onChange={e => setNewWebsiteName(e.target.value)} />
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button onClick={() => setShowWebsiteModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-md font-medium transition-colors">Cancel</button>
+              <button onClick={handleCreateWebsite} className="px-4 py-2 bg-[#003F87] text-white rounded-md hover:bg-blue-800 font-medium transition-colors">Create Website</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -817,7 +944,13 @@ const GalleryContent = () => {
             <div className="flex flex-col gap-1">
               <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Category</span>
               <span className="text-sm text-slate-700 select-text">
-                {(typeof previewImage.category === 'object' ? previewImage.category?.name : previewImage.category) || 'Uncategorized'}
+                {(() => {
+                  let cName = typeof previewImage.category === 'object' ? previewImage.category?.name : previewImage.category;
+                  if (!cName && previewImage.categories && previewImage.categories.length > 0) {
+                    cName = previewImage.categories.map(c => typeof c.category === 'object' ? c.category?.name : '').filter(Boolean).join(', ');
+                  }
+                  return cName || 'Uncategorized';
+                })()}
               </span>
             </div>
 
@@ -894,16 +1027,21 @@ const GalleryContent = () => {
               Select a new category for the {selectedIds.size} selected image{selectedIds.size > 1 ? 's' : ''}.
             </p>
             
-            <select 
-              value={newBulkCategory}
-              onChange={(e) => setNewBulkCategory(e.target.value)}
-              className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-[#003F87] mb-6"
-            >
-              <option value="" disabled>Select new category...</option>
+            <div className="flex flex-wrap gap-2 mb-6">
               {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                <label key={cat.id} className="flex items-center gap-2 bg-slate-50 p-2 rounded border border-slate-200 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={newBulkCategories.includes(cat.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) setNewBulkCategories([...newBulkCategories, cat.id]);
+                      else setNewBulkCategories(newBulkCategories.filter(id => id !== cat.id));
+                    }}
+                  />
+                  <span className="text-sm text-slate-700">{cat.name}</span>
+                </label>
               ))}
-            </select>
+            </div>
 
             <div className="flex justify-end gap-3">
               <button 
@@ -915,7 +1053,7 @@ const GalleryContent = () => {
               </button>
               <button 
                 onClick={handleChangeCategory}
-                disabled={isChangingCategory || !newBulkCategory}
+                disabled={isChangingCategory || newBulkCategories.length === 0}
                 className="px-4 py-2 text-sm font-medium text-white bg-[#003F87] hover:bg-blue-800 rounded transition-colors disabled:opacity-50"
               >
                 {isChangingCategory ? 'Updating...' : 'Update'}
@@ -933,8 +1071,17 @@ const GalleryContent = () => {
             
             <div className="mb-6 max-h-40 overflow-y-auto border border-slate-200 rounded p-2">
               {categories.length > 0 ? categories.map(cat => (
-                <div key={cat.id} className="text-sm text-slate-700 py-1 px-2 border-b last:border-b-0 border-slate-100">
-                  {cat.name} <span className="text-slate-400 text-xs ml-2">({cat.slug})</span>
+                <div key={cat.id} className="text-sm text-slate-700 py-1 px-2 border-b last:border-b-0 border-slate-100 flex items-center justify-between group">
+                  <div>
+                    {cat.name} <span className="text-slate-400 text-xs ml-2">({cat.slug})</span>
+                  </div>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id); }}
+                    className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 rounded-md hover:bg-red-50"
+                    title="Delete Category"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               )) : (
                 <div className="text-sm text-slate-500 p-2">No categories yet.</div>
@@ -995,17 +1142,22 @@ const GalleryContent = () => {
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   Category (Optional)
                 </label>
-                <select 
-                  value={uploadCategory}
-                  onChange={(e) => setUploadCategory(e.target.value)}
-                  disabled={isUploading}
-                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-[#003F87]"
-                >
-                  <option value="">No Category</option>
+                <div className="flex flex-wrap gap-2 mb-2">
                   {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    <label key={cat.id} className="flex items-center gap-2 bg-slate-50 p-2 rounded border border-slate-200 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={uploadCategories.includes(cat.id)}
+                        disabled={isUploading}
+                        onChange={(e) => {
+                          if (e.target.checked) setUploadCategories([...uploadCategories, cat.id]);
+                          else setUploadCategories(uploadCategories.filter(id => id !== cat.id));
+                        }}
+                      />
+                      <span className="text-sm text-slate-700">{cat.name}</span>
+                    </label>
                   ))}
-                </select>
+                </div>
                 <p className="text-xs text-slate-500 mt-1">This category will be applied to all uploaded images.</p>
               </div>
 
