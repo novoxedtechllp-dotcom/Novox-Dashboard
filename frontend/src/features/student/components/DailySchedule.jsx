@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { ChevronDown, MessageSquare, BookOpen, Send, Layers, CheckSquare, List, CalendarDays, ChevronLeft, ChevronRight, LayoutList } from "lucide-react";
+import { ChevronDown, MessageSquare, BookOpen, Send, Layers, CheckSquare, List, CalendarDays, ChevronLeft, ChevronRight, LayoutList, X, CheckCircle } from "lucide-react";
 
 const getLocalDateString = (d) => {
   const date = new Date(d);
@@ -24,6 +24,12 @@ const DailySchedule = () => {
   const [reviewModals, setReviewModals] = useState({});
   const [reviewInput, setReviewInput] = useState({ review_text: '', suggestion_text: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, isError = false) => {
+    setToast({ message, type: isError ? 'error' : 'success' });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
     fetchDailyPlan();
@@ -86,7 +92,7 @@ const DailySchedule = () => {
   };
 
   const handleSubmitReview = async (courseId, moduleId, submoduleId) => {
-    if (!reviewInput.review_text.trim()) return alert("Review text is required");
+    if (!reviewInput.review_text.trim()) return showToast("Review text is required", true);
     
     setSubmittingReview(true);
     try {
@@ -104,10 +110,10 @@ const DailySchedule = () => {
       
       if (!res.ok) throw new Error("Failed to submit review");
       
-      alert("Review submitted successfully!");
+      showToast("Review submitted successfully!");
       setReviewModals({ ...reviewModals, [submoduleId]: false });
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, true);
     } finally {
       setSubmittingReview(false);
     }
@@ -305,6 +311,13 @@ const DailySchedule = () => {
           </div>
         )}
       </div>
+
+      {toast && (
+        <div className={`fixed bottom-8 right-8 z-[9999] px-6 py-4 rounded-xl shadow-2xl font-bold text-sm transform transition-all duration-300 flex items-center gap-3 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-slate-800 text-white'}`}>
+          {toast.type === 'error' ? <X size={18} /> : <CheckCircle size={18} className="text-green-400" />}
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 };
