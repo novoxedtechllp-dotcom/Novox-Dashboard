@@ -500,6 +500,7 @@ const getStudentTasks = asyncHandler(async (req, res) => {
       reviewer_id, review_timestamp, review_comment,
       course_tasks(
         title, description, sequence_order, task_type, due_date,
+        course_task_subtasks(id, title, sequence_order),
         course_submodules(
           title, scheduled_date, module_id,
           course_modules(title, course_id, courses(name))
