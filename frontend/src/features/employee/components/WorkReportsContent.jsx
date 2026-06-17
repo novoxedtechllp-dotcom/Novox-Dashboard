@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Plus, Search, Briefcase, UploadCloud, FileText, Trash2 } from "lucide-react";
+import { CheckCircle, XCircle, Plus, Search, Briefcase, UploadCloud, FileText, Trash2, Clock, MessageSquare, X, Send, AlertCircle, ExternalLink, Filter } from "lucide-react";
 import LoadingSpinner from "../../../components/LoadingSpinner";
 
 const parseReportContent = (text) => {
@@ -61,9 +61,11 @@ const WorkReportsContent = () => {
           
           // Map locally stored simulated statuses if they exist
           const statusMap = JSON.parse(localStorage.getItem("mock_report_statuses") || "{}");
+          const msgsMap = JSON.parse(localStorage.getItem("mock_report_msgs") || "{}");
           const reportsWithStatus = fetched.map(r => ({
             ...r,
-            approval_status: statusMap[r.id] || r.approval_status || "PENDING"
+            approval_status: statusMap[r.id] || r.approval_status || "PENDING",
+            admin_message: msgsMap[r.id] || r.admin_message || ""
           }));
           
           setReports(reportsWithStatus);
@@ -122,7 +124,14 @@ const WorkReportsContent = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleStatusChange = async (id, newStatus) => {
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [rejectionMessage, setRejectionMessage] = useState("");
+
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [currentDocAttachment, setCurrentDocAttachment] = useState(null);
+
+  const handleStatusChange = async (id, newStatus, message = "") => {
     try {
       const userInfo = JSON.parse(sessionStorage.getItem("userInfo"));
       const endpoint =
@@ -135,11 +144,12 @@ const WorkReportsContent = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${userInfo?.token}`,
         },
+        body: JSON.stringify(newStatus === "REJECTED" ? { adminMessage: message } : {})
       });
       if (response.ok) {
         setReports((prev) =>
           prev.map((r) =>
-            r.id === id ? { ...r, approval_status: newStatus } : r
+            r.id === id ? { ...r, approval_status: newStatus, admin_message: message } : r
           )
         );
         return;
@@ -151,7 +161,7 @@ const WorkReportsContent = () => {
     // Local simulation fallback
     setReports((prev) =>
       prev.map((r) =>
-        r.id === id ? { ...r, approval_status: newStatus } : r
+        r.id === id ? { ...r, approval_status: newStatus, admin_message: message } : r
       )
     );
     
@@ -159,6 +169,25 @@ const WorkReportsContent = () => {
     const statusMap = JSON.parse(localStorage.getItem("mock_report_statuses") || "{}");
     statusMap[id] = newStatus;
     localStorage.setItem("mock_report_statuses", JSON.stringify(statusMap));
+
+    if (newStatus === "REJECTED") {
+      const msgs = JSON.parse(localStorage.getItem("mock_report_msgs") || "{}");
+      msgs[id] = message;
+      localStorage.setItem("mock_report_msgs", JSON.stringify(msgs));
+    }
+  };
+
+  const handleOpenRejectModal = (id) => {
+    setSelectedRequestId(id);
+    setRejectionMessage("");
+    setIsRejectModalOpen(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!selectedRequestId) return;
+    await handleStatusChange(selectedRequestId, "REJECTED", rejectionMessage);
+    setIsRejectModalOpen(false);
+    setSelectedRequestId(null);
   };
 
  const filteredReports = reports.filter(r => {
@@ -259,16 +288,27 @@ const WorkReportsContent = () => {
     return <LoadingSpinner text="Loading work reports..." />;
   }
 
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'APPROVED':
+        return <span className="bg-[#E5F7ED] text-[#008A2E] px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5 w-max"><CheckCircle size={14} /> Approved</span>;
+      case 'REJECTED':
+        return <span className="bg-[#FDE2E2] text-[#D80000] px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5 w-max"><XCircle size={14} /> Rejected</span>;
+      default:
+        return <span className="bg-[#FFF4E5] text-[#B26E00] px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5 w-max"><Clock size={14} /> Pending</span>;
+    }
+  };
+
   return (
     <>
       <div className="p-[24px] flex flex-col gap-[24px] w-full">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-[20px] font-bold text-[#003F87]">
+            <h2 className="text-[24px] font-bold text-[#003F87]">
               Work Reports
             </h2>
-            <p className="text-[13px] text-[#555F6B]">
-              Manage daily and weekly employee submissions.
+            <p className="text-slate-500 text-[14px] mt-1">
+              Review and manage employee submissions
             </p>
           </div>
           {isEmployee && (
@@ -282,33 +322,37 @@ const WorkReportsContent = () => {
         </div>
 
         {userRole === "ADMIN" && (
-          <div className="flex gap-4 bg-white p-4 border border-[#C2C6D4] rounded-lg">
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-md flex-1">
-            <Search size={16} className="text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search employee..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent border-none outline-none text-sm w-full"
-            />
+          <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between">
+            <div className="relative max-w-md w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search by employee name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white border border-[#E2E8F0] text-[14px] px-10 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87]"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(status => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-colors ${
+                    statusFilter === status 
+                      ? 'bg-[#003F87] text-white' 
+                      : 'bg-white text-slate-600 border border-[#E2E8F0] hover:bg-slate-50'
+                  }`}
+                >
+                  {status === 'ALL' ? 'All Reports' : status}
+                </button>
+              ))}
+            </div>
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-50 border border-slate-200 px-4 py-2 rounded-md text-sm outline-none"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="PENDING">PENDING</option>
-            <option value="APPROVED">APPROVED</option>
-            <option value="REJECTED">REJECTED</option>
-          </select>
-        </div>
         )}
 
-        
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={userRole === "ADMIN" ? "space-y-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"}>
           {filteredReports.map((report) => {
             const { workDone, projectArea, attachment } = parseReportContent(report.work_done);
             const emp =
@@ -316,6 +360,80 @@ const WorkReportsContent = () => {
             const empName = emp.first_name
               ? `${emp.first_name} ${emp.last_name}`
               : "Unknown Employee";
+
+            if (userRole === "ADMIN") {
+              return (
+                <div key={report.id} className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm flex flex-col md:flex-row justify-between gap-6 md:items-center">
+                  <div className="flex items-start gap-4 flex-1">
+                    <div className="w-12 h-12 rounded-full bg-[#E5F0FF] text-[#003F87] font-bold text-[16px] flex items-center justify-center shrink-0">
+                      {empName !== "Unknown Employee" ? empName.substring(0, 2).toUpperCase() : "??"}
+                    </div>
+                    <div className="space-y-1 w-full">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h3 className="font-bold text-[16px] text-slate-900">{empName} <span className="text-[13px] font-medium text-slate-500 ml-2">({emp.designation || 'Employee'})</span></h3>
+                        {getStatusBadge(report.approval_status || 'PENDING')}
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2">
+                        <div className="text-[13px] text-slate-600">
+                          <span className="font-semibold">Project:</span> {projectArea || (report.projects && report.projects.name) || "General Task"}
+                        </div>
+                        <div className="text-[13px] text-slate-600">
+                          <span className="font-semibold">Type:</span> <span className="font-bold text-slate-800">{report.report_type}</span>
+                        </div>
+                        <div className="text-[13px] text-slate-500">
+                          <span className="font-semibold">Submitted:</span> {new Date(report.submitted_at).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <p className="text-[13px] text-slate-700 whitespace-pre-line"><span className="font-bold text-slate-800">Work Done:</span> {workDone}</p>
+                        
+                        {report.blockers && report.blockers !== "None" && (
+                          <p className="text-[13px] text-[#D80000] mt-2 whitespace-pre-line"><span className="font-bold">Blockers:</span> {report.blockers}</p>
+                        )}
+
+                        {attachment && (
+                          <div className="mt-2 flex items-center">
+                            <button 
+                              onClick={() => {
+                                setCurrentDocAttachment(attachment);
+                                setIsDocModalOpen(true);
+                              }}
+                              className="text-[13px] font-bold text-[#003F87] hover:text-[#002B5E] flex items-center gap-1"
+                            >
+                              <ExternalLink size={14} /> View Attached Document
+                            </button>
+                          </div>
+                        )}
+
+                        {report.admin_message && (
+                          <p className="text-[13px] text-[#D80000] mt-2"><span className="font-bold">Rejection Note:</span> {report.admin_message}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {(report.approval_status === 'PENDING' || !report.approval_status) && (
+                    <div className="flex gap-3 md:flex-col shrink-0 mt-4 md:mt-0">
+                      <button 
+                        onClick={() => handleStatusChange(report.id, "APPROVED")}
+                        className="flex-1 md:w-32 bg-[#008A2E] hover:bg-[#007025] text-white px-4 py-2.5 rounded-lg font-bold text-[13px] transition-colors flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle size={16} /> Approve
+                      </button>
+                      <button 
+                        onClick={() => handleOpenRejectModal(report.id)}
+                        className="flex-1 md:w-32 bg-white border border-[#D80000] text-[#D80000] hover:bg-[#FFF0F0] px-4 py-2.5 rounded-lg font-bold text-[13px] transition-colors flex items-center justify-center gap-2"
+                      >
+                        <XCircle size={16} /> Reject
+                      </button>
+                    </div>
+                  )}
+                  
+                </div>
+              );
+            }
 
             return (
               <div
@@ -378,13 +496,8 @@ const WorkReportsContent = () => {
                         </div>
                               <button
                                 onClick={() => {
-                                  const pdfWindow = window.open("");
-                                  if (pdfWindow) {
-                                    pdfWindow.document.write(
-                                      `<iframe width='100%' height='100%' style='border:none;margin:0;padding:0;' src='${attachment.base64}'></iframe>`
-                                    );
-                                    pdfWindow.document.title = attachment.name;
-                                  }
+                                  setCurrentDocAttachment(attachment);
+                                  setIsDocModalOpen(true);
                                 }}
                                 className="text-xs font-bold text-[#003F87] hover:underline shrink-0 ml-2"
                               >
@@ -403,26 +516,17 @@ const WorkReportsContent = () => {
                       </p>
                     </div>
                   )}
+                  {report.admin_message && (
+                    <div>
+                      <h4 className="text-xs font-bold text-[#D80000] mb-1">
+                        Rejection Note
+                      </h4>
+                      <p className="text-sm text-[#D80000] leading-relaxed bg-[#FDE2E2] p-2 rounded">
+                        {report.admin_message}
+                      </p>
+                    </div>
+                  )}
                 </div>
-
-                {userRole === "ADMIN" && (report.approval_status === "PENDING" || !report.approval_status) && (
-                  <div className="mt-auto border-t border-slate-100 pt-4 flex gap-2">
-                    <button
-                      onClick={() => handleStatusChange(report.id, "APPROVED")}
-                      disabled={report.approval_status === "APPROVED"}
-                      className="flex-1 bg-green-50 text-green-700 py-2 rounded-md text-xs font-bold hover:bg-green-100 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <CheckCircle size={14} /> Approve
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange(report.id, "REJECTED")}
-                      disabled={report.approval_status === "REJECTED"}
-                      className="flex-1 bg-red-50 text-red-700 py-2 rounded-md text-xs font-bold hover:bg-red-100 disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <XCircle size={14} /> Reject
-                    </button>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -621,6 +725,72 @@ const WorkReportsContent = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {isRejectModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <MessageSquare size={18} className="text-[#D80000]" />
+                Reject Work Report
+              </h3>
+              <button onClick={() => setIsRejectModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-[14px] text-slate-600 mb-4">Please provide a reason or message for rejecting this work report. The employee will see this message.</p>
+              <textarea
+                value={rejectionMessage}
+                onChange={(e) => setRejectionMessage(e.target.value)}
+                placeholder="Enter your message here..."
+                rows="4"
+                className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-3 rounded-lg focus:outline-none focus:border-[#D80000] focus:ring-1 focus:ring-[#D80000] transition-colors resize-none mb-6"
+              ></textarea>
+              <div className="flex justify-end gap-3">
+                <button 
+                  onClick={() => setIsRejectModalOpen(false)}
+                  className="px-5 py-2.5 text-[14px] font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleConfirmReject}
+                  disabled={!rejectionMessage.trim()}
+                  className="px-5 py-2.5 text-[14px] font-bold bg-[#D80000] text-white hover:bg-[#B80000] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <Send size={16} /> Send & Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document View Modal */}
+      {isDocModalOpen && currentDocAttachment && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 w-full max-w-4xl h-[85vh]">
+            <div className="p-4 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50 shrink-0">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <FileText size={18} className="text-[#003F87]" />
+                {currentDocAttachment.name}
+              </h3>
+              <button onClick={() => setIsDocModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200 rounded">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 bg-slate-100 relative overflow-auto flex justify-center items-center p-4">
+              <iframe
+                src={currentDocAttachment.base64}
+                title={currentDocAttachment.name}
+                className="w-full h-full border-none rounded shadow-sm"
+              ></iframe>
+            </div>
           </div>
         </div>
       )}
