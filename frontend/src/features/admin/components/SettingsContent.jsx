@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import apiClient from '../../../lib/apiClient';
+import { apiClient } from '../../../lib/apiClient';
 import { 
   CheckCircle, 
   Plus, 
@@ -109,7 +109,7 @@ const SettingsContent = () => {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const { data } = await apiClient.get('/roles');
+        const data = await apiClient('/roles');
         if (data?.data) {
           const fetchedRoles = data.data.roles.map(r => ({
             id: r.id,
