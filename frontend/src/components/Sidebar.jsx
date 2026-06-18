@@ -83,6 +83,9 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
         if (item.id === 'leave') {
           return { ...item, label: 'Leave Management' };
         }
+        if (item.id === 'daily-plan') {
+          return { ...item, label: 'Class Feedback' };
+        }
         return item;
     });
   }
