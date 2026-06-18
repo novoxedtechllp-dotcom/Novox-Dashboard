@@ -123,6 +123,7 @@ const WorkReportsContent = () => {
 
   const [selectedEmployee, setSelectedEmployee] = useState("ALL");
   const [dateFilter, setDateFilter] = useState("TODAY");
+  const [selectedSpecificDate, setSelectedSpecificDate] = useState("");
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [newReport, setNewReport] = useState({
     employee_id: "",
@@ -184,18 +185,13 @@ const WorkReportsContent = () => {
         ) {
           return false;
         }
-      } else if (dateFilter === "THIS_MONTH") {
+      } else if (dateFilter === "PREVIOUS_MONTHS") {
+        if (!selectedSpecificDate) return false;
+        const [year, month, day] = selectedSpecificDate.split("-").map(Number);
         if (
-          reportDate.getMonth() !== today.getMonth() ||
-          reportDate.getFullYear() !== today.getFullYear()
-        ) {
-          return false;
-        }
-      } else if (dateFilter === "PREVIOUS_MONTH") {
-        const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        if (
-          reportDate.getMonth() !== prevMonth.getMonth() ||
-          reportDate.getFullYear() !== prevMonth.getFullYear()
+          reportDate.getDate() !== day ||
+          reportDate.getMonth() !== month - 1 ||
+          reportDate.getFullYear() !== year
         ) {
           return false;
         }
@@ -329,11 +325,21 @@ const WorkReportsContent = () => {
               onChange={setDateFilter}
               options={[
                 { value: "TODAY", label: "Today's Reports" },
-                { value: "THIS_MONTH", label: "This Month" },
-                { value: "PREVIOUS_MONTH", label: "Previous Month" },
-                { value: "ALL_TIME", label: "All Time" },
+                { value: "PREVIOUS_MONTHS", label: "Previous Months" },
               ]}
             />
+            
+            {dateFilter === "PREVIOUS_MONTHS" && (
+              <div className="flex flex-col flex-1 max-w-xs">
+                <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">Select Date</label>
+                <input
+                  type="date"
+                  value={selectedSpecificDate}
+                  onChange={(e) => setSelectedSpecificDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-[#E2E8F0] text-[14px] text-slate-700 px-3 py-2.5 rounded-lg focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] outline-none transition-all duration-200 shadow-sm"
+                />
+              </div>
+            )}
           </div>
         )}
 
