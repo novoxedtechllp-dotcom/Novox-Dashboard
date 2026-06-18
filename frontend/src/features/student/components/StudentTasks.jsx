@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 import { 
   Clock, 
   Calendar, 
@@ -405,17 +406,29 @@ const StudentTasks = ({ userInfo }) => {
 
       {/* Board Layout */}
       {loading ? (
-        <div className="flex-1 flex items-center justify-center min-h-[300px]">
-          <div className="w-10 h-10 border-4 border-slate-200 border-t-[#003F87] rounded-full animate-spin"></div>
+        <div className="flex-1 min-h-[300px] flex flex-col relative rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
+          <LoadingSpinner text="Loading your tasks..." />
         </div>
-      ) : (
+      ) : (() => {
+        const filteredCourseStructure = courseStructure.map(course => ({
+          ...course,
+          modules: course.modules.map(mod => ({
+            ...mod,
+            submodules: mod.submodules.map(sub => ({
+              ...sub,
+              tasks: sub.tasks.filter(t => activeFilter === 'ALL' || t.type === activeFilter)
+            })).filter(sub => sub.tasks.length > 0)
+          })).filter(mod => mod.submodules.length > 0)
+        })).filter(course => course.modules.length > 0);
+
+        return (
         <div className="max-w-7xl mx-auto w-full pb-10">
-          {courseStructure.length === 0 ? (
-            <div className="border border-dashed border-slate-200 bg-white/50 rounded-2xl p-8 text-center text-slate-400 font-medium text-xs">
-              No courses found
+          {filteredCourseStructure.length === 0 ? (
+            <div className="border border-dashed border-slate-200 bg-white/50 rounded-2xl p-8 text-center text-slate-400 font-medium text-sm">
+              No tasks match the selected filter.
             </div>
           ) : (
-            courseStructure.map(course => (
+            filteredCourseStructure.map(course => (
               <div key={course.id} className="mb-10">
                 <h3 className="text-sm font-extrabold text-slate-400 uppercase tracking-widest mb-4 ml-2 flex items-center gap-2">
                   <GraduationCap size={16} /> {course.name}
@@ -449,7 +462,7 @@ const StudentTasks = ({ userInfo }) => {
                             <div className="text-slate-400 font-medium text-sm italic">No submodules available.</div>
                           ) : (
                             mod.submodules.map(sub => {
-                              const filteredTasks = sub.tasks.filter(t => activeFilter === 'ALL' || t.type === activeFilter);
+                              const filteredTasks = sub.tasks;
                               
                               return (
                                 <div key={sub.id} className={`flex flex-col mb-4 rounded-xl border transition-all ${activeSubmoduleId === sub.id ? 'bg-slate-50/50 border-[#003F87]/10 shadow-sm' : 'bg-slate-50/70 border-slate-100 hover:border-[#003F87]/20 hover:bg-blue-50/30'}`}>
@@ -572,25 +585,26 @@ const StudentTasks = ({ userInfo }) => {
                                               </div>
                                             );
                                           })}
+                                            </div>
+                                          )}
                                         </div>
                                       )}
                                     </div>
-                                  )}
-                                </div>
-                              );
-                            })
+                                  );
+                                })
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
+                      ))
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          );
+        })()
+      }
       {/* Details Modal */}
       {isDetailsModalOpen && selectedTask && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
