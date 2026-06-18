@@ -490,7 +490,8 @@ const FeesContent = () => {
       {/* Header Container */}
       <div className="w-full flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-[24px] font-bold text-[#003F87] leading-tight">Fee Management System</h2>
+          <h1 className="text-2xl font-bold text-slate-800">Fee Management</h1>
+          <p className="text-slate-500 mt-1">Track student payments, dues, and financial records.</p>
         </div>
         <div className="flex items-center gap-[12px]">
           <button onClick={handleExportPDF} className="bg-white border border-[#C2C6D4] shadow-sm text-[#555F6B] px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors">

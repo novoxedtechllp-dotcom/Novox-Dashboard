@@ -364,8 +364,8 @@ const SettingsContent = ({ employees = [] }) => {
       {/* Page Header (direct, matching figma title placement) */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-[24px] font-bold text-[#003F87] leading-tight">Roles & Permissions Management</h2>
-          <p className="text-slate-500 text-[14px] mt-1">Configure granular access control for institutional staff and faculty members.</p>
+          <h1 className="text-2xl font-bold text-slate-800">Settings & Configuration</h1>
+          <p className="text-slate-500 mt-1">Manage roles, permissions, and system preferences.</p>
         </div>
         <div className="flex items-center gap-3">
           <button 

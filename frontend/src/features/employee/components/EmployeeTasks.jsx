@@ -6,8 +6,8 @@ const EmployeeTasks = () => {
     <div className="p-[24px]">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-[24px] font-bold text-slate-900">My Tasks</h2>
-          <p className="text-slate-500 text-[14px] mt-1">Manage your assigned duties and personal tasks</p>
+          <h1 className="text-2xl font-bold text-slate-800">My Tasks</h1>
+          <p className="text-slate-500 mt-1">Manage your assigned tasks and daily responsibilities.</p>
         </div>
         <button className="bg-[#003F87] hover:bg-[#002B5E] text-white px-5 py-2.5 rounded-md font-bold text-[14px] flex items-center gap-2 transition-colors">
           <Plus size={18} /> Add Personal Task
