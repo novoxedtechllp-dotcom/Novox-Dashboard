@@ -258,7 +258,7 @@ function App() {
                 <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
-                <Route path={`${basePath}/settings`} element={<SettingsContent />} />
+                <Route path={`${basePath}/settings`} element={<SettingsContent employees={employees} />} />
                 <Route path={`${basePath}/profile`} element={userRole === 'STUDENT' ? <StudentProfile userInfo={userInfo} /> : <EmployeeProfile />} />
                 <Route path={`${basePath}/tasks`} element={userRole === 'STUDENT' ? <StudentTasks userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
                 <Route path={`${basePath}/jobs`} element={userRole === 'STUDENT' ? <StudentJobs userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
