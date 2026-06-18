@@ -803,65 +803,6 @@ const SettingsContent = ({ employees = [] }) => {
         </div>
       </div>
 
-      {/* Add Staff Modal */}
-      {isAddStaffOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col animate-in scale-in-95 duration-200 border border-slate-100">
-            <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-[15px] font-bold text-slate-950">Add Staff Member</h2>
-              <button 
-                onClick={() => setIsAddStaffOpen(false)} 
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors font-bold text-lg"
-              >
-                &times;
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddStaffSubmit} className="p-6 flex flex-col gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Staff Name *</label>
-                <input 
-                  type="text"
-                  required
-                  placeholder="e.g. John Doe"
-                  value={newStaffName}
-                  onChange={(e) => setNewStaffName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Designation / Sub-role *</label>
-                <input 
-                  type="text"
-                  required
-                  placeholder="e.g. Senior UX Analyst"
-                  value={newStaffRole}
-                  onChange={(e) => setNewStaffRole(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-800"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2.5 mt-2 pt-4 border-t border-slate-100">
-                <button 
-                  type="button"
-                  onClick={() => setIsAddStaffOpen(false)} 
-                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-[12px] font-bold text-slate-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="px-5 py-2 bg-[#003F87] hover:bg-[#002B5E] rounded-xl text-[12px] font-bold text-white transition-colors shadow-sm"
-                >
-                  Assign Role
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Create New Role Modal */}
       {isCreateRoleOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-in fade-in duration-200">
