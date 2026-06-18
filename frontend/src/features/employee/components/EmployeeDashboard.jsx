@@ -170,10 +170,6 @@ const EmployeeDashboard = () => {
               
               <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-4">
                 <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 text-slate-600 text-xs font-bold tracking-widest uppercase shadow-sm border border-slate-200/50">
-                    <Clock size={12} className={isCheckedIn ? "text-indigo-500 animate-pulse" : "text-slate-400"} /> 
-                    Today's Shift
-                  </div>
                   <span className="text-slate-400 font-medium text-sm flex items-center gap-1.5">
                     {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                   </span>
@@ -205,17 +201,14 @@ const EmployeeDashboard = () => {
 
               <div className="flex flex-col items-center w-full md:w-auto gap-4 md:min-w-[200px]">
                  {isCheckedIn ? (
-                   <>
-                    <div className="text-emerald-600 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Active Shift
-                    </div>
-                    <button 
-                      onClick={() => handlePunch('out')}
-                      className="w-full bg-white border-2 border-slate-200 hover:border-rose-500 hover:bg-rose-50 text-slate-700 hover:text-rose-600 py-3.5 px-6 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all group"
-                    >
-                      <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" /> Check Out
-                    </button>
-                   </>
+                    <>
+                     <button 
+                       onClick={() => handlePunch('out')}
+                       className="w-full bg-white border-2 border-slate-200 hover:border-rose-500 hover:bg-rose-50 text-slate-700 hover:text-rose-600 py-3.5 px-6 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all group"
+                     >
+                       <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" /> Check Out
+                     </button>
+                    </>
                 ) : isCheckedOut ? (
                    <>
                     <div className="text-slate-500 bg-slate-100 border border-slate-200 px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
