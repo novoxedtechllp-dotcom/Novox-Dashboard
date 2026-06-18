@@ -443,16 +443,7 @@ const SettingsContent = ({ employees = [] }) => {
               <h4 className="text-[14px] font-bold text-slate-900 leading-tight">
                 Permissions Matrix - <span className="text-[#003F87] font-extrabold">{roles.find(r => r.id === selectedRoleId)?.name || selectedRoleId}</span>
               </h4>
-              
-              <label className="flex items-center gap-2 text-[12px] font-semibold text-slate-600 cursor-pointer">
-                <input 
-                  type="checkbox"
-                  checked={isAllViewChecked}
-                  onChange={toggleSelectAllView} disabled={selectedRoleId === 'super-admin'}
-                  className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4 h-4 cursor-pointer accent-[#003F87]"
-                />
-                <span>Select All View</span>
-              </label>
+
             </div>
 
             {/* Matrix Table */}
@@ -700,15 +691,7 @@ const SettingsContent = ({ employees = [] }) => {
                 <div className="flex flex-col gap-4">
                   <div className="flex justify-between items-center px-4 py-2 bg-amber-50/50 border border-amber-200/60 rounded-lg text-amber-800 text-[12px] font-medium">
                     <span>Custom overrides are active. These permissions will apply instead of the role defaults.</span>
-                    <label className="flex items-center gap-2 text-[12px] font-semibold text-slate-700 cursor-pointer">
-                      <input 
-                        type="checkbox"
-                        checked={isEmployeeAllViewChecked}
-                        onChange={toggleEmployeeSelectAllView}
-                        className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4 h-4 cursor-pointer accent-[#003F87]"
-                      />
-                      <span>Select All View</span>
-                    </label>
+
                   </div>
 
                   <div className="w-full overflow-x-auto border border-slate-100 rounded-xl">
