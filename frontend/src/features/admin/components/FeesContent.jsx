@@ -64,7 +64,7 @@ const FeesContent = () => {
 
       // 3. Fetch Summary Stats
       try {
-        const summaryRes = await fetch('/api/v1/fees/summary', { headers });
+        const summaryRes = await fetch(`/api/v1/fees/summary?month=${filterMonth + 1}&year=${filterYear}`, { headers });
         if (summaryRes.ok) {
           const d = await summaryRes.json();
           if (d.success && d.data) {
@@ -510,7 +510,7 @@ const handleExportPDF = () => {
             <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">THIS MONTH COLLECTIONS</p>
             <h3 className="text-[32px] font-bold text-[#008A2E] leading-none mb-2">₹{stats.totalCollectionsMonth.toLocaleString()}</h3>
             <div className="flex items-center gap-1 text-[11px] font-bold text-[#555F6B]">
-              <Calendar size={12} /> {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][new Date().getMonth()]} {new Date().getFullYear()}
+              <Calendar size={12} /> {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][filterMonth]} {filterYear}
             </div>
           </div>
           <div className="p-[24px] flex flex-col justify-center border-b xl:border-b-0 xl:border-r border-[#C2C6D4]">
@@ -524,7 +524,7 @@ const handleExportPDF = () => {
             <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">TOTAL YEARLY COLLECTIONS</p>
             <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">₹{stats.totalCollectionsYear.toLocaleString()}</h3>
             <div className="flex items-center gap-1 text-[11px] font-bold text-[#003F87]">
-              <TrendingUp size={12} /> FY {new Date().getFullYear()}
+              <TrendingUp size={12} /> FY {filterYear}
             </div>
           </div>
         </div>

@@ -581,9 +581,10 @@ const updatePayment = asyncHandler(async (req, res) => {
 // @desc    Get fee summary stats for dashboard
 // @route   GET /api/v1/fees/summary
 const getFeeSummary = asyncHandler(async (req, res) => {
+  const { month, year } = req.query;
   const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
+  const currentMonth = month ? parseInt(month, 10) : (now.getMonth() + 1);
+  const currentYear = year ? parseInt(year, 10) : now.getFullYear();
 
   // Get all payments
   const { data: allPayments, error: payError } = await supabase
