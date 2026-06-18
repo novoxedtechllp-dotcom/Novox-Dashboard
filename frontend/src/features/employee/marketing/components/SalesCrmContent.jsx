@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, Mail, MessageSquare, Plus, ChevronRight, TrendingUp, Users, BookOpen, Zap, MoreHorizontal, Paperclip, CheckSquare, Search, X, RefreshCcw } from 'lucide-react';
 import LoadingSpinner from '../../../../components/LoadingSpinner';
+import CustomSelect from '../../../../components/CustomSelect';
 
 // ─── Unique course list derived from leads ─────────────────────────────────────
 const getUniqueCourses = (leads) => {
@@ -462,21 +463,16 @@ const SalesCrmContent = ({ courses = [], searchQuery = '' }) => {
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Course</span>
-            <select
+            <CustomSelect
               value={selectedCourse}
-              onChange={e => setSelectedCourse(e.target.value)}
-              className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-800 cursor-pointer appearance-none pr-6"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right center',
-              }}
-            >
-              <option value="">All Courses</option>
-              {uniqueCourses.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+              onChange={setSelectedCourse}
+              options={[
+                { value: '', label: 'All Courses' },
+                ...uniqueCourses.map(c => ({ value: c, label: c }))
+              ]}
+              className="w-full sm:w-[200px]"
+              selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
+            />
           </div>
         </div>
 

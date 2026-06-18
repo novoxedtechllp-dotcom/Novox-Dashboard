@@ -82,7 +82,7 @@ const CustomSelect = ({ label, options, value, onChange }) => {
   );
 };
 
-const WorkReportsContent = () => {
+const WorkReportsContent = ({ searchQuery = "" }) => {
   const [reports, setReports] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -187,6 +187,19 @@ const WorkReportsContent = () => {
         reportDate.getMonth() !== month - 1 ||
         reportDate.getFullYear() !== year
       ) {
+        return false;
+      }
+    }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const emp = r.employee || {};
+      const empName = `${emp.first_name || ""} ${emp.last_name || ""}`.toLowerCase();
+      const cleaned = cleanLegacyReport(r);
+      const proj = cleaned.projectArea.toLowerCase();
+      const work = cleaned.workDone.toLowerCase();
+      
+      if (!empName.includes(q) && !proj.includes(q) && !work.includes(q)) {
         return false;
       }
     }
