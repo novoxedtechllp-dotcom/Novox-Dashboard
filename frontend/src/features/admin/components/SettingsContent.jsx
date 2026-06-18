@@ -156,6 +156,9 @@ const SettingsContent = ({ employees = [] }) => {
       return employees;
     }
     
+    const activeRole = roles.find(r => r.id === selectedRoleId);
+    const roleName = activeRole ? activeRole.name : '';
+    
     // Map role ID to system departments
     const roleIdToDept = {
       'design': 'design',
@@ -163,10 +166,11 @@ const SettingsContent = ({ employees = [] }) => {
       'sales': 'sales',
       'marketing': 'marketing',
       'hr': 'hr',
-      'accountant': ['accountant', 'accounts', 'account']
+      'accountant': ['accountant', 'accounts', 'account'],
+      'accounts': ['accountant', 'accounts', 'account']
     };
     
-    const targetDept = roleIdToDept[String(selectedRoleId).toLowerCase()];
+    const targetDept = roleIdToDept[String(selectedRoleId).toLowerCase()] || roleIdToDept[roleName.toLowerCase()];
     if (!targetDept) return [];
     
     return employees.filter(emp => {
@@ -176,7 +180,7 @@ const SettingsContent = ({ employees = [] }) => {
       }
       return empDept === targetDept;
     });
-  }, [employees, selectedRoleId]);
+  }, [employees, selectedRoleId, roles]);
 
   const handleCreateRoleSubmit = (e) => {
     e.preventDefault();
@@ -555,13 +559,33 @@ const SettingsContent = ({ employees = [] }) => {
       <div className="bg-white border border-[#C2C6D4] rounded-xl p-6 shadow-sm flex flex-col gap-4 w-full">
         
         {/* Heading */}
-        <div className="border-b border-slate-100 pb-4">
+        <div className="border-b border-slate-100 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex flex-col gap-1">
             <h4 className="text-[15px] font-bold text-slate-900">Role Members - {roles.find(r => r.id === selectedRoleId)?.name || selectedRoleId}</h4>
             <p className="text-[12px] text-slate-500">
-              Below are all employees belonging to the <span className="font-bold text-[#003F87]">{roles.find(r => r.id === selectedRoleId)?.name || selectedRoleId}</span> department/role. Click on an employee to customize their individual permissions.
+              Below are all employees belonging to the <span className="font-bold text-[#003F87]">{roles.find(r => r.id === selectedRoleId)?.name || selectedRoleId}</span> department/role. Click on an employee or select from the dropdown to customize their individual permissions.
             </p>
           </div>
+          {filteredEmployeesList.length > 0 && (
+            <div className="flex items-center gap-2 shrink-0">
+              <label className="text-xs font-bold text-slate-500 uppercase">Select Employee:</label>
+              <select
+                value={selectedEmployee ? (selectedEmployee.id || selectedEmployee.name) : ''}
+                onChange={(e) => {
+                  const selected = filteredEmployeesList.find(emp => (emp.id || emp.name) === e.target.value);
+                  setSelectedEmployee(selected || null);
+                }}
+                className="px-3 py-1.5 border border-slate-200 rounded-lg outline-none focus:border-[#003F87] text-[13px] text-slate-800 bg-white font-medium min-w-[200px]"
+              >
+                <option value="">-- Choose Employee --</option>
+                {filteredEmployeesList.map(emp => (
+                  <option key={emp.id || emp.name} value={emp.id || emp.name}>
+                    {emp.name} {customPermissions[emp.id || emp.name] ? ' (Custom)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Employees Cards Row */}

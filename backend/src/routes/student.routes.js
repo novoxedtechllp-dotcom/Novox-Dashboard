@@ -48,7 +48,7 @@ router.route("/:studentId/daily-plan").get(authorize({ roles: [ROLES.ADMIN, ROLE
 
 // Write
 router.route("/").post(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), createStudent);
-router.route("/:studentId").put(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), updateStudent);
+router.route("/:studentId").put(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT] }), updateStudent);
 router.route("/:studentId").delete(authorize({ roles: [ROLES.ADMIN] }), deleteStudent);
 
 // ==========================================

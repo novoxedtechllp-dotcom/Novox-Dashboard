@@ -267,6 +267,14 @@ const updateStudent = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
   const { first_name, last_name, phone, parent_phone, guardian_name, address, status, avatar_url, email } = req.body;
 
+  // Students can only update their own profile
+  if (req.user.role === "STUDENT") {
+    const { data: studentRecord } = await supabase.from("students").select("user_id").eq("id", studentId).single();
+    if (!studentRecord || studentRecord.user_id !== req.user.id) {
+      throw new ApiError(403, "You can only update your own profile");
+    }
+  }
+
   if (email !== undefined) {
     const { data: currentStudent } = await supabase.from("students").select("user_id").eq("id", studentId).single();
     if (currentStudent?.user_id) {
