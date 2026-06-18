@@ -274,27 +274,52 @@ const StudentProfile = ({ userInfo }) => {
   };
 
   useEffect(() => {
-    try {
-      const storedFees = localStorage.getItem('novox_student_fees');
-      let myFees = [];
-      if (storedFees && studentId) {
-        const allFees = JSON.parse(storedFees);
-        myFees = allFees.filter(f => f.studentId === studentId);
+    const fetchFees = async () => {
+      if (!studentId || !token) return;
+      try {
+        const res = await fetch(`/api/v1/fees/students/${studentId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const feesData = await res.json();
+          const plans = feesData.data?.plans || [];
+          if (plans.length > 0) {
+            const plan = plans[0];
+            const payments = plan.payments || [];
+            
+            // Format payments for the transaction table
+            const formattedPayments = payments.map(p => ({
+              id: p.id,
+              course: plan.courses?.name || 'Enrolled Course',
+              date: new Date(p.paid_at).toLocaleDateString(),
+              type: p.payment_method || 'CASH',
+              amount: p.amount,
+              paidAmount: p.amount,
+              status: 'Paid'
+            }));
+            
+            setStudentFees(formattedPayments);
+            
+            const total = parseFloat(plan.total_fee) || 0;
+            const paid = plan.breakdown?.totalPaid || 0;
+            setFeeTotals({
+              total: total,
+              paid: paid,
+              balance: Math.max(0, total - paid),
+              currentDue: plan.breakdown?.currentMonthDue || 0,
+              planStatus: plan.status || 'Pending'
+            });
+          }
+        }
+      } catch(e) {
+        console.error("Error fetching fees from backend:", e);
       }
-      setStudentFees(myFees);
-    } catch(e) {
-      console.error(e);
-    }
-  }, [studentId]);
+    };
+    fetchFees();
+  }, [studentId, token]);
 
-  useEffect(() => {
-    const hasEnrolledCourses = profileData.courses && profileData.courses.length > 0;
-    const total = hasEnrolledCourses ? profileData.courses.reduce((sum, c) => sum + (parseInt(String(c.price || '0').replace(/[^0-9]/g, ''), 10) || 0), 0) : 0;
-    const paid = studentFees.reduce((sum, f) => sum + (Number(f.paidAmount) || parseInt(String(f.amount).replace(/[^0-9]/g, ''), 10) || 0), 0);
-    const balance = Math.max(0, total - paid);
-    
-    setFeeTotals({ total, paid, balance });
-  }, [studentFees, profileData.courses]);
+  // Fee totals are now calculated from the backend plan
+
 
   useEffect(() => {
     fetchStudentData();
@@ -407,35 +432,10 @@ const StudentProfile = ({ userInfo }) => {
     }
   };
 
-  const currentMonthFee = useMemo(() => {
-    if (!studentId || !studentFees || studentFees.length === 0) {
-      return { amount: 0, status: 'Not Paid' };
-    }
-    
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    
-    const thisMonthFeeRecords = studentFees.filter(f => {
-      if (!f.date) return false;
-      const feeDate = new Date(f.date);
-      return feeDate.getMonth() === currentMonth && feeDate.getFullYear() === currentYear;
-    });
-    
-    if (thisMonthFeeRecords.length === 0) {
-      return { amount: 0, status: 'Not Paid' };
-    }
-    
-    const amount = thisMonthFeeRecords.reduce((sum, f) => sum + (Number(f.paidAmount) || Number(f.totalAmount) || Number(f.amount) || 0), 0);
-    const rawStatus = thisMonthFeeRecords[0].status || 'Not Paid';
-    
-    let status = 'Not Paid';
-    if (rawStatus === 'Paid' || rawStatus === 'Full Paid' || rawStatus === 'Approved' || rawStatus === 'Partially Paid') {
-      status = 'Paid';
-    }
-    
-    return { amount, status };
-  }, [studentFees, studentId]);
+  const currentMonthFee = { 
+    amount: feeTotals.currentDue || 0, 
+    status: feeTotals.planStatus || 'Not Paid' 
+  };
 
   const formattedAdmissionDate = () => {
     if (!profileData.joiningDate) return 'N/A';
