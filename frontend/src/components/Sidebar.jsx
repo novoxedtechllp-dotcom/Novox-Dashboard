@@ -134,7 +134,7 @@ const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, is
 
           {/* Main Nav Container */}
           <nav 
-            className="flex-1 flex flex-col gap-1.5 overflow-y-auto mt-4 pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent"
+            className="flex-1 flex flex-col gap-1.5 overflow-y-auto mt-4 pb-4 pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent"
           >
             {visibleNavItems.map((item) => {
               const Icon = item.icon;

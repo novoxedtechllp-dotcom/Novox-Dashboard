@@ -787,6 +787,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                       options={[{ value: 'DEVELOPMENT', label: 'DEVELOPMENT' }, { value: 'MARKETING', label: 'MARKETING' }, { value: 'DESIGN', label: 'DESIGN' }]}
                       value={courseToEdit ? courseToEdit.category : newCourse.category}
                       onChange={val => courseToEdit ? setCourseToEdit({ ...courseToEdit, category: val }) : setNewCourse({ ...newCourse, category: val })}
+                      className="w-full"
+                      selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all"
                     />
                   </div>
                   <div>
@@ -795,6 +797,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                       options={[{ value: 'DRAFT', label: 'DRAFT' }, { value: 'PUBLISHED', label: 'PUBLISHED' }, { value: 'ARCHIVED', label: 'ARCHIVED' }]}
                       value={courseToEdit ? (courseToEdit.status || 'DRAFT') : newCourse.status}
                       onChange={val => courseToEdit ? setCourseToEdit({ ...courseToEdit, status: val }) : setNewCourse({ ...newCourse, status: val })}
+                      className="w-full"
+                      selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all"
                     />
                   </div>
                 </div>
@@ -823,6 +827,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                       value={courseToEdit ? courseToEdit.mentorId : newCourse.mentorId}
                       onChange={val => courseToEdit ? setCourseToEdit({ ...courseToEdit, mentorId: val }) : setNewCourse({ ...newCourse, mentorId: val })}
                       searchable={true}
+                      className="w-full"
+                      selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all"
                     />
                   </div>
                   <div>

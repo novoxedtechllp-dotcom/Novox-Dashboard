@@ -489,7 +489,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
                   <CustomSelect
                     value={newEmployee.courseIds}
                     onChange={(val) => setNewEmployee({...newEmployee, courseIds: val})}
-                    options={courses.map(c => ({ value: c.id, label: c.name }))}
+                    options={courses.map(c => ({ value: c.id, label: c.title || c.name }))}
                     multiple={true}
                     openUpwards={true}
                     className="w-full"
@@ -572,7 +572,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
                   <CustomSelect
                     value={employeeToEdit.courseIds || []}
                     onChange={(val) => setEmployeeToEdit({...employeeToEdit, courseIds: val})}
-                    options={courses.map(c => ({ value: c.id, label: c.name }))}
+                    options={courses.map(c => ({ value: c.id, label: c.title || c.name }))}
                     multiple={true}
                     className="w-full"
                     selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
