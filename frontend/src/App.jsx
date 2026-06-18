@@ -34,6 +34,8 @@ import Fab from './components/Fab';
 import DailyPlan from './features/employee/components/DailyPlan';
 import StudentTasks from './features/student/components/StudentTasks';
 import StudentProfile from './features/student/components/StudentProfile';
+import StudentJobs from './features/student/components/jobs/StudentJobs';
+import StudentAcademicJourney from './features/student/components/StudentAcademicJourney';
 
 // Employee Components
 import EmployeeSidebar from './features/employee/components/EmployeeSidebar';
@@ -124,7 +126,7 @@ function App() {
   useEffect(() => {
     if (isAuthenticated && userInfo?.token) {
       const headers = { Authorization: `Bearer ${userInfo.token}` };
-      
+
       // Fetch courses
       fetch('/api/v1/courses', { headers })
         .then(res => {
@@ -181,7 +183,7 @@ function App() {
   const isAccounts = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'ACCOUNTS';
 
   const basePath = userRole === 'STUDENT' ? '/student' :
-                   isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : isAccounts ? '/accounts' : '/admin';
+    isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : isAccounts ? '/accounts' : '/admin';
 
   const canViewEmployees = userRole === 'ADMIN' || isHR;
   const canViewPayroll = userRole === 'ADMIN' || isHR || isAccounts;
@@ -205,11 +207,11 @@ function App() {
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
       {isAuthenticated && (
-        <Sidebar 
-          userRole={userRole} 
-          isHR={isHR} 
-          isDesign={isDesign} 
-          isDevelopment={isDevelopment} 
+        <Sidebar
+          userRole={userRole}
+          isHR={isHR}
+          isDesign={isDesign}
+          isDevelopment={isDevelopment}
           isSales={isSales}
           isMarketing={isMarketing}
           isAccounts={isAccounts}
@@ -221,14 +223,14 @@ function App() {
       )}
 
       <div className={`flex-1 flex flex-col h-screen overflow-hidden relative transition-all duration-300 ${isSidebarOpen ? 'lg:pl-0' : 'lg:pl-0'}`}>
-        
+
         {isAuthenticated && (
-          <Header 
-            userRole={userRole} 
-            userInfo={userInfo} 
-            basePath={basePath} 
-            searchQuery={searchQuery} 
-            setSearchQuery={setSearchQuery} 
+          <Header
+            userRole={userRole}
+            userInfo={userInfo}
+            basePath={basePath}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             onLogout={handleLogout}
           />
@@ -247,7 +249,7 @@ function App() {
               <>
                 <Route path="/" element={<Navigate to={`${basePath}/dashboard`} replace />} />
                 <Route path={basePath} element={<Navigate to={`${basePath}/dashboard`} replace />} />
-                
+
                 <Route path={`${basePath}/dashboard`} element={userRole === 'STUDENT' ? <StudentDashboard userInfo={userInfo} /> : (userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />)} />
                 <Route path={`${basePath}/daily-plan`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/schedule`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
@@ -259,6 +261,8 @@ function App() {
                 <Route path={`${basePath}/settings`} element={<SettingsContent />} />
                 <Route path={`${basePath}/profile`} element={userRole === 'STUDENT' ? <StudentProfile userInfo={userInfo} /> : <EmployeeProfile />} />
                 <Route path={`${basePath}/tasks`} element={userRole === 'STUDENT' ? <StudentTasks userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
+                <Route path={`${basePath}/jobs`} element={userRole === 'STUDENT' ? <StudentJobs userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
+                <Route path={`${basePath}/journey`} element={userRole === 'STUDENT' ? <StudentAcademicJourney userInfo={userInfo} /> : (canViewJourney ? <AcademicJourneyContent /> : <Navigate to={`${basePath}/dashboard`} />)} />
                 <Route path={`${basePath}/support`} element={<SupportContent />} />
 
                 {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} />} />}
@@ -268,13 +272,12 @@ function App() {
                 {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} />} />}
                 {canViewRecruitment && <Route path={`${basePath}/recruitment`} element={<RecruitmentContent />} />}
                 {canViewWhatsapp && <Route path={`${basePath}/whatsapp-automation`} element={<WhatsappContent />} />}
-                {canViewJourney && <Route path={`${basePath}/journey`} element={<AcademicJourneyContent />} />}
                 {canViewSeo && <Route path={`${basePath}/seo`} element={<SeoAgentContent />} />}
                 {canViewBlog && <Route path={`${basePath}/blog`} element={<BlogDashboardContent />} />}
                 {canViewBlog && <Route path={`${basePath}/blog-agent`} element={<BlogAgentHub />} />}
                 {canViewBlog && <Route path={`${basePath}/blog-agent/:site`} element={<BlogAgentEditor />} />}
                 {canViewGallery && <Route path={`${basePath}/gallery`} element={<GalleryContent />} />}
-                
+
                 <Route path="*" element={<Navigate to={`${basePath}/dashboard`} replace />} />
               </>
             )}

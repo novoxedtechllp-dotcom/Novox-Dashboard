@@ -326,7 +326,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       });
       const resData = await parseApiResponse(response);
       setModules([...modules, resData.data].sort((a, b) => a.sequence_order - b.sequence_order));
-      setNewModule({ title: '', description: '', sequence_order: modules.filter(m => m.course_id === selectedCourse.id).length + 2 });
+      setNewModule({ title: '', description: '', sequence_order: modules.filter(m => m.course_id === selectedCourse.id).length + 1 });
     } catch (error) {
       alert(error.message || 'Failed to add module');
     } finally {
@@ -397,7 +397,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       });
       const resData = await parseApiResponse(response);
       setSubmodules([...submodules, resData.data]);
-      setNewSubmodule({ title: '', sequence_order: submodules.filter(s => s.module_id === moduleId).length + 2 });
+      setNewSubmodule({ title: '', sequence_order: submodules.filter(s => s.module_id === moduleId).length + 1 });
     } catch (error) {
       alert(error.message || 'Failed to add submodule');
     } finally {
@@ -417,7 +417,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       });
       const resData = await parseApiResponse(response);
       setTasks([...tasks, resData.data]);
-      setNewTask({ title: '', sequence_order: tasks.filter(t => t.submodule_id === submoduleId).length + 2, task_type: 'PRE_PLANNED' });
+      setNewTask({ title: '', sequence_order: tasks.filter(t => t.submodule_id === submoduleId).length + 1, task_type: 'PRE_PLANNED' });
     } catch (error) {
       alert(error.message || 'Failed to add task');
     } finally {
@@ -437,7 +437,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       });
       const resData = await parseApiResponse(response);
       setSubtasks([...subtasks, resData.data]);
-      setNewSubtask({ title: '', description: '', sequence_order: subtasks.filter(st => st.task_id === taskId).length + 2 });
+      setNewSubtask({ title: '', description: '', sequence_order: subtasks.filter(st => st.task_id === taskId).length + 1 });
     } catch (error) {
       alert(error.message || 'Failed to add subtask');
     } finally {

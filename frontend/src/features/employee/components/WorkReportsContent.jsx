@@ -1,39 +1,87 @@
-import React, { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Plus, Search, Briefcase, UploadCloud, FileText, Trash2, Clock, MessageSquare, X, Send, AlertCircle, ExternalLink, Filter } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Plus, Briefcase, UploadCloud, FileText, Trash2, Clock, X, ExternalLink, ChevronDown, Check } from "lucide-react";
 import LoadingSpinner from "../../../components/LoadingSpinner";
 
-const parseReportContent = (text) => {
-  let workDone = text || "";
-  let projectArea = "";
-  let attachment = null;
+// Backward-compatible parser for legacy reports that stored metadata in work_done text
+const cleanLegacyReport = (report) => {
+  let workDone = report.work_done || "";
+  let projectArea = report.project_area || "";
+  let attachmentUrl = report.attachment_url || null;
+  let attachmentName = report.attachment_name || null;
 
-  // Match Project Area
+  // Extract [PROJECT_AREA:...] from legacy work_done text
   const projectMatch = workDone.match(/\[PROJECT_AREA:([^\]]+)\]/);
   if (projectMatch) {
-    projectArea = projectMatch[1];
+    if (!projectArea) projectArea = projectMatch[1].trim();
     workDone = workDone.replace(/\[PROJECT_AREA:[^\]]+\]/, "");
   }
 
-  // Match PDF Attachment
+  // Extract [PDF_ATTACHMENT:name|base64data] from legacy work_done text
   const pdfMatch = workDone.match(/\[PDF_ATTACHMENT:([^|]+)\|([^\]]+)\]/);
   if (pdfMatch) {
-    attachment = {
-      name: pdfMatch[1],
-      base64: pdfMatch[2]
-    };
-    workDone = workDone.replace(/\[PDF_ATTACHMENT:[^|]+\|[^\]]+\]/, "");
+    if (!attachmentUrl) {
+      attachmentName = pdfMatch[1];
+      attachmentUrl = pdfMatch[2];
+    }
+    workDone = workDone.replace(/\[PDF_ATTACHMENT:[^\]]+\]/, "");
   }
 
   return {
     workDone: workDone.trim(),
-    projectArea: projectArea.trim(),
-    attachment
+    projectArea: projectArea || "General Task",
+    attachment: attachmentUrl ? { name: attachmentName || "Attachment", url: attachmentUrl } : null
   };
+};
+
+const CustomSelect = ({ label, options, value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find(o => o.value === value) || options[0] || { label: "Select..." };
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="flex-1 max-w-xs relative" ref={dropdownRef}>
+      <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">{label}</label>
+      <div 
+        className={`w-full bg-slate-50 border ${isOpen ? 'border-[#003F87] ring-1 ring-[#003F87]' : 'border-[#E2E8F0]'} text-[14px] text-slate-700 px-3 py-2.5 rounded-lg flex justify-between items-center cursor-pointer hover:border-[#003F87] transition-all duration-200 shadow-sm`}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="font-medium truncate pr-4">{selectedOption.label}</span>
+        <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#003F87]' : ''}`} />
+      </div>
+      
+      {isOpen && (
+        <div className="absolute z-20 w-full mt-2 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-60 overflow-auto py-1 animate-in fade-in zoom-in-95 duration-100">
+          {options.map((option) => (
+            <div
+              key={option.value}
+              className={`px-3 py-2.5 cursor-pointer text-[14px] transition-colors flex justify-between items-center ${option.value === value ? 'bg-[#F0F5FF] text-[#003F87] font-bold' : 'text-slate-700 hover:bg-slate-50 font-medium'}`}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+            >
+              <span className="truncate pr-2">{option.label}</span>
+              {option.value === value && <Check size={16} className="text-[#003F87] shrink-0" />}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const WorkReportsContent = () => {
   const [reports, setReports] = useState([]);
-  const [projects, setProjects] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,17 +106,7 @@ const WorkReportsContent = () => {
         if (repRes.ok) {
           const resData = await repRes.json();
           const fetched = resData.data?.reports || resData.data || [];
-          
-          // Map locally stored simulated statuses if they exist
-          const statusMap = JSON.parse(localStorage.getItem("mock_report_statuses") || "{}");
-          const msgsMap = JSON.parse(localStorage.getItem("mock_report_msgs") || "{}");
-          const reportsWithStatus = fetched.map(r => ({
-            ...r,
-            approval_status: statusMap[r.id] || r.approval_status || "PENDING",
-            admin_message: msgsMap[r.id] || r.admin_message || ""
-          }));
-          
-          setReports(reportsWithStatus);
+          setReports(fetched);
         }
         if (empRes.ok) {
           const eData = await empRes.json();
@@ -82,8 +120,9 @@ const WorkReportsContent = () => {
     };
     fetchData();
   }, []);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const [selectedEmployee, setSelectedEmployee] = useState("ALL");
+  const [dateFilter, setDateFilter] = useState("TODAY");
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [newReport, setNewReport] = useState({
     employee_id: "",
@@ -94,7 +133,6 @@ const WorkReportsContent = () => {
   });
   
   const [attachmentFile, setAttachmentFile] = useState(null);
-  const [attachmentBase64, setAttachmentBase64] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [fileError, setFileError] = useState("");
 
@@ -113,116 +151,59 @@ const WorkReportsContent = () => {
     }
 
     setAttachmentFile(file);
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setAttachmentBase64(event.target.result);
-    };
-    reader.onerror = () => {
-      setFileError("Failed to read file.");
-    };
-    reader.readAsDataURL(file);
   };
-
-  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-  const [selectedRequestId, setSelectedRequestId] = useState(null);
-  const [rejectionMessage, setRejectionMessage] = useState("");
 
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [currentDocAttachment, setCurrentDocAttachment] = useState(null);
 
-  const handleStatusChange = async (id, newStatus, message = "") => {
-    try {
-      const userInfo = JSON.parse(sessionStorage.getItem("userInfo"));
-      const endpoint =
-        newStatus === "APPROVED"
-          ? `/api/v1/work-reports/${id}/approve`
-          : `/api/v1/work-reports/${id}/reject`;
-      const response = await fetch(endpoint, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo?.token}`,
-        },
-        body: JSON.stringify(newStatus === "REJECTED" ? { adminMessage: message } : {})
-      });
-      if (response.ok) {
-        setReports((prev) =>
-          prev.map((r) =>
-            r.id === id ? { ...r, approval_status: newStatus, admin_message: message } : r
-          )
-        );
-        return;
+  const filteredReports = reports.filter(r => {
+    // Employee filtering: only show own reports
+    if (isEmployee) {
+      const emp = r.employee || {};
+      const empProfileId = emp.id;
+      // For employee view, check if the report's employee matches
+      if (r.employee_id !== userInfo.id && empProfileId !== userInfo.id) {
+        // Also check by name match as fallback
+        return false;
       }
-    } catch (err) {
-      console.warn("Backend endpoints for approve/reject not fully configured. Simulating locally:", err);
     }
-    
-    // Local simulation fallback
-    setReports((prev) =>
-      prev.map((r) =>
-        r.id === id ? { ...r, approval_status: newStatus, admin_message: message } : r
-      )
-    );
-    
-    // Also save in localStorage to persist the simulation for this browser session
-    const statusMap = JSON.parse(localStorage.getItem("mock_report_statuses") || "{}");
-    statusMap[id] = newStatus;
-    localStorage.setItem("mock_report_statuses", JSON.stringify(statusMap));
 
-    if (newStatus === "REJECTED") {
-      const msgs = JSON.parse(localStorage.getItem("mock_report_msgs") || "{}");
-      msgs[id] = message;
-      localStorage.setItem("mock_report_msgs", JSON.stringify(msgs));
+    if (userRole === "ADMIN") {
+      if (selectedEmployee !== "ALL" && r.employee_id !== selectedEmployee) {
+        return false;
+      }
+
+      const reportDate = new Date(r.submitted_at);
+      const today = new Date();
+      
+      if (dateFilter === "TODAY") {
+        if (
+          reportDate.getDate() !== today.getDate() ||
+          reportDate.getMonth() !== today.getMonth() ||
+          reportDate.getFullYear() !== today.getFullYear()
+        ) {
+          return false;
+        }
+      } else if (dateFilter === "THIS_MONTH") {
+        if (
+          reportDate.getMonth() !== today.getMonth() ||
+          reportDate.getFullYear() !== today.getFullYear()
+        ) {
+          return false;
+        }
+      } else if (dateFilter === "PREVIOUS_MONTH") {
+        const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        if (
+          reportDate.getMonth() !== prevMonth.getMonth() ||
+          reportDate.getFullYear() !== prevMonth.getFullYear()
+        ) {
+          return false;
+        }
+      }
     }
-  };
 
-  const handleOpenRejectModal = (id) => {
-    setSelectedRequestId(id);
-    setRejectionMessage("");
-    setIsRejectModalOpen(true);
-  };
-
-  const handleConfirmReject = async () => {
-    if (!selectedRequestId) return;
-    await handleStatusChange(selectedRequestId, "REJECTED", rejectionMessage);
-    setIsRejectModalOpen(false);
-    setSelectedRequestId(null);
-  };
-
- const filteredReports = reports.filter(r => {
-  if (isEmployee && r.employee_id !== userInfo.id) {
-    return false;
-  }
-
-  if (statusFilter !== 'ALL' && r.approval_status !== statusFilter) {
-    return false;
-  }
-
-  // Filter out approved or rejected reports older than 24 hours
-  if (r.approval_status === "APPROVED" || r.approval_status === "REJECTED") {
-    const reportTime = new Date(r.submitted_at).getTime();
-    const currentTime = new Date().getTime();
-    const hoursDifference = (currentTime - reportTime) / (1000 * 60 * 60);
-    if (hoursDifference > 24) {
-      return false;
-    }
-  }
-
-  const emp = employees.find(e => e.id === r.employee_id);
-  const empName = emp
-    ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim()
-    : '';
-
-  if (
-    searchQuery &&
-    !empName.toLowerCase().includes(searchQuery.toLowerCase())
-  ) {
-    return false;
-  }
-
-  return true;
-});
+    return true;
+  });
 
   const handleSubmitReport = async (e) => {
     e.preventDefault();
@@ -231,12 +212,29 @@ const WorkReportsContent = () => {
     try {
       const userInfo = JSON.parse(sessionStorage.getItem("userInfo"));
       
-      let finalWorkDone = newReport.work_done;
-      if (newReport.project_id) {
-        finalWorkDone = `${finalWorkDone}\n\n[PROJECT_AREA:${newReport.project_id}]`;
-      }
-      if (attachmentFile && attachmentBase64) {
-        finalWorkDone = `${finalWorkDone}\n\n[PDF_ATTACHMENT:${attachmentFile.name}|${attachmentBase64}]`;
+      let attachmentUrl = null;
+      let attachmentName = null;
+
+      if (attachmentFile) {
+        const formData = new FormData();
+        formData.append("file", attachmentFile);
+        
+        const uploadRes = await fetch("/api/v1/upload", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${userInfo?.token}`
+          },
+          body: formData
+        });
+
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          attachmentUrl = uploadData.data?.url || uploadData.url;
+          attachmentName = attachmentFile.name;
+        } else {
+          setFileError("Failed to upload file");
+          return;
+        }
       }
 
       const response = await fetch("/api/v1/work-reports", {
@@ -246,17 +244,18 @@ const WorkReportsContent = () => {
           Authorization: `Bearer ${userInfo?.token}`,
         },
         body: JSON.stringify({
-          ...newReport,
-          project_id: "bc8952fd-5a53-4508-a021-c39c4edeeb61", // Using seeded General Task UUID to satisfy DB constraint
-          work_done: finalWorkDone,
-          employee_id: userInfo.id,
+          report_type: newReport.report_type,
+          work_done: newReport.work_done,
+          blockers: newReport.blockers,
+          project_area: newReport.project_id,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName,
         }),
       });
       const resData = await response.json();
       if (response.ok && resData.data) {
         const createdReport = {
           ...resData.data,
-          approval_status: "PENDING",
           employee_id: userInfo.id,
           submitted_at: new Date().toISOString(),
           employee: {
@@ -276,7 +275,6 @@ const WorkReportsContent = () => {
           blockers: "",
         });
         setAttachmentFile(null);
-        setAttachmentBase64("");
         setFileError("");
       }
     } catch (err) {
@@ -287,17 +285,6 @@ const WorkReportsContent = () => {
   if (loading) {
     return <LoadingSpinner text="Loading work reports..." />;
   }
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'APPROVED':
-        return <span className="bg-[#E5F7ED] text-[#008A2E] px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5 w-max"><CheckCircle size={14} /> Approved</span>;
-      case 'REJECTED':
-        return <span className="bg-[#FDE2E2] text-[#D80000] px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5 w-max"><XCircle size={14} /> Rejected</span>;
-      default:
-        return <span className="bg-[#FFF4E5] text-[#B26E00] px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5 w-max"><Clock size={14} /> Pending</span>;
-    }
-  };
 
   return (
     <>
@@ -322,39 +309,47 @@ const WorkReportsContent = () => {
         </div>
 
         {userRole === "ADMIN" && (
-          <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between">
-            <div className="relative max-w-md w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type="text"
-                placeholder="Search by employee name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-[#E2E8F0] text-[14px] px-10 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87]"
-              />
-            </div>
+          <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
+            <CustomSelect 
+              label="Select Employee"
+              value={selectedEmployee}
+              onChange={setSelectedEmployee}
+              options={[
+                { value: "ALL", label: "All Employees" },
+                ...employees.map(emp => ({
+                  value: emp.id,
+                  label: `${emp.first_name} ${emp.last_name} (${emp.employee_code || 'N/A'})`
+                }))
+              ]}
+            />
             
-            <div className="flex gap-2">
-              {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(status => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-colors ${
-                    statusFilter === status 
-                      ? 'bg-[#003F87] text-white' 
-                      : 'bg-white text-slate-600 border border-[#E2E8F0] hover:bg-slate-50'
-                  }`}
-                >
-                  {status === 'ALL' ? 'All Reports' : status}
-                </button>
-              ))}
-            </div>
+            <CustomSelect 
+              label="Date Range"
+              value={dateFilter}
+              onChange={setDateFilter}
+              options={[
+                { value: "TODAY", label: "Today's Reports" },
+                { value: "THIS_MONTH", label: "This Month" },
+                { value: "PREVIOUS_MONTH", label: "Previous Month" },
+                { value: "ALL_TIME", label: "All Time" },
+              ]}
+            />
+          </div>
+        )}
+
+        {filteredReports.length === 0 && (
+          <div className="text-center py-16 text-slate-400">
+            <Clock size={40} className="mx-auto mb-3 opacity-50" />
+            <p className="font-semibold text-lg">No reports found</p>
+            <p className="text-sm mt-1">
+              {userRole === "ADMIN" ? "Try changing the date range or employee filter." : "Submit your first work report to get started."}
+            </p>
           </div>
         )}
 
         <div className={userRole === "ADMIN" ? "space-y-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"}>
           {filteredReports.map((report) => {
-            const { workDone, projectArea, attachment } = parseReportContent(report.work_done);
+            const { workDone, projectArea, attachment } = cleanLegacyReport(report);
             const emp =
               employees.find((e) => e.id === report.employee_id) || report.employee || {};
             const empName = emp.first_name
@@ -371,12 +366,11 @@ const WorkReportsContent = () => {
                     <div className="space-y-1 w-full">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <h3 className="font-bold text-[16px] text-slate-900">{empName} <span className="text-[13px] font-medium text-slate-500 ml-2">({emp.designation || 'Employee'})</span></h3>
-                        {getStatusBadge(report.approval_status || 'PENDING')}
                       </div>
                       
                       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2">
                         <div className="text-[13px] text-slate-600">
-                          <span className="font-semibold">Project:</span> {projectArea || (report.projects && report.projects.name) || "General Task"}
+                          <span className="font-semibold">Project:</span> {projectArea}
                         </div>
                         <div className="text-[13px] text-slate-600">
                           <span className="font-semibold">Type:</span> <span className="font-bold text-slate-800">{report.report_type}</span>
@@ -407,29 +401,9 @@ const WorkReportsContent = () => {
                           </div>
                         )}
 
-                        {report.admin_message && (
-                          <p className="text-[13px] text-[#D80000] mt-2"><span className="font-bold">Rejection Note:</span> {report.admin_message}</p>
-                        )}
                       </div>
                     </div>
                   </div>
-
-                  {(report.approval_status === 'PENDING' || !report.approval_status) && (
-                    <div className="flex gap-3 md:flex-col shrink-0 mt-4 md:mt-0">
-                      <button 
-                        onClick={() => handleStatusChange(report.id, "APPROVED")}
-                        className="flex-1 md:w-32 bg-[#008A2E] hover:bg-[#007025] text-white px-4 py-2.5 rounded-lg font-bold text-[13px] transition-colors flex items-center justify-center gap-2"
-                      >
-                        <CheckCircle size={16} /> Approve
-                      </button>
-                      <button 
-                        onClick={() => handleOpenRejectModal(report.id)}
-                        className="flex-1 md:w-32 bg-white border border-[#D80000] text-[#D80000] hover:bg-[#FFF0F0] px-4 py-2.5 rounded-lg font-bold text-[13px] transition-colors flex items-center justify-center gap-2"
-                      >
-                        <XCircle size={16} /> Reject
-                      </button>
-                    </div>
-                  )}
                   
                 </div>
               );
@@ -456,24 +430,13 @@ const WorkReportsContent = () => {
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={`px-2 py-1 rounded text-[10px] font-bold ${
-                      report.approval_status === "APPROVED"
-                        ? "bg-green-100 text-green-700"
-                        : report.approval_status === "REJECTED"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {report.approval_status || "PENDING"}
-                  </span>
                 </div>
 
                 <div className="space-y-3 mb-6">
                   <div>
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
                       <Briefcase size={12} />{" "}
-                      {projectArea || (report.projects && report.projects.name) || "General Task"}
+                      {projectArea}
                     </div>
                     <span className="inline-block bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">
                       {report.report_type}
@@ -494,15 +457,15 @@ const WorkReportsContent = () => {
                             {attachment.name}
                           </span>
                         </div>
-                              <button
-                                onClick={() => {
-                                  setCurrentDocAttachment(attachment);
-                                  setIsDocModalOpen(true);
-                                }}
-                                className="text-xs font-bold text-[#003F87] hover:underline shrink-0 ml-2"
-                              >
-                                View
-                              </button>
+                        <button
+                          onClick={() => {
+                            setCurrentDocAttachment(attachment);
+                            setIsDocModalOpen(true);
+                          }}
+                          className="text-xs font-bold text-[#003F87] hover:underline shrink-0 ml-2"
+                        >
+                          View
+                        </button>
                       </div>
                     )}
                   </div>
@@ -513,16 +476,6 @@ const WorkReportsContent = () => {
                       </h4>
                       <p className="text-sm text-red-600 leading-relaxed bg-red-50 p-2 rounded">
                         {report.blockers}
-                      </p>
-                    </div>
-                  )}
-                  {report.admin_message && (
-                    <div>
-                      <h4 className="text-xs font-bold text-[#D80000] mb-1">
-                        Rejection Note
-                      </h4>
-                      <p className="text-sm text-[#D80000] leading-relaxed bg-[#FDE2E2] p-2 rounded">
-                        {report.admin_message}
                       </p>
                     </div>
                   )}
@@ -642,7 +595,6 @@ const WorkReportsContent = () => {
                       type="button"
                       onClick={() => {
                         setAttachmentFile(null);
-                        setAttachmentBase64("");
                         setFileError("");
                       }}
                       className="text-slate-400 hover:text-red-500 p-1 transition-colors"
@@ -729,48 +681,6 @@ const WorkReportsContent = () => {
         </div>
       )}
 
-      {/* Reject Modal */}
-      {isRejectModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <MessageSquare size={18} className="text-[#D80000]" />
-                Reject Work Report
-              </h3>
-              <button onClick={() => setIsRejectModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-6">
-              <p className="text-[14px] text-slate-600 mb-4">Please provide a reason or message for rejecting this work report. The employee will see this message.</p>
-              <textarea
-                value={rejectionMessage}
-                onChange={(e) => setRejectionMessage(e.target.value)}
-                placeholder="Enter your message here..."
-                rows="4"
-                className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-3 rounded-lg focus:outline-none focus:border-[#D80000] focus:ring-1 focus:ring-[#D80000] transition-colors resize-none mb-6"
-              ></textarea>
-              <div className="flex justify-end gap-3">
-                <button 
-                  onClick={() => setIsRejectModalOpen(false)}
-                  className="px-5 py-2.5 text-[14px] font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleConfirmReject}
-                  disabled={!rejectionMessage.trim()}
-                  className="px-5 py-2.5 text-[14px] font-bold bg-[#D80000] text-white hover:bg-[#B80000] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <Send size={16} /> Send & Reject
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Document View Modal */}
       {isDocModalOpen && currentDocAttachment && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
@@ -786,7 +696,7 @@ const WorkReportsContent = () => {
             </div>
             <div className="flex-1 bg-slate-100 relative overflow-auto flex justify-center items-center p-4">
               <iframe
-                src={currentDocAttachment.base64}
+                src={currentDocAttachment.url}
                 title={currentDocAttachment.name}
                 className="w-full h-full border-none rounded shadow-sm"
               ></iframe>

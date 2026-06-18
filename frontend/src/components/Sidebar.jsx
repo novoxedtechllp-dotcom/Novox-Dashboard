@@ -17,7 +17,7 @@ const navItems = [
   { id: 'attendance', label: 'Attendance', icon: Calendar },
   { id: 'leave', label: 'Leave Management', icon: FileText },
   { id: 'fees', label: 'Fees', icon: CreditCard },
-  { id: 'payroll', label: 'Payroll', icon: Wallet },
+  // { id: 'payroll', label: 'Payroll', icon: Wallet },
   { id: 'work-reports', label: 'Work Reports', icon: FileText },
   // { id: 'whatsapp-automation', label: 'WhatsApp Automation', icon: MessageSquare },
   // { id: 'sales-crm', label: 'Sales CRM', icon: Handshake },
@@ -28,7 +28,7 @@ const navItems = [
   // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
-const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, isAccounts, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
+const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, isSales, isMarketing, isAccounts, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   
@@ -36,10 +36,12 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
   if (userRole === 'STUDENT') {
     visibleNavItems = [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { id: 'journey', label: 'My Academic Journey', icon: GraduationCap },
       { id: 'daily-plan', label: 'Action Plan', icon: Calendar },
       { id: 'attendance', label: 'Attendance', icon: Calendar },
       { id: 'leave', label: 'Leave Requests', icon: FileText },
       { id: 'tasks', label: 'Tasks', icon: ClipboardList },
+      { id: 'jobs', label: 'Job Portal', icon: Briefcase },
       { id: 'profile', label: 'Profile', icon: User }
     ];
   }
