@@ -124,8 +124,10 @@ const WorkReportsContent = () => {
   }, []);
 
   const [selectedEmployee, setSelectedEmployee] = useState("ALL");
-  const [dateFilter, setDateFilter] = useState("TODAY");
-  const [selectedSpecificDate, setSelectedSpecificDate] = useState("");
+  const [selectedSpecificDate, setSelectedSpecificDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [newReport, setNewReport] = useState({
     employee_id: "",
@@ -177,26 +179,15 @@ const WorkReportsContent = () => {
       }
 
       const reportDate = new Date(r.submitted_at);
-      const today = new Date();
       
-      if (dateFilter === "TODAY") {
-        if (
-          reportDate.getDate() !== today.getDate() ||
-          reportDate.getMonth() !== today.getMonth() ||
-          reportDate.getFullYear() !== today.getFullYear()
-        ) {
-          return false;
-        }
-      } else if (dateFilter === "SPECIFIC_DATE") {
-        if (!selectedSpecificDate) return false;
-        const [year, month, day] = selectedSpecificDate.split("-").map(Number);
-        if (
-          reportDate.getDate() !== day ||
-          reportDate.getMonth() !== month - 1 ||
-          reportDate.getFullYear() !== year
-        ) {
-          return false;
-        }
+      if (!selectedSpecificDate) return false;
+      const [year, month, day] = selectedSpecificDate.split("-").map(Number);
+      if (
+        reportDate.getDate() !== day ||
+        reportDate.getMonth() !== month - 1 ||
+        reportDate.getFullYear() !== year
+      ) {
+        return false;
       }
     }
 
@@ -307,7 +298,7 @@ const WorkReportsContent = () => {
         </div>
 
         {userRole === "ADMIN" && (
-          <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-start bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
             <CustomSelect 
               label="Select Employee"
               value={selectedEmployee}
@@ -321,40 +312,28 @@ const WorkReportsContent = () => {
               ]}
             />
             
-            <CustomSelect 
-              label="Report Period"
-              value={dateFilter}
-              onChange={setDateFilter}
-              options={[
-                { value: "TODAY", label: "Today" },
-                { value: "SPECIFIC_DATE", label: "Custom Date" },
-              ]}
-            />
-            
-            {dateFilter === "SPECIFIC_DATE" && (
-              <div className="flex flex-col flex-1 max-w-xs">
-                <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">Select Date</label>
-                <div className="relative">
-                  <DatePicker
-                    selected={selectedSpecificDate ? new Date(selectedSpecificDate) : null}
-                    onChange={(date) => {
-                      if (date) {
-                        const yyyy = date.getFullYear();
-                        const mm = String(date.getMonth() + 1).padStart(2, '0');
-                        const dd = String(date.getDate()).padStart(2, '0');
-                        setSelectedSpecificDate(`${yyyy}-${mm}-${dd}`);
-                      } else {
-                        setSelectedSpecificDate("");
-                      }
-                    }}
-                    dateFormat="MMMM d, yyyy"
-                    placeholderText="Select a date"
-                    className="w-full bg-slate-50 border border-[#E2E8F0] text-[14px] text-slate-700 px-3 py-2.5 pl-10 rounded-lg focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] outline-none transition-all duration-200 shadow-sm cursor-pointer"
-                  />
-                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                </div>
+            <div className="flex flex-col flex-1 max-w-xs">
+              <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">Report Date</label>
+              <div className="relative">
+                <DatePicker
+                  selected={selectedSpecificDate ? new Date(selectedSpecificDate) : null}
+                  onChange={(date) => {
+                    if (date) {
+                      const yyyy = date.getFullYear();
+                      const mm = String(date.getMonth() + 1).padStart(2, '0');
+                      const dd = String(date.getDate()).padStart(2, '0');
+                      setSelectedSpecificDate(`${yyyy}-${mm}-${dd}`);
+                    } else {
+                      setSelectedSpecificDate("");
+                    }
+                  }}
+                  dateFormat="MMMM d, yyyy"
+                  placeholderText="Select a date"
+                  className="w-full bg-white border border-[#E2E8F0] text-[14px] text-slate-700 px-3 py-2.5 pl-10 rounded-lg focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] outline-none transition-all duration-200 shadow-sm cursor-pointer"
+                />
+                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               </div>
-            )}
+            </div>
           </div>
         )}
 
