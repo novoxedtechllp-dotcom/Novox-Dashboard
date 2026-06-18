@@ -133,30 +133,33 @@ const LeaveManagementContent = ({ searchQuery = '' }) => {
         </div>
       )}
 
-      {/* Top Header / Actions Bar */}
-      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
-            <CustomSelect
-              value={filterStatus}
-              onChange={setFilterStatus}
-              options={[
-                { value: 'ALL', label: 'All Requests' },
-                { value: 'PENDING', label: 'Pending' },
-                { value: 'APPROVED', label: 'Approved' },
-                { value: 'REJECTED', label: 'Rejected' },
-              ]}
-              className="w-full sm:w-[160px]"
-              selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
-            />
-          </div>
+      {/* Controls */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between">
+        <div className="relative max-w-md w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input
+            type="text"
+            placeholder="Search by employee name or leave type..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white border border-[#E2E8F0] text-[14px] px-10 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87]"
+          />
         </div>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          <button onClick={fetchLeaves} className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
-            <RefreshCcw size={16} />
-          </button>
+        
+        <div className="flex gap-2">
+          {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(status => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-colors ${
+                filterStatus === status 
+                  ? 'bg-[#003F87] text-white' 
+                  : 'bg-white text-slate-600 border border-[#E2E8F0] hover:bg-slate-50'
+              }`}
+            >
+              {status === 'ALL' ? 'All Requests' : status}
+            </button>
+          ))}
         </div>
       </div>
 

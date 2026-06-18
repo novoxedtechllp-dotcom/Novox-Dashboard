@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle } from 'lucide-react';
+import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle, Search, Shield } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const getAuthHeaders = () => {
@@ -53,7 +53,7 @@ const mapEmployeeFromApi = (employee, avatar = null) => ({
   courseIds: employee.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []
 });
 
-const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) => {
+const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setSearchQuery = () => {} }) => {
   const [courses, setCourses] = useState([]);
 
   useEffect(() => {
@@ -293,9 +293,22 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
       )}
 
       {/* Top Header / Actions Bar */}
-      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Search Input */}
+          <div className="relative w-full sm:w-[240px] md:w-[280px] shrink-0">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search employees..."
+              className="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-[13px] font-medium outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/5 transition-all placeholder:text-slate-400 text-slate-700"
+            />
+          </div>
+
+          {/* Department Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Department</span>
             <CustomSelect
               value={deptFilter}
@@ -308,7 +321,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="w-full sm:w-auto bg-[#003F87] text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95"
+          className="w-full sm:w-auto bg-[#003F87] text-white px-5 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95 shrink-0"
         >
           <Plus size={18} /> Add Employee
         </button>
