@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter, Calendar, CreditCard, User, Search } from 'lucide-react';
+import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter, Calendar, CreditCard, User, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -21,6 +21,7 @@ const sanitizeFeeRecord = (fee) => {
 
   return {
     ...fee,
+    paymentMethod: fee.paymentMethod || 'Cash',
     totalAmount,
     paidAmount,
     remainingBalance
@@ -45,8 +46,14 @@ const FeesContent = () => {
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [paymentType, setPaymentType] = useState('Full');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [totalAmountInput, setTotalAmountInput] = useState('');
   const [paidAmountInput, setPaidAmountInput] = useState('');
+
+  const formatMonthDisplay = (monthIndex, yearValue) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[monthIndex]} ${yearValue}`;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -135,6 +142,8 @@ const FeesContent = () => {
   const [activeTab, setActiveTab] = useState('MONTH_TRANSACTIONS'); // 'DUE_THIS_MONTH', 'MONTH_TRANSACTIONS'
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth());
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
   const [filterStatus, setFilterStatus] = useState('All');
 
   // Find selected student details to see their courses
@@ -175,6 +184,27 @@ const FeesContent = () => {
       setSelectedCourseId('');
     }
   }, [coursesToSelect, selectedCourseId]);
+
+  // Automatically fetch the total fee from the backend data when student/course changes
+  useEffect(() => {
+    if (selectedCourseId && selectedStudentId) {
+      const student = studentsList.find(s => s.id === selectedStudentId);
+      if (student) {
+        const studentCourse = student.student_courses?.find(sc => sc.course_id === selectedCourseId);
+        let totalCourseFee = 0;
+        if (studentCourse) {
+          const courseDetails = coursesList.find(c => c.id === studentCourse.course_id);
+          totalCourseFee = parseInt(String(courseDetails?.total_fee || courseDetails?.price || '0').replace(/[^0-9]/g, ''), 10) || 0;
+        } else {
+          const courseDetails = coursesList.find(c => c.id === selectedCourseId);
+          totalCourseFee = parseInt(String(courseDetails?.total_fee || courseDetails?.price || '0').replace(/[^0-9]/g, ''), 10) || 0;
+        }
+        setTotalAmountInput(totalCourseFee.toString());
+      }
+    } else {
+      setTotalAmountInput('');
+    }
+  }, [selectedCourseId, selectedStudentId, studentsList, coursesList]);
 
   // Dynamic status previews inside Record Fee Payment modal
   const computedStatus = useMemo(() => {
@@ -254,7 +284,7 @@ const FeesContent = () => {
 
         const studentCourse = coursesList.find(c => c.id === student.student_courses[0].course_id);
         const courseName = studentCourse?.name || studentCourse?.title || 'General Course';
-        const totalCourseFee = parseInt(String(studentCourse?.price || '0').replace(/[^0-9]/g, ''), 10) || 0;
+        const totalCourseFee = parseInt(String(studentCourse?.total_fee || studentCourse?.price || '0').replace(/[^0-9]/g, ''), 10) || 0;
         
         const studentPayments = feesList.filter(fee => fee.studentId === student.id);
         
@@ -333,6 +363,7 @@ const FeesContent = () => {
       course: course.name,
       courseId: course.id,
       type: paymentType,
+      paymentMethod: paymentMethod,
       totalAmount: totalFee,
       paidAmount: paidAmt,
       remainingBalance: balance,
@@ -351,6 +382,7 @@ const FeesContent = () => {
     setTotalAmountInput('');
     setPaidAmountInput('');
     setPaymentType('Full');
+    setPaymentMethod('Cash');
 
     setIsModalOpen(false);
     alert("Fees recorded successfully!");
@@ -407,7 +439,7 @@ const FeesContent = () => {
     doc.setFontSize(11);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
     
-    const tableColumn = ["Student Name", "Course", "Payment Type", "Total Fee", "Paid Amount", "Remaining Balance", "Date", "Status"];
+    const tableColumn = ["Student Name", "Course", "Payment Type", "Payment Method", "Total Fee", "Paid Amount", "Remaining Balance", "Date", "Status"];
     const tableRows = filteredData.map(fee => {
       const total = typeof fee.totalAmount === 'number' 
         ? fee.totalAmount 
@@ -423,6 +455,7 @@ const FeesContent = () => {
         fee.name,
         fee.course,
         fee.type,
+        fee.paymentMethod || 'Cash',
         `INR ${total.toLocaleString()}`,
         `INR ${paid.toLocaleString()}`,
         `INR ${balance.toLocaleString()}`,
@@ -541,29 +574,59 @@ const FeesContent = () => {
               <option value="Pending">Pending / Not Paid</option>
             </select>
           </div>
+          {/* Month Selector */}
           <div className="flex items-center gap-2">
             <span className="text-[12px] font-bold text-[#555F6B] uppercase">Month:</span>
-            <select 
-              value={filterMonth}
-              onChange={(e) => { setFilterMonth(parseInt(e.target.value)); setCurrentPage(1); }}
-              className="text-[13px] border border-[#C2C6D4] rounded-md px-3 py-1.5 outline-none bg-white text-slate-700 focus:border-[#003F87]"
-            >
-              {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => (
-                <option key={i} value={i}>{m}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Year:</span>
-            <select 
-              value={filterYear}
-              onChange={(e) => { setFilterYear(parseInt(e.target.value)); setCurrentPage(1); }}
-              className="text-[13px] border border-[#C2C6D4] rounded-md px-3 py-1.5 outline-none bg-white text-slate-700 focus:border-[#003F87]"
-            >
-              {[2024, 2025, 2026, 2027, 2028].map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <button 
+                onClick={() => {
+                  setPickerYear(filterYear);
+                  setIsDatePickerOpen(!isDatePickerOpen);
+                }}
+                className="flex items-center bg-white border border-[#C2C6D4] rounded-md px-3.5 py-1.5 outline-none hover:border-[#003F87] h-[36px] shadow-sm text-[13px] font-bold text-slate-700 min-w-[150px] justify-between gap-2 transition-all"
+              >
+                <div className="flex items-center gap-2">
+                  <Calendar size={14} className="text-slate-400 shrink-0" />
+                  <span>{formatMonthDisplay(filterMonth, filterYear)}</span>
+                </div>
+                <span className="text-[10px] text-slate-400">▼</span>
+              </button>
+
+              {isDatePickerOpen && (
+                <>
+                  <div className="fixed inset-0 z-[100]" onClick={() => setIsDatePickerOpen(false)}></div>
+                  <div className="absolute right-0 top-full mt-2 bg-white border border-[#C2C6D4] rounded-xl shadow-xl z-[101] p-3 w-[260px] animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                      <button type="button" onClick={() => setPickerYear(y => y - 1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 font-bold transition-all text-lg">&lsaquo;</button>
+                      <span className="font-extrabold text-[14px] text-slate-800">{pickerYear}</span>
+                      <button type="button" onClick={() => setPickerYear(y => y + 1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 font-bold transition-all text-lg">&rsaquo;</button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((monthName, idx) => {
+                        const isSelected = filterMonth === idx && filterYear === pickerYear;
+                        return (
+                          <button
+                            key={monthName}
+                            type="button"
+                            onClick={() => {
+                              setFilterMonth(idx);
+                              setFilterYear(pickerYear);
+                              setCurrentPage(1);
+                              setIsDatePickerOpen(false);
+                            }}
+                            className={`py-2 rounded-lg text-[12px] font-bold transition-all text-center ${
+                              isSelected ? 'bg-[#003F87] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                          >
+                            {monthName}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -573,24 +636,26 @@ const FeesContent = () => {
             <thead>
               {activeTab === 'MONTH_TRANSACTIONS' ? (
                 <tr className="border-b border-[#C2C6D4] bg-white">
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[200px]">Student Name</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[160px]">Course</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-center w-[110px]">Payment Type</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Total Fee</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Paid Amount</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Remaining Balance</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[110px]">Date</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[120px]">Status</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right">Action</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Student Name</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Course</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Type</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Method</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid Amount</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Remaining Balance</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Date</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Status</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Action</th>
                 </tr>
               ) : (
                 <tr className="border-b border-[#C2C6D4] bg-white">
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[200px]">Student Name</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[160px]">Course</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[140px]">Total Fee</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[140px]">Total Paid</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[140px]">Remaining Balance</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[120px]">Status</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Student Details</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Course</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid Amount</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Remaining Balance</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Status</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Action</th>
                 </tr>
               )}
             </thead>
@@ -617,7 +682,7 @@ const FeesContent = () => {
 
                     return (
                       <tr key={fee.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
                             <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center shrink-0 font-bold text-[11px] bg-[#E5F0FF] text-[#003F87]`}>
                               {fee.initials}
@@ -627,33 +692,38 @@ const FeesContent = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           <div className="text-[13px] text-[#555F6B] leading-tight">
                             {fee.course}
                           </div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-center">
+                        <td className="py-4 px-4 text-center">
                           <span className={`inline-block text-[11px] font-bold px-[12px] py-[4px] rounded-full border ${
                             fee.type === 'Full' ? 'bg-[#E5F0FF] text-[#003F87] border-[#003F87]' : 'bg-[#F8FAFC] text-[#555F6B] border-[#C2C6D4]'
                           }`}>
                             {fee.type}
                           </span>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-[13px] text-slate-700 font-medium">
+                            {fee.paymentMethod || 'Cash'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-right">
                           <div className="text-[14px] text-slate-600 font-medium">₹{total.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-right">
                           <div className="text-[14px] font-bold text-[#003F87]">₹{paid.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-right">
                           <div className={`text-[14px] font-bold ${balance > 0 ? 'text-[#D80000]' : 'text-slate-500'}`}>₹{balance.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           <div className="text-[13px] text-[#555F6B] leading-tight">
                             {fee.date}
                           </div>
                         </td>
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           {fee.statusColor === 'green' && (
                             <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
                               <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> {fee.status}
@@ -671,8 +741,13 @@ const FeesContent = () => {
                             </span>
                           )}
                         </td>
-                        <td className="py-[16px] px-[24px] text-right relative">
-                          <button onClick={() => toggleDropdown(fee.id)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                        <td className="py-4 px-4 text-right relative">
+                          <button 
+                            onClick={() => toggleDropdown(fee.id)} 
+                            className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all ml-auto"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
                           {activeDropdown === fee.id && (
                             <div className={`absolute right-[24px] ${index >= paginatedData.length - 2 && paginatedData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-50 flex flex-col overflow-hidden`}>
                               <button onClick={() => { setViewItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
@@ -687,7 +762,7 @@ const FeesContent = () => {
                     const due = item;
                     return (
                       <tr key={due.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
                             <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center shrink-0 font-bold text-[11px] bg-[#E5F0FF] text-[#003F87]`}>
                               {due.initials}
@@ -697,19 +772,19 @@ const FeesContent = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           <div className="text-[13px] text-[#555F6B] leading-tight">{due.course}</div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-right">
                           <div className="text-[14px] text-slate-600 font-medium">₹{due.totalCourseFee.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-right">
                           <div className="text-[14px] font-bold text-[#008A2E]">₹{due.totalPaidOverall.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-right">
                           <div className={`text-[14px] font-bold ${due.remainingBalance > 0 ? 'text-[#D80000]' : 'text-slate-500'}`}>₹{due.remainingBalance.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           {due.status === 'Full Paid' ? (
                             <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
                               <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> Fully Paid
@@ -724,6 +799,21 @@ const FeesContent = () => {
                               <span className="w-[6px] h-[6px] rounded-full bg-[#D80000]"></span> Pending
                             </span>
                           )}
+                        </td>
+                        <td className="py-4 px-4 text-right relative">
+                          <button 
+                            onClick={() => {
+                              setSelectedStudentId(due.studentId || due.id); // depending on how due is structured
+                              // Fallbacks in case courseId is not direct
+                              const cId = due.courseId || (due.student_courses && due.student_courses[0]?.course_id);
+                              setSelectedCourseId(cId);
+                              setIsModalOpen(true);
+                            }}
+                            className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all ml-auto"
+                            title="Record Payment"
+                          >
+                            <Plus size={14} />
+                          </button>
                         </td>
                       </tr>
                     );
@@ -743,17 +833,19 @@ const FeesContent = () => {
             <button 
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] transition-colors ${
-                currentPage === 1 ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-[#555F6B] bg-white hover:bg-slate-50'
-              }`}
-            >&lt;</button>
+              className={`p-1.5 transition-colors ${currentPage === 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <ChevronLeft size={18} />
+            </button>
             
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
               <button 
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] font-semibold transition-colors ${
-                  currentPage === page ? 'bg-[#003F87] text-white font-bold' : 'text-[#555F6B] hover:bg-slate-100'
+                className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium transition-colors ${
+                  currentPage === page 
+                    ? 'bg-[#003F87] text-white' 
+                    : 'hover:bg-slate-100 text-slate-700'
                 }`}
               >
                 {page}
@@ -763,10 +855,10 @@ const FeesContent = () => {
             <button 
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] transition-colors ${
-                currentPage === totalPages ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-[#555F6B] bg-white hover:bg-slate-50'
-              }`}
-            >&gt;</button>
+              className={`p-1.5 transition-colors ${currentPage === totalPages ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
 
@@ -832,25 +924,20 @@ const FeesContent = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status (Calculated)</label>
-                  <div className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm font-semibold text-slate-700">
-                    {computedStatus}
-                  </div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Payment Method</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white text-slate-850"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Netbanking">Netbanking</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Total Fee (₹) *</label>
-                  <input 
-                    type="number" 
-                    required 
-                    value={totalAmountInput}
-                    onChange={(e) => setTotalAmountInput(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-850" 
-                    placeholder="e.g. 15000" 
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Paid Amount (₹) *</label>
                   <input 

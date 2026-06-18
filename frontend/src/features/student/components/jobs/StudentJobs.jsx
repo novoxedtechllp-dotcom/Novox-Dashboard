@@ -85,19 +85,13 @@ const StudentJobs = ({ userInfo }) => {
   });
 
   return (
-    <div className="h-full flex flex-col bg-slate-50/50">
-      {/* Header Banner */}
-      <div className="bg-white border-b border-slate-200 px-6 py-8 relative overflow-hidden shrink-0">
-        <div className="absolute right-0 top-0 w-[500px] h-[500px] bg-gradient-to-bl from-blue-100/40 via-purple-50/20 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-        
-        <div className="max-w-7xl mx-auto relative z-10">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight mb-3">
-            Discover Your Next <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#003F87] to-blue-500">Career Move</span>
-          </h1>
-          <p className="text-slate-500 font-medium text-lg max-w-2xl">
-            Explore curated opportunities tailored for our students and alumni.
-          </p>
-        </div>
+    <div className="h-full flex flex-col bg-[#F8FAFC]">
+      {/* Header */}
+      <div className="bg-white border-b border-[#C2C6D4] px-[32px] py-[24px] shrink-0">
+        <h1 className="text-[24px] font-bold text-[#003F87] tracking-tight">Job Portal</h1>
+        <p className="text-[14px] text-[#555F6B] mt-1">
+          Discover curated opportunities tailored for our students and alumni.
+        </p>
       </div>
 
       {/* Main Content Area */}
@@ -115,7 +109,7 @@ const StudentJobs = ({ userInfo }) => {
                   placeholder="Search jobs by title or company..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-[#003F87] transition-all shadow-sm font-medium text-slate-700"
+                  className="w-full pl-12 pr-4 py-3.5 bg-white border border-[#C2C6D4] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-[#003F87] transition-all shadow-sm font-medium text-slate-900"
                 />
               </div>
               <div className="relative min-w-[200px]">
@@ -123,7 +117,7 @@ const StudentJobs = ({ userInfo }) => {
                 <select 
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full pl-12 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl appearance-none focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-[#003F87] transition-all shadow-sm font-bold text-slate-700 cursor-pointer"
+                  className="w-full pl-12 pr-10 py-3.5 bg-white border border-[#C2C6D4] rounded-[8px] appearance-none focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-[#003F87] transition-all shadow-sm font-bold text-slate-900 cursor-pointer"
                 >
                   {categories.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -140,14 +134,14 @@ const StudentJobs = ({ userInfo }) => {
               {isLoading ? (
                 <div className="h-64 flex flex-col items-center justify-center space-y-4">
                   <RefreshCw size={32} className="animate-spin text-[#003F87]/60" />
-                  <p className="text-slate-500 font-medium">Scraping the latest opportunities...</p>
+                  <p className="text-[#555F6B] font-medium">Scraping the latest opportunities...</p>
                 </div>
               ) : error ? (
-                <div className="h-64 bg-red-50 rounded-3xl border border-red-100 flex flex-col items-center justify-center p-6 text-center">
+                <div className="h-64 bg-red-50 rounded-[8px] border border-red-100 flex flex-col items-center justify-center p-6 text-center">
                   <AlertCircle size={48} className="text-red-400 mb-4" />
                   <h3 className="text-xl font-bold text-red-800 mb-2">Connection Error</h3>
                   <p className="text-red-600 mb-4">{error}</p>
-                  <button onClick={fetchJobs} className="bg-red-100 hover:bg-red-200 text-red-800 px-6 py-2.5 rounded-xl font-bold transition-colors">
+                  <button onClick={fetchJobs} className="bg-red-100 hover:bg-red-200 text-red-800 px-6 py-2.5 rounded-[8px] font-bold transition-colors">
                     Try Again
                   </button>
                 </div>
@@ -162,12 +156,12 @@ const StudentJobs = ({ userInfo }) => {
                   ))}
                 </div>
               ) : (
-                <div className="h-64 bg-white rounded-3xl border border-slate-200 border-dashed flex flex-col items-center justify-center p-6 text-center">
+                <div className="h-64 bg-white rounded-[8px] border border-[#C2C6D4] border-dashed flex flex-col items-center justify-center p-6 text-center">
                   <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-slate-300">
                     <Briefcase size={32} />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-700 mb-1">No matches found</h3>
-                  <p className="text-slate-500">Try adjusting your search or filters to find more jobs.</p>
+                  <h3 className="text-xl font-bold text-slate-900 mb-1">No matches found</h3>
+                  <p className="text-[#555F6B]">Try adjusting your search or filters to find more jobs.</p>
                 </div>
               )}
             </div>

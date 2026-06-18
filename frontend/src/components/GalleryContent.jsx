@@ -542,7 +542,7 @@ const GalleryContent = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto flex flex-col h-full">
+    <div className="p-6 max-w-7xl mx-auto flex flex-col">
       {/* 1. Header Section */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -674,7 +674,7 @@ const GalleryContent = () => {
       </div>
 
       {/* 4. Main Image Grid */}
-      <div className="flex-1 overflow-y-auto min-h-[400px]">
+      <div className="flex-1 min-h-[400px]">
         {loading ? (
           <div className="flex items-center justify-center h-64 text-slate-500">Loading gallery...</div>
         ) : paginatedImages.length > 0 ? (

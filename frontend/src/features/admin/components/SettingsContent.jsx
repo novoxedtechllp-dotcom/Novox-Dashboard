@@ -15,7 +15,8 @@ import {
   Calendar,
   Image,
   FileText,
-  Bot 
+  Bot,
+  Shield 
 } from 'lucide-react';
 
 
@@ -89,7 +90,7 @@ const initialStaff = {
   accountant: []
 };
 
-const SettingsContent = () => {
+const SettingsContent = ({ employees = [] }) => {
   const [showToast, setShowToast] = useState(false);
   const [toastText, setToastText] = useState('Permissions saved successfully.');
 
@@ -97,14 +98,14 @@ const SettingsContent = () => {
   const [roles, setRoles] = useState([{ id: 'super-admin', name: 'Super Admin', desc: 'Full system access' }]);
   const [selectedRoleId, setSelectedRoleId] = useState('super-admin');
   const [permissions, setPermissions] = useState({});
-  const [staff, setStaff] = useState({});
-  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
-  const [newStaffName, setNewStaffName] = useState('');
-  const [newStaffRole, setNewStaffRole] = useState('');
+  
+  // Custom Individual Permissions state
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [customPermissions, setCustomPermissions] = useState({});
+
   const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDesc, setNewRoleDesc] = useState('');
-  const [assignFilter, setAssignFilter] = useState('all');
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -141,23 +142,6 @@ const SettingsContent = () => {
 
           setRoles(fetchedRoles);
           setPermissions(fetchedPerms);
-
-          // Map staff
-          const staffMap = { 'super-admin': [] };
-          data.data.roles.forEach(r => staffMap[r.id] = []);
-          
-          if (data.data.staff) {
-            data.data.staff.forEach(s => {
-              if (s.role_id && staffMap[s.role_id]) {
-                staffMap[s.role_id].push({
-                  name: `${s.first_name} ${s.last_name}`,
-                  role: s.designation,
-                  avatar: s.avatar_url || `${s.first_name[0]}${s.last_name[0]}`
-                });
-              }
-            });
-          }
-          setStaff(staffMap);
         }
       } catch (err) {
         console.error('Failed to fetch roles', err);
@@ -166,15 +150,33 @@ const SettingsContent = () => {
     fetchRoles();
   }, []);
 
-
-  const filteredStaffList = useMemo(() => {
-    const list = staff[selectedRoleId] || [];
-    if (assignFilter === 'all') return list;
-    return list.filter(member => 
-      member.role.toLowerCase().includes(assignFilter.toLowerCase()) || 
-      selectedRoleId === assignFilter
-    );
-  }, [staff, selectedRoleId, assignFilter]);
+  const filteredEmployeesList = useMemo(() => {
+    if (!employees || employees.length === 0) return [];
+    if (selectedRoleId === 'super-admin') {
+      return employees;
+    }
+    
+    // Map role ID to system departments
+    const roleIdToDept = {
+      'design': 'design',
+      'development': 'development',
+      'sales': 'sales',
+      'marketing': 'marketing',
+      'hr': 'hr',
+      'accountant': ['accountant', 'accounts', 'account']
+    };
+    
+    const targetDept = roleIdToDept[String(selectedRoleId).toLowerCase()];
+    if (!targetDept) return [];
+    
+    return employees.filter(emp => {
+      const empDept = (emp.department || '').toLowerCase().trim();
+      if (Array.isArray(targetDept)) {
+        return targetDept.includes(empDept);
+      }
+      return empDept === targetDept;
+    });
+  }, [employees, selectedRoleId]);
 
   const handleCreateRoleSubmit = (e) => {
     e.preventDefault();
@@ -200,8 +202,8 @@ const SettingsContent = () => {
         sales: { view: false, create: false, edit: false, delete: false, export: false }
       }
     }));
-    setStaff(prev => ({ ...prev, [roleId]: [] }));
     setSelectedRoleId(roleId);
+    setSelectedEmployee(null);
 
     setIsCreateRoleOpen(false);
     setNewRoleName('');
@@ -211,6 +213,7 @@ const SettingsContent = () => {
     setTimeout(() => setShowToast(false), 3000);
   };
 
+  // Role Permissions Handlers
   const handlePermissionsSave = () => {
     setToastText('Permissions saved successfully.');
     setShowToast(true);
@@ -278,28 +281,89 @@ const SettingsContent = () => {
     return Object.keys(rolePerms).every(k => rolePerms[k]?.view);
   }, [permissions, selectedRoleId]);
 
-  const handleAddStaffSubmit = (e) => {
-    e.preventDefault();
-    if (!newStaffName || !newStaffRole) return;
-    
-    const initials = newStaffName.split(' ').map(n => n[0]).join('').toUpperCase();
-    const newMember = {
-      name: newStaffName,
-      role: newStaffRole,
-      avatar: initials
+
+  // Individual Employee Override Handlers
+  const toggleEmployeePermission = (moduleKey, permType) => {
+    if (!selectedEmployee) return;
+    const empKey = selectedEmployee.id || selectedEmployee.name;
+    setCustomPermissions(prev => {
+      const empPerms = { ...(prev[empKey] || permissions[selectedRoleId] || {}) };
+      const modulePerms = { ...(empPerms[moduleKey] || { view: false, create: false, edit: false, delete: false, export: false }) };
+      modulePerms[permType] = !modulePerms[permType];
+      empPerms[moduleKey] = modulePerms;
+      return {
+        ...prev,
+        [empKey]: empPerms
+      };
+    });
+  };
+
+  const toggleEmployeeSelectAllView = () => {
+    if (!selectedEmployee) return;
+    const empKey = selectedEmployee.id || selectedEmployee.name;
+    setCustomPermissions(prev => {
+      const empPerms = { ...(prev[empKey] || permissions[selectedRoleId] || {}) };
+      const allViewSelected = Object.keys(empPerms).length > 0 && Object.keys(empPerms).every(k => empPerms[k]?.view);
+      const newEmpPerms = {};
+      Object.keys(empPerms).forEach(k => {
+        newEmpPerms[k] = {
+          ...empPerms[k],
+          view: !allViewSelected
+        };
+      });
+      return {
+        ...prev,
+        [empKey]: newEmpPerms
+      };
+    });
+  };
+
+  const isEmployeeAllViewChecked = useMemo(() => {
+    if (!selectedEmployee) return false;
+    const empKey = selectedEmployee.id || selectedEmployee.name;
+    const empPerms = customPermissions[empKey] || permissions[selectedRoleId] || {};
+    return Object.keys(empPerms).length > 0 && Object.keys(empPerms).every(k => empPerms[k]?.view);
+  }, [permissions, selectedRoleId, selectedEmployee, customPermissions]);
+
+  const enableEmployeeOverride = () => {
+    if (!selectedEmployee) return;
+    const empKey = selectedEmployee.id || selectedEmployee.name;
+    const rolePerms = permissions[selectedRoleId] || {
+      students: { view: false, create: false, edit: false, delete: false, export: false },
+      employees: { view: false, create: false, edit: false, delete: false, export: false },
+      courses: { view: false, create: false, edit: false, delete: false, export: false },
+      fees: { view: false, create: false, edit: false, delete: false, export: false },
+      whatsapp: { view: false, create: false, edit: false, delete: false, export: false },
+      sales: { view: false, create: false, edit: false, delete: false, export: false }
     };
-
-    setStaff(prev => ({
+    setCustomPermissions(prev => ({
       ...prev,
-      [selectedRoleId]: [...prev[selectedRoleId], newMember]
+      [empKey]: JSON.parse(JSON.stringify(rolePerms))
     }));
-
-    setIsAddStaffOpen(false);
-    setNewStaffName('');
-    setNewStaffRole('');
-    setToastText(`${newStaffName} assigned to ${selectedRoleId} role!`);
+    setToastText(`Custom permission override enabled for ${selectedEmployee.name}`);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const disableEmployeeOverride = () => {
+    if (!selectedEmployee) return;
+    const empKey = selectedEmployee.id || selectedEmployee.name;
+    setCustomPermissions(prev => {
+      const next = { ...prev };
+      delete next[empKey];
+      return next;
+    });
+    setToastText(`Custom override disabled. ${selectedEmployee.name} inherits role defaults.`);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const handleEmployeePermissionsSave = () => {
+    if (selectedEmployee) {
+      setToastText(`Custom permissions for ${selectedEmployee.name} saved successfully.`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
   };
 
   return (
@@ -312,16 +376,6 @@ const SettingsContent = () => {
           <p className="text-slate-500 text-[14px] mt-1">Configure granular access control for institutional staff and faculty members.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => {
-              setToastText("Audit log exported successfully!");
-              setShowToast(true);
-              setTimeout(() => setShowToast(false), 3000);
-            }}
-            className="border border-[#C2C6D4] hover:bg-slate-50 text-[#555F6B] px-4 py-2 rounded-lg text-[13px] font-bold transition-colors bg-white shadow-sm"
-          >
-            Audit Log
-          </button>
           <button 
             onClick={() => setIsCreateRoleOpen(true)}
             className="bg-[#003F87] hover:bg-[#002B5E] text-white px-4 py-2 rounded-lg text-[13px] font-bold transition-colors shadow-sm flex items-center gap-1.5"
@@ -343,7 +397,7 @@ const SettingsContent = () => {
             {roles.map(role => (
               <button
                 key={role.id}
-                onClick={() => setSelectedRoleId(role.id)}
+                onClick={() => { setSelectedRoleId(role.id); setSelectedEmployee(null); }}
                 className={`w-full text-left px-4 py-3.5 rounded-lg border transition-all flex justify-between items-center ${
                   selectedRoleId === role.id 
                     ? 'bg-[#E5F0FF] border-[#003F87] text-[#003F87] font-bold' 
@@ -500,82 +554,244 @@ const SettingsContent = () => {
       {/* Assign Employees Section */}
       <div className="bg-white border border-[#C2C6D4] rounded-xl p-6 shadow-sm flex flex-col gap-4 w-full">
         
-        {/* Heading & Filter controls */}
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
+        {/* Heading */}
+        <div className="border-b border-slate-100 pb-4">
           <div className="flex flex-col gap-1">
-            <h4 className="text-[15px] font-bold text-slate-900">Assign Employees</h4>
+            <h4 className="text-[15px] font-bold text-slate-900">Role Members - {roles.find(r => r.id === selectedRoleId)?.name || selectedRoleId}</h4>
             <p className="text-[12px] text-slate-500">
-              Manage individuals assigned to the <span className="font-bold text-[#003F87]">{roles.find(r => r.id === selectedRoleId)?.name || selectedRoleId}</span> role.
+              Below are all employees belonging to the <span className="font-bold text-[#003F87]">{roles.find(r => r.id === selectedRoleId)?.name || selectedRoleId}</span> department/role. Click on an employee to customize their individual permissions.
             </p>
-          </div>
-          
-          {/* Filter dropdown */}
-          <div className="flex items-center gap-2 self-start sm:self-center">
-            <div className="relative flex items-center bg-white border border-[#C2C6D4] rounded-lg px-3 py-1.5 h-[38px] shadow-sm focus-within:border-[#003F87]">
-              <select
-                value={assignFilter}
-                onChange={(e) => setAssignFilter(e.target.value)}
-                className="bg-transparent text-[13px] font-bold text-slate-700 outline-none cursor-pointer border-none focus:ring-0 p-0 pr-8"
-              >
-                <option value="all">All Roles</option>
-                <option value="design">Design</option>
-                <option value="development">Development</option>
-                <option value="sales">Sales</option>
-                <option value="marketing">Marketing</option>
-                <option value="hr">HR</option>
-                <option value="accountant">Accountant</option>
-              </select>
-            </div>
-            
-            <div className="w-[38px] h-[38px] rounded-lg border border-[#C2C6D4] flex items-center justify-center bg-slate-50/50 text-slate-500 shadow-sm shrink-0">
-              <Filter size={15} />
-            </div>
           </div>
         </div>
 
         {/* Employees Cards Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 mt-2">
-          
-          {/* Assigned members */}
-          {filteredStaffList.map((member, idx) => (
-            <div key={idx} className="border border-slate-100 hover:border-slate-200 rounded-xl p-4 flex items-center justify-between shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.02)] transition-all bg-white">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-100 text-[#003F87] font-bold text-[12px] flex items-center justify-center border border-slate-200 shrink-0">
-                  {member.avatar}
+        {filteredEmployeesList.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 mt-2">
+            {filteredEmployeesList.map((member) => {
+              const empKey = member.id || member.name;
+              const isSelected = selectedEmployee && (selectedEmployee.id ? selectedEmployee.id === member.id : selectedEmployee.name === member.name);
+              const isCustomized = !!customPermissions[empKey];
+              const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase();
+              
+              return (
+                <div 
+                  key={member.id} 
+                  onClick={() => setSelectedEmployee(prev => prev?.id === member.id ? null : member)}
+                  className={`border rounded-xl p-4 flex items-center justify-between transition-all bg-white cursor-pointer select-none ${
+                    isSelected 
+                      ? 'border-[#003F87] bg-blue-50/30 shadow-[0_4px_16px_rgba(0,63,135,0.08)]' 
+                      : 'border-slate-100 hover:border-slate-300 shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.02)]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {member.avatar ? (
+                      <img src={member.avatar} alt={member.name} className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0" />
+                    ) : (
+                      <div className={`w-10 h-10 rounded-full font-bold text-[12px] flex items-center justify-center border shrink-0 ${
+                        isSelected ? 'bg-[#003F87] text-white border-[#003F87]' : 'bg-slate-100 text-[#003F87] border-slate-200'
+                      }`}>
+                        {initials}
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-[13px] font-bold text-slate-900 leading-tight flex items-center gap-1.5 flex-wrap">
+                        <span>{member.name}</span>
+                        {isCustomized && (
+                          <span className="inline-flex items-center text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-1 py-0.2 rounded shrink-0">
+                            Custom
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-1 font-medium">{member.position || member.department}</div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[13px] font-bold text-slate-900 leading-tight">{member.name}</div>
-                  <div className="text-[11px] text-slate-400 mt-1 font-medium">{member.role}</div>
-                </div>
-              </div>
-              <button 
-                onClick={() => {
-                  const updatedMembers = (staff[selectedRoleId] || []).filter(m => m.name !== member.name);
-                  setStaff(prev => ({ ...prev, [selectedRoleId]: updatedMembers }));
-                  setToastText(`Removed ${member.name} from ${selectedRoleId} role.`);
-                  setShowToast(true);
-                  setTimeout(() => setShowToast(false), 3000);
-                }}
-                className="text-slate-300 hover:text-red-500 p-1.5 transition-colors text-[16px] leading-none font-bold"
-                title="Remove staff"
-              >
-                &times;
-              </button>
-            </div>
-          ))}
-
-          {/* Add Staff Dotted Card */}
-          <button 
-            onClick={() => setIsAddStaffOpen(true)}
-            className="border-2 border-dashed border-slate-200 hover:border-[#003F87] rounded-xl p-4 flex items-center justify-center gap-2 text-[13px] font-bold text-slate-500 hover:text-[#003F87] transition-all h-[74px] bg-slate-50/30"
-          >
-            <UserPlus size={16} />
-            <span>Add Staff Member</span>
-          </button>
-
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-6 text-[13px] text-slate-400 font-medium bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            No employees currently enrolled in this department.
+          </div>
+        )}
 
       </div>
+
+      {/* Individual Custom Permissions Matrix Section */}
+      {selectedEmployee && (
+        <div className="bg-white border border-[#C2C6D4] rounded-xl p-6 shadow-sm flex flex-col gap-5 w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <h4 className="text-[15px] font-bold text-slate-900">
+                  Individual Permissions: <span className="text-amber-700 font-extrabold">{selectedEmployee.name}</span>
+                </h4>
+                <span className="inline-flex items-center text-[10px] font-black bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full shrink-0 uppercase tracking-wider">
+                  Customization
+                </span>
+              </div>
+              <p className="text-[12px] text-slate-500">
+                Allocate specific system module permissions for this employee separately from the default <span className="font-bold text-[#003F87]">{roles.find(r => r.id === selectedRoleId)?.name || selectedRoleId}</span> role.
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <label className="inline-flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100/80 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors text-[13px] font-semibold text-slate-700">
+                <input 
+                  type="checkbox"
+                  checked={!!customPermissions[selectedEmployee.id || selectedEmployee.name]}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      enableEmployeeOverride();
+                    } else {
+                      disableEmployeeOverride();
+                    }
+                  }}
+                  className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4 h-4 cursor-pointer accent-[#003F87]"
+                />
+                <span>Enable Custom Override</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Conditional rendering of individual permissions matrix */}
+          {customPermissions[selectedEmployee.id || selectedEmployee.name] ? (
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-between items-center px-4 py-2 bg-amber-50/50 border border-amber-200/60 rounded-lg text-amber-800 text-[12px] font-medium">
+                <span>Custom overrides are active. These permissions will apply instead of the role defaults.</span>
+                <label className="flex items-center gap-2 text-[12px] font-semibold text-slate-700 cursor-pointer">
+                  <input 
+                    type="checkbox"
+                    checked={isEmployeeAllViewChecked}
+                    onChange={toggleEmployeeSelectAllView}
+                    className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4 h-4 cursor-pointer accent-[#003F87]"
+                  />
+                  <span>Select All View</span>
+                </label>
+              </div>
+
+              <div className="w-full overflow-x-auto border border-slate-100 rounded-xl">
+                <table className="w-full text-left border-collapse min-w-[500px]">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="py-3.5 px-6">System Module</th>
+                      <th className="py-3.5 px-4 text-center">View</th>
+                      <th className="py-3.5 px-4 text-center">Create</th>
+                      <th className="py-3.5 px-4 text-center">Edit</th>
+                      <th className="py-3.5 px-4 text-center">Delete</th>
+                      <th className="py-3.5 px-4 text-center">Export</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {[
+                      { key: 'students', label: 'Students', icon: GraduationCap },
+                      { key: 'employees', label: 'Employees', icon: Briefcase },
+                      { key: 'courses', label: 'Courses', icon: BookOpen },
+                      { key: 'fees', label: 'Fees & Revenue', icon: CreditCard },
+                      { key: 'sales', label: 'Sales CRM', icon: Handshake },
+                      { key: 'attendance', label: 'Attendance', icon: Calendar },
+                      { key: 'gallery', label: 'Gallery', icon: Image },
+                      { key: 'leave', label: 'Leave Management', icon: FileText },
+                      { key: 'work-reports', label: 'Work Reports', icon: FileText },
+                      { key: 'blog-agent', label: 'Blog Agent', icon: Bot },
+                    ].map((mod) => {
+                      const empKey = selectedEmployee.id || selectedEmployee.name;
+                      const currentPerm = customPermissions[empKey][mod.key] || { view: false, create: false, edit: false, delete: false, export: false };
+                      const Icon = mod.icon;
+                      
+                      return (
+                        <tr key={mod.key} className="hover:bg-slate-50/30 transition-colors text-[13px] text-slate-700">
+                          <td className="py-4 px-6 font-semibold">
+                            <div className="flex items-center gap-2.5">
+                              <Icon size={16} className="text-slate-400" />
+                              <span>{mod.label}</span>
+                            </div>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <input 
+                              type="checkbox"
+                              checked={currentPerm.view}
+                              onChange={() => toggleEmployeePermission(mod.key, 'view')}
+                              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4.5 h-4.5 cursor-pointer accent-amber-600"
+                            />
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <input 
+                              type="checkbox"
+                              checked={currentPerm.create}
+                              onChange={() => toggleEmployeePermission(mod.key, 'create')}
+                              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4.5 h-4.5 cursor-pointer accent-amber-600"
+                            />
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <input 
+                              type="checkbox"
+                              checked={currentPerm.edit}
+                              onChange={() => toggleEmployeePermission(mod.key, 'edit')}
+                              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4.5 h-4.5 cursor-pointer accent-amber-600"
+                            />
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <input 
+                              type="checkbox"
+                              checked={currentPerm.delete}
+                              onChange={() => toggleEmployeePermission(mod.key, 'delete')}
+                              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4.5 h-4.5 cursor-pointer accent-amber-600"
+                            />
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <input 
+                              type="checkbox"
+                              checked={currentPerm.export}
+                              onChange={() => toggleEmployeePermission(mod.key, 'export')}
+                              className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4.5 h-4.5 cursor-pointer accent-amber-600"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="px-6 py-4 bg-slate-50 border border-slate-100 rounded-xl flex justify-end gap-3 mt-1">
+                <button 
+                  onClick={disableEmployeeOverride}
+                  className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-100 rounded-lg text-[13px] font-bold text-slate-600 transition-colors flex items-center gap-1.5"
+                >
+                  <RotateCcw size={14} />
+                  <span>Disable Override</span>
+                </button>
+                <button 
+                  onClick={handleEmployeePermissionsSave}
+                  className="px-5 py-2 bg-[#003F87] hover:bg-[#002B5E] rounded-lg text-[13px] font-bold text-white transition-colors shadow-sm"
+                >
+                  Save Custom Permissions
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 px-6 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 text-center gap-4">
+              <div className="text-slate-400">
+                <Shield size={36} className="mx-auto text-slate-300" />
+              </div>
+              <div>
+                <h5 className="text-[14px] font-bold text-slate-800">Inherited Role Permissions</h5>
+                <p className="text-[12px] text-slate-500 mt-1 max-w-md mx-auto">
+                  {selectedEmployee.name} is currently inheriting all default permissions configured for the <strong>{roles.find(r => r.id === selectedRoleId)?.name || selectedRoleId}</strong> role above.
+                </p>
+              </div>
+              <button
+                onClick={enableEmployeeOverride}
+                className="px-4 py-2 bg-[#003F87] hover:bg-[#002B5E] text-white rounded-lg text-[12px] font-bold transition-colors shadow-sm"
+              >
+                Enable Custom Override
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Bottom Console Info Disclaimer */}
       <div className="w-full flex flex-col sm:flex-row justify-between items-center gap-3 text-[11px] text-slate-400 px-2 mt-2">
@@ -586,65 +802,6 @@ const SettingsContent = () => {
           <span className="hover:underline cursor-pointer">API Documentation</span>
         </div>
       </div>
-
-      {/* Add Staff Modal */}
-      {isAddStaffOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col animate-in scale-in-95 duration-200 border border-slate-100">
-            <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-[15px] font-bold text-slate-950">Add Staff Member</h2>
-              <button 
-                onClick={() => setIsAddStaffOpen(false)} 
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors font-bold text-lg"
-              >
-                &times;
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddStaffSubmit} className="p-6 flex flex-col gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Staff Name *</label>
-                <input 
-                  type="text"
-                  required
-                  placeholder="e.g. John Doe"
-                  value={newStaffName}
-                  onChange={(e) => setNewStaffName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Designation / Sub-role *</label>
-                <input 
-                  type="text"
-                  required
-                  placeholder="e.g. Senior UX Analyst"
-                  value={newStaffRole}
-                  onChange={(e) => setNewStaffRole(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-800"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2.5 mt-2 pt-4 border-t border-slate-100">
-                <button 
-                  type="button"
-                  onClick={() => setIsAddStaffOpen(false)} 
-                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-[12px] font-bold text-slate-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="px-5 py-2 bg-[#003F87] hover:bg-[#002B5E] rounded-xl text-[12px] font-bold text-white transition-colors shadow-sm"
-                >
-                  Assign Role
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Create New Role Modal */}
       {isCreateRoleOpen && (
