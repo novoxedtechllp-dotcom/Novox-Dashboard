@@ -78,45 +78,8 @@ const FeesContent = () => {
         }
       } catch (e) { console.warn(e); }
 
-      // 4. Fetch Month Transactions
-      try {
-        const payRes = await fetch(`/api/v1/fees/payments?month=${filterMonth + 1}&year=${filterYear}&limit=1000`, { headers });
-        if (payRes.ok) {
-          const d = await payRes.json();
-          if (d.success && d.data) {
-            const mappedFees = (d.data.payments || []).map(p => {
-              const student = p.students || {};
-              const plan = p.student_fee_plans || {};
-              const courseName = plan.courses?.name || 'Unknown Course';
-              const amount = parseFloat(p.amount) || 0;
-              const totalCourseFee = parseFloat(plan.total_fee) || parseFloat(plan.admission_fee || 0) + parseFloat(plan.monthly_installment || 0); 
-              
-              return {
-                id: p.id,
-                feePlanId: p.fee_plan_id,
-                studentId: p.student_id,
-                name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-                initials: `${student.first_name?.[0] || ''}${student.last_name?.[0] || ''}`.toUpperCase() || 'ST',
-                course: courseName,
-                courseId: plan.course_id,
-                type: p.payment_type || 'Installment',
-                paymentMethod: p.payment_method || 'Cash',
-                totalAmount: totalCourseFee,
-                paidAmount: amount,
-                remainingBalance: Math.max(0, totalCourseFee - amount),
-                amount: `₹${amount.toLocaleString()}`,
-                date: new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                status: (amount > 0 && amount < 10000) ? 'Partially Paid' : 'Paid', 
-                statusColor: (amount > 0 && amount < 10000) ? 'yellow' : 'green',
-                numericAmount: amount
-              };
-            });
-            setFeesList(mappedFees);
-          }
-        }
-      } catch(e) { console.warn(e); }
-
-      // 5. Fetch Student Balances
+      // 4. Fetch Student Balances FIRST so we can merge it
+      let balancesMap = {};
       try {
         const balRes = await fetch(`/api/v1/fees/balances?month=${filterMonth + 1}&year=${filterYear}`, { headers });
         if (balRes.ok) {
@@ -133,10 +96,56 @@ const FeesContent = () => {
               totalCourseFee: b.totalCourseFee,
               totalPaidOverall: b.totalPaidOverall,
               remainingBalance: b.remainingBalance,
+              currentMonthDue: b.currentMonthDue,
+              paidThisMonth: b.paidThisMonth,
               status: b.status,
               courseId: b.courseId
             }));
             setStudentBalancesList(mappedBalances);
+            balancesMap = mappedBalances.reduce((acc, b) => {
+              acc[`${b.studentId}-${b.courseId}`] = b;
+              return acc;
+            }, {});
+          }
+        }
+      } catch(e) { console.warn(e); }
+
+      // 5. Fetch Month Transactions
+      try {
+        const payRes = await fetch(`/api/v1/fees/payments?month=${filterMonth + 1}&year=${filterYear}&limit=1000`, { headers });
+        if (payRes.ok) {
+          const d = await payRes.json();
+          if (d.success && d.data) {
+            const mappedFees = (d.data.payments || []).map(p => {
+              const student = p.students || {};
+              const plan = p.student_fee_plans || {};
+              const courseName = plan.courses?.name || 'Unknown Course';
+              const amount = parseFloat(p.amount) || 0;
+              const totalCourseFee = parseFloat(plan.total_fee) || parseFloat(plan.admission_fee || 0) + parseFloat(plan.monthly_installment || 0); 
+              const bal = balancesMap[`${p.student_id}-${plan.course_id}`];
+              
+              return {
+                id: p.id,
+                feePlanId: p.fee_plan_id,
+                studentId: p.student_id,
+                name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+                initials: `${student.first_name?.[0] || ''}${student.last_name?.[0] || ''}`.toUpperCase() || 'ST',
+                course: courseName,
+                courseId: plan.course_id,
+                type: p.payment_type || 'Installment',
+                paymentMethod: p.payment_method || 'Cash',
+                totalAmount: totalCourseFee,
+                dueThisMonth: bal ? bal.currentMonthDue : null,
+                paidAmount: amount,
+                remainingBalance: Math.max(0, totalCourseFee - amount),
+                amount: `₹${amount.toLocaleString()}`,
+                date: new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                status: (amount > 0 && amount < 10000) ? 'Partially Paid' : 'Paid', 
+                statusColor: (amount > 0 && amount < 10000) ? 'yellow' : 'green',
+                numericAmount: amount
+              };
+            });
+            setFeesList(mappedFees);
           }
         }
       } catch(e) { console.warn(e); }
@@ -174,6 +183,11 @@ const FeesContent = () => {
   const selectedStudent = useMemo(() => {
     return studentsList.find(s => s.id === selectedStudentId);
   }, [selectedStudentId, studentsList]);
+
+  // Find their balance for the selected course
+  const selectedStudentBalance = useMemo(() => {
+    return studentBalancesList.find(b => String(b.studentId) === String(selectedStudentId) && String(b.courseId) === String(selectedCourseId));
+  }, [selectedStudentId, selectedCourseId, studentBalancesList]);
 
   // Find their enrolled courses
   const studentCourses = useMemo(() => {
@@ -628,6 +642,7 @@ const handleExportPDF = () => {
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Type</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Method</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Due This Month</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid Amount</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Remaining Balance</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Date</th>
@@ -638,8 +653,10 @@ const handleExportPDF = () => {
                 <tr className="border-b border-[#C2C6D4] bg-white">
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Student Details</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Course</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Due This Month</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid This Month</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
-                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid Amount</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Overall Paid</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Remaining Balance</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Status</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Action</th>
@@ -698,6 +715,11 @@ const handleExportPDF = () => {
                         </td>
                         <td className="py-4 px-4 text-right">
                           <div className="text-[14px] text-slate-600 font-medium">₹{total.toLocaleString()}</div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <div className="text-[14px] font-bold text-slate-800">
+                            {fee.dueThisMonth !== null && fee.dueThisMonth !== undefined ? `₹${fee.dueThisMonth.toLocaleString()}` : '-'}
+                          </div>
                         </td>
                         <td className="py-4 px-4 text-right">
                           <div className="text-[14px] font-bold text-[#003F87]">₹{paid.toLocaleString()}</div>
@@ -761,6 +783,12 @@ const handleExportPDF = () => {
                         </td>
                         <td className="py-4 px-4">
                           <div className="text-[13px] text-[#555F6B] leading-tight">{due.course}</div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <div className="text-[14px] font-bold text-slate-800">₹{(due.currentMonthDue || 0).toLocaleString()}</div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <div className="text-[14px] font-bold text-[#003F87]">₹{(due.paidThisMonth || 0).toLocaleString()}</div>
                         </td>
                         <td className="py-4 px-4 text-right">
                           <div className="text-[14px] text-slate-600 font-medium">₹{due.totalCourseFee.toLocaleString()}</div>
@@ -938,11 +966,19 @@ const handleExportPDF = () => {
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-md border border-slate-200 mt-2 flex justify-between items-center">
-                <span className="text-sm font-bold text-slate-700">Remaining Balance:</span>
-                <span className="text-base font-bold text-[#D80000]">
-                  ₹{Math.max(0, (parseFloat(totalAmountInput) || 0) - (parseFloat(paidAmountInput) || 0)).toLocaleString()}
-                </span>
+              <div className="bg-slate-50 p-4 rounded-md border border-slate-200 mt-2 flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-slate-700">Due This Month:</span>
+                  <span className="text-base font-bold text-[#003F87]">
+                    {selectedStudentBalance?.currentMonthDue !== undefined ? `₹${selectedStudentBalance.currentMonthDue.toLocaleString()}` : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-slate-200 pt-2">
+                  <span className="text-sm font-bold text-slate-700">Remaining Balance:</span>
+                  <span className="text-base font-bold text-[#D80000]">
+                    ₹{Math.max(0, (parseFloat(totalAmountInput) || 0) - (parseFloat(paidAmountInput) || 0)).toLocaleString()}
+                  </span>
+                </div>
               </div>
 
               <div className="flex gap-3 justify-end mt-4">
