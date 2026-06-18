@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Calendar, RefreshCcw, MoreVertical, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import EmployeeCalendarModal from './EmployeeCalendarModal';
+import CustomSelect from '../../../components/CustomSelect';
 
-const AttendanceContent = ({ employees = [], courses = [] }) => {
+const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', setSearchQuery = () => {} }) => {
   const [students, setStudents] = useState([]);
   
   // Database tables mock state
@@ -16,7 +17,6 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
   const [editRecord, setEditRecord] = useState(null);
   const [editForm, setEditForm] = useState({ status: 'PRESENT', check_in: '', check_out: '', remarks: '' });
   
-  const [searchQuery, setSearchQuery] = useState('');
   const [courseFilter, setCourseFilter] = useState('All Categories');
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
@@ -65,10 +65,19 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
     fetchData();
   }, [dateFilter]); // Refetch when dateFilter changes
 
+  useEffect(() => {
+    if (typeof setSearchQuery === 'function') {
+      setSearchQuery('');
+    }
+    setCourseFilter(activeTab === 'Employees' ? 'All Departments' : 'All Categories');
+  }, [activeTab, setSearchQuery]);
+
   const handleRefresh = () => {
-    setSearchQuery('');
-    setCourseFilter('All Categories');
-    setDateFilter('');
+    if (typeof setSearchQuery === 'function') {
+      setSearchQuery('');
+    }
+    setCourseFilter(activeTab === 'Employees' ? 'All Departments' : 'All Categories');
+    setDateFilter(new Date().toISOString().split('T')[0]);
   };
 
   const handleUpdateStatus = async (userId, type, newStatus) => {
@@ -224,7 +233,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
         return false;
       }
     }
-    if (courseFilter !== 'All Categories' && item.course !== courseFilter) {
+    if (courseFilter !== 'All Categories' && courseFilter !== 'All Departments' && item.course !== courseFilter) {
       return false;
     }
     return true; // We map using dateFilter globally, so no need to filter date here
@@ -237,6 +246,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
     return a.name.localeCompare(b.name);
   });
 
+  const uniqueDepts = ['All Departments', ...new Set(employees.map(e => e.department).filter(Boolean))];
   const uniqueCourses = ['All Categories', ...courses.map(c => c.title)];
 
   if (loading) {
@@ -270,29 +280,20 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
       {/* Filter Section */}
       <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between w-full">
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-          {/* Search Input */}
-          <div className="relative w-full sm:w-[240px] md:w-[280px] shrink-0">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search by name or ID..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-[13px] font-medium outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/5 transition-all placeholder:text-slate-400 text-slate-700"
-            />
-          </div>
-
-          {/* Category/Course Select */}
+          {/* Category/Course/Dept Select */}
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Course</span>
-            <select 
-              value={courseFilter}
-              onChange={(e) => setCourseFilter(e.target.value)}
-              disabled={activeTab === 'Employees'}
-              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative disabled:opacity-50"
-            >
-              {uniqueCourses.map(course => <option key={course} value={course}>{course}</option>)}
-            </select>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">
+              {activeTab === 'Employees' ? 'Department' : 'Course'}
+            </span>
+            <div>
+              <CustomSelect
+                value={courseFilter}
+                onChange={setCourseFilter}
+                options={activeTab === 'Employees' ? uniqueDepts.map(d => ({ value: d, label: d })) : uniqueCourses.map(course => ({ value: course, label: course }))}
+                className="w-full sm:w-[200px]"
+                selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
+              />
+            </div>
           </div>
 
           {/* Date Filter */}

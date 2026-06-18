@@ -253,8 +253,8 @@ function App() {
                 <Route path={`${basePath}/dashboard`} element={userRole === 'STUDENT' ? <StudentDashboard userInfo={userInfo} /> : (userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />)} />
                 <Route path={`${basePath}/daily-plan`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/schedule`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
-                <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />)} />
-                <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave /> : (userRole === 'ADMIN' ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />))} />
+                <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance searchQuery={searchQuery} /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} searchQuery={searchQuery} /> : <AttendanceContent employees={employees} courses={courses} searchQuery={searchQuery} />)} />
+                <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave searchQuery={searchQuery} /> : (userRole === 'ADMIN' ? <LeaveManagementContent searchQuery={searchQuery} /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave searchQuery={searchQuery} /> : <Navigate to={`${basePath}/dashboard`} />))} />
                 <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
