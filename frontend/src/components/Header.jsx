@@ -6,7 +6,7 @@ import { useClickOutside } from '../hooks/useClickOutside';
 const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', setSearchQuery = () => {}, toggleSidebar }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
-  const showSearchBar = ['students', 'employees', 'courses'].includes(activeTab);
+  const showSearchBar = ['students', 'employees', 'courses', 'sales-crm'].includes(activeTab);
   
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);

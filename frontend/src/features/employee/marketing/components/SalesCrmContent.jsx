@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, Mail, MessageSquare, Plus, ChevronRight, TrendingUp, Users, BookOpen, Zap, MoreHorizontal, Paperclip, CheckSquare, Search, X } from 'lucide-react';
+import { Phone, Mail, MessageSquare, Plus, ChevronRight, TrendingUp, Users, BookOpen, Zap, MoreHorizontal, Paperclip, CheckSquare, Search, X, RefreshCcw } from 'lucide-react';
 import LoadingSpinner from '../../../../components/LoadingSpinner';
 
 // ─── Unique course list derived from leads ─────────────────────────────────────
@@ -482,7 +482,7 @@ const SalesCrmContent = ({ courses = [], searchQuery = '' }) => {
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           <button onClick={fetchLeads} className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.13-5.87L2 9"></path></svg>
+            <RefreshCcw size={16} />
           </button>
           <button onClick={() => setIsAddOpen(true)} className="px-5 py-2.5 bg-[#003F87] text-white rounded-xl text-sm font-bold shadow-md hover:bg-[#002B5E] shadow-blue-900/10 active:scale-95 transition-all flex items-center gap-2">
             <Plus size={16} /> Add Lead
