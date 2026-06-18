@@ -458,6 +458,12 @@ const SalesCrmContent = ({ courses = [], searchQuery = '' }) => {
   return (
     <div className="p-6 md:p-8 flex flex-col gap-8 w-full relative bg-[#FAFBFC] min-h-full">
       
+      {/* Header Section */}
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold text-slate-800">Sales CRM</h1>
+        <p className="text-slate-500 mt-1">Manage leads, track conversions, and monitor sales performance.</p>
+      </div>
+
       {/* Top Header / Actions Bar */}
       <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">

@@ -248,8 +248,8 @@ const EmployeeLeave = () => {
     <div className="p-[24px]">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-[24px] font-bold text-slate-900">Leave Requests</h2>
-          <p className="text-slate-500 text-[14px] mt-1">Apply for leave and track your request status</p>
+          <h1 className="text-2xl font-bold text-slate-800">My Leaves</h1>
+          <p className="text-slate-500 mt-1">Apply for leaves and track your application status.</p>
         </div>
       </div>
 
