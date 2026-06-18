@@ -1,18 +1,22 @@
 import nodemailer from 'nodemailer';
 import { ApiError } from './ApiError.js';
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.SMTP_EMAIL,
-    pass: process.env.SMTP_PASSWORD,
-  },
-});
+let transporter = null;
 
 export const sendEmail = async ({ to, subject, html }) => {
   if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
     console.warn('SMTP_EMAIL or SMTP_PASSWORD not configured. Skipping email to', to);
     return null;
+  }
+
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.SMTP_EMAIL,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
   }
 
   try {
