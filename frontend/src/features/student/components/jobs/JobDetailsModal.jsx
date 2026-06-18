@@ -16,22 +16,22 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
       />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-[8px] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
         <div className="shrink-0 border-b border-slate-100 px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#003F87]">
+            <div className="h-10 w-10 rounded-[8px] bg-blue-50 flex items-center justify-center text-[#003F87]">
               <Briefcase size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-800 leading-tight">Job Overview</h2>
-              <p className="text-sm font-medium text-slate-500">{job.company}</p>
+              <h2 className="text-xl font-bold text-[#003F87] leading-tight">Job Overview</h2>
+              <p className="text-sm font-medium text-[#555F6B]">{job.company}</p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+            className="p-2 text-slate-400 hover:text-[#555F6B] hover:bg-slate-100 rounded-full transition-colors"
           >
             <X size={24} />
           </button>
@@ -41,7 +41,7 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
         <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200">
           
           {/* Top Banner Info */}
-          <div className="bg-gradient-to-br from-[#003F87]/5 to-blue-50/50 border border-blue-100/50 rounded-2xl p-6 mb-8 relative overflow-hidden">
+          <div className="bg-gradient-to-br from-[#003F87]/5 to-blue-50/50 border border-blue-100/50 rounded-[8px] p-6 mb-8 relative overflow-hidden">
             <div className="absolute right-0 top-0 w-64 h-64 bg-blue-200/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
             
             <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
@@ -50,20 +50,20 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
                   <span className="text-xs font-bold px-3 py-1 rounded-full bg-white text-[#003F87] shadow-sm uppercase tracking-wider">
                     {job.category || 'General'}
                   </span>
-                  <span className="flex items-center gap-1 text-xs font-medium text-slate-600 bg-white/60 px-3 py-1 rounded-full border border-slate-200/60">
+                  <span className="flex items-center gap-1 text-xs font-medium text-[#555F6B] bg-white/60 px-3 py-1 rounded-full border border-[#C2C6D4]">
                     <Globe size={12} />
                     {job.source || 'Direct'}
                   </span>
                 </div>
                 
                 <h1 className="text-3xl font-extrabold text-slate-900 mb-2">{job.title}</h1>
-                <div className="flex items-center gap-2 text-lg font-medium text-slate-700 mb-4">
+                <div className="flex items-center gap-2 text-lg font-medium text-slate-900 mb-4">
                   <Building2 size={20} className="text-slate-400" />
                   {job.company}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-600">
-                  <div className="flex items-center gap-1.5 bg-white/60 px-3 py-1.5 rounded-lg border border-slate-200/60">
+                <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-[#555F6B]">
+                  <div className="flex items-center gap-1.5 bg-white/60 px-3 py-1.5 rounded-lg border border-[#C2C6D4]">
                     <MapPin size={16} className="text-[#003F87]" />
                     {job.location}
                   </div>
@@ -79,7 +79,7 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
               <div className="flex flex-col items-stretch gap-3 shrink-0 w-full md:w-auto">
                 <button 
                   onClick={onApplyClick}
-                  className="flex items-center justify-center gap-2 bg-[#003F87] hover:bg-blue-800 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg shadow-blue-900/20 hover:shadow-xl hover:-translate-y-0.5 transition-all w-full"
+                  className="flex items-center justify-center gap-2 bg-[#003F87] hover:bg-blue-800 text-white px-8 py-3.5 rounded-[8px] font-bold shadow-lg shadow-blue-900/20 hover:shadow-xl hover:-translate-y-0.5 transition-all w-full"
                 >
                   <Send size={18} />
                   Apply Now
@@ -88,7 +88,7 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
                   href={job.link} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 px-8 py-3.5 rounded-xl font-bold border border-slate-200 shadow-sm transition-all text-center"
+                  className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-900 px-8 py-3.5 rounded-[8px] font-bold border border-[#C2C6D4] shadow-sm transition-all text-center"
                 >
                   <ExternalLink size={18} />
                   View Original
@@ -110,11 +110,11 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
               <div className="md:col-span-2 space-y-8">
                 {details.structured_description?.about && details.structured_description.about.length > 0 && (
                   <section>
-                    <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-[#003F87] mb-3 flex items-center gap-2">
                       <div className="w-1.5 h-6 bg-blue-400 rounded-full" />
                       About the Role
                     </h3>
-                    <div className="text-slate-600 leading-relaxed space-y-2">
+                    <div className="text-[#555F6B] leading-relaxed space-y-2">
                       {details.structured_description.about.map((para, i) => (
                         <p key={i}>{para}</p>
                       ))}
@@ -124,13 +124,13 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
 
                 {details.structured_description?.responsibilities && details.structured_description.responsibilities.length > 0 && (
                   <section>
-                    <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-[#003F87] mb-3 flex items-center gap-2">
                       <div className="w-1.5 h-6 bg-emerald-400 rounded-full" />
                       Key Responsibilities
                     </h3>
                     <ul className="space-y-3">
                       {details.structured_description.responsibilities.map((resp, i) => (
-                        <li key={i} className="flex items-start gap-3 text-slate-600 leading-relaxed">
+                        <li key={i} className="flex items-start gap-3 text-[#555F6B] leading-relaxed">
                           <CheckCircle2 size={18} className="text-emerald-500 shrink-0 mt-0.5" />
                           <span>{resp}</span>
                         </li>
@@ -141,13 +141,13 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
 
                 {details.structured_description?.requirements && details.structured_description.requirements.length > 0 && (
                   <section>
-                    <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-[#003F87] mb-3 flex items-center gap-2">
                       <div className="w-1.5 h-6 bg-amber-400 rounded-full" />
                       Requirements & Skills
                     </h3>
                     <ul className="space-y-3">
                       {details.structured_description.requirements.map((req, i) => (
-                        <li key={i} className="flex items-start gap-3 text-slate-600 leading-relaxed">
+                        <li key={i} className="flex items-start gap-3 text-[#555F6B] leading-relaxed">
                           <ChevronRight size={18} className="text-amber-500 shrink-0 mt-0.5" />
                           <span>{req}</span>
                         </li>
@@ -158,7 +158,7 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
 
                 {details.structured_description?.benefits && details.structured_description.benefits.length > 0 && (
                   <section>
-                    <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-[#003F87] mb-3 flex items-center gap-2">
                       <div className="w-1.5 h-6 bg-purple-400 rounded-full" />
                       Perks & Benefits
                     </h3>
@@ -175,11 +175,11 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
                 {/* Fallback to full description if structured is missing */}
                 {(!details.structured_description || Object.keys(details.structured_description).length === 0) && details.full_description && (
                   <section>
-                    <h3 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-[#003F87] mb-3 flex items-center gap-2">
                       <div className="w-1.5 h-6 bg-slate-400 rounded-full" />
                       Description
                     </h3>
-                    <div className="text-slate-600 leading-relaxed whitespace-pre-wrap">
+                    <div className="text-[#555F6B] leading-relaxed whitespace-pre-wrap">
                       {details.full_description}
                     </div>
                   </section>
@@ -188,21 +188,21 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
 
               {/* Sidebar: HR Details */}
               <div className="md:col-span-1 space-y-6">
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 sticky top-0">
-                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2">
+                <div className="bg-slate-50 border border-[#C2C6D4] rounded-[8px] p-5 sticky top-0">
+                  <h3 className="text-sm font-bold text-[#003F87] uppercase tracking-wider mb-4 border-b border-[#C2C6D4] pb-2">
                     Contact Information
                   </h3>
                   
                   {details.hr_details && (
                     <div className="mb-4">
-                      <p className="text-xs font-medium text-slate-500 uppercase mb-1">Recruiter</p>
-                      <p className="text-sm font-semibold text-slate-800">{details.hr_details}</p>
+                      <p className="text-xs font-medium text-[#555F6B] uppercase mb-1">Recruiter</p>
+                      <p className="text-sm font-semibold text-[#003F87]">{details.hr_details}</p>
                     </div>
                   )}
 
                   {details.emails && details.emails.length > 0 && (
                     <div className="mb-4">
-                      <p className="text-xs font-medium text-slate-500 uppercase mb-2">Email Address</p>
+                      <p className="text-xs font-medium text-[#555F6B] uppercase mb-2">Email Address</p>
                       <ul className="space-y-2">
                         {details.emails.map((email, i) => (
                           <li key={i}>
@@ -218,11 +218,11 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
 
                   {details.phones && details.phones.length > 0 && (
                     <div>
-                      <p className="text-xs font-medium text-slate-500 uppercase mb-2">Phone Number</p>
+                      <p className="text-xs font-medium text-[#555F6B] uppercase mb-2">Phone Number</p>
                       <ul className="space-y-2">
                         {details.phones.map((phone, i) => (
                           <li key={i}>
-                            <a href={`tel:${phone}`} className="flex items-center gap-2 text-sm font-medium text-slate-700 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                            <a href={`tel:${phone}`} className="flex items-center gap-2 text-sm font-medium text-slate-900 bg-white p-2 rounded-lg border border-[#C2C6D4] shadow-sm">
                               <Phone size={14} className="shrink-0 text-slate-400" />
                               <span className="truncate">{phone}</span>
                             </a>
@@ -233,7 +233,7 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
                   )}
                   
                   {(!details.emails?.length && !details.phones?.length && !details.hr_details) && (
-                    <p className="text-sm text-slate-500 italic">No specific contact details extracted.</p>
+                    <p className="text-sm text-[#555F6B] italic">No specific contact details extracted.</p>
                   )}
                 </div>
               </div>
@@ -241,7 +241,7 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
             </div>
           ) : (
             <div className="text-center py-10">
-              <p className="text-slate-500">Failed to load detailed description.</p>
+              <p className="text-[#555F6B]">Failed to load detailed description.</p>
             </div>
           )}
         </div>

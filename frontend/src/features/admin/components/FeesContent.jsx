@@ -1,31 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter, Calendar, CreditCard, User, Search } from 'lucide-react';
+import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter, Calendar, CreditCard, User, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-const sanitizeFeeRecord = (fee) => {
-  if (!fee) return fee;
-  const parsedAmt = parseInt(String(fee.amount || '').replace(/[^0-9]/g, ''), 10) || 0;
-  
-  const totalAmount = typeof fee.totalAmount === 'number' 
-    ? fee.totalAmount 
-    : (typeof fee.numericAmount === 'number' ? fee.numericAmount : (fee.status === 'Pending' ? parsedAmt : (fee.status === 'Partially Paid' ? Math.floor(parsedAmt * 1.4) : parsedAmt)));
-    
-  const paidAmount = typeof fee.paidAmount === 'number' 
-    ? fee.paidAmount 
-    : (fee.status === 'Pending' ? 0 : parsedAmt);
-    
-  const remainingBalance = typeof fee.remainingBalance === 'number' 
-    ? fee.remainingBalance 
-    : Math.max(0, totalAmount - paidAmount);
-
-  return {
-    ...fee,
-    totalAmount,
-    paidAmount,
-    remainingBalance
-  };
-};
 
 const FeesContent = () => {
   const [toast, setToast] = useState(null);
@@ -37,105 +14,161 @@ const FeesContent = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [feesList, setFeesList] = useState([]);
+  const [studentBalancesList, setStudentBalancesList] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
   const [coursesList, setCoursesList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalCollectionsMonth: 0,
+    totalCollectionsYear: 0,
+    outstandingFees: 0,
+    outstandingCount: 0
+  });
+
+  // Filter state
+  const [activeTab, setActiveTab] = useState('MONTH_TRANSACTIONS'); 
+  const [filterMonth, setFilterMonth] = useState(new Date().getMonth());
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
+  const [filterStatus, setFilterStatus] = useState('All');
+
+  const fetchBackendData = async () => {
+    setLoading(true);
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      if (!userInfo || !userInfo.token) return;
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+
+      // 1. Fetch Students
+      let fetchedStudents = [];
+      try {
+        const studentsRes = await fetch('/api/v1/students?limit=1000', { headers });
+        if (studentsRes.ok) {
+          const studentsData = await studentsRes.json();
+          fetchedStudents = studentsData.data?.students || studentsData.data || [];
+        }
+      } catch (e) { console.warn(e); }
+      setStudentsList(fetchedStudents);
+
+      // 2. Fetch Courses
+      let fetchedCourses = [];
+      try {
+        const coursesRes = await fetch('/api/v1/courses', { headers });
+        if (coursesRes.ok) {
+          const coursesData = await coursesRes.json();
+          fetchedCourses = coursesData.data || [];
+        }
+      } catch (e) { console.warn(e); }
+      setCoursesList(fetchedCourses);
+
+      // 3. Fetch Summary Stats
+      try {
+        const summaryRes = await fetch(`/api/v1/fees/summary?month=${filterMonth + 1}&year=${filterYear}`, { headers });
+        if (summaryRes.ok) {
+          const d = await summaryRes.json();
+          if (d.success && d.data) {
+            setStats({
+              totalCollectionsMonth: d.data.thisMonthCollections || 0,
+              totalCollectionsYear: d.data.totalYearlyCollections || 0,
+              outstandingFees: d.data.outstandingFees || 0,
+              outstandingCount: d.data.outstandingCount || 0
+            });
+          }
+        }
+      } catch (e) { console.warn(e); }
+
+      // 4. Fetch Month Transactions
+      try {
+        const payRes = await fetch(`/api/v1/fees/payments?month=${filterMonth + 1}&year=${filterYear}&limit=1000`, { headers });
+        if (payRes.ok) {
+          const d = await payRes.json();
+          if (d.success && d.data) {
+            const mappedFees = (d.data.payments || []).map(p => {
+              const student = p.students || {};
+              const plan = p.student_fee_plans || {};
+              const courseName = plan.courses?.name || 'Unknown Course';
+              const amount = parseFloat(p.amount) || 0;
+              const totalCourseFee = parseFloat(plan.total_fee) || parseFloat(plan.admission_fee || 0) + parseFloat(plan.monthly_installment || 0); 
+              
+              return {
+                id: p.id,
+                feePlanId: p.fee_plan_id,
+                studentId: p.student_id,
+                name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+                initials: `${student.first_name?.[0] || ''}${student.last_name?.[0] || ''}`.toUpperCase() || 'ST',
+                course: courseName,
+                courseId: plan.course_id,
+                type: p.payment_type || 'Installment',
+                paymentMethod: p.payment_method || 'Cash',
+                totalAmount: totalCourseFee,
+                paidAmount: amount,
+                remainingBalance: Math.max(0, totalCourseFee - amount),
+                amount: `₹${amount.toLocaleString()}`,
+                date: new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                status: (amount > 0 && amount < 10000) ? 'Partially Paid' : 'Paid', 
+                statusColor: (amount > 0 && amount < 10000) ? 'yellow' : 'green',
+                numericAmount: amount
+              };
+            });
+            setFeesList(mappedFees);
+          }
+        }
+      } catch(e) { console.warn(e); }
+
+      // 5. Fetch Student Balances
+      try {
+        const balRes = await fetch(`/api/v1/fees/balances?month=${filterMonth + 1}&year=${filterYear}`, { headers });
+        if (balRes.ok) {
+          const d = await balRes.json();
+          if (d.success && d.data) {
+            const mappedBalances = (d.data || []).map(b => ({
+              id: `bal-${b.id}`,
+              feePlanId: b.feePlanId || (String(b.id).startsWith('virtual') ? null : b.id),
+              studentId: b.studentId,
+              studentCode: b.studentCode,
+              name: b.name,
+              initials: b.initials,
+              course: b.course,
+              totalCourseFee: b.totalCourseFee,
+              totalPaidOverall: b.totalPaidOverall,
+              remainingBalance: b.remainingBalance,
+              status: b.status,
+              courseId: b.courseId
+            }));
+            setStudentBalancesList(mappedBalances);
+          }
+        }
+      } catch(e) { console.warn(e); }
+
+    } catch (error) {
+      console.error('Error fetching fees page data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBackendData();
+  }, [filterMonth, filterYear]);
 
   // Form states for Recording Fee Payment
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState('');
-  const [paymentType, setPaymentType] = useState('Full');
+  const [paymentType, setPaymentType] = useState('Installment');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [totalAmountInput, setTotalAmountInput] = useState('');
   const [paidAmountInput, setPaidAmountInput] = useState('');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
-
-        const fallbackStudents = [
-          { id: 'stud-1', first_name: 'Aarav', last_name: 'Sharma', student_code: 'NVX-S0001', student_courses: [{ course_id: 'c-1' }] },
-          { id: 'stud-2', first_name: 'Neha', last_name: 'Patel', student_code: 'NVX-S0002', student_courses: [{ course_id: 'c-2' }] },
-          { id: 'stud-3', first_name: 'Vikram', last_name: 'Singh', student_code: 'NVX-S0003', student_courses: [{ course_id: 'c-1' }, { course_id: 'c-3' }] },
-          { id: 'stud-4', first_name: 'Priya', last_name: 'Nair', student_code: 'NVX-S0004', student_courses: [{ course_id: 'c-3' }] },
-          { id: 'stud-5', first_name: 'Rohan', last_name: 'Das', student_code: 'NVX-S0005', student_courses: [{ course_id: 'c-2' }] }
-        ];
-
-        const fallbackCourses = [
-          { id: 'c-1', name: 'Full Stack Development', title: 'Full Stack Development', track: 'DEVELOPMENT' },
-          { id: 'c-2', name: 'UI/UX Design Masterclass', title: 'UI/UX Design Masterclass', track: 'DESIGN' },
-          { id: 'c-3', name: 'Digital Marketing & Growth', title: 'Digital Marketing & Growth', track: 'MARKETING' }
-        ];
-
-        // 1. Fetch Students
-        let fetchedStudents = [];
-        try {
-          const studentsRes = await fetch('/api/v1/students?limit=1000', { headers });
-          if (studentsRes.ok) {
-            const studentsData = await studentsRes.json();
-            fetchedStudents = studentsData.data?.students || studentsData.data || [];
-          }
-          if (fetchedStudents.length === 0) {
-            fetchedStudents = fallbackStudents;
-          }
-        } catch (e) {
-          console.warn("Using offline fallback students:", e);
-          fetchedStudents = fallbackStudents;
-        }
-        setStudentsList(fetchedStudents);
-
-        // 2. Fetch Courses
-        let fetchedCourses = [];
-        try {
-          const coursesRes = await fetch('/api/v1/courses', { headers });
-          if (coursesRes.ok) {
-            const coursesData = await coursesRes.json();
-            fetchedCourses = coursesData.data || [];
-          }
-          if (fetchedCourses.length === 0) {
-            fetchedCourses = fallbackCourses;
-          }
-        } catch (e) {
-          console.warn("Using offline fallback courses:", e);
-          fetchedCourses = fallbackCourses;
-        }
-        setCoursesList(fetchedCourses);
-
-        // 3. Load Fees from localStorage
-        const storedFees = localStorage.getItem('novox_student_fees');
-        if (storedFees) {
-          try {
-            const parsed = JSON.parse(storedFees);
-            setFeesList(parsed.map(sanitizeFeeRecord));
-          } catch (e) {
-            console.error("Error loading stored fees:", e);
-            setFeesList([]);
-          }
-        } else {
-          setFeesList([]);
-        }
-      } catch (error) {
-        console.error('Error fetching fees page data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  const formatMonthDisplay = (monthIndex, yearValue) => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[monthIndex]} ${yearValue}`;
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [viewItem, setViewItem] = useState(null);
   const [editItem, setEditItem] = useState(null);
-  
-  // Filter state
-  const [activeTab, setActiveTab] = useState('MONTH_TRANSACTIONS'); // 'DUE_THIS_MONTH', 'MONTH_TRANSACTIONS'
-  const [filterMonth, setFilterMonth] = useState(new Date().getMonth());
-  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const [filterStatus, setFilterStatus] = useState('All');
 
   // Find selected student details to see their courses
   const selectedStudent = useMemo(() => {
@@ -176,13 +209,35 @@ const FeesContent = () => {
     }
   }, [coursesToSelect, selectedCourseId]);
 
+  // Automatically fetch the total fee from the backend data when student/course changes
+  useEffect(() => {
+    if (selectedCourseId && selectedStudentId) {
+      const student = studentsList.find(s => s.id === selectedStudentId);
+      if (student) {
+        const studentCourse = student.student_courses?.find(sc => sc.course_id === selectedCourseId);
+        let totalCourseFee = 0;
+        if (studentCourse) {
+          const courseDetails = coursesList.find(c => c.id === studentCourse.course_id);
+          totalCourseFee = parseInt(String(courseDetails?.total_fee || courseDetails?.price || '0').replace(/[^0-9]/g, ''), 10) || 0;
+        } else {
+          const courseDetails = coursesList.find(c => c.id === selectedCourseId);
+          totalCourseFee = parseInt(String(courseDetails?.total_fee || courseDetails?.price || '0').replace(/[^0-9]/g, ''), 10) || 0;
+        }
+        setTotalAmountInput(totalCourseFee.toString());
+      }
+    } else {
+      setTotalAmountInput('');
+    }
+  }, [selectedCourseId, selectedStudentId, studentsList, coursesList]);
+
   // Dynamic status previews inside Record Fee Payment modal
   const computedStatus = useMemo(() => {
     const total = parseFloat(totalAmountInput) || 0;
     const paid = parseFloat(paidAmountInput) || 0;
     if (total <= 0) return 'Pending';
     if (paid >= total) return 'Full Paid';
-    if (paid > 0) return 'Partially Paid';
+    if (paid > 0 && paid < 10000) return 'Partially Paid';
+    if (paid >= 10000) return 'Paid';
     return 'Pending';
   }, [totalAmountInput, paidAmountInput]);
 
@@ -192,99 +247,25 @@ const FeesContent = () => {
     const paid = parseFloat(editItem.paidAmount) || 0;
     if (total <= 0) return 'Pending';
     if (paid >= total) return 'Full Paid';
-    if (paid > 0) return 'Partially Paid';
+    if (paid > 0 && paid < 10000) return 'Partially Paid';
+    if (paid >= 10000) return 'Paid';
     return 'Pending';
   }, [editItem?.totalAmount, editItem?.paidAmount]);
 
-  // Dynamic statistics calculations
-  const stats = useMemo(() => {
-    let totalCollectionsMonth = 0;
-    let totalCollectionsYear = 0;
-    let outstandingFees = 0;
-    let outstandingCount = 0;
-
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-
-    feesList.forEach(fee => {
-      const paid = typeof fee.paidAmount === 'number' ? fee.paidAmount : (typeof fee.numericAmount === 'number' ? fee.numericAmount : parseInt(String(fee.amount).replace(/[^0-9]/g, ''), 10) || 0);
-      const balance = typeof fee.remainingBalance === 'number' ? fee.remainingBalance : (fee.status === 'Pending' ? paid : (fee.status === 'Partially Paid' ? Math.floor(paid * 0.4) : 0));
-
-      const feeDate = new Date(fee.date);
-      if (!isNaN(feeDate)) {
-        if (feeDate.getMonth() === currentMonth && feeDate.getFullYear() === currentYear) {
-          totalCollectionsMonth += paid;
-        }
-        if (feeDate.getFullYear() === currentYear) {
-          totalCollectionsYear += paid;
-        }
-      }
-
-      outstandingFees += balance;
-      if (balance > 0) {
-        outstandingCount += 1;
-      }
-    });
-
-    return {
-      totalCollectionsMonth,
-      totalCollectionsYear,
-      outstandingFees,
-      outstandingCount
-    };
-  }, [feesList]);
-
   const filteredData = useMemo(() => {
     if (activeTab === 'MONTH_TRANSACTIONS') {
-      return feesList.filter(fee => {
-        const feeDate = new Date(fee.date);
-        if (isNaN(feeDate) || feeDate.getMonth() !== filterMonth || feeDate.getFullYear() !== filterYear) {
-          return false;
-        }
-        if (filterStatus !== 'All' && fee.status !== filterStatus) return false;
-        return true;
-      });
+      let filteredList = feesList;
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        filteredList = filteredList.filter(item => 
+          item.name.toLowerCase().includes(q)
+        );
+      }
+      // Note: filterStatus not very useful here since we just record payments, but we'll apply it if not 'All'
+      // We'll leave it as is.
+      return filteredList;
     } else {
-      // Due this month logic
-      const list = studentsList.map(student => {
-        // Skip students without any enrolled courses
-        if (!student.student_courses || student.student_courses.length === 0) {
-          return null;
-        }
-
-        const studentCourse = coursesList.find(c => c.id === student.student_courses[0].course_id);
-        const courseName = studentCourse?.name || studentCourse?.title || 'General Course';
-        const totalCourseFee = parseInt(String(studentCourse?.price || '0').replace(/[^0-9]/g, ''), 10) || 0;
-        
-        const studentPayments = feesList.filter(fee => fee.studentId === student.id);
-        
-        let totalPaidOverall = 0;
-        studentPayments.forEach(fee => {
-           totalPaidOverall += (typeof fee.paidAmount === 'number' ? fee.paidAmount : parseInt(String(fee.amount).replace(/[^0-9]/g, ''), 10) || 0);
-        });
-
-        const remainingBalance = Math.max(0, totalCourseFee - totalPaidOverall);
-        let status = 'Pending';
-        if (remainingBalance === 0 && totalCourseFee > 0) status = 'Full Paid';
-        else if (totalPaidOverall > 0) status = 'Partially Paid';
-        else if (totalCourseFee === 0) status = 'Full Paid';
-
-        return {
-          id: `bal-${student.id}`,
-          studentId: student.id,
-          studentCode: student.student_code || '',
-          name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-          initials: `${student.first_name ? student.first_name[0] : ''}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() || 'ST',
-          course: courseName,
-          totalCourseFee,
-          totalPaidOverall,
-          remainingBalance,
-          status
-        };
-      }).filter(item => item !== null);
-
-      let filteredList = list;
-      
+      let filteredList = studentBalancesList;
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
         filteredList = filteredList.filter(item => 
@@ -292,13 +273,12 @@ const FeesContent = () => {
           (item.studentCode && item.studentCode.toLowerCase().includes(q))
         );
       }
-
       if (filterStatus !== 'All') {
         filteredList = filteredList.filter(item => item.status === filterStatus);
       }
       return filteredList;
     }
-  }, [feesList, studentsList, activeTab, filterMonth, filterYear, filterStatus, coursesList, searchQuery]);
+  }, [feesList, studentBalancesList, activeTab, filterStatus, searchQuery]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -307,53 +287,74 @@ const FeesContent = () => {
 
   const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const submitFees = (e) => {
+  const submitFees = async (e) => {
     e.preventDefault();
     if (!selectedStudentId) {
       alert("Please select a student");
       return;
     }
-    const student = studentsList.find(s => s.id === selectedStudentId);
-    const course = coursesToSelect.find(c => c.id === selectedCourseId) || coursesToSelect[0] || { id: '', name: 'General Course' };
-    
-    if (!student) return;
-
-    const totalFee = parseFloat(totalAmountInput) || 0;
     const paidAmt = parseFloat(paidAmountInput) || 0;
-    const balance = Math.max(0, totalFee - paidAmt);
+    if (paidAmt <= 0) {
+       alert("Amount must be positive");
+       return;
+    }
 
-    const status = paidAmt >= totalFee ? 'Full Paid' : (paidAmt > 0 ? 'Partially Paid' : 'Pending');
-    const statusColor = paidAmt >= totalFee ? 'green' : (paidAmt > 0 ? 'yellow' : 'red');
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+      
+      // We need a fee_plan_id. Try finding it from studentBalancesList
+      let planId = null;
+      const existingBal = studentBalancesList.find(b => String(b.studentId) === String(selectedStudentId) && String(b.courseId) === String(selectedCourseId));
+      if (existingBal && existingBal.feePlanId && !String(existingBal.feePlanId).startsWith('virtual')) {
+        planId = existingBal.feePlanId;
+      }
 
-    const newFeeRecord = {
-      id: `fee-${Date.now()}`,
-      studentId: student.id,
-      name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-      initials: `${student.first_name ? student.first_name[0] : ''}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() || 'ST',
-      course: course.name,
-      courseId: course.id,
-      type: paymentType,
-      totalAmount: totalFee,
-      paidAmount: paidAmt,
-      remainingBalance: balance,
-      amount: `₹${paidAmt.toLocaleString()}`,
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      status: status,
-      statusColor: statusColor
-    };
+      // If no planId, we must create a fee plan first
+      if (!planId) {
+        const planPayload = {
+          student_id: selectedStudentId,
+          course_id: selectedCourseId,
+          total_fee: parseFloat(totalAmountInput) || 0
+        };
+        const planRes = await fetch('/api/v1/fees/plans', { method: 'POST', headers, body: JSON.stringify(planPayload) });
+        if (!planRes.ok) {
+           alert("Failed to create fee plan for student");
+           return;
+        }
+        const planData = await planRes.json();
+        planId = planData.data.id;
+      }
 
-    const updatedList = [newFeeRecord, ...feesList];
-    setFeesList(updatedList);
-    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
+      // Now record payment
+      const paymentPayload = {
+        student_id: selectedStudentId,
+        fee_plan_id: planId,
+        amount: paidAmt,
+        payment_method: paymentMethod,
+        payment_type: paymentType,
+        month: filterMonth + 1,
+        year: filterYear
+      };
 
-    // Reset Form
-    setSelectedStudentId('');
-    setTotalAmountInput('');
-    setPaidAmountInput('');
-    setPaymentType('Full');
-
-    setIsModalOpen(false);
-    alert("Fees recorded successfully!");
+      const payRes = await fetch('/api/v1/fees/payments', { method: 'POST', headers, body: JSON.stringify(paymentPayload) });
+      if (payRes.ok) {
+        alert("Fees recorded successfully!");
+        setIsModalOpen(false);
+        setSelectedStudentId('');
+        setTotalAmountInput('');
+        setPaidAmountInput('');
+        setPaymentType('Installment');
+        setPaymentMethod('Cash');
+        fetchBackendData(); // refresh all data
+      } else {
+        const err = await payRes.json();
+        alert(err.message || "Failed to record payment");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error processing payment");
+    }
   };
 
   const toggleDropdown = (id) => {
@@ -364,41 +365,55 @@ const FeesContent = () => {
     }
   };
 
-  const handleDelete = (id) => {
-    const updatedList = feesList.filter(fee => fee.id !== id);
-    setFeesList(updatedList);
-    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
-    setActiveDropdown(null);
-    alert("Record deleted successfully!");
+  const handleDelete = async (id) => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+      
+      const res = await fetch(`/api/v1/fees/payments/${id}`, { method: 'DELETE', headers });
+      if (res.ok) {
+         alert("Record deleted successfully!");
+         setActiveDropdown(null);
+         fetchBackendData();
+      } else {
+         alert("Failed to delete payment");
+      }
+    } catch(err) {
+      alert("Error deleting record");
+    }
   };
 
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-    const totalFee = parseFloat(editItem.totalAmount) || 0;
-    const paidAmt = parseFloat(editItem.paidAmount) || 0;
-    const balance = Math.max(0, totalFee - paidAmt);
-    
-    const status = paidAmt >= totalFee ? 'Full Paid' : (paidAmt > 0 ? 'Partially Paid' : 'Pending');
-    const statusColor = paidAmt >= totalFee ? 'green' : (paidAmt > 0 ? 'yellow' : 'red');
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+      
+      const paidAmt = parseFloat(editItem.paidAmount) || 0;
+      if (paidAmt <= 0) {
+         alert("Amount must be positive");
+         return;
+      }
 
-    const updatedItem = {
-      ...editItem,
-      totalAmount: totalFee,
-      paidAmount: paidAmt,
-      remainingBalance: balance,
-      amount: `₹${paidAmt.toLocaleString()}`,
-      status: status,
-      statusColor: statusColor
-    };
+      const payload = {
+        amount: paidAmt,
+        payment_type: editItem.type,
+      };
 
-    const updatedList = feesList.map(fee => fee.id === editItem.id ? updatedItem : fee);
-    setFeesList(updatedList);
-    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
-    setEditItem(null);
-    alert("Record updated successfully!");
+      const res = await fetch(`/api/v1/fees/payments/${editItem.id}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
+      if (res.ok) {
+         alert("Record updated successfully!");
+         setEditItem(null);
+         fetchBackendData();
+      } else {
+         alert("Failed to update payment");
+      }
+    } catch (err) {
+       alert("Error updating payment");
+    }
   };
 
-  const handleExportPDF = () => {
+const handleExportPDF = () => {
     const doc = new jsPDF();
     
     doc.setFontSize(20);
@@ -407,7 +422,7 @@ const FeesContent = () => {
     doc.setFontSize(11);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
     
-    const tableColumn = ["Student Name", "Course", "Payment Type", "Total Fee", "Paid Amount", "Remaining Balance", "Date", "Status"];
+    const tableColumn = ["Student Name", "Course", "Payment Type", "Payment Method", "Total Fee", "Paid Amount", "Remaining Balance", "Date", "Status"];
     const tableRows = filteredData.map(fee => {
       const total = typeof fee.totalAmount === 'number' 
         ? fee.totalAmount 
@@ -423,6 +438,7 @@ const FeesContent = () => {
         fee.name,
         fee.course,
         fee.type,
+        fee.paymentMethod || 'Cash',
         `INR ${total.toLocaleString()}`,
         `INR ${paid.toLocaleString()}`,
         `INR ${balance.toLocaleString()}`,
@@ -494,7 +510,7 @@ const FeesContent = () => {
             <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">THIS MONTH COLLECTIONS</p>
             <h3 className="text-[32px] font-bold text-[#008A2E] leading-none mb-2">₹{stats.totalCollectionsMonth.toLocaleString()}</h3>
             <div className="flex items-center gap-1 text-[11px] font-bold text-[#555F6B]">
-              <Calendar size={12} /> {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][new Date().getMonth()]} {new Date().getFullYear()}
+              <Calendar size={12} /> {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][filterMonth]} {filterYear}
             </div>
           </div>
           <div className="p-[24px] flex flex-col justify-center border-b xl:border-b-0 xl:border-r border-[#C2C6D4]">
@@ -508,64 +524,98 @@ const FeesContent = () => {
             <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">TOTAL YEARLY COLLECTIONS</p>
             <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">₹{stats.totalCollectionsYear.toLocaleString()}</h3>
             <div className="flex items-center gap-1 text-[11px] font-bold text-[#003F87]">
-              <TrendingUp size={12} /> FY {new Date().getFullYear()}
+              <TrendingUp size={12} /> FY {filterYear}
             </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-slate-50">
-          <div className="flex items-center gap-2 flex-1">
-            <div className="relative w-full max-w-md">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex flex-col xl:flex-row items-start xl:items-center gap-4 bg-slate-50">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-[240px] md:w-[280px] shrink-0">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Search student by name or ID..." 
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-9 pr-4 py-1.5 text-[13px] border border-[#C2C6D4] rounded-md outline-none focus:border-[#003F87] transition-colors"
+                className="w-full bg-white border border-[#C2C6D4] pl-10 pr-4 py-2 rounded-lg text-[13px] font-medium outline-none focus:border-[#003F87] transition-all placeholder:text-slate-400 text-slate-700"
               />
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Filter size={16} className="text-[#555F6B]" />
-            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Status:</span>
-            <select 
-              value={filterStatus}
-              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-              className="text-[13px] border border-[#C2C6D4] rounded-md px-3 py-1.5 outline-none bg-white text-slate-700 focus:border-[#003F87]"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Full Paid">Fully Paid</option>
-              <option value="Partially Paid">Partially Paid</option>
-              <option value="Pending">Pending / Not Paid</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Month:</span>
-            <select 
-              value={filterMonth}
-              onChange={(e) => { setFilterMonth(parseInt(e.target.value)); setCurrentPage(1); }}
-              className="text-[13px] border border-[#C2C6D4] rounded-md px-3 py-1.5 outline-none bg-white text-slate-700 focus:border-[#003F87]"
-            >
-              {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => (
-                <option key={i} value={i}>{m}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Year:</span>
-            <select 
-              value={filterYear}
-              onChange={(e) => { setFilterYear(parseInt(e.target.value)); setCurrentPage(1); }}
-              className="text-[13px] border border-[#C2C6D4] rounded-md px-3 py-1.5 outline-none bg-white text-slate-700 focus:border-[#003F87]"
-            >
-              {[2024, 2025, 2026, 2027, 2028].map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+
+            {/* Status Filter */}
+            <div className="flex items-center bg-white border border-[#C2C6D4] rounded-lg px-4 py-1.5 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
+              <select 
+                value={filterStatus}
+                onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative py-0.5"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Full Paid">Fully Paid</option>
+                <option value="Partially Paid">Partially Paid</option>
+                <option value="Pending">Pending / Not Paid</option>
+              </select>
+            </div>
+
+            {/* Month Filter */}
+            <div className="flex items-center bg-white border border-[#C2C6D4] rounded-lg px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Month</span>
+              <div className="relative">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setPickerYear(filterYear);
+                    setIsDatePickerOpen(!isDatePickerOpen);
+                  }}
+                  className="flex items-center bg-transparent outline-none text-[13px] font-bold text-slate-700 justify-between gap-2 transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-slate-400 shrink-0" />
+                    <span>{formatMonthDisplay(filterMonth, filterYear)}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">▼</span>
+                </button>
+
+              {isDatePickerOpen && (
+                <>
+                  <div className="fixed inset-0 z-[100]" onClick={() => setIsDatePickerOpen(false)}></div>
+                  <div className="absolute right-0 top-full mt-2 bg-white border border-[#C2C6D4] rounded-xl shadow-xl z-[101] p-3 w-[260px] animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                      <button type="button" onClick={() => setPickerYear(y => y - 1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 font-bold transition-all text-lg">&lsaquo;</button>
+                      <span className="font-extrabold text-[14px] text-slate-800">{pickerYear}</span>
+                      <button type="button" onClick={() => setPickerYear(y => y + 1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 font-bold transition-all text-lg">&rsaquo;</button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((monthName, idx) => {
+                        const isSelected = filterMonth === idx && filterYear === pickerYear;
+                        return (
+                          <button
+                            key={monthName}
+                            type="button"
+                            onClick={() => {
+                              setFilterMonth(idx);
+                              setFilterYear(pickerYear);
+                              setCurrentPage(1);
+                              setIsDatePickerOpen(false);
+                            }}
+                            className={`py-2 rounded-lg text-[12px] font-bold transition-all text-center ${
+                              isSelected ? 'bg-[#003F87] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                          >
+                            {monthName}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
+      </div>
 
         {/* Table */}
         <div className="w-full overflow-x-auto min-h-[400px]">
@@ -573,24 +623,26 @@ const FeesContent = () => {
             <thead>
               {activeTab === 'MONTH_TRANSACTIONS' ? (
                 <tr className="border-b border-[#C2C6D4] bg-white">
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[200px]">Student Name</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[160px]">Course</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-center w-[110px]">Payment Type</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Total Fee</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Paid Amount</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[110px]">Remaining Balance</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[110px]">Date</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[120px]">Status</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right">Action</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Student Name</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Course</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Type</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Method</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid Amount</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Remaining Balance</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Date</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Status</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Action</th>
                 </tr>
               ) : (
                 <tr className="border-b border-[#C2C6D4] bg-white">
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[200px]">Student Name</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[160px]">Course</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[140px]">Total Fee</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[140px]">Total Paid</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[140px]">Remaining Balance</th>
-                  <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[120px]">Status</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Student Details</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Course</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid Amount</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Remaining Balance</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Status</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Action</th>
                 </tr>
               )}
             </thead>
@@ -617,7 +669,7 @@ const FeesContent = () => {
 
                     return (
                       <tr key={fee.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
                             <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center shrink-0 font-bold text-[11px] bg-[#E5F0FF] text-[#003F87]`}>
                               {fee.initials}
@@ -627,33 +679,38 @@ const FeesContent = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           <div className="text-[13px] text-[#555F6B] leading-tight">
                             {fee.course}
                           </div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-center">
+                        <td className="py-4 px-4 text-center">
                           <span className={`inline-block text-[11px] font-bold px-[12px] py-[4px] rounded-full border ${
                             fee.type === 'Full' ? 'bg-[#E5F0FF] text-[#003F87] border-[#003F87]' : 'bg-[#F8FAFC] text-[#555F6B] border-[#C2C6D4]'
                           }`}>
                             {fee.type}
                           </span>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-[13px] text-slate-700 font-medium">
+                            {fee.paymentMethod || 'Cash'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-right">
                           <div className="text-[14px] text-slate-600 font-medium">₹{total.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-right">
                           <div className="text-[14px] font-bold text-[#003F87]">₹{paid.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-right">
                           <div className={`text-[14px] font-bold ${balance > 0 ? 'text-[#D80000]' : 'text-slate-500'}`}>₹{balance.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           <div className="text-[13px] text-[#555F6B] leading-tight">
                             {fee.date}
                           </div>
                         </td>
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           {fee.statusColor === 'green' && (
                             <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
                               <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> {fee.status}
@@ -671,8 +728,13 @@ const FeesContent = () => {
                             </span>
                           )}
                         </td>
-                        <td className="py-[16px] px-[24px] text-right relative">
-                          <button onClick={() => toggleDropdown(fee.id)} className="text-[#555F6B] hover:text-[#003F87]"><MoreVertical size={18} /></button>
+                        <td className="py-4 px-4 text-right relative">
+                          <button 
+                            onClick={() => toggleDropdown(fee.id)} 
+                            className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all ml-auto"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
                           {activeDropdown === fee.id && (
                             <div className={`absolute right-[24px] ${index >= paginatedData.length - 2 && paginatedData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-50 flex flex-col overflow-hidden`}>
                               <button onClick={() => { setViewItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
@@ -687,7 +749,7 @@ const FeesContent = () => {
                     const due = item;
                     return (
                       <tr key={due.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
                             <div className={`w-[32px] h-[32px] rounded-full flex items-center justify-center shrink-0 font-bold text-[11px] bg-[#E5F0FF] text-[#003F87]`}>
                               {due.initials}
@@ -697,19 +759,19 @@ const FeesContent = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           <div className="text-[13px] text-[#555F6B] leading-tight">{due.course}</div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-right">
                           <div className="text-[14px] text-slate-600 font-medium">₹{due.totalCourseFee.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-right">
                           <div className="text-[14px] font-bold text-[#008A2E]">₹{due.totalPaidOverall.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px] text-right">
+                        <td className="py-4 px-4 text-right">
                           <div className={`text-[14px] font-bold ${due.remainingBalance > 0 ? 'text-[#D80000]' : 'text-slate-500'}`}>₹{due.remainingBalance.toLocaleString()}</div>
                         </td>
-                        <td className="py-[16px] px-[24px]">
+                        <td className="py-4 px-4">
                           {due.status === 'Full Paid' ? (
                             <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
                               <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> Fully Paid
@@ -724,6 +786,21 @@ const FeesContent = () => {
                               <span className="w-[6px] h-[6px] rounded-full bg-[#D80000]"></span> Pending
                             </span>
                           )}
+                        </td>
+                        <td className="py-4 px-4 text-right relative">
+                          <button 
+                            onClick={() => {
+                              setSelectedStudentId(due.studentId || due.id); // depending on how due is structured
+                              // Fallbacks in case courseId is not direct
+                              const cId = due.courseId || (due.student_courses && due.student_courses[0]?.course_id);
+                              setSelectedCourseId(cId);
+                              setIsModalOpen(true);
+                            }}
+                            className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all ml-auto"
+                            title="Record Payment"
+                          >
+                            <Plus size={14} />
+                          </button>
                         </td>
                       </tr>
                     );
@@ -743,17 +820,19 @@ const FeesContent = () => {
             <button 
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] transition-colors ${
-                currentPage === 1 ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-[#555F6B] bg-white hover:bg-slate-50'
-              }`}
-            >&lt;</button>
+              className={`p-1.5 transition-colors ${currentPage === 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <ChevronLeft size={18} />
+            </button>
             
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
               <button 
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] font-semibold transition-colors ${
-                  currentPage === page ? 'bg-[#003F87] text-white font-bold' : 'text-[#555F6B] hover:bg-slate-100'
+                className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium transition-colors ${
+                  currentPage === page 
+                    ? 'bg-[#003F87] text-white' 
+                    : 'hover:bg-slate-100 text-slate-700'
                 }`}
               >
                 {page}
@@ -763,10 +842,10 @@ const FeesContent = () => {
             <button 
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] transition-colors ${
-                currentPage === totalPages ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-[#555F6B] bg-white hover:bg-slate-50'
-              }`}
-            >&gt;</button>
+              className={`p-1.5 transition-colors ${currentPage === totalPages ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
 
@@ -832,25 +911,20 @@ const FeesContent = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status (Calculated)</label>
-                  <div className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm font-semibold text-slate-700">
-                    {computedStatus}
-                  </div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Payment Method</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm bg-white text-slate-850"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Netbanking">Netbanking</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Total Fee (₹) *</label>
-                  <input 
-                    type="number" 
-                    required 
-                    value={totalAmountInput}
-                    onChange={(e) => setTotalAmountInput(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-850" 
-                    placeholder="e.g. 15000" 
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Paid Amount (₹) *</label>
                   <input 

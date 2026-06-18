@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { Plus, Briefcase, UploadCloud, FileText, Trash2, Clock, X, ExternalLink } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Plus, Briefcase, UploadCloud, FileText, Trash2, Clock, X, ExternalLink, ChevronDown, Check, CalendarDays } from "lucide-react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import LoadingSpinner from "../../../components/LoadingSpinner";
 
 // Backward-compatible parser for legacy reports that stored metadata in work_done text
@@ -33,7 +35,9 @@ const cleanLegacyReport = (report) => {
   };
 };
 
-const WorkReportsContent = () => {
+
+
+const WorkReportsContent = ({ searchQuery = "" }) => {
   const [reports, setReports] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +79,10 @@ const WorkReportsContent = () => {
   }, []);
 
   const [selectedEmployee, setSelectedEmployee] = useState("ALL");
-  const [dateFilter, setDateFilter] = useState("TODAY");
+  const [selectedSpecificDate, setSelectedSpecificDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [newReport, setNewReport] = useState({
     employee_id: "",
@@ -127,31 +134,28 @@ const WorkReportsContent = () => {
       }
 
       const reportDate = new Date(r.submitted_at);
-      const today = new Date();
       
-      if (dateFilter === "TODAY") {
-        if (
-          reportDate.getDate() !== today.getDate() ||
-          reportDate.getMonth() !== today.getMonth() ||
-          reportDate.getFullYear() !== today.getFullYear()
-        ) {
-          return false;
-        }
-      } else if (dateFilter === "THIS_MONTH") {
-        if (
-          reportDate.getMonth() !== today.getMonth() ||
-          reportDate.getFullYear() !== today.getFullYear()
-        ) {
-          return false;
-        }
-      } else if (dateFilter === "PREVIOUS_MONTH") {
-        const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        if (
-          reportDate.getMonth() !== prevMonth.getMonth() ||
-          reportDate.getFullYear() !== prevMonth.getFullYear()
-        ) {
-          return false;
-        }
+      if (!selectedSpecificDate) return false;
+      const [year, month, day] = selectedSpecificDate.split("-").map(Number);
+      if (
+        reportDate.getDate() !== day ||
+        reportDate.getMonth() !== month - 1 ||
+        reportDate.getFullYear() !== year
+      ) {
+        return false;
+      }
+    }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const emp = r.employee || {};
+      const empName = `${emp.first_name || ""} ${emp.last_name || ""}`.toLowerCase();
+      const cleaned = cleanLegacyReport(r);
+      const proj = cleaned.projectArea.toLowerCase();
+      const work = cleaned.workDone.toLowerCase();
+      
+      if (!empName.includes(q) && !proj.includes(q) && !work.includes(q)) {
+        return false;
       }
     }
 
@@ -262,35 +266,48 @@ const WorkReportsContent = () => {
         </div>
 
         {userRole === "ADMIN" && (
-          <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
-            <div className="flex-1 max-w-xs">
-              <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">Select Employee</label>
-              <select
-                value={selectedEmployee}
-                onChange={(e) => setSelectedEmployee(e.target.value)}
-                className="w-full bg-slate-50 border border-[#E2E8F0] text-[14px] text-slate-700 px-3 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] font-medium"
-              >
-                <option value="ALL">All Employees</option>
-                {employees.map(emp => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.first_name} {emp.last_name} ({emp.employee_code || 'N/A'})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="flex-1 max-w-xs">
-              <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">Date Range</label>
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full bg-slate-50 border border-[#E2E8F0] text-[14px] text-slate-700 px-3 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] font-medium"
-              >
-                <option value="TODAY">Today's Reports</option>
-                <option value="THIS_MONTH">This Month</option>
-                <option value="PREVIOUS_MONTH">Previous Month</option>
-                <option value="ALL_TIME">All Time</option>
-              </select>
+          <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between w-full mb-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+              {/* Employee Filter */}
+              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Employee</span>
+                <select 
+                  value={selectedEmployee}
+                  onChange={(e) => setSelectedEmployee(e.target.value)}
+                  className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative py-0.5"
+                >
+                  <option value="ALL">All Employees</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.first_name} {emp.last_name} ({emp.employee_code || 'N/A'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Date Filter */}
+              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Date</span>
+                <div className="relative flex items-center">
+                  <DatePicker
+                    selected={selectedSpecificDate ? new Date(selectedSpecificDate) : null}
+                    onChange={(date) => {
+                      if (date) {
+                        const yyyy = date.getFullYear();
+                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                        const dd = String(date.getDate()).padStart(2, '0');
+                        setSelectedSpecificDate(`${yyyy}-${mm}-${dd}`);
+                      } else {
+                        setSelectedSpecificDate("");
+                      }
+                    }}
+                    dateFormat="MMMM d, yyyy"
+                    placeholderText="Select a date"
+                    className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px]"
+                  />
+                  <CalendarDays className="text-slate-400 ml-2" size={16} />
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -300,7 +317,7 @@ const WorkReportsContent = () => {
             <Clock size={40} className="mx-auto mb-3 opacity-50" />
             <p className="font-semibold text-lg">No reports found</p>
             <p className="text-sm mt-1">
-              {userRole === "ADMIN" ? "Try changing the date range or employee filter." : "Submit your first work report to get started."}
+              {userRole === "ADMIN" ? "Try changing the report period or employee filter." : "Submit your first work report to get started."}
             </p>
           </div>
         )}

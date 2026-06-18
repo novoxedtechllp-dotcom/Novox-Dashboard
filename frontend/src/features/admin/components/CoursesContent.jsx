@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers, Eye, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers, Eye, Zap, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const formatPrice = (price) => {
@@ -71,7 +71,7 @@ const getCourseGradient = (category) => {
   }
 };
 
-const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery = '' }) => {
+const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery = '', setSearchQuery = () => {} }) => {
   const [toast, setToast] = useState(null);
   const alert = (message) => {
     const isError = typeof message === 'string' && (message.toLowerCase().includes('fail') || message.toLowerCase().includes('error'));
@@ -565,13 +565,28 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       const headers = getAuthHeaders();
       const response = await fetch(`/api/v1/students?limit=1000`, { headers });
       const resData = await parseApiResponse(response);
-      setAllStudents(resData.data.students || []);
+      const students = resData.data.students || [];
+      const unassignedStudents = students.filter(student => {
+        if (!student.student_courses) return true;
+        return !student.student_courses.some(sc => String(sc.course_id) === String(selectedCourse?.id));
+      }).sort((a, b) => {
+        const nameA = `${a.first_name || ''} ${a.last_name || ''}`.trim().toLowerCase();
+        const nameB = `${b.first_name || ''} ${b.last_name || ''}`.trim().toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+      setAllStudents(unassignedStudents);
     } catch (error) {
       alert(error.message || 'Failed to fetch students');
     } finally {
       setIsStudentsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'students' && selectedCourse && isModalOpen) {
+      loadStudentsForAssignment();
+    }
+  }, [activeTab, selectedCourse?.id, isModalOpen]);
 
   const handleBatchAssignStudents = async () => {
     if (selectedStudentIds.length === 0) return;
@@ -627,19 +642,21 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       {/* Top Filter Bar */}
       <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Category</span>
             <CustomSelect
               options={uniqueCategories.map(cat => ({ value: cat, label: cat }))}
               value={categoryFilter}
               onChange={(val) => setCategoryFilter(val)}
               placeholder="Category"
+              className="w-full sm:w-[200px]"
+              selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
             />
           </div>
-
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="w-full sm:w-auto bg-[#003F87] text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95"
+          className="w-full sm:w-auto bg-[#003F87] text-white px-5 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95 shrink-0"
         >
           <Plus size={18} /> Add Course
         </button>
@@ -1023,7 +1040,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                   checked={selectedStudentIds.length === allStudents.length && allStudents.length > 0}
                                 />
                               </th>
-                              <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Student Name</th>
+                              <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-left">Student Name</th>
                               <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Code</th>
                               <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Phone</th>
                             </tr>
@@ -1042,8 +1059,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                     }}
                                   />
                                 </td>
-                                <td className="py-4 px-6 text-center">
-                                  <div className="flex items-center justify-center gap-3">
+                                <td className="py-4 px-6 text-left">
+                                  <div className="flex items-center justify-start gap-3">
                                     <div className="w-9 h-9 rounded-full bg-[#E5F0FF] text-[#003F87] flex items-center justify-center font-black text-xs shadow-inner group-hover:bg-[#003F87] group-hover:text-white transition-colors">
                                       {student.first_name?.[0] || 'U'}{student.last_name?.[0] || ''}
                                     </div>

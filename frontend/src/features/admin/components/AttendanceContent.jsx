@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Calendar, RefreshCcw, MoreVertical, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import EmployeeCalendarModal from './EmployeeCalendarModal';
+import CustomSelect from '../../../components/CustomSelect';
 
-const AttendanceContent = ({ employees = [], courses = [] }) => {
+const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', setSearchQuery = () => {} }) => {
   const [students, setStudents] = useState([]);
   
   // Database tables mock state
@@ -16,7 +17,6 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
   const [editRecord, setEditRecord] = useState(null);
   const [editForm, setEditForm] = useState({ status: 'PRESENT', check_in: '', check_out: '', remarks: '' });
   
-  const [searchQuery, setSearchQuery] = useState('');
   const [courseFilter, setCourseFilter] = useState('All Categories');
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
@@ -65,10 +65,19 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
     fetchData();
   }, [dateFilter]); // Refetch when dateFilter changes
 
+  useEffect(() => {
+    if (typeof setSearchQuery === 'function') {
+      setSearchQuery('');
+    }
+    setCourseFilter(activeTab === 'Employees' ? 'All Departments' : 'All Categories');
+  }, [activeTab, setSearchQuery]);
+
   const handleRefresh = () => {
-    setSearchQuery('');
-    setCourseFilter('All Categories');
-    setDateFilter('');
+    if (typeof setSearchQuery === 'function') {
+      setSearchQuery('');
+    }
+    setCourseFilter(activeTab === 'Employees' ? 'All Departments' : 'All Categories');
+    setDateFilter(new Date().toISOString().split('T')[0]);
   };
 
   const handleUpdateStatus = async (userId, type, newStatus) => {
@@ -224,7 +233,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
         return false;
       }
     }
-    if (courseFilter !== 'All Categories' && item.course !== courseFilter) {
+    if (courseFilter !== 'All Categories' && courseFilter !== 'All Departments' && item.course !== courseFilter) {
       return false;
     }
     return true; // We map using dateFilter globally, so no need to filter date here
@@ -237,6 +246,7 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
     return a.name.localeCompare(b.name);
   });
 
+  const uniqueDepts = ['All Departments', ...new Set(employees.map(e => e.department).filter(Boolean))];
   const uniqueCourses = ['All Categories', ...courses.map(c => c.title)];
 
   if (loading) {
@@ -268,56 +278,43 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
       </div>
 
       {/* Filter Section */}
-      <div className="w-full bg-white border border-[#C2C6D4] rounded-[8px] p-[24px] flex flex-col md:flex-row items-end gap-[24px]">
-        <div className="flex-1 w-full">
-          <label className="block text-[11px] font-bold text-[#555F6B] uppercase tracking-wide mb-2">Search by Name/ID</label>
-          <div className="flex items-center gap-2 bg-[#F8FAFC] border border-[#C2C6D4] px-[16px] py-[10px] rounded-[6px]">
-            <input 
-              type="text" 
-              placeholder="e.g. 001" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent border-none outline-none text-[13px] w-full text-slate-800 placeholder:text-[#555F6B]" 
-            />
-            <Search size={16} className="text-[#555F6B]" />
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between w-full">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Category/Course/Dept Select */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">
+              {activeTab === 'Employees' ? 'Department' : 'Course'}
+            </span>
+            <div>
+              <CustomSelect
+                value={courseFilter}
+                onChange={setCourseFilter}
+                options={activeTab === 'Employees' ? uniqueDepts.map(d => ({ value: d, label: d })) : uniqueCourses.map(course => ({ value: course, label: course }))}
+                className="w-full sm:w-[200px]"
+                selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
+              />
+            </div>
           </div>
-        </div>
-        
-        {/* Category (Only relevant if mapping students to courses, handled loosely here) */}
-        <div className="flex-1 w-full">
-          <label className="block text-[11px] font-bold text-[#555F6B] uppercase tracking-wide mb-2">Category/Course</label>
-          <select 
-            value={courseFilter}
-            onChange={(e) => setCourseFilter(e.target.value)}
-            disabled={activeTab === 'Employees'}
-            className="w-full bg-[#F8FAFC] border border-[#C2C6D4] px-[16px] py-[10px] rounded-[6px] text-[13px] text-slate-800 outline-none appearance-none disabled:opacity-50"
-          >
-            {uniqueCourses.map(course => <option key={course} value={course}>{course}</option>)}
-          </select>
-        </div>
-        
-        <div className="flex-[0.8] w-full">
-          <label className="block text-[11px] font-bold text-[#555F6B] uppercase tracking-wide mb-2">Date Filter</label>
-          <div className="flex items-center gap-2 bg-[#F8FAFC] border border-[#C2C6D4] px-[16px] py-[10px] rounded-[6px]">
+
+          {/* Date Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Date</span>
             <input 
               type="date" 
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="bg-transparent border-none outline-none text-[13px] w-full text-slate-800" 
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
             />
           </div>
         </div>
-        
-        <div className="flex items-center gap-[12px] w-full md:w-auto">
-          <button className="flex-1 md:flex-none bg-[#003F87] text-white px-[24px] py-[10px] rounded-[6px] text-[13px] font-bold hover:bg-[#002B5E] transition-colors h-[42px] whitespace-nowrap">
-            Apply Filters
-          </button>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           <button 
             onClick={handleRefresh}
-            className="bg-white border border-[#C2C6D4] w-[42px] h-[42px] shrink-0 rounded-[6px] flex items-center justify-center text-[#555F6B] hover:bg-slate-50 transition-colors"
+            className="bg-white border border-slate-200 hover:bg-slate-50 w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 transition-colors"
             title="Refresh Filters"
           >
-            <RefreshCcw size={18} />
+            <RefreshCcw size={16} />
           </button>
         </div>
       </div>
@@ -325,25 +322,26 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
       {/* Table Section */}
       <div className="w-full bg-white border border-[#C2C6D4] rounded-[8px] flex flex-col overflow-hidden">
         <div className="w-full overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+          <table className="w-full text-left border-collapse min-w-[800px] table-fixed">
             <thead>
               <tr className="border-b border-[#C2C6D4] bg-white">
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[120px]">ID</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Name</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Course / Dept</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[200px]">Status</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Check In</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Check Out</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right">Actions</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[12%]">ID</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[22%]">Name</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[18%]">Course / Dept</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[14%]">Status</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[12%]">Check In</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[12%]">Check Out</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[10%]">Actions</th>
+
               </tr>
             </thead>
             <tbody>
               {sortedData.length > 0 ? sortedData.map((item, index) => (
                 <tr key={item.userId} className={index !== sortedData.length - 1 ? "border-b border-slate-100" : ""}>
-                  <td className="py-[16px] px-[24px]">
+                  <td className="py-[16px] px-2">
                     <div className="text-[13px] font-bold text-[#003F87] leading-tight break-words max-w-[80px]">{item.identifier}</div>
                   </td>
-                  <td className="py-[16px] px-[24px]">
+                  <td className="py-[16px] px-2">
                     <div className="flex items-center gap-3">
                       <div className={`w-[32px] h-[32px] rounded-full font-bold text-[11px] flex items-center justify-center shrink-0 ${item.type === 'Student' ? 'bg-[#E5F0FF] text-[#003F87]' : 'bg-[#F3F4F6] text-[#555F6B]'}`}>
                         {item.initials}
@@ -351,10 +349,10 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
                       <div className="text-[14px] font-bold text-slate-900 leading-tight">{item.name}</div>
                     </div>
                   </td>
-                  <td className="py-[16px] px-[24px]">
+                  <td className="py-[16px] px-2">
                     <div className="text-[13px] text-[#555F6B] leading-tight">{item.course}</div>
                   </td>
-                  <td className="py-[16px] px-[24px]">
+                  <td className="py-[16px] px-2">
                     <div className="flex flex-col items-start gap-1">
                       <span className={`inline-flex items-center gap-2 px-[12px] py-[4px] rounded-full text-[11px] font-bold tracking-wide
                         ${item.status === 'PRESENT' ? 'bg-[#E5F7ED] text-[#008A2E]' : ''}

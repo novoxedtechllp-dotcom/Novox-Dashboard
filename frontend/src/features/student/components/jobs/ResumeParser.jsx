@@ -90,21 +90,21 @@ const ResumeParser = () => {
   };
 
   return (
-    <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col h-full animate-in fade-in duration-500">
+    <div className="bg-white rounded-[8px] p-6 shadow-sm border border-slate-100 flex flex-col h-full animate-in fade-in duration-500">
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+        <h2 className="text-xl font-bold text-[#003F87] flex items-center gap-2">
           <Sparkles size={20} className="text-purple-500" />
           AI Resume Analyzer
         </h2>
-        <p className="text-slate-500 text-sm mt-1">
+        <p className="text-[#555F6B] text-sm mt-1">
           Upload your resume to extract skills and match better jobs.
         </p>
       </div>
 
       {!file && !isParsing && (
         <div 
-          className={`flex-1 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-8 transition-all ${
-            isDragging ? 'border-[#003F87] bg-blue-50/50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50 hover:border-slate-300'
+          className={`flex-1 border-2 border-dashed rounded-[8px] flex flex-col items-center justify-center p-8 transition-all ${
+            isDragging ? 'border-[#003F87] bg-blue-50/50' : 'border-[#C2C6D4] bg-slate-50 hover:bg-slate-100/50 hover:border-slate-300'
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -122,13 +122,13 @@ const ResumeParser = () => {
           <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4 text-[#003F87]">
             <UploadCloud size={32} />
           </div>
-          <h3 className="font-bold text-slate-700 text-lg mb-1">Click or drag file to upload</h3>
-          <p className="text-slate-500 text-sm text-center">Supported formats: PDF, TXT (Max 5MB)</p>
+          <h3 className="font-bold text-slate-900 text-lg mb-1">Click or drag file to upload</h3>
+          <p className="text-[#555F6B] text-sm text-center">Supported formats: PDF, TXT (Max 5MB)</p>
         </div>
       )}
 
       {error && (
-        <div className="mt-4 bg-red-50 border border-red-100 text-red-700 p-4 rounded-xl flex items-start gap-3 text-sm">
+        <div className="mt-4 bg-red-50 border border-red-100 text-red-700 p-4 rounded-[8px] flex items-start gap-3 text-sm">
           <AlertCircle size={18} className="shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-semibold mb-1">Upload failed</p>
@@ -145,8 +145,8 @@ const ResumeParser = () => {
             <div className="absolute inset-0 border-4 border-[#003F87] rounded-full border-t-transparent animate-spin"></div>
             <FileText size={28} className="text-[#003F87]" />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">Analyzing Resume...</h3>
-          <p className="text-slate-500 max-w-[250px] mx-auto text-sm">
+          <h3 className="text-xl font-bold text-[#003F87] mb-2">Analyzing Resume...</h3>
+          <p className="text-[#555F6B] max-w-[250px] mx-auto text-sm">
             Our AI is reading your document to extract key skills and achievements.
           </p>
         </div>
@@ -154,7 +154,7 @@ const ResumeParser = () => {
 
       {parsedData && !isParsing && (
         <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 animate-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center justify-between mb-6">
+          <div className="bg-emerald-50 border border-emerald-100 rounded-[8px] p-4 flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <CheckCircle2 size={24} className="text-emerald-500" />
               <div>
@@ -170,9 +170,9 @@ const ResumeParser = () => {
           <div className="space-y-6">
             <div>
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Extracted Profile</h4>
-              <div className="bg-slate-50 rounded-xl p-4">
-                <p className="font-bold text-slate-800 text-lg">{parsedData.name || 'Name not found'}</p>
-                <p className="text-slate-500 text-sm">{parsedData.email || 'Email not found'}</p>
+              <div className="bg-slate-50 rounded-[8px] p-4">
+                <p className="font-bold text-[#003F87] text-lg">{parsedData.name || 'Name not found'}</p>
+                <p className="text-[#555F6B] text-sm">{parsedData.email || 'Email not found'}</p>
               </div>
             </div>
 
@@ -198,7 +198,7 @@ const ResumeParser = () => {
                 </h4>
                 <ul className="space-y-2">
                   {parsedData.achievements.map((achievement, idx) => (
-                    <li key={idx} className="bg-amber-50/50 border border-amber-100/50 p-3 rounded-xl text-sm text-slate-700 leading-relaxed flex gap-3 items-start shadow-sm">
+                    <li key={idx} className="bg-amber-50/50 border border-amber-100/50 p-3 rounded-[8px] text-sm text-slate-900 leading-relaxed flex gap-3 items-start shadow-sm">
                       <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-2 shrink-0" />
                       {achievement}
                     </li>

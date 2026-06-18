@@ -6,7 +6,7 @@ export const startKeepAliveCron = () => {
   // Ping self every 4 minutes to prevent Render from idling
   cron.schedule("*/4 * * * *", async () => {
     try {
-      const res = await fetch(`${RENDER_URL}/api/v1/auth`);
+      const res = await fetch(`${RENDER_URL}/api/health`);
       console.log(`[Keep-Alive] Pinged ${RENDER_URL} — Status: ${res.status}`);
     } catch (err) {
       console.error("[Keep-Alive] Ping failed:", err.message);

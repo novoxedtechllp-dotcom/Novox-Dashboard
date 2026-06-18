@@ -17,8 +17,11 @@ const navItems = [
   { id: 'attendance', label: 'Attendance', icon: Calendar },
   { id: 'leave', label: 'Leave Management', icon: FileText },
   { id: 'fees', label: 'Fees', icon: CreditCard },
+    { id: 'sales-crm', label: 'Sales CRM', icon: Handshake },
+
+
   // { id: 'payroll', label: 'Payroll', icon: Wallet },
-  { id: 'work-reports', label: 'Work Reports', icon: FileText },
+  { id: 'work-reports', label: 'Work Reports', icon: CheckSquare },
   // { id: 'whatsapp-automation', label: 'WhatsApp Automation', icon: MessageSquare },
   // { id: 'sales-crm', label: 'Sales CRM', icon: Handshake },
   // { id: 'recruitment', label: 'Recruitment', icon: Users },
@@ -28,7 +31,7 @@ const navItems = [
   // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
-const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, isAccounts, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
+const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, isSales, isMarketing, isAccounts, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   
@@ -85,6 +88,9 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
         if (item.id === 'leave') {
           return { ...item, label: 'Leave Management' };
         }
+        if (item.id === 'daily-plan') {
+          return { ...item, label: 'Class Feedback' };
+        }
         return item;
     });
   }
@@ -127,7 +133,9 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
           </div>
 
           {/* Main Nav Container */}
-          <nav className="flex-1 flex flex-col gap-1.5 overflow-y-auto mt-4 pr-3 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+          <nav 
+            className="flex-1 flex flex-col gap-1.5 overflow-y-auto mt-4 pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent"
+          >
             {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -138,7 +146,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
                   onClick={() => window.innerWidth < 1024 && setIsOpen && setIsOpen(false)}
                   className={`group flex items-center gap-[14px] px-[14px] py-[10px] rounded-xl transition-all duration-300 text-left w-full shrink-0 relative overflow-hidden
                     ${isActive 
-                      ? 'bg-blue-100/80 text-[#003F87] font-bold shadow-sm' 
+                      ? 'bg-blue-50 text-[#003F87] font-bold' 
                       : 'text-slate-500 font-medium hover:bg-slate-50 hover:text-slate-800'
                     }`}
                 >

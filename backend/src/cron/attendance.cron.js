@@ -11,10 +11,17 @@ export const startAttendanceCron = () => {
 
       // Get current IST date
       const now = new Date();
-      const options = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' };
+      const options = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' };
       const formatter = new Intl.DateTimeFormat('en-US', options);
       const parts = formatter.formatToParts(now);
       const istDateStr = `${parts.find(p => p.type === 'year').value}-${parts.find(p => p.type === 'month').value}-${parts.find(p => p.type === 'day').value}`;
+
+      // Skip weekends (Saturday & Sunday)
+      const weekday = parts.find(p => p.type === 'weekday').value;
+      if (weekday === 'Sat' || weekday === 'Sun') {
+        console.log(`[Attendance Cron] Skipping — ${weekday} is a weekend.`);
+        return;
+      }
 
       // Get all active employees
       const { data: employees, error: empError } = await supabase

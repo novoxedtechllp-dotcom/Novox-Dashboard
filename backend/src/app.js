@@ -14,6 +14,8 @@ import profileRouter from "./routes/profile.routes.js";
 import galleryRouter from "./routes/gallery.routes.js";
 import leaveRouter from "./routes/leave.routes.js";
 import blogRouter from "./routes/blog.routes.js";
+import roleRouter from "./routes/role.routes.js";
+import feeRouter from "./routes/fee.routes.js";
 
 const app = express();
 
@@ -40,6 +42,11 @@ app.use(
 app.use(express.static("public"));
 app.use(cookieParser());
 
+// Health check for keep-alive pings
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // Routes
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/students", studentRouter);
@@ -52,6 +59,8 @@ app.use("/api/v1/upload", uploadRouter);
 app.use("/api/v1/profile", profileRouter);
 app.use("/api/v1/leaves", leaveRouter);
 app.use("/api/v1/blogs", blogRouter);
+app.use("/api/v1/roles", roleRouter);
+app.use("/api/v1/fees", feeRouter);
 app.use("/api/gallery", galleryRouter);
 
 import { streamImage } from "./controllers/blog.controller.js";
