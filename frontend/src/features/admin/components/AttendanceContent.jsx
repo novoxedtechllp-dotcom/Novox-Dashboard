@@ -268,56 +268,52 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
       </div>
 
       {/* Filter Section */}
-      <div className="w-full bg-white border border-[#C2C6D4] rounded-[8px] p-[24px] flex flex-col md:flex-row items-end gap-[24px]">
-        <div className="flex-1 w-full">
-          <label className="block text-[11px] font-bold text-[#555F6B] uppercase tracking-wide mb-2">Search by Name/ID</label>
-          <div className="flex items-center gap-2 bg-[#F8FAFC] border border-[#C2C6D4] px-[16px] py-[10px] rounded-[6px]">
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between w-full">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Search Input */}
+          <div className="relative w-full sm:w-[240px] md:w-[280px] shrink-0">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
               type="text" 
-              placeholder="e.g. 001" 
+              placeholder="Search by name or ID..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent border-none outline-none text-[13px] w-full text-slate-800 placeholder:text-[#555F6B]" 
+              className="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-[13px] font-medium outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/5 transition-all placeholder:text-slate-400 text-slate-700"
             />
-            <Search size={16} className="text-[#555F6B]" />
           </div>
-        </div>
-        
-        {/* Category (Only relevant if mapping students to courses, handled loosely here) */}
-        <div className="flex-1 w-full">
-          <label className="block text-[11px] font-bold text-[#555F6B] uppercase tracking-wide mb-2">Category/Course</label>
-          <select 
-            value={courseFilter}
-            onChange={(e) => setCourseFilter(e.target.value)}
-            disabled={activeTab === 'Employees'}
-            className="w-full bg-[#F8FAFC] border border-[#C2C6D4] px-[16px] py-[10px] rounded-[6px] text-[13px] text-slate-800 outline-none appearance-none disabled:opacity-50"
-          >
-            {uniqueCourses.map(course => <option key={course} value={course}>{course}</option>)}
-          </select>
-        </div>
-        
-        <div className="flex-[0.8] w-full">
-          <label className="block text-[11px] font-bold text-[#555F6B] uppercase tracking-wide mb-2">Date Filter</label>
-          <div className="flex items-center gap-2 bg-[#F8FAFC] border border-[#C2C6D4] px-[16px] py-[10px] rounded-[6px]">
+
+          {/* Category/Course Select */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Course</span>
+            <select 
+              value={courseFilter}
+              onChange={(e) => setCourseFilter(e.target.value)}
+              disabled={activeTab === 'Employees'}
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative disabled:opacity-50"
+            >
+              {uniqueCourses.map(course => <option key={course} value={course}>{course}</option>)}
+            </select>
+          </div>
+
+          {/* Date Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Date</span>
             <input 
               type="date" 
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="bg-transparent border-none outline-none text-[13px] w-full text-slate-800" 
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
             />
           </div>
         </div>
-        
-        <div className="flex items-center gap-[12px] w-full md:w-auto">
-          <button className="flex-1 md:flex-none bg-[#003F87] text-white px-[24px] py-[10px] rounded-[6px] text-[13px] font-bold hover:bg-[#002B5E] transition-colors h-[42px] whitespace-nowrap">
-            Apply Filters
-          </button>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           <button 
             onClick={handleRefresh}
-            className="bg-white border border-[#C2C6D4] w-[42px] h-[42px] shrink-0 rounded-[6px] flex items-center justify-center text-[#555F6B] hover:bg-slate-50 transition-colors"
+            className="bg-white border border-slate-200 hover:bg-slate-50 w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 transition-colors"
             title="Refresh Filters"
           >
-            <RefreshCcw size={18} />
+            <RefreshCcw size={16} />
           </button>
         </div>
       </div>

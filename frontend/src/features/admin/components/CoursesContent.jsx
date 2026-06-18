@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers, Eye, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers, Eye, Zap, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const formatPrice = (price) => {
@@ -71,7 +71,7 @@ const getCourseGradient = (category) => {
   }
 };
 
-const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery = '' }) => {
+const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery = '', setSearchQuery = () => {} }) => {
   const [toast, setToast] = useState(null);
   const alert = (message) => {
     const isError = typeof message === 'string' && (message.toLowerCase().includes('fail') || message.toLowerCase().includes('error'));
@@ -640,21 +640,36 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       )}
       
       {/* Top Filter Bar */}
-      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <div className="flex items-center gap-3">
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Search Input */}
+          <div className="relative w-full sm:w-[240px] md:w-[280px] shrink-0">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search courses..."
+              className="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-[13px] font-medium outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/5 transition-all placeholder:text-slate-400 text-slate-700"
+            />
+          </div>
+
+          {/* Category Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Category</span>
             <CustomSelect
               options={uniqueCategories.map(cat => ({ value: cat, label: cat }))}
               value={categoryFilter}
               onChange={(val) => setCategoryFilter(val)}
               placeholder="Category"
+              className="w-full sm:w-[150px]"
+              selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
             />
           </div>
-
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="w-full sm:w-auto bg-[#003F87] text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95"
+          className="w-full sm:w-auto bg-[#003F87] text-white px-5 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95 shrink-0"
         >
           <Plus size={18} /> Add Course
         </button>

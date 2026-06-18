@@ -255,7 +255,7 @@ function App() {
                 <Route path={`${basePath}/schedule`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />)} />
                 <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave /> : (userRole === 'ADMIN' ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />))} />
-                <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
+                <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
                 <Route path={`${basePath}/settings`} element={<SettingsContent employees={employees} />} />
@@ -265,8 +265,8 @@ function App() {
                 <Route path={`${basePath}/journey`} element={userRole === 'STUDENT' ? <StudentAcademicJourney userInfo={userInfo} /> : (canViewJourney ? <AcademicJourneyContent /> : <Navigate to={`${basePath}/dashboard`} />)} />
                 <Route path={`${basePath}/support`} element={<SupportContent />} />
 
-                {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} />} />}
-                {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} />} />}
+                {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
+                {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
                 {canViewFees && <Route path={`${basePath}/fees`} element={<FeesContent />} />}
                 {canViewPayroll && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
                 {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} searchQuery={searchQuery} />} />}

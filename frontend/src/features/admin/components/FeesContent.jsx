@@ -547,50 +547,53 @@ const FeesContent = () => {
         </div>
 
         {/* Filters */}
-        <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-slate-50">
-          <div className="flex items-center gap-2 flex-1">
-            <div className="relative w-full max-w-md">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex flex-col xl:flex-row items-start xl:items-center gap-4 bg-slate-50">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-[240px] md:w-[280px] shrink-0">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Search student by name or ID..." 
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-9 pr-4 py-1.5 text-[13px] border border-[#C2C6D4] rounded-md outline-none focus:border-[#003F87] transition-colors"
+                className="w-full bg-white border border-[#C2C6D4] pl-10 pr-4 py-2 rounded-lg text-[13px] font-medium outline-none focus:border-[#003F87] transition-all placeholder:text-slate-400 text-slate-700"
               />
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Filter size={16} className="text-[#555F6B]" />
-            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Status:</span>
-            <select 
-              value={filterStatus}
-              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-              className="text-[13px] border border-[#C2C6D4] rounded-md px-3 py-1.5 outline-none bg-white text-slate-700 focus:border-[#003F87]"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Full Paid">Fully Paid</option>
-              <option value="Partially Paid">Partially Paid</option>
-              <option value="Pending">Pending / Not Paid</option>
-            </select>
-          </div>
-          {/* Month Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Month:</span>
-            <div className="relative">
-              <button 
-                onClick={() => {
-                  setPickerYear(filterYear);
-                  setIsDatePickerOpen(!isDatePickerOpen);
-                }}
-                className="flex items-center bg-white border border-[#C2C6D4] rounded-md px-3.5 py-1.5 outline-none hover:border-[#003F87] h-[36px] shadow-sm text-[13px] font-bold text-slate-700 min-w-[150px] justify-between gap-2 transition-all"
+
+            {/* Status Filter */}
+            <div className="flex items-center bg-white border border-[#C2C6D4] rounded-lg px-4 py-1.5 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
+              <select 
+                value={filterStatus}
+                onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative py-0.5"
               >
-                <div className="flex items-center gap-2">
-                  <Calendar size={14} className="text-slate-400 shrink-0" />
-                  <span>{formatMonthDisplay(filterMonth, filterYear)}</span>
-                </div>
-                <span className="text-[10px] text-slate-400">▼</span>
-              </button>
+                <option value="All">All Statuses</option>
+                <option value="Full Paid">Fully Paid</option>
+                <option value="Partially Paid">Partially Paid</option>
+                <option value="Pending">Pending / Not Paid</option>
+              </select>
+            </div>
+
+            {/* Month Filter */}
+            <div className="flex items-center bg-white border border-[#C2C6D4] rounded-lg px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Month</span>
+              <div className="relative">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setPickerYear(filterYear);
+                    setIsDatePickerOpen(!isDatePickerOpen);
+                  }}
+                  className="flex items-center bg-transparent outline-none text-[13px] font-bold text-slate-700 justify-between gap-2 transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-slate-400 shrink-0" />
+                    <span>{formatMonthDisplay(filterMonth, filterYear)}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">▼</span>
+                </button>
 
               {isDatePickerOpen && (
                 <>
@@ -629,6 +632,7 @@ const FeesContent = () => {
             </div>
           </div>
         </div>
+      </div>
 
         {/* Table */}
         <div className="w-full overflow-x-auto min-h-[400px]">

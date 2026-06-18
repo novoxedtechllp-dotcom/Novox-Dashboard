@@ -134,32 +134,34 @@ const LeaveManagementContent = () => {
       )}
 
       {/* Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between">
-        <div className="relative max-w-md w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input
-            type="text"
-            placeholder="Search by employee name or leave type..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white border border-[#E2E8F0] text-[14px] px-10 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87]"
-          />
-        </div>
-        
-        <div className="flex gap-2">
-          {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(status => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 rounded-lg text-[13px] font-bold transition-colors ${
-                filterStatus === status 
-                  ? 'bg-[#003F87] text-white' 
-                  : 'bg-white text-slate-600 border border-[#E2E8F0] hover:bg-slate-50'
-              }`}
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between w-full mb-6">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Search Input */}
+          <div className="relative w-full sm:w-[240px] md:w-[280px] shrink-0">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search leave requests..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-[13px] font-medium outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/5 transition-all placeholder:text-slate-400 text-slate-700"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative py-0.5"
             >
-              {status === 'ALL' ? 'All Requests' : status}
-            </button>
-          ))}
+              <option value="ALL">All Requests</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+          </div>
         </div>
       </div>
 
