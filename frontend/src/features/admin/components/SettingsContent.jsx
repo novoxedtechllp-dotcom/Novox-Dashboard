@@ -166,7 +166,7 @@ const SettingsContent = ({ employees = [] }) => {
       'accountant': ['accountant', 'accounts', 'account']
     };
     
-    const targetDept = roleIdToDept[selectedRoleId];
+    const targetDept = roleIdToDept[String(selectedRoleId).toLowerCase()];
     if (!targetDept) return [];
     
     return employees.filter(emp => {
