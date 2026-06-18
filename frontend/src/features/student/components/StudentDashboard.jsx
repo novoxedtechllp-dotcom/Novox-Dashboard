@@ -241,7 +241,7 @@ const StudentDashboard = ({ userInfo }) => {
 
         {/* Right Column (Sidebar) */}
         <div className="w-full xl:w-[320px] flex flex-col gap-6 shrink-0">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full min-h-[400px]">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-fit">
             <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-center">
               <h3 className="font-bold text-slate-800 text-lg">Pending Tasks</h3>
               {pendingTasks.length > 0 && (
