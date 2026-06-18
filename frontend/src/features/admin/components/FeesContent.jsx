@@ -4,9 +4,6 @@ import LoadingSpinner from '../../../components/LoadingSpinner';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-};
-
-
 const FeesContent = () => {
   const [toast, setToast] = useState(null);
   const alert = (message) => {
