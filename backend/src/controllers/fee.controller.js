@@ -81,6 +81,39 @@ const calculateFeeBreakdown = (feePlan, payments, upToMonth, upToYear) => {
 };
 
 // ==========================================
+// HELPER: Build or resolve a fee plan for an enrollment
+// ==========================================
+const resolveFeePlan = (feePlans, enrollment) => {
+  let plan = (feePlans || []).find(fp => fp.student_id === enrollment.student_id && fp.course_id === enrollment.course_id);
+  const courseFeeStr = enrollment.courses?.total_fee ? String(enrollment.courses.total_fee).replace(/[^0-9.]/g, '') : "0";
+  const defaultTotalFee = parseFloat(courseFeeStr) || 0;
+
+  if (!plan) {
+    const enrollDate = enrollment.enrolled_at ? new Date(enrollment.enrolled_at) : new Date();
+    plan = {
+      id: `virtual-${enrollment.student_id}-${enrollment.course_id}`,
+      student_id: enrollment.student_id,
+      course_id: enrollment.course_id,
+      total_fee: defaultTotalFee,
+      admission_fee: 5000,
+      monthly_installment: 10000,
+      start_month: enrollDate.getMonth() + 1,
+      start_year: enrollDate.getFullYear(),
+      created_at: enrollment.enrolled_at || new Date().toISOString()
+    };
+  } else {
+    if (!plan.total_fee) plan.total_fee = defaultTotalFee;
+    if (!plan.start_month || !plan.start_year) {
+      const planDate = plan.created_at ? new Date(plan.created_at) : new Date();
+      if (!plan.start_month) plan.start_month = planDate.getMonth() + 1;
+      if (!plan.start_year) plan.start_year = planDate.getFullYear();
+    }
+  }
+
+  return plan;
+};
+
+// ==========================================
 // 1. CREATE FEE PLAN
 // ==========================================
 
@@ -309,23 +342,7 @@ const getStudentBalances = asyncHandler(async (req, res) => {
 
   // 4. Calculate balances for each enrollment
   const balances = enrollments.map(enrollment => {
-    let plan = (feePlans || []).find(fp => fp.student_id === enrollment.student_id && fp.course_id === enrollment.course_id);
-    const courseFeeStr = enrollment.courses?.total_fee ? String(enrollment.courses.total_fee).replace(/[^0-9.]/g, '') : "0";
-    const defaultTotalFee = parseFloat(courseFeeStr) || 0;
-
-    if (!plan) {
-      plan = {
-        id: `virtual-${enrollment.student_id}-${enrollment.course_id}`,
-        student_id: enrollment.student_id,
-        course_id: enrollment.course_id,
-        total_fee: defaultTotalFee,
-        admission_fee: 5000,
-        monthly_installment: 10000,
-        created_at: enrollment.enrolled_at || new Date().toISOString()
-      };
-    } else if (!plan.total_fee) {
-      plan.total_fee = defaultTotalFee;
-    }
+    const plan = resolveFeePlan(feePlans, enrollment);
 
     const studentPayments = (allPayments || []).filter(p => p.student_id === enrollment.student_id && p.fee_plan_id === plan.id);
     const breakdown = calculateFeeBreakdown(plan, studentPayments, targetMonth, targetYear);
@@ -338,8 +355,6 @@ const getStudentBalances = asyncHandler(async (req, res) => {
       paymentStatus = 'Full Paid';
     } else if (breakdown.totalPaid > 0 && breakdown.totalPaid < 10000) {
       paymentStatus = 'Partially Paid';
-    } else {
-      paymentStatus = 'Pending';
     }
 
     const monthPayments = studentPayments.filter(p => p.month === targetMonth && p.year === targetYear);
@@ -438,24 +453,7 @@ const getStudentFeeDetails = asyncHandler(async (req, res) => {
 
   // Calculate breakdowns for each enrollment
   const plans = (enrollments || []).map(enrollment => {
-    let plan = (feePlans || []).find(fp => fp.student_id === enrollment.student_id && fp.course_id === enrollment.course_id);
-    
-    const courseFeeStr = enrollment.courses?.total_fee ? String(enrollment.courses.total_fee).replace(/[^0-9.]/g, '') : "0";
-    const defaultTotalFee = parseFloat(courseFeeStr) || 0;
-
-    if (!plan) {
-      plan = {
-        id: `virtual-${enrollment.student_id}-${enrollment.course_id}`,
-        student_id: enrollment.student_id,
-        course_id: enrollment.course_id,
-        total_fee: defaultTotalFee,
-        admission_fee: 5000,
-        monthly_installment: 10000,
-        created_at: enrollment.enrolled_at || new Date().toISOString()
-      };
-    } else if (!plan.total_fee) {
-      plan.total_fee = defaultTotalFee;
-    }
+    const plan = resolveFeePlan(feePlans, enrollment);
 
     // Embed courses for the response
     plan.courses = enrollment.courses;
@@ -471,8 +469,6 @@ const getStudentFeeDetails = asyncHandler(async (req, res) => {
       paymentStatus = 'Full Paid';
     } else if (breakdown.totalPaid > 0 && breakdown.totalPaid < 10000) {
       paymentStatus = 'Partially Paid';
-    } else {
-      paymentStatus = 'Pending';
     }
 
     // Upcoming installment logic
@@ -483,33 +479,21 @@ const getStudentFeeDetails = asyncHandler(async (req, res) => {
       const enrollmentDate = new Date(enrollmentDateStr);
       const dueDay = enrollmentDate.getDate();
       const currentDay = now.getDate();
-      
-      // Calculate how many months have passed since enrollment
       const monthsSinceEnrollment = (currentYear - enrollmentDate.getFullYear()) * 12 + (currentMonth - (enrollmentDate.getMonth() + 1));
       
-      // Only show upcoming installment if at least 1 month has passed (due after a month)
       if (monthsSinceEnrollment >= 1 || (monthsSinceEnrollment === 0 && currentDay >= dueDay - 5)) {
-        // We consider the due date "near" if we are within 5 days before the due day,
-        // or up to the due day itself.
         const daysUntilDue = dueDay - currentDay;
-        
-        // If due date is near (within 5 days) and the balance hasn't maxed out the course fee
         if (daysUntilDue >= 0 && daysUntilDue <= 5) {
-          // Check if there's any remaining balance after the upcoming installment
           const remainingTotal = (parseFloat(plan.total_fee) || 0) - breakdown.totalPaid;
           const monthlyAmount = parseFloat(plan.monthly_installment) || 10000;
-          
           if (remainingTotal > 0 && remainingTotal > breakdown.totalDue - breakdown.totalPaid) {
-             const amountDue = Math.min(monthlyAmount, remainingTotal);
-             
-             // Construct the due date for this month
-             const dueDate = new Date(currentYear, currentMonth - 1, dueDay);
-             
-             upcomingInstallment = {
-               amount: amountDue,
-               dueDate: dueDate.toISOString(),
-               daysRemaining: daysUntilDue
-             };
+            const amountDue = Math.min(monthlyAmount, remainingTotal);
+            const dueDate = new Date(currentYear, currentMonth - 1, dueDay);
+            upcomingInstallment = {
+              amount: amountDue,
+              dueDate: dueDate.toISOString(),
+              daysRemaining: daysUntilDue
+            };
           }
         }
       }
@@ -638,23 +622,7 @@ const getFeeSummary = asyncHandler(async (req, res) => {
   (enrollments || []).forEach(enrollment => {
     if (enrollment.students?.status !== 'ACTIVE') return;
 
-    let plan = (feePlans || []).find(fp => fp.student_id === enrollment.student_id && fp.course_id === enrollment.course_id);
-    const courseFeeStr = enrollment.courses?.total_fee ? String(enrollment.courses.total_fee).replace(/[^0-9.]/g, '') : '0';
-    const defaultTotalFee = parseFloat(courseFeeStr) || 0;
-
-    if (!plan) {
-      plan = {
-        id: `virtual-${enrollment.student_id}-${enrollment.course_id}`,
-        student_id: enrollment.student_id,
-        course_id: enrollment.course_id,
-        total_fee: defaultTotalFee,
-        admission_fee: 5000,
-        monthly_installment: 10000,
-        created_at: enrollment.enrolled_at || new Date().toISOString()
-      };
-    } else if (!plan.total_fee) {
-      plan.total_fee = defaultTotalFee;
-    }
+    const plan = resolveFeePlan(feePlans, enrollment);
 
     const planPayments = (allPayments || []).filter(p => p.student_id === enrollment.student_id && p.fee_plan_id === plan.id);
     const breakdown = calculateFeeBreakdown(plan, planPayments, currentMonth, currentYear);
@@ -676,7 +644,9 @@ const getFeeSummary = asyncHandler(async (req, res) => {
 export {
   calculateFeeBreakdown,
   createFeePlan,
+  getFeePlans,
   recordPayment,
+  getPayments,
   getStudentBalances,
   getStudentFeeDetails,
   deletePayment,

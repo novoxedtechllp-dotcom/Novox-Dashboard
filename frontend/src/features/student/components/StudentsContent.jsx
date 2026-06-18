@@ -88,7 +88,7 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
-  const [studentFees, setStudentFees] = useState([]);
+  const [studentFees, setStudentFees] = useState({});
 
   const fetchStudents = useCallback(async (currentOwnershipFilter, currentDepartmentFilter) => {
     setLoading(true);
@@ -141,20 +141,37 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
     }
   }, []);
 
-  useEffect(() => {
-    const loadTimer = setTimeout(() => { fetchStudents(ownershipFilter, departmentFilter); }, 0);
-    
+  const fetchStudentBalances = useCallback(async () => {
     try {
-      const storedFees = localStorage.getItem('novox_student_fees');
-      if (storedFees) {
-        setStudentFees(JSON.parse(storedFees));
+      const headers = getAuthHeaders();
+      if (!headers) return;
+      const res = await fetch('/api/v1/fees/balances', { headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) {
+          // Group by studentId and sum up balances across courses
+          const balanceMap = {};
+          (data.data || []).forEach(b => {
+            if (!balanceMap[b.studentId]) {
+              balanceMap[b.studentId] = { totalFees: 0, totalPaid: 0, remainingBalance: 0 };
+            }
+            balanceMap[b.studentId].totalFees += (b.totalCourseFee || 0);
+            balanceMap[b.studentId].totalPaid += (b.totalPaidOverall || 0);
+            balanceMap[b.studentId].remainingBalance += (b.remainingBalance || 0);
+          });
+          setStudentFees(balanceMap);
+        }
       }
     } catch (e) {
-      console.error(e);
+      console.error('Error fetching student balances:', e);
     }
-    
+  }, []);
+
+  useEffect(() => {
+    const loadTimer = setTimeout(() => { fetchStudents(ownershipFilter, departmentFilter); }, 0);
+    fetchStudentBalances();
     return () => clearTimeout(loadTimer);
-  }, [fetchStudents, ownershipFilter, departmentFilter]);
+  }, [fetchStudents, ownershipFilter, departmentFilter, fetchStudentBalances]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -638,11 +655,11 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
                     <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
                       <GraduationCap size={14} className="text-slate-400" /> <span>{Math.max(student.courses_count || 0, studentEnrolledCourses.length)} Courses</span>
                     </div>
-                    {studentFees.find(f => f.studentId === student.id) && (
+                    {studentFees[student.id] && studentFees[student.id].remainingBalance > 0 && (
                       <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mt-1">
                         <IndianRupee size={14} className="text-rose-400" /> 
                         <span className="text-rose-600 font-bold">
-                          Balance: ₹{(studentFees.find(f => f.studentId === student.id)?.remainingBalance || 0).toLocaleString()}
+                          Balance: ₹{(studentFees[student.id]?.remainingBalance || 0).toLocaleString()}
                         </span>
                       </div>
                     )}
@@ -1154,19 +1171,10 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
                           <div className="text-[15px] font-bold text-[#008A2E]">{activeStudent.status}</div>
                         </div>
                         {(() => {
-                          const activeStudentCourses = studentCourses.filter(sc => sc.student_id === activeStudent.id);
-                          const storedFeesStr = localStorage.getItem('novox_student_fees');
-                          let totalFeesPaid = 0;
-                          if (storedFeesStr) {
-                            const allFees = JSON.parse(storedFeesStr);
-                            const studentFees = allFees.filter(f => f.studentId === activeStudent.id);
-                            totalFeesPaid = studentFees.reduce((sum, f) => sum + (Number(f.paidAmount) || parseInt(String(f.amount).replace(/[^0-9]/g, ''), 10) || 0), 0);
-                          }
-                          const totalFeesRequired = activeStudentCourses.reduce((sum, sc) => {
-                            const courseData = courses.find(c => c.id === sc.course_id);
-                            return sum + (parseInt(String(courseData?.price || '0').replace(/[^0-9]/g, ''), 10) || 0);
-                          }, 0);
-                          const remainingBalance = Math.max(0, totalFeesRequired - totalFeesPaid);
+                          const feeData = studentFees[activeStudent.id];
+                          const totalFeesRequired = feeData?.totalFees || 0;
+                          const totalFeesPaid = feeData?.totalPaid || 0;
+                          const remainingBalance = feeData?.remainingBalance || 0;
                           
                           return (
                             <>

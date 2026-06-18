@@ -124,7 +124,7 @@ const FeesContent = () => {
           if (d.success && d.data) {
             const mappedBalances = (d.data || []).map(b => ({
               id: `bal-${b.id}`,
-              feePlanId: b.id,
+              feePlanId: b.feePlanId || (String(b.id).startsWith('virtual') ? null : b.id),
               studentId: b.studentId,
               studentCode: b.studentCode,
               name: b.name,
@@ -305,8 +305,8 @@ const FeesContent = () => {
       
       // We need a fee_plan_id. Try finding it from studentBalancesList
       let planId = null;
-      const existingBal = studentBalancesList.find(b => b.studentId === selectedStudentId && b.courseId === selectedCourseId);
-      if (existingBal && existingBal.feePlanId) {
+      const existingBal = studentBalancesList.find(b => String(b.studentId) === String(selectedStudentId) && String(b.courseId) === String(selectedCourseId));
+      if (existingBal && existingBal.feePlanId && !String(existingBal.feePlanId).startsWith('virtual')) {
         planId = existingBal.feePlanId;
       }
 
