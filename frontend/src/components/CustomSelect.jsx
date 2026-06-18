@@ -80,10 +80,21 @@ const CustomSelect = ({
                     e.stopPropagation();
                     handleSelect(option.value);
                   }}
-                  className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-slate-50 flex items-center justify-between ${isSelected ? 'text-[#003F87] bg-blue-50/50' : 'text-slate-700'}`}
+                  className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-slate-50 flex items-center ${multiple ? 'justify-start gap-3' : 'justify-between'} ${isSelected ? 'text-[#003F87] bg-blue-50/50' : 'text-slate-700'}`}
                 >
-                  <span className="truncate">{option.label}</span>
-                  {isSelected && <Check size={16} className="shrink-0 text-[#003F87]" />}
+                  {multiple ? (
+                    <>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-[#003F87] border-[#003F87]' : 'border-slate-300'}`}>
+                        {isSelected && <Check size={12} className="text-white" />}
+                      </div>
+                      <span className="truncate">{option.label}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="truncate flex-1">{option.label}</span>
+                      {isSelected && <Check size={16} className="shrink-0 text-[#003F87]" />}
+                    </>
+                  )}
                 </button>
               );
             })

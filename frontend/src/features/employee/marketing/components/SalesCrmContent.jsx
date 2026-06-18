@@ -8,72 +8,6 @@ const getUniqueCourses = (leads) => {
   return [...new Set(courses)];
 };
 
-// ─── Filter Bar ───────────────────────────────────────────────────────────────
-function FilterBar({ searchTerm, onSearchChange, selectedCourse, onCourseChange, courses, onReset }) {
-  const hasActiveFilter = searchTerm || selectedCourse;
-
-  return (
-    <div className="flex items-center gap-3 px-6 py-2.5 bg-white border-b border-[#E8EEF7] flex-wrap">
-      {/* Filters label */}
-      <div className="flex items-center gap-1.5 text-slate-500 text-[13px] font-semibold shrink-0">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-        </svg>
-        Filters:
-      </div>
-
-      {/* Search Input */}
-      <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-          <Search size={13} />
-        </div>
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={e => onSearchChange(e.target.value)}
-          placeholder="Search institutional data..."
-          className="w-full py-1.5 pl-8 pr-8 border border-slate-200 rounded-lg text-xs text-slate-800 outline-none bg-slate-50"
-        />
-        {searchTerm && (
-          <button
-            onClick={() => onSearchChange('')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 flex items-center"
-          >
-            <X size={12} />
-          </button>
-        )}
-      </div>
-
-      {/* Course Dropdown */}
-      <div className="flex flex-col gap-0.5 shrink-0">
-        <span className="text-[10px] font-bold text-[#003F87] uppercase tracking-wide">COURSE</span>
-        <select
-          value={selectedCourse}
-          onChange={e => onCourseChange(e.target.value)}
-          className="py-1.5 pl-2.5 pr-7 border border-slate-200 rounded-lg text-xs text-slate-800 bg-slate-50 outline-none cursor-pointer appearance-none min-w-[130px]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'right 8px center',
-          }}
-        >
-          <option value="">All Courses</option>
-          {courses.map(c => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Reset Button */}
-      <button
-        onClick={onReset}
-        className={`text-[13px] font-bold px-1 py-1.5 shrink-0 transition-colors ${hasActiveFilter ? 'text-[#003F87] cursor-pointer' : 'text-slate-400 cursor-default'}`}
-      >
-        Reset
-      </button>
-    </div>
-  );
-}
 
 // ─── Color avatar helper ───────────────────────────────────────────────────────
 const AVATAR_COLORS = ['#003F87','#1565C0','#1976D2','#2196F3','#0288D1','#00796B','#388E3C','#F57C00','#7B1FA2'];
@@ -444,7 +378,7 @@ function DetailsModal({ lead, onClose, onUpdateStage, stages, messages, onSendMe
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-const SalesCrmContent = () => {
+const SalesCrmContent = ({ courses = [], searchQuery = '' }) => {
   const [leads, setLeads] = useState([]);
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -453,58 +387,53 @@ const SalesCrmContent = () => {
   const [messages, setMessages] = useState({});
 
   // ── Filter state ──────────────────────────────────────────────────────────
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
 
   const stages = ['NEW', 'CONTACTED', 'INTERESTED', 'COUNSELLING', 'ENROLLED', 'LOST'];
 
+  const fetchLeads = async () => {
+    setLoading(true);
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
+      const headers = userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {};
+
+      const [leadsRes, sourcesRes] = await Promise.all([
+        fetch('/api/v1/leads', { headers }).catch(() => null),
+        fetch('/api/v1/lead-sources', { headers }).catch(() => null),
+      ]);
+
+      const lData = leadsRes?.ok ? await leadsRes.json() : null;
+      const sData = sourcesRes?.ok ? await sourcesRes.json() : null;
+
+      setLeads(lData?.data?.leads || lData?.data || []);
+      setSources(sData?.data?.sources || sData?.data || []);
+    } catch {
+      setLeads([]);
+      setSources([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
-        const headers = userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {};
-
-        const [leadsRes, sourcesRes] = await Promise.all([
-          fetch('/api/v1/leads', { headers }).catch(() => null),
-          fetch('/api/v1/lead-sources', { headers }).catch(() => null),
-        ]);
-
-        const lData = leadsRes?.ok ? await leadsRes.json() : null;
-        const sData = sourcesRes?.ok ? await sourcesRes.json() : null;
-
-        setLeads(lData?.data?.leads || lData?.data || []);
-        setSources(sData?.data?.sources || sData?.data || []);
-      } catch {
-        setLeads([]);
-        setSources([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    fetchLeads();
   }, []);
 
   const getSourceName = (id) => (sources.find(s => s.id === id)?.source_name ?? 'Unknown');
 
   // ── Filtered leads ─────────────────────────────────────────────────────────
   const filteredLeads = leads.filter(lead => {
-    const matchesSearch = !searchTerm ||
-      (lead.name && lead.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (lead.phone && lead.phone.includes(searchTerm)) ||
-      (lead.course && lead.course.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (lead.note && lead.note.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch = !searchQuery ||
+      (lead.name && lead.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (lead.email && lead.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (lead.phone && lead.phone.includes(searchQuery)) ||
+      (lead.course && lead.course.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (lead.note && lead.note.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesCourse = !selectedCourse || lead.course === selectedCourse;
 
     return matchesSearch && matchesCourse;
   });
-
-  const handleReset = () => {
-    setSearchTerm('');
-    setSelectedCourse('');
-  };
 
   const handleAddLead = (lead) => {
     setLeads(prev => [...prev, lead]);
@@ -526,85 +455,76 @@ const SalesCrmContent = () => {
   if (loading) return <LoadingSpinner text="Loading CRM data..." />;
 
   return (
-    <div className="flex flex-col w-full h-full box-border bg-[#FAFBFC] min-h-screen">
-
-      {/* ── Filter Bar (full-width) ── */}
-      <FilterBar
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        selectedCourse={selectedCourse}
-        onCourseChange={setSelectedCourse}
-        courses={uniqueCourses}
-        onReset={handleReset}
-      />
-
-      {/* ── Main content area ── */}
-      <div className="p-6 flex flex-col gap-6 flex-1 w-full max-w-[1600px] mx-auto">
-
-        {/* Page header */}
-        <div className="flex justify-between items-start flex-wrap gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="text-[22px] font-extrabold text-[#003F87] tracking-tight">Lead Insights</span>
-            </div>
-            <p className="m-0 text-[13px] text-slate-500 mt-1">Manage leads and track your sales pipeline.</p>
-          </div>
-          <div className="flex gap-2.5 items-center flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm font-semibold">
-              📅 Oct 1 – Oct 31, 2023
-            </div>
-            <span className="text-[11px] text-green-700 bg-green-50 px-2.5 py-1 rounded-full font-bold border border-green-100">Last updated: Just now</span>
-            <button onClick={() => setIsAddOpen(true)} className="bg-[#003F87] text-white border-none rounded-lg px-4 py-2 text-[13px] font-bold cursor-pointer flex items-center gap-1.5 hover:bg-blue-900 transition-colors shadow-sm">
-              <Plus size={15} /> Add Lead
-            </button>
+    <div className="p-6 md:p-8 flex flex-col gap-8 w-full relative bg-[#FAFBFC] min-h-full">
+      
+      {/* Top Header / Actions Bar */}
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Course</span>
+            <select
+              value={selectedCourse}
+              onChange={e => setSelectedCourse(e.target.value)}
+              className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-800 cursor-pointer appearance-none pr-6"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right center',
+              }}
+            >
+              <option value="">All Courses</option>
+              {uniqueCourses.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* Insights */}
-        <InsightsHeader />
-
-        {/* Active filter indicator */}
-        {(searchTerm || selectedCourse) && (
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span>Showing <strong className="text-[#003F87]">{filteredLeads.length}</strong> of {leads.length} leads</span>
-            {searchTerm && (
-              <span className="bg-slate-100 rounded-md px-2 py-0.5 text-[11px] font-semibold flex items-center gap-1 text-slate-700">
-                Search: "{searchTerm}"
-                <button onClick={() => setSearchTerm('')} className="bg-transparent border-none cursor-pointer text-slate-400 p-0 flex items-center hover:text-slate-600"><X size={10} /></button>
-              </span>
-            )}
-            {selectedCourse && (
-              <span className="bg-slate-100 rounded-md px-2 py-0.5 text-[11px] font-semibold flex items-center gap-1 text-slate-700">
-                Course: {selectedCourse}
-                <button onClick={() => setSelectedCourse('')} className="bg-transparent border-none cursor-pointer text-slate-400 p-0 flex items-center hover:text-slate-600"><X size={10} /></button>
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Kanban */}
-        <div className="flex gap-4 overflow-x-auto pb-4 flex-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-          {stages.map(stage => (
-            <KanbanColumn
-              key={stage}
-              stage={stage}
-              leads={filteredLeads}
-              getSourceName={getSourceName}
-              onOpenDetails={(lead) => setActiveLead(lead)}
-            />
-          ))}
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <button onClick={fetchLeads} className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.13-5.87L2 9"></path></svg>
+          </button>
+          <button onClick={() => setIsAddOpen(true)} className="px-5 py-2.5 bg-[#003F87] text-white rounded-xl text-sm font-bold shadow-md hover:bg-[#002B5E] shadow-blue-900/10 active:scale-95 transition-all flex items-center gap-2">
+            <Plus size={16} /> Add Lead
+          </button>
         </div>
       </div>
 
-      {/* FAB */}
-      <button
-        onClick={() => setIsAddOpen(true)}
-        className="fixed bottom-7 right-7 w-14 h-14 rounded-full bg-[#003F87] text-white border-none flex items-center justify-center shadow-lg hover:bg-blue-900 transition-all z-50 hover:scale-105 cursor-pointer"
-        title="Add Lead"
-      >
-        <Plus size={24} />
-      </button>
+      {/* Insights */}
+      <InsightsHeader />
 
+      {/* Active filter indicator */}
+      {(searchQuery || selectedCourse) && (
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span>Showing <strong className="text-[#003F87]">{filteredLeads.length}</strong> of {leads.length} leads</span>
+          {searchQuery && (
+            <span className="bg-slate-100 rounded-md px-2 py-0.5 text-[11px] font-semibold flex items-center gap-1 text-slate-700">
+              Search: "{searchQuery}"
+            </span>
+          )}
+          {selectedCourse && (
+            <span className="bg-slate-100 rounded-md px-2 py-0.5 text-[11px] font-semibold flex items-center gap-1 text-slate-700">
+              Course: {selectedCourse}
+              <button onClick={() => setSelectedCourse('')} className="bg-transparent border-none cursor-pointer text-slate-400 p-0 flex items-center hover:text-slate-600"><X size={10} /></button>
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Kanban */}
+      <div className="flex gap-4 overflow-x-auto pb-4 flex-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+        {stages.map(stage => (
+          <KanbanColumn
+            key={stage}
+            stage={stage}
+            leads={filteredLeads}
+            getSourceName={getSourceName}
+            onOpenDetails={(lead) => setActiveLead(lead)}
+          />
+        ))}
+      </div>
+
+      {/* Modals */}
       <AddLeadModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onSave={handleAddLead} sources={sources} stages={stages} />
       <DetailsModal lead={activeLead} onClose={() => setActiveLead(null)} onUpdateStage={handleUpdateStage} stages={stages} messages={messages} onSendMessage={handleSendMessage} />
     </div>

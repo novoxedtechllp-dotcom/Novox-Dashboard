@@ -524,7 +524,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
             
             <form onSubmit={handleUpdateEmployee} className="p-8 flex flex-col gap-6">
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name *</label>
                   <input 
                     type="text" required value={employeeToEdit.name}
@@ -532,7 +532,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email *</label>
                   <input 
                     type="email" required value={employeeToEdit.email}
@@ -540,7 +540,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
                   <input 
                     type="text" required value={employeeToEdit.phone}
@@ -548,7 +548,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
                   <CustomSelect
                     value={employeeToEdit.department}
@@ -558,7 +558,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Position (Designation)</label>
                   <input 
                     type="text" value={employeeToEdit.position}
@@ -566,7 +566,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mentoring Courses</label>
                   <CustomSelect
                     value={employeeToEdit.courseIds || []}

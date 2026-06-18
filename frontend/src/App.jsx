@@ -269,7 +269,7 @@ function App() {
                 {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} />} />}
                 {canViewFees && <Route path={`${basePath}/fees`} element={<FeesContent />} />}
                 {canViewPayroll && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
-                {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} />} />}
+                {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} searchQuery={searchQuery} />} />}
                 {canViewRecruitment && <Route path={`${basePath}/recruitment`} element={<RecruitmentContent />} />}
                 {canViewWhatsapp && <Route path={`${basePath}/whatsapp-automation`} element={<WhatsappContent />} />}
                 {canViewSeo && <Route path={`${basePath}/seo`} element={<SeoAgentContent />} />}

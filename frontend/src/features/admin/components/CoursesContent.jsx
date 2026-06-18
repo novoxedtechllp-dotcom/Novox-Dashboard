@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Clock, Plus, X, Upload, BookOpen, User, Trash2, Pencil, Calendar, LayoutList, Layers, Eye, Zap, ChevronDown, ChevronUp } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
@@ -565,13 +565,28 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       const headers = getAuthHeaders();
       const response = await fetch(`/api/v1/students?limit=1000`, { headers });
       const resData = await parseApiResponse(response);
-      setAllStudents(resData.data.students || []);
+      const students = resData.data.students || [];
+      const unassignedStudents = students.filter(student => {
+        if (!student.student_courses) return true;
+        return !student.student_courses.some(sc => String(sc.course_id) === String(selectedCourse?.id));
+      }).sort((a, b) => {
+        const nameA = `${a.first_name || ''} ${a.last_name || ''}`.trim().toLowerCase();
+        const nameB = `${b.first_name || ''} ${b.last_name || ''}`.trim().toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+      setAllStudents(unassignedStudents);
     } catch (error) {
       alert(error.message || 'Failed to fetch students');
     } finally {
       setIsStudentsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'students' && selectedCourse && isModalOpen) {
+      loadStudentsForAssignment();
+    }
+  }, [activeTab, selectedCourse?.id, isModalOpen]);
 
   const handleBatchAssignStudents = async () => {
     if (selectedStudentIds.length === 0) return;
@@ -1023,7 +1038,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                   checked={selectedStudentIds.length === allStudents.length && allStudents.length > 0}
                                 />
                               </th>
-                              <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Student Name</th>
+                              <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-left">Student Name</th>
                               <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Code</th>
                               <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Phone</th>
                             </tr>
@@ -1042,8 +1057,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                     }}
                                   />
                                 </td>
-                                <td className="py-4 px-6 text-center">
-                                  <div className="flex items-center justify-center gap-3">
+                                <td className="py-4 px-6 text-left">
+                                  <div className="flex items-center justify-start gap-3">
                                     <div className="w-9 h-9 rounded-full bg-[#E5F0FF] text-[#003F87] flex items-center justify-center font-black text-xs shadow-inner group-hover:bg-[#003F87] group-hover:text-white transition-colors">
                                       {student.first_name?.[0] || 'U'}{student.last_name?.[0] || ''}
                                     </div>
