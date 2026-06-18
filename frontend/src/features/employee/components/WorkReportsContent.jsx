@@ -248,12 +248,8 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
       <div className="p-[24px] flex flex-col gap-[24px] w-full">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-[24px] font-bold text-[#003F87]">
-              Work Reports
-            </h2>
-            <p className="text-slate-500 text-[14px] mt-1">
-              Review and manage employee submissions
-            </p>
+            <h1 className="text-2xl font-bold text-slate-800">Work Reports</h1>
+            <p className="text-slate-500 mt-1">Review and manage employee submissions.</p>
           </div>
           {isEmployee && (
             <button

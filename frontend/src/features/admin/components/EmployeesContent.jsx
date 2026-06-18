@@ -72,6 +72,8 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
     fetchCourses();
   }, []);
 
+
+
   const [toast, setToast] = useState(null);
   const alert = (message) => {
     const isError = typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error'));
@@ -101,6 +103,18 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
     avatarUrl: null,
     courseIds: []
   });
+
+  // Lock body scroll when any modal is open
+  useEffect(() => {
+    if (isModalOpen || employeeToDelete || employeeToEdit) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isModalOpen, employeeToDelete, employeeToEdit]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -292,6 +306,12 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
         </div>
       )}
 
+      {/* Header Section */}
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold text-slate-800">Employee Directory</h1>
+        <p className="text-slate-500 mt-1">Manage employee profiles, roles, and departmental assignments.</p>
+      </div>
+
       {/* Top Header / Actions Bar */}
       <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between">
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
@@ -318,6 +338,18 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
       {/* Grid Container */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         
+        {/* Create Employee Card */}
+        <button 
+          onClick={() => setIsModalOpen(true)} 
+          className="bg-transparent rounded-[24px] border-2 border-dashed border-slate-200 p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group min-h-[260px] h-full"
+        >
+          <div className="w-14 h-14 rounded-[16px] bg-white shadow-sm text-blue-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300 border border-slate-100">
+            <Plus size={24} />
+          </div>
+          <h3 className="text-lg font-black text-slate-800 mb-1">Add New Employee</h3>
+          <p className="text-xs font-medium text-slate-500 leading-relaxed px-4">Click here to register a new employee profile in the system.</p>
+        </button>
+
         {filteredEmployees.map(emp => (
           <div key={emp.id} onClick={() => setEmployeeToEdit(emp)} className="cursor-pointer bg-white rounded-[24px] border border-slate-100/60 flex flex-col relative group shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 overflow-hidden">
             
@@ -489,7 +521,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
                   <CustomSelect
                     value={newEmployee.courseIds}
                     onChange={(val) => setNewEmployee({...newEmployee, courseIds: val})}
-                    options={courses.map(c => ({ value: c.id, label: c.name }))}
+                    options={courses.map(c => ({ value: c.id, label: c.title || c.name }))}
                     multiple={true}
                     openUpwards={true}
                     className="w-full"
@@ -572,7 +604,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
                   <CustomSelect
                     value={employeeToEdit.courseIds || []}
                     onChange={(val) => setEmployeeToEdit({...employeeToEdit, courseIds: val})}
-                    options={courses.map(c => ({ value: c.id, label: c.name }))}
+                    options={courses.map(c => ({ value: c.id, label: c.title || c.name }))}
                     multiple={true}
                     className="w-full"
                     selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"

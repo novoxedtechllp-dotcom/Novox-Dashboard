@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail, GitBranch, Camera, Terminal, Calendar, IndianRupee, CreditCard } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail, GitBranch, Camera, Terminal, Calendar, IndianRupee, CreditCard, BookOpen } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const getAuthHeaders = () => {
@@ -172,6 +172,18 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
     fetchStudentBalances();
     return () => clearTimeout(loadTimer);
   }, [fetchStudents, ownershipFilter, departmentFilter, fetchStudentBalances]);
+
+  // Lock body scroll when any modal is open
+  useEffect(() => {
+    if (activeStudent || isAddModalOpen || isEditStudentOpen || studentToDelete || documentToDelete || courseToRemove) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [activeStudent, isAddModalOpen, isEditStudentOpen, studentToDelete, documentToDelete, courseToRemove]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -520,6 +532,12 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
           {toast.message}
         </div>
       )}
+
+      {/* Header Section */}
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold text-slate-800">Student Management</h1>
+        <p className="text-slate-500 mt-1">Manage enrollments, track performance, and maintain student records.</p>
+      </div>
 
       {/* Top Header / Actions Bar */}
       <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between">

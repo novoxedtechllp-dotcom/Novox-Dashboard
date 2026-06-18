@@ -118,6 +118,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const [isUploading, setIsUploading] = useState(false);
 
   const [allStudents, setAllStudents] = useState([]);
+  const [courseEnrolledStudents, setCourseEnrolledStudents] = useState([]);
+  const [studentsViewMode, setStudentsViewMode] = useState('enrolled'); // 'enrolled', 'assign'
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [isStudentsLoading, setIsStudentsLoading] = useState(false);
   const [assigningStudents, setAssigningStudents] = useState(false);
@@ -334,9 +336,13 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     }
   };
 
-  const openCourseDetails = async (course) => {
+  const openCourseDetails = async (course, resetTab = true) => {
     setSelectedCourse(course);
-    setActiveTab('overview');
+    if (resetTab) {
+      setActiveTab('overview');
+      setStudentsViewMode('enrolled');
+    }
+    loadStudentsForAssignment(course.id);
     try {
       setIsFetchingDetails(true);
       const headers = getAuthHeaders();
@@ -345,6 +351,10 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       const resData = await parseApiResponse(response);
       const detailedCourse = mapCourseFromApi(resData.data, course);
       setSelectedCourse(detailedCourse);
+      
+      if (setCourses) {
+        setCourses(prev => prev.map(c => c.id === detailedCourse.id ? detailedCourse : c));
+      }
       
       const fetchedModules = resData.data.course_modules || [];
       setModules(prev => [...prev.filter(m => m.course_id !== course.id), ...fetchedModules]);
@@ -559,22 +569,35 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     }
   };
 
-  const loadStudentsForAssignment = async () => {
+  const loadStudentsForAssignment = async (courseIdOverride = null) => {
     setIsStudentsLoading(true);
+    const targetCourseId = courseIdOverride || selectedCourse?.id;
     try {
       const headers = getAuthHeaders();
       const response = await fetch(`/api/v1/students?limit=1000`, { headers });
       const resData = await parseApiResponse(response);
-      const students = resData.data.students || [];
-      const unassignedStudents = students.filter(student => {
-        if (!student.student_courses) return true;
-        return !student.student_courses.some(sc => String(sc.course_id) === String(selectedCourse?.id));
-      }).sort((a, b) => {
+      const students = resData.data?.students || resData.data || [];
+      
+      const unassignedStudents = [];
+      const enrolled = [];
+      
+      students.forEach(student => {
+        const isEnrolled = student.student_courses && student.student_courses.some(sc => String(sc.course_id) === String(targetCourseId));
+        if (isEnrolled) {
+          enrolled.push(student);
+        } else {
+          unassignedStudents.push(student);
+        }
+      });
+      
+      const sortByName = (a, b) => {
         const nameA = `${a.first_name || ''} ${a.last_name || ''}`.trim().toLowerCase();
         const nameB = `${b.first_name || ''} ${b.last_name || ''}`.trim().toLowerCase();
         return nameA.localeCompare(nameB);
-      });
-      setAllStudents(unassignedStudents);
+      };
+
+      setAllStudents(unassignedStudents.sort(sortByName));
+      setCourseEnrolledStudents(enrolled.sort(sortByName));
     } catch (error) {
       alert(error.message || 'Failed to fetch students');
     } finally {
@@ -582,9 +605,23 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     }
   };
 
+  // Lock body scroll when any modal is open
+  useEffect(() => {
+    if (isModalOpen || selectedCourse || courseToDelete || courseToEdit || itemToDelete) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isModalOpen, selectedCourse, courseToDelete, courseToEdit, itemToDelete]);
+
   useEffect(() => {
     if (activeTab === 'students' && selectedCourse && isModalOpen) {
-      loadStudentsForAssignment();
+      if (courseEnrolledStudents.length === 0 && allStudents.length === 0) {
+        loadStudentsForAssignment();
+      }
     }
   }, [activeTab, selectedCourse?.id, isModalOpen]);
 
@@ -601,7 +638,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       await parseApiResponse(response);
       alert('Students assigned successfully!');
       setSelectedStudentIds([]);
-      openCourseDetails(selectedCourse);
+      setStudentsViewMode('enrolled');
+      openCourseDetails(selectedCourse, false);
     } catch (error) {
       alert(error.message || 'Failed to assign students');
     } finally {
@@ -639,6 +677,12 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
         </div>
       )}
       
+      {/* Header Section */}
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold text-slate-800">Course Management</h1>
+        <p className="text-slate-500 mt-1">Create and organize courses, modules, and learning materials.</p>
+      </div>
+
       {/* Top Filter Bar */}
       <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
@@ -787,6 +831,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                       options={[{ value: 'DEVELOPMENT', label: 'DEVELOPMENT' }, { value: 'MARKETING', label: 'MARKETING' }, { value: 'DESIGN', label: 'DESIGN' }]}
                       value={courseToEdit ? courseToEdit.category : newCourse.category}
                       onChange={val => courseToEdit ? setCourseToEdit({ ...courseToEdit, category: val }) : setNewCourse({ ...newCourse, category: val })}
+                      className="w-full"
+                      selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all"
                     />
                   </div>
                   <div>
@@ -795,6 +841,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                       options={[{ value: 'DRAFT', label: 'DRAFT' }, { value: 'PUBLISHED', label: 'PUBLISHED' }, { value: 'ARCHIVED', label: 'ARCHIVED' }]}
                       value={courseToEdit ? (courseToEdit.status || 'DRAFT') : newCourse.status}
                       onChange={val => courseToEdit ? setCourseToEdit({ ...courseToEdit, status: val }) : setNewCourse({ ...newCourse, status: val })}
+                      className="w-full"
+                      selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all"
                     />
                   </div>
                 </div>
@@ -823,6 +871,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                       value={courseToEdit ? courseToEdit.mentorId : newCourse.mentorId}
                       onChange={val => courseToEdit ? setCourseToEdit({ ...courseToEdit, mentorId: val }) : setNewCourse({ ...newCourse, mentorId: val })}
                       searchable={true}
+                      className="w-full"
+                      selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-medium transition-all"
                     />
                   </div>
                   <div>
@@ -998,84 +1048,140 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
               )}
 
               {/* Students Tab */}
+              {/* Students Tab */}
               {activeTab === 'students' && (
                 <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300 fade-in">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-xl font-black text-slate-800">Assign Students</h3>
-                      <p className="text-sm text-slate-500 mt-1">Select students to enroll them in {selectedCourse.title}</p>
-                    </div>
-                    <div className="flex gap-3">
-                      <button 
-                        onClick={loadStudentsForAssignment}
-                        className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
-                      >
-                        Refresh List
-                      </button>
-                      <button 
-                        onClick={handleBatchAssignStudents}
-                        disabled={selectedStudentIds.length === 0 || assigningStudents}
-                        className="px-6 py-2 bg-[#003F87] rounded-xl text-sm font-bold text-white hover:bg-[#002B5E] shadow-md shadow-blue-900/10 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
-                      >
-                        {assigningStudents ? 'Assigning...' : `Assign ${selectedStudentIds.length} Student${selectedStudentIds.length !== 1 ? 's' : ''}`}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    {isStudentsLoading ? (
-                      <div className="p-8 text-center text-slate-500 text-sm font-medium">Loading students...</div>
-                    ) : allStudents.length === 0 ? (
-                      <div className="p-8 text-center text-slate-500 text-sm font-medium">No students found. Click Refresh List.</div>
-                    ) : (
-                      <div className="max-h-[50vh] overflow-y-auto">
-                        <table className="w-full text-center border-collapse">
-                          <thead className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-md">
-                            <tr>
-                              <th className="py-4 px-6 border-b border-slate-200 w-12 text-center">
-                                <input 
-                                  type="checkbox" 
-                                  className="w-4 h-4 rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] cursor-pointer inline-block align-middle"
-                                  onChange={(e) => setSelectedStudentIds(e.target.checked ? allStudents.map(s => s.id) : [])}
-                                  checked={selectedStudentIds.length === allStudents.length && allStudents.length > 0}
-                                />
-                              </th>
-                              <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-left">Student Name</th>
-                              <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Code</th>
-                              <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Phone</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {allStudents.map(student => (
-                              <tr key={student.id} className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors group">
-                                <td className="py-4 px-6 text-center">
-                                  <input 
-                                    type="checkbox" 
-                                    className="w-4 h-4 rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] cursor-pointer inline-block align-middle"
-                                    checked={selectedStudentIds.includes(student.id)}
-                                    onChange={(e) => {
-                                      if (e.target.checked) setSelectedStudentIds([...selectedStudentIds, student.id]);
-                                      else setSelectedStudentIds(selectedStudentIds.filter(id => id !== student.id));
-                                    }}
-                                  />
-                                </td>
-                                <td className="py-4 px-6 text-left">
-                                  <div className="flex items-center justify-start gap-3">
-                                    <div className="w-9 h-9 rounded-full bg-[#E5F0FF] text-[#003F87] flex items-center justify-center font-black text-xs shadow-inner group-hover:bg-[#003F87] group-hover:text-white transition-colors">
-                                      {student.first_name?.[0] || 'U'}{student.last_name?.[0] || ''}
-                                    </div>
-                                    <span className="font-bold text-slate-800 text-sm">{student.first_name} {student.last_name}</span>
-                                  </div>
-                                </td>
-                                <td className="py-4 px-6 text-sm font-bold text-slate-500">{student.student_code}</td>
-                                <td className="py-4 px-6 text-sm font-medium text-slate-500">{student.phone || '-'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                  {studentsViewMode === 'enrolled' ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-xl font-black text-slate-800">Enrolled Students</h3>
+                          <p className="text-sm text-slate-500 mt-1">Students currently taking {selectedCourse.title}</p>
+                        </div>
+                        <button 
+                          onClick={() => setStudentsViewMode('assign')}
+                          className="px-6 py-2 bg-[#003F87] rounded-xl text-sm font-bold text-white hover:bg-[#002B5E] shadow-md shadow-blue-900/10 active:scale-95 transition-all flex items-center gap-2"
+                        >
+                          + Assign Students
+                        </button>
                       </div>
-                    )}
-                  </div>
+
+                      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                        {isStudentsLoading ? (
+                          <div className="p-8 text-center text-slate-500 text-sm font-medium">Loading students...</div>
+                        ) : courseEnrolledStudents.length === 0 ? (
+                          <div className="p-8 text-center text-slate-500 text-sm font-medium">No students are currently enrolled.</div>
+                        ) : (
+                          <div className="max-h-[50vh] overflow-y-auto">
+                            <table className="w-full text-center border-collapse">
+                              <thead className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-md">
+                                <tr>
+                                  <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-left">Student Name</th>
+                                  <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Code</th>
+                                  <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Phone</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {courseEnrolledStudents.map(student => (
+                                  <tr key={student.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors group">
+                                    <td className="py-4 px-6 text-left">
+                                      <div className="flex items-center justify-start gap-3">
+                                        <div className="w-9 h-9 rounded-full bg-[#E5F0FF] text-[#003F87] flex items-center justify-center font-black text-xs shadow-inner group-hover:bg-[#003F87] group-hover:text-white transition-colors">
+                                          {student.first_name?.[0] || 'U'}{student.last_name?.[0] || ''}
+                                        </div>
+                                        <span className="font-bold text-slate-800 text-sm">{student.first_name} {student.last_name}</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-4 px-6 text-sm font-bold text-slate-500">{student.student_code}</td>
+                                    <td className="py-4 px-6 text-sm font-medium text-slate-500">{student.phone || '-'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-xl font-black text-slate-800">Assign Students</h3>
+                          <p className="text-sm text-slate-500 mt-1">Select students to enroll them in {selectedCourse.title}</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <button 
+                            onClick={() => setStudentsViewMode('enrolled')}
+                            className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                          >
+                            Back
+                          </button>
+                          <button 
+                            onClick={handleBatchAssignStudents}
+                            disabled={selectedStudentIds.length === 0 || assigningStudents}
+                            className="px-6 py-2 bg-[#003F87] rounded-xl text-sm font-bold text-white hover:bg-[#002B5E] shadow-md shadow-blue-900/10 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {assigningStudents ? 'Assigning...' : `Assign ${selectedStudentIds.length} Student${selectedStudentIds.length !== 1 ? 's' : ''}`}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                        {isStudentsLoading ? (
+                          <div className="p-8 text-center text-slate-500 text-sm font-medium">Loading students...</div>
+                        ) : allStudents.length === 0 ? (
+                          <div className="p-8 text-center text-slate-500 text-sm font-medium">No unassigned students found.</div>
+                        ) : (
+                          <div className="max-h-[50vh] overflow-y-auto">
+                            <table className="w-full text-center border-collapse">
+                              <thead className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-md">
+                                <tr>
+                                  <th className="py-4 px-6 border-b border-slate-200 w-12 text-center">
+                                    <input 
+                                      type="checkbox" 
+                                      className="w-4 h-4 rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] cursor-pointer inline-block align-middle"
+                                      onChange={(e) => setSelectedStudentIds(e.target.checked ? allStudents.map(s => s.id) : [])}
+                                      checked={selectedStudentIds.length === allStudents.length && allStudents.length > 0}
+                                    />
+                                  </th>
+                                  <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-left">Student Name</th>
+                                  <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Code</th>
+                                  <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-center">Phone</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {allStudents.map(student => (
+                                  <tr key={student.id} className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors group">
+                                    <td className="py-4 px-6 text-center">
+                                      <input 
+                                        type="checkbox" 
+                                        className="w-4 h-4 rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] cursor-pointer inline-block align-middle"
+                                        checked={selectedStudentIds.includes(student.id)}
+                                        onChange={(e) => {
+                                          if (e.target.checked) setSelectedStudentIds([...selectedStudentIds, student.id]);
+                                          else setSelectedStudentIds(selectedStudentIds.filter(id => id !== student.id));
+                                        }}
+                                      />
+                                    </td>
+                                    <td className="py-4 px-6 text-left">
+                                      <div className="flex items-center justify-start gap-3">
+                                        <div className="w-9 h-9 rounded-full bg-[#E5F0FF] text-[#003F87] flex items-center justify-center font-black text-xs shadow-inner group-hover:bg-[#003F87] group-hover:text-white transition-colors">
+                                          {student.first_name?.[0] || 'U'}{student.last_name?.[0] || ''}
+                                        </div>
+                                        <span className="font-bold text-slate-800 text-sm">{student.first_name} {student.last_name}</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-4 px-6 text-sm font-bold text-slate-500">{student.student_code}</td>
+                                    <td className="py-4 px-6 text-sm font-medium text-slate-500">{student.phone || '-'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -1085,8 +1191,9 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                   <div className="flex flex-col lg:flex-row gap-8 items-start">
                     
                     {/* Add Module Sidebar */}
-                    <div className="w-full lg:w-[320px] shrink-0 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm sticky top-0">
-                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><LayoutList size={18} className="text-[#003F87]" /> New Module</h3>
+                    {!expandedModuleId && (
+                      <div className="w-full lg:w-[320px] shrink-0 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm sticky top-0">
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><LayoutList size={18} className="text-[#003F87]" /> New Module</h3>
                       <form onSubmit={handleAddModule} className="flex flex-col gap-4">
                         <div>
                           <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Module Title</label>
@@ -1105,6 +1212,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                         </button>
                       </form>
                     </div>
+                    )}
 
                     {/* Curriculum List */}
                     <div className="flex-1 w-full flex flex-col gap-4">
@@ -1155,8 +1263,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                               <div className="bg-[#FAFBFC] border-t border-slate-100 p-5 pl-16">
                                 
                                 {/* Add Topic Inline Form */}
-                                <form onSubmit={(e) => handleAddSubmodule(e, m.id)} className="flex flex-wrap sm:flex-nowrap gap-3 items-center mb-6 bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
-                                  <input type="text" placeholder="New Topic Title..." required value={newSubmodule.title} onChange={e => setNewSubmodule({...newSubmodule, title: e.target.value})} className="flex-1 text-sm p-2 bg-transparent outline-none font-medium placeholder-slate-400" />
+                                <form onSubmit={(e) => handleAddSubmodule(e, m.id)} className="flex flex-wrap sm:flex-nowrap gap-3 items-center mb-6 bg-white p-3 rounded-xl border border-blue-100 shadow-sm w-full">
+                                  <input type="text" placeholder="New Topic Title..." required value={newSubmodule.title} onChange={e => setNewSubmodule({...newSubmodule, title: e.target.value})} className="flex-1 w-full text-sm p-2 bg-transparent outline-none font-medium placeholder-slate-400" />
                                   <div className="w-[80px] shrink-0 border-l border-slate-100 pl-3">
                                     <input type="number" placeholder="Seq" required value={newSubmodule.sequence_order} onChange={e => setNewSubmodule({...newSubmodule, sequence_order: e.target.value})} className="w-full text-sm p-2 bg-transparent outline-none text-center font-bold text-[#003F87] placeholder-slate-400" />
                                   </div>
@@ -1178,7 +1286,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                         >
                                           <div className="flex gap-4 items-center flex-1">
                                             <div className="text-[#003F87] font-black text-sm w-8 text-center bg-blue-50 py-1 rounded">{m.sequence_order}.{sm.sequence_order}</div>
-                                            <div className="font-bold text-slate-800 text-sm">
+                                            <div className="font-black text-slate-800 text-base">
                                               {sm.title}
                                             </div>
                                           </div>
@@ -1210,7 +1318,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                                   <div key={t.id} draggable onDragStart={(e) => handleDragStart(e, 'Task', t.id)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'Task', t.id, sm.id)} className="bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col cursor-move">
                                                     <div className="py-2.5 px-4 flex flex-wrap sm:flex-nowrap gap-3 items-center cursor-pointer hover:bg-slate-50" onClick={() => setExpandedTaskId(expandedTaskId === t.id ? null : t.id)}>
                                                       <div className="w-5 h-5 rounded bg-slate-100 text-slate-500 text-[10px] font-black flex items-center justify-center shrink-0">{t.sequence_order}</div>
-                                                      <div className="flex-1 text-sm font-semibold text-slate-700 min-w-[150px]">{t.title}</div>
+                                                      <div className="flex-1 text-base font-bold text-slate-800 min-w-[150px]">{t.title}</div>
                                                       <div className={`text-[9px] font-black uppercase px-2 py-1 rounded-md tracking-wider ml-auto sm:ml-0 ${t.task_type === 'EXTRA' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#003F87]'}`}>{t.task_type === 'EXTRA' ? 'Bonus' : 'Required'}</div>
                                                       <button
                                                         onClick={(e) => { e.stopPropagation(); setItemToDelete({ type: 'Task', moduleId: m.id, submoduleId: sm.id, taskId: t.id, title: t.title }); }}
@@ -1226,10 +1334,10 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                                         <h6 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Subtasks (Steps)</h6>
                                                         {subtasks.filter(st => st.task_id === t.id).sort((a,b) => a.sequence_order - b.sequence_order).map(st => (
                                                           <div key={st.id} draggable onDragStart={(e) => handleDragStart(e, 'Subtask', st.id)} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'Subtask', st.id, t.id)} className="flex gap-2 items-start bg-white p-2 rounded border border-slate-100 cursor-move">
-                                                            <div className="text-[10px] font-bold text-[#003F87] w-4 mt-0.5">{st.sequence_order}.</div>
+                                                            <div className="text-sm font-bold text-[#003F87] w-5 mt-0.5">{st.sequence_order}.</div>
                                                             <div className="flex-1">
-                                                              <div className="text-xs font-bold text-slate-700">{st.title}</div>
-                                                              {st.description && <div className="text-[10px] text-slate-500 mt-0.5">{st.description}</div>}
+                                                              <div className="text-sm font-bold text-slate-800">{st.title}</div>
+                                                              {st.description && <div className="text-sm text-slate-500 mt-0.5">{st.description}</div>}
                                                             </div>
                                                             <button
                                                               onClick={(e) => { e.preventDefault(); setItemToDelete({ type: 'Subtask', moduleId: m.id, submoduleId: sm.id, taskId: t.id, subtaskId: st.id, title: st.title }); }}
@@ -1241,14 +1349,17 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                                           </div>
                                                         ))}
                                                         
-                                                        <form onSubmit={(e) => handleAddSubtask(e, m.id, sm.id, t.id)} className="flex flex-col gap-2 mt-2 bg-white p-2 rounded border border-blue-100">
-                                                          <div className="flex gap-2">
-                                                            <input type="text" placeholder="Subtask title..." required value={newSubtask.title} onChange={e => setNewSubtask({...newSubtask, title: e.target.value})} className="flex-1 text-xs p-1.5 bg-slate-50 border border-slate-100 rounded outline-none focus:border-[#003F87]" />
-                                                            <input type="number" placeholder="Seq" required value={newSubtask.sequence_order} onChange={e => setNewSubtask({...newSubtask, sequence_order: e.target.value})} className="w-12 text-xs p-1.5 bg-slate-50 border border-slate-100 rounded outline-none focus:border-[#003F87] text-center" />
+                                                        <form onSubmit={(e) => handleAddSubtask(e, m.id, sm.id, t.id)} className="flex flex-col gap-2 mt-2 bg-white p-2 rounded-lg border border-slate-200 w-full">
+                                                          <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center w-full border-b border-slate-100 pb-2">
+                                                            <input type="text" placeholder="Subtask title..." required value={newSubtask.title} onChange={e => setNewSubtask({...newSubtask, title: e.target.value})} className="flex-1 text-sm p-2 outline-none font-medium placeholder-slate-400 w-full bg-transparent" />
+                                                            <div className="h-4 w-px bg-slate-200"></div>
+                                                            <input type="number" placeholder="Seq" required value={newSubtask.sequence_order} onChange={e => setNewSubtask({...newSubtask, sequence_order: e.target.value})} className="w-[50px] text-sm p-2 outline-none text-center font-bold text-[#003F87] bg-transparent" />
                                                           </div>
-                                                          <div className="flex gap-2">
-                                                            <input type="text" placeholder="Description (optional)" value={newSubtask.description} onChange={e => setNewSubtask({...newSubtask, description: e.target.value})} className="flex-1 text-[10px] p-1.5 bg-slate-50 border border-slate-100 rounded outline-none focus:border-[#003F87]" />
-                                                            <button type="submit" disabled={isAddingModule} className="px-3 py-1 bg-[#008A2E] text-white text-[10px] font-bold rounded uppercase tracking-wider hover:bg-[#006E24] disabled:opacity-50">Add Step</button>
+                                                          <div className="flex flex-wrap sm:flex-nowrap gap-2 items-center w-full">
+                                                            <input type="text" placeholder="Description (optional)" value={newSubtask.description} onChange={e => setNewSubtask({...newSubtask, description: e.target.value})} className="flex-1 text-xs p-2 outline-none font-medium placeholder-slate-400 bg-transparent" />
+                                                            <button type="submit" disabled={isAddingModule} className={`py-2 px-4 bg-[#008A2E] text-white text-[10px] uppercase tracking-widest font-black rounded-md transition-colors shadow-sm shrink-0 ${isAddingModule ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#006E24]'}`}>
+                                                              {isAddingModule ? '...' : <Plus size={14} />}
+                                                            </button>
                                                           </div>
                                                         </form>
                                                       </div>
@@ -1258,13 +1369,18 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                               )}
                                             </div>
                                             
-                                            <form onSubmit={(e) => handleAddTask(e, m.id, sm.id)} className="flex flex-wrap sm:flex-nowrap gap-2 items-center bg-white p-2 rounded-lg border border-slate-200">
-                                              <input type="text" placeholder="Add a new task..." required value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="flex-1 text-xs p-2 outline-none font-medium placeholder-slate-400" />
+                                            <form onSubmit={(e) => handleAddTask(e, m.id, sm.id)} className="flex flex-wrap sm:flex-nowrap gap-2 items-center bg-white p-2 rounded-lg border border-slate-200 w-full">
+                                              <input type="text" placeholder="Add a new task..." required value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="flex-1 text-sm p-2 outline-none font-medium placeholder-slate-400 w-full" />
                                               <div className="h-4 w-px bg-slate-200"></div>
-                                              <select value={newTask.task_type} onChange={e => setNewTask({...newTask, task_type: e.target.value})} className="w-[100px] text-xs p-2 outline-none text-slate-600 font-bold bg-transparent cursor-pointer">
-                                                <option value="PRE_PLANNED">Required</option>
-                                                <option value="EXTRA">Bonus</option>
-                                              </select>
+                                              <CustomSelect
+                                                options={[{value: 'PRE_PLANNED', label: 'Required'}, {value: 'EXTRA', label: 'Bonus'}]}
+                                                value={newTask.task_type}
+                                                onChange={(val) => setNewTask({...newTask, task_type: val})}
+                                                placeholder="Type"
+                                                className="w-[120px]"
+                                                selectClassName="w-full bg-transparent text-xs font-bold text-[#003F87] outline-none cursor-pointer relative"
+                                                openUpwards={true}
+                                              />
                                               <div className="h-4 w-px bg-slate-200"></div>
                                               <input type="number" placeholder="Seq" required value={newTask.sequence_order} onChange={e => setNewTask({...newTask, sequence_order: e.target.value})} className="w-[50px] text-xs p-2 outline-none text-center font-bold text-[#003F87]" />
                                               <button type="submit" disabled={isAddingModule} className={`py-2 px-4 bg-[#008A2E] text-white text-[10px] uppercase tracking-widest font-black rounded-md transition-colors shadow-sm ${isAddingModule ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#006E24]'}`}>

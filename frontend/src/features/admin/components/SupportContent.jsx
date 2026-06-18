@@ -3,9 +3,10 @@ import React from 'react';
 const SupportContent = () => {
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative">
-      <div className="w-full flex justify-between items-end h-[60px]">
-        <div className="flex flex-col justify-end">
-          <h2 className="text-[24px] font-bold text-[#003F87] leading-tight">Support</h2>
+      <div className="w-full flex justify-between items-end mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Support Requests</h1>
+          <p className="text-slate-500 mt-1">Manage and resolve user issues and inquiries.</p>
         </div>
       </div>
       <div className="w-full bg-white border border-[#C2C6D4] rounded-[16px] p-6 shadow-sm">
