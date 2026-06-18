@@ -130,7 +130,10 @@ const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, is
           </div>
 
           {/* Main Nav Container */}
-          <nav className="flex-1 flex flex-col gap-1.5 overflow-y-auto mt-4 pr-3 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+          <nav 
+            className="flex-1 flex flex-col gap-1.5 overflow-y-auto mt-4 pr-3 scrollbar-none [&::-webkit-scrollbar]:hidden"
+            style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}
+          >
             {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -141,7 +144,7 @@ const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, is
                   onClick={() => window.innerWidth < 1024 && setIsOpen && setIsOpen(false)}
                   className={`group flex items-center gap-[14px] px-[14px] py-[10px] rounded-xl transition-all duration-300 text-left w-full shrink-0 relative overflow-hidden
                     ${isActive 
-                      ? 'bg-blue-100/80 text-[#003F87] font-bold shadow-sm' 
+                      ? 'bg-blue-50 text-[#003F87] font-bold' 
                       : 'text-slate-500 font-medium hover:bg-slate-50 hover:text-slate-800'
                     }`}
                 >

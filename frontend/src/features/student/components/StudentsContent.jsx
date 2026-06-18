@@ -62,6 +62,22 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
     first_name: '', last_name: '', email: '', password: '', phone: '', parent_phone: '', guardian_name: '', address: '', joining_date: '', course_ids: [], avatarUrl: null
   });
 
+  const [newStudentDocuments, setNewStudentDocuments] = useState([]);
+
+  const addNewStudentDocument = () => {
+    setNewStudentDocuments([...newStudentDocuments, { type: '', file: null }]);
+  };
+
+  const updateNewStudentDocument = (idx, field, value) => {
+    const updated = [...newStudentDocuments];
+    updated[idx][field] = value;
+    setNewStudentDocuments(updated);
+  };
+
+  const removeNewStudentDocument = (idx) => {
+    setNewStudentDocuments(newStudentDocuments.filter((_, i) => i !== idx));
+  };
+
   const [newEnrollment, setNewEnrollment] = useState('');
   const [payInitialFee, setPayInitialFee] = useState(false);
   const [newDocName, setNewDocName] = useState('');
@@ -535,7 +551,13 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
           )}
         </div>
         <button 
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => {
+            setNewStudent({
+              first_name: '', last_name: '', email: '', password: '', phone: '', parent_phone: '', guardian_name: '', address: '', joining_date: new Date().toISOString().split('T')[0], course_ids: [], avatarUrl: null
+            });
+            setNewStudentDocuments([]);
+            setIsAddModalOpen(true);
+          }}
           className="w-full sm:w-auto bg-[#003F87] text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95"
         >
           <Plus size={18} /> Add New Student
@@ -552,7 +574,13 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
         
         {/* Enroll Card */}
         <button 
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() => {
+            setNewStudent({
+              first_name: '', last_name: '', email: '', password: '', phone: '', parent_phone: '', guardian_name: '', address: '', joining_date: new Date().toISOString().split('T')[0], course_ids: [], avatarUrl: null
+            });
+            setNewStudentDocuments([]);
+            setIsAddModalOpen(true);
+          }}
           className="bg-transparent rounded-[24px] border-2 border-dashed border-slate-200 p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group min-h-[260px]"
         >
           <div className="w-14 h-14 rounded-[16px] bg-white shadow-sm text-blue-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300 border border-slate-100">
@@ -785,6 +813,51 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
                       ))
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Optional Documents */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-5 flex items-center gap-2"><FileText size={16} className="text-[#003F87]" /> Initial Documents (Optional)</h3>
+                
+                <div className="space-y-4">
+                  {newStudentDocuments.map((doc, idx) => (
+                    <div key={idx} className="flex items-end gap-4 p-4 border border-slate-200 rounded-xl bg-slate-50 relative group">
+                      <div className="flex-1">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Document Type</label>
+                        <select 
+                          value={doc.type}
+                          onChange={(e) => updateNewStudentDocument(idx, 'type', e.target.value)}
+                          className="w-full px-4 h-[44px] bg-white border border-slate-200 rounded-lg outline-none focus:border-[#003F87] text-sm font-medium text-slate-700"
+                        >
+                          <option value="">Select Type...</option>
+                          <option value="ID Proof">ID Proof</option>
+                          <option value="Address Proof">Address Proof</option>
+                          <option value="Previous Education">Previous Education Certificate</option>
+                          <option value="Other">Other Document</option>
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">File</label>
+                        <input 
+                          type="file" 
+                          onChange={(e) => updateNewStudentDocument(idx, 'file', e.target.files[0])}
+                          className="w-full h-[44px] text-sm text-slate-500 file:mr-4 file:h-full file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#E5F0FF] file:text-[#003F87] hover:file:bg-[#d0e3ff] cursor-pointer bg-white border border-slate-200 rounded-lg p-1"
+                        />
+                      </div>
+                      <button type="button" onClick={() => removeNewStudentDocument(idx)} className="h-[44px] w-[44px] flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors shrink-0">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  <button 
+                    type="button" 
+                    onClick={addNewStudentDocument}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#003F87] bg-[#E5F0FF] rounded-lg hover:bg-[#d0e3ff] transition-colors w-max"
+                  >
+                    <Plus size={16} /> Add Document
+                  </button>
                 </div>
               </div>
 

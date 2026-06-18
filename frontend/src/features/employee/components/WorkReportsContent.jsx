@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Plus, Briefcase, UploadCloud, FileText, Trash2, Clock, X, ExternalLink, ChevronDown, Check } from "lucide-react";
+import { Plus, Briefcase, UploadCloud, FileText, Trash2, Clock, X, ExternalLink, ChevronDown, Check, CalendarDays } from "lucide-react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import LoadingSpinner from "../../../components/LoadingSpinner";
 
 // Backward-compatible parser for legacy reports that stored metadata in work_done text
@@ -123,6 +125,7 @@ const WorkReportsContent = () => {
 
   const [selectedEmployee, setSelectedEmployee] = useState("ALL");
   const [dateFilter, setDateFilter] = useState("TODAY");
+  const [selectedSpecificDate, setSelectedSpecificDate] = useState("");
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [newReport, setNewReport] = useState({
     employee_id: "",
@@ -184,18 +187,13 @@ const WorkReportsContent = () => {
         ) {
           return false;
         }
-      } else if (dateFilter === "THIS_MONTH") {
+      } else if (dateFilter === "SPECIFIC_DATE") {
+        if (!selectedSpecificDate) return false;
+        const [year, month, day] = selectedSpecificDate.split("-").map(Number);
         if (
-          reportDate.getMonth() !== today.getMonth() ||
-          reportDate.getFullYear() !== today.getFullYear()
-        ) {
-          return false;
-        }
-      } else if (dateFilter === "PREVIOUS_MONTH") {
-        const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        if (
-          reportDate.getMonth() !== prevMonth.getMonth() ||
-          reportDate.getFullYear() !== prevMonth.getFullYear()
+          reportDate.getDate() !== day ||
+          reportDate.getMonth() !== month - 1 ||
+          reportDate.getFullYear() !== year
         ) {
           return false;
         }
@@ -324,16 +322,39 @@ const WorkReportsContent = () => {
             />
             
             <CustomSelect 
-              label="Date Range"
+              label="Report Period"
               value={dateFilter}
               onChange={setDateFilter}
               options={[
-                { value: "TODAY", label: "Today's Reports" },
-                { value: "THIS_MONTH", label: "This Month" },
-                { value: "PREVIOUS_MONTH", label: "Previous Month" },
-                { value: "ALL_TIME", label: "All Time" },
+                { value: "TODAY", label: "Today" },
+                { value: "SPECIFIC_DATE", label: "Custom Date" },
               ]}
             />
+            
+            {dateFilter === "SPECIFIC_DATE" && (
+              <div className="flex flex-col flex-1 max-w-xs">
+                <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">Select Date</label>
+                <div className="relative">
+                  <DatePicker
+                    selected={selectedSpecificDate ? new Date(selectedSpecificDate) : null}
+                    onChange={(date) => {
+                      if (date) {
+                        const yyyy = date.getFullYear();
+                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                        const dd = String(date.getDate()).padStart(2, '0');
+                        setSelectedSpecificDate(`${yyyy}-${mm}-${dd}`);
+                      } else {
+                        setSelectedSpecificDate("");
+                      }
+                    }}
+                    dateFormat="MMMM d, yyyy"
+                    placeholderText="Select a date"
+                    className="w-full bg-slate-50 border border-[#E2E8F0] text-[14px] text-slate-700 px-3 py-2.5 pl-10 rounded-lg focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] outline-none transition-all duration-200 shadow-sm cursor-pointer"
+                  />
+                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -342,7 +363,7 @@ const WorkReportsContent = () => {
             <Clock size={40} className="mx-auto mb-3 opacity-50" />
             <p className="font-semibold text-lg">No reports found</p>
             <p className="text-sm mt-1">
-              {userRole === "ADMIN" ? "Try changing the date range or employee filter." : "Submit your first work report to get started."}
+              {userRole === "ADMIN" ? "Try changing the report period or employee filter." : "Submit your first work report to get started."}
             </p>
           </div>
         )}

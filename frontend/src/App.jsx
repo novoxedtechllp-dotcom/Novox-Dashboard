@@ -94,7 +94,7 @@ const mapCourseFromApi = (d) => {
     mentorId: instructorProfile?.id || '',
     mentorName,
     mentorInitials: getInitials(mentorName),
-    price: d.price || '₹0.00',
+    price: d.total_fee ? `₹${d.total_fee}` : (d.price || '₹0.00'),
     imgUrl: d.imgUrl || null
   };
 };
