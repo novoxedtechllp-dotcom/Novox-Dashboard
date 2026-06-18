@@ -350,15 +350,19 @@ const getStudentBalances = asyncHandler(async (req, res) => {
     const totalCourseFeeVal = parseFloat(plan.total_fee) || 0;
     const remainingCourseFee = Math.max(0, totalCourseFeeVal - breakdown.totalPaid);
 
+    const monthPayments = studentPayments.filter(p => p.month === targetMonth && p.year === targetYear);
+    const paidThisMonth = monthPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+
     let paymentStatus = 'Pending';
     if (remainingCourseFee === 0 && totalCourseFeeVal > 0) {
       paymentStatus = 'Full Paid';
-    } else if (breakdown.totalPaid > 0 && breakdown.totalPaid < 10000) {
+    } else if (breakdown.currentMonthDue === 0) {
+      paymentStatus = 'Paid';
+    } else if (paidThisMonth >= breakdown.currentMonthDue) {
+      paymentStatus = 'Paid';
+    } else if (paidThisMonth > 0) {
       paymentStatus = 'Partially Paid';
     }
-
-    const monthPayments = studentPayments.filter(p => p.month === targetMonth && p.year === targetYear);
-    const paidThisMonth = monthPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
     return {
       id: plan.id,
@@ -464,10 +468,17 @@ const getStudentFeeDetails = asyncHandler(async (req, res) => {
     const totalCourseFeeVal = parseFloat(plan.total_fee) || 0;
     const remainingCourseFee = Math.max(0, totalCourseFeeVal - breakdown.totalPaid);
 
+    const monthPayments = planPayments.filter(p => p.month === currentMonth && p.year === currentYear);
+    const paidThisMonth = monthPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+
     let paymentStatus = 'Pending';
     if (remainingCourseFee === 0 && totalCourseFeeVal > 0) {
       paymentStatus = 'Full Paid';
-    } else if (breakdown.totalPaid > 0 && breakdown.totalPaid < 10000) {
+    } else if (breakdown.currentMonthDue === 0) {
+      paymentStatus = 'Paid';
+    } else if (paidThisMonth >= breakdown.currentMonthDue) {
+      paymentStatus = 'Paid';
+    } else if (paidThisMonth > 0) {
       paymentStatus = 'Partially Paid';
     }
 
