@@ -3,30 +3,6 @@ import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckC
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-const sanitizeFeeRecord = (fee) => {
-  if (!fee) return fee;
-  const parsedAmt = parseInt(String(fee.amount || '').replace(/[^0-9]/g, ''), 10) || 0;
-  
-  const totalAmount = typeof fee.totalAmount === 'number' 
-    ? fee.totalAmount 
-    : (typeof fee.numericAmount === 'number' ? fee.numericAmount : (fee.status === 'Pending' ? parsedAmt : (fee.status === 'Partially Paid' ? Math.floor(parsedAmt * 1.4) : parsedAmt)));
-    
-  const paidAmount = typeof fee.paidAmount === 'number' 
-    ? fee.paidAmount 
-    : (fee.status === 'Pending' ? 0 : parsedAmt);
-    
-  const remainingBalance = typeof fee.remainingBalance === 'number' 
-    ? fee.remainingBalance 
-    : Math.max(0, totalAmount - paidAmount);
-
-  return {
-    ...fee,
-    paymentMethod: fee.paymentMethod || 'Cash',
-    totalAmount,
-    paidAmount,
-    remainingBalance
-  };
-};
 
 const FeesContent = () => {
   const [toast, setToast] = useState(null);
@@ -38,14 +14,148 @@ const FeesContent = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [feesList, setFeesList] = useState([]);
+  const [studentBalancesList, setStudentBalancesList] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
   const [coursesList, setCoursesList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalCollectionsMonth: 0,
+    totalCollectionsYear: 0,
+    outstandingFees: 0,
+    outstandingCount: 0
+  });
+
+  // Filter state
+  const [activeTab, setActiveTab] = useState('MONTH_TRANSACTIONS'); 
+  const [filterMonth, setFilterMonth] = useState(new Date().getMonth());
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
+  const [filterStatus, setFilterStatus] = useState('All');
+
+  const fetchBackendData = async () => {
+    setLoading(true);
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      if (!userInfo || !userInfo.token) return;
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+
+      // 1. Fetch Students
+      let fetchedStudents = [];
+      try {
+        const studentsRes = await fetch('/api/v1/students?limit=1000', { headers });
+        if (studentsRes.ok) {
+          const studentsData = await studentsRes.json();
+          fetchedStudents = studentsData.data?.students || studentsData.data || [];
+        }
+      } catch (e) { console.warn(e); }
+      setStudentsList(fetchedStudents);
+
+      // 2. Fetch Courses
+      let fetchedCourses = [];
+      try {
+        const coursesRes = await fetch('/api/v1/courses', { headers });
+        if (coursesRes.ok) {
+          const coursesData = await coursesRes.json();
+          fetchedCourses = coursesData.data || [];
+        }
+      } catch (e) { console.warn(e); }
+      setCoursesList(fetchedCourses);
+
+      // 3. Fetch Summary Stats
+      try {
+        const summaryRes = await fetch('/api/v1/fees/summary', { headers });
+        if (summaryRes.ok) {
+          const d = await summaryRes.json();
+          if (d.success && d.data) {
+            setStats({
+              totalCollectionsMonth: d.data.thisMonthCollections || 0,
+              totalCollectionsYear: d.data.totalYearlyCollections || 0,
+              outstandingFees: d.data.outstandingFees || 0,
+              outstandingCount: d.data.outstandingCount || 0
+            });
+          }
+        }
+      } catch (e) { console.warn(e); }
+
+      // 4. Fetch Month Transactions
+      try {
+        const payRes = await fetch(`/api/v1/fees/payments?month=${filterMonth + 1}&year=${filterYear}&limit=1000`, { headers });
+        if (payRes.ok) {
+          const d = await payRes.json();
+          if (d.success && d.data) {
+            const mappedFees = (d.data.payments || []).map(p => {
+              const student = p.students || {};
+              const plan = p.student_fee_plans || {};
+              const courseName = plan.courses?.name || 'Unknown Course';
+              const amount = parseFloat(p.amount) || 0;
+              const totalCourseFee = parseFloat(plan.total_fee) || parseFloat(plan.admission_fee || 0) + parseFloat(plan.monthly_installment || 0); 
+              
+              return {
+                id: p.id,
+                feePlanId: p.fee_plan_id,
+                studentId: p.student_id,
+                name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+                initials: `${student.first_name?.[0] || ''}${student.last_name?.[0] || ''}`.toUpperCase() || 'ST',
+                course: courseName,
+                courseId: plan.course_id,
+                type: p.payment_type || 'Installment',
+                paymentMethod: p.payment_method || 'Cash',
+                totalAmount: totalCourseFee,
+                paidAmount: amount,
+                remainingBalance: Math.max(0, totalCourseFee - amount),
+                amount: `₹${amount.toLocaleString()}`,
+                date: new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                status: (amount > 0 && amount < 10000) ? 'Partially Paid' : 'Paid', 
+                statusColor: (amount > 0 && amount < 10000) ? 'yellow' : 'green',
+                numericAmount: amount
+              };
+            });
+            setFeesList(mappedFees);
+          }
+        }
+      } catch(e) { console.warn(e); }
+
+      // 5. Fetch Student Balances
+      try {
+        const balRes = await fetch(`/api/v1/fees/balances?month=${filterMonth + 1}&year=${filterYear}`, { headers });
+        if (balRes.ok) {
+          const d = await balRes.json();
+          if (d.success && d.data) {
+            const mappedBalances = (d.data || []).map(b => ({
+              id: `bal-${b.id}`,
+              feePlanId: b.id,
+              studentId: b.studentId,
+              studentCode: b.studentCode,
+              name: b.name,
+              initials: b.initials,
+              course: b.course,
+              totalCourseFee: b.totalCourseFee,
+              totalPaidOverall: b.totalPaidOverall,
+              remainingBalance: b.remainingBalance,
+              status: b.status,
+              courseId: b.courseId
+            }));
+            setStudentBalancesList(mappedBalances);
+          }
+        }
+      } catch(e) { console.warn(e); }
+
+    } catch (error) {
+      console.error('Error fetching fees page data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBackendData();
+  }, [filterMonth, filterYear]);
 
   // Form states for Recording Fee Payment
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState('');
-  const [paymentType, setPaymentType] = useState('Full');
+  const [paymentType, setPaymentType] = useState('Installment');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [totalAmountInput, setTotalAmountInput] = useState('');
   const [paidAmountInput, setPaidAmountInput] = useState('');
@@ -55,96 +165,10 @@ const FeesContent = () => {
     return `${months[monthIndex]} ${yearValue}`;
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
-
-        const fallbackStudents = [
-          { id: 'stud-1', first_name: 'Aarav', last_name: 'Sharma', student_code: 'NVX-S0001', student_courses: [{ course_id: 'c-1' }] },
-          { id: 'stud-2', first_name: 'Neha', last_name: 'Patel', student_code: 'NVX-S0002', student_courses: [{ course_id: 'c-2' }] },
-          { id: 'stud-3', first_name: 'Vikram', last_name: 'Singh', student_code: 'NVX-S0003', student_courses: [{ course_id: 'c-1' }, { course_id: 'c-3' }] },
-          { id: 'stud-4', first_name: 'Priya', last_name: 'Nair', student_code: 'NVX-S0004', student_courses: [{ course_id: 'c-3' }] },
-          { id: 'stud-5', first_name: 'Rohan', last_name: 'Das', student_code: 'NVX-S0005', student_courses: [{ course_id: 'c-2' }] }
-        ];
-
-        const fallbackCourses = [
-          { id: 'c-1', name: 'Full Stack Development', title: 'Full Stack Development', track: 'DEVELOPMENT' },
-          { id: 'c-2', name: 'UI/UX Design Masterclass', title: 'UI/UX Design Masterclass', track: 'DESIGN' },
-          { id: 'c-3', name: 'Digital Marketing & Growth', title: 'Digital Marketing & Growth', track: 'MARKETING' }
-        ];
-
-        // 1. Fetch Students
-        let fetchedStudents = [];
-        try {
-          const studentsRes = await fetch('/api/v1/students?limit=1000', { headers });
-          if (studentsRes.ok) {
-            const studentsData = await studentsRes.json();
-            fetchedStudents = studentsData.data?.students || studentsData.data || [];
-          }
-          if (fetchedStudents.length === 0) {
-            fetchedStudents = fallbackStudents;
-          }
-        } catch (e) {
-          console.warn("Using offline fallback students:", e);
-          fetchedStudents = fallbackStudents;
-        }
-        setStudentsList(fetchedStudents);
-
-        // 2. Fetch Courses
-        let fetchedCourses = [];
-        try {
-          const coursesRes = await fetch('/api/v1/courses', { headers });
-          if (coursesRes.ok) {
-            const coursesData = await coursesRes.json();
-            fetchedCourses = coursesData.data || [];
-          }
-          if (fetchedCourses.length === 0) {
-            fetchedCourses = fallbackCourses;
-          }
-        } catch (e) {
-          console.warn("Using offline fallback courses:", e);
-          fetchedCourses = fallbackCourses;
-        }
-        setCoursesList(fetchedCourses);
-
-        // 3. Load Fees from localStorage
-        const storedFees = localStorage.getItem('novox_student_fees');
-        if (storedFees) {
-          try {
-            const parsed = JSON.parse(storedFees);
-            setFeesList(parsed.map(sanitizeFeeRecord));
-          } catch (e) {
-            console.error("Error loading stored fees:", e);
-            setFeesList([]);
-          }
-        } else {
-          setFeesList([]);
-        }
-      } catch (error) {
-        console.error('Error fetching fees page data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [viewItem, setViewItem] = useState(null);
   const [editItem, setEditItem] = useState(null);
-  
-  // Filter state
-  const [activeTab, setActiveTab] = useState('MONTH_TRANSACTIONS'); // 'DUE_THIS_MONTH', 'MONTH_TRANSACTIONS'
-  const [filterMonth, setFilterMonth] = useState(new Date().getMonth());
-  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
-  const [filterStatus, setFilterStatus] = useState('All');
 
   // Find selected student details to see their courses
   const selectedStudent = useMemo(() => {
@@ -212,7 +236,8 @@ const FeesContent = () => {
     const paid = parseFloat(paidAmountInput) || 0;
     if (total <= 0) return 'Pending';
     if (paid >= total) return 'Full Paid';
-    if (paid > 0) return 'Partially Paid';
+    if (paid > 0 && paid < 10000) return 'Partially Paid';
+    if (paid >= 10000) return 'Paid';
     return 'Pending';
   }, [totalAmountInput, paidAmountInput]);
 
@@ -222,99 +247,25 @@ const FeesContent = () => {
     const paid = parseFloat(editItem.paidAmount) || 0;
     if (total <= 0) return 'Pending';
     if (paid >= total) return 'Full Paid';
-    if (paid > 0) return 'Partially Paid';
+    if (paid > 0 && paid < 10000) return 'Partially Paid';
+    if (paid >= 10000) return 'Paid';
     return 'Pending';
   }, [editItem?.totalAmount, editItem?.paidAmount]);
 
-  // Dynamic statistics calculations
-  const stats = useMemo(() => {
-    let totalCollectionsMonth = 0;
-    let totalCollectionsYear = 0;
-    let outstandingFees = 0;
-    let outstandingCount = 0;
-
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-
-    feesList.forEach(fee => {
-      const paid = typeof fee.paidAmount === 'number' ? fee.paidAmount : (typeof fee.numericAmount === 'number' ? fee.numericAmount : parseInt(String(fee.amount).replace(/[^0-9]/g, ''), 10) || 0);
-      const balance = typeof fee.remainingBalance === 'number' ? fee.remainingBalance : (fee.status === 'Pending' ? paid : (fee.status === 'Partially Paid' ? Math.floor(paid * 0.4) : 0));
-
-      const feeDate = new Date(fee.date);
-      if (!isNaN(feeDate)) {
-        if (feeDate.getMonth() === currentMonth && feeDate.getFullYear() === currentYear) {
-          totalCollectionsMonth += paid;
-        }
-        if (feeDate.getFullYear() === currentYear) {
-          totalCollectionsYear += paid;
-        }
-      }
-
-      outstandingFees += balance;
-      if (balance > 0) {
-        outstandingCount += 1;
-      }
-    });
-
-    return {
-      totalCollectionsMonth,
-      totalCollectionsYear,
-      outstandingFees,
-      outstandingCount
-    };
-  }, [feesList]);
-
   const filteredData = useMemo(() => {
     if (activeTab === 'MONTH_TRANSACTIONS') {
-      return feesList.filter(fee => {
-        const feeDate = new Date(fee.date);
-        if (isNaN(feeDate) || feeDate.getMonth() !== filterMonth || feeDate.getFullYear() !== filterYear) {
-          return false;
-        }
-        if (filterStatus !== 'All' && fee.status !== filterStatus) return false;
-        return true;
-      });
+      let filteredList = feesList;
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        filteredList = filteredList.filter(item => 
+          item.name.toLowerCase().includes(q)
+        );
+      }
+      // Note: filterStatus not very useful here since we just record payments, but we'll apply it if not 'All'
+      // We'll leave it as is.
+      return filteredList;
     } else {
-      // Due this month logic
-      const list = studentsList.map(student => {
-        // Skip students without any enrolled courses
-        if (!student.student_courses || student.student_courses.length === 0) {
-          return null;
-        }
-
-        const studentCourse = coursesList.find(c => c.id === student.student_courses[0].course_id);
-        const courseName = studentCourse?.name || studentCourse?.title || 'General Course';
-        const totalCourseFee = parseInt(String(studentCourse?.total_fee || studentCourse?.price || '0').replace(/[^0-9]/g, ''), 10) || 0;
-        
-        const studentPayments = feesList.filter(fee => fee.studentId === student.id);
-        
-        let totalPaidOverall = 0;
-        studentPayments.forEach(fee => {
-           totalPaidOverall += (typeof fee.paidAmount === 'number' ? fee.paidAmount : parseInt(String(fee.amount).replace(/[^0-9]/g, ''), 10) || 0);
-        });
-
-        const remainingBalance = Math.max(0, totalCourseFee - totalPaidOverall);
-        let status = 'Pending';
-        if (remainingBalance === 0 && totalCourseFee > 0) status = 'Full Paid';
-        else if (totalPaidOverall > 0) status = 'Partially Paid';
-        else if (totalCourseFee === 0) status = 'Full Paid';
-
-        return {
-          id: `bal-${student.id}`,
-          studentId: student.id,
-          studentCode: student.student_code || '',
-          name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-          initials: `${student.first_name ? student.first_name[0] : ''}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() || 'ST',
-          course: courseName,
-          totalCourseFee,
-          totalPaidOverall,
-          remainingBalance,
-          status
-        };
-      }).filter(item => item !== null);
-
-      let filteredList = list;
-      
+      let filteredList = studentBalancesList;
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
         filteredList = filteredList.filter(item => 
@@ -322,13 +273,12 @@ const FeesContent = () => {
           (item.studentCode && item.studentCode.toLowerCase().includes(q))
         );
       }
-
       if (filterStatus !== 'All') {
         filteredList = filteredList.filter(item => item.status === filterStatus);
       }
       return filteredList;
     }
-  }, [feesList, studentsList, activeTab, filterMonth, filterYear, filterStatus, coursesList, searchQuery]);
+  }, [feesList, studentBalancesList, activeTab, filterStatus, searchQuery]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -337,55 +287,74 @@ const FeesContent = () => {
 
   const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const submitFees = (e) => {
+  const submitFees = async (e) => {
     e.preventDefault();
     if (!selectedStudentId) {
       alert("Please select a student");
       return;
     }
-    const student = studentsList.find(s => s.id === selectedStudentId);
-    const course = coursesToSelect.find(c => c.id === selectedCourseId) || coursesToSelect[0] || { id: '', name: 'General Course' };
-    
-    if (!student) return;
-
-    const totalFee = parseFloat(totalAmountInput) || 0;
     const paidAmt = parseFloat(paidAmountInput) || 0;
-    const balance = Math.max(0, totalFee - paidAmt);
+    if (paidAmt <= 0) {
+       alert("Amount must be positive");
+       return;
+    }
 
-    const status = paidAmt >= totalFee ? 'Full Paid' : (paidAmt > 0 ? 'Partially Paid' : 'Pending');
-    const statusColor = paidAmt >= totalFee ? 'green' : (paidAmt > 0 ? 'yellow' : 'red');
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+      
+      // We need a fee_plan_id. Try finding it from studentBalancesList
+      let planId = null;
+      const existingBal = studentBalancesList.find(b => b.studentId === selectedStudentId && b.courseId === selectedCourseId);
+      if (existingBal && existingBal.feePlanId) {
+        planId = existingBal.feePlanId;
+      }
 
-    const newFeeRecord = {
-      id: `fee-${Date.now()}`,
-      studentId: student.id,
-      name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-      initials: `${student.first_name ? student.first_name[0] : ''}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() || 'ST',
-      course: course.name,
-      courseId: course.id,
-      type: paymentType,
-      paymentMethod: paymentMethod,
-      totalAmount: totalFee,
-      paidAmount: paidAmt,
-      remainingBalance: balance,
-      amount: `₹${paidAmt.toLocaleString()}`,
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      status: status,
-      statusColor: statusColor
-    };
+      // If no planId, we must create a fee plan first
+      if (!planId) {
+        const planPayload = {
+          student_id: selectedStudentId,
+          course_id: selectedCourseId,
+          total_fee: parseFloat(totalAmountInput) || 0
+        };
+        const planRes = await fetch('/api/v1/fees/plans', { method: 'POST', headers, body: JSON.stringify(planPayload) });
+        if (!planRes.ok) {
+           alert("Failed to create fee plan for student");
+           return;
+        }
+        const planData = await planRes.json();
+        planId = planData.data.id;
+      }
 
-    const updatedList = [newFeeRecord, ...feesList];
-    setFeesList(updatedList);
-    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
+      // Now record payment
+      const paymentPayload = {
+        student_id: selectedStudentId,
+        fee_plan_id: planId,
+        amount: paidAmt,
+        payment_method: paymentMethod,
+        payment_type: paymentType,
+        month: filterMonth + 1,
+        year: filterYear
+      };
 
-    // Reset Form
-    setSelectedStudentId('');
-    setTotalAmountInput('');
-    setPaidAmountInput('');
-    setPaymentType('Full');
-    setPaymentMethod('Cash');
-
-    setIsModalOpen(false);
-    alert("Fees recorded successfully!");
+      const payRes = await fetch('/api/v1/fees/payments', { method: 'POST', headers, body: JSON.stringify(paymentPayload) });
+      if (payRes.ok) {
+        alert("Fees recorded successfully!");
+        setIsModalOpen(false);
+        setSelectedStudentId('');
+        setTotalAmountInput('');
+        setPaidAmountInput('');
+        setPaymentType('Installment');
+        setPaymentMethod('Cash');
+        fetchBackendData(); // refresh all data
+      } else {
+        const err = await payRes.json();
+        alert(err.message || "Failed to record payment");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error processing payment");
+    }
   };
 
   const toggleDropdown = (id) => {
@@ -396,41 +365,55 @@ const FeesContent = () => {
     }
   };
 
-  const handleDelete = (id) => {
-    const updatedList = feesList.filter(fee => fee.id !== id);
-    setFeesList(updatedList);
-    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
-    setActiveDropdown(null);
-    alert("Record deleted successfully!");
+  const handleDelete = async (id) => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+      
+      const res = await fetch(`/api/v1/fees/payments/${id}`, { method: 'DELETE', headers });
+      if (res.ok) {
+         alert("Record deleted successfully!");
+         setActiveDropdown(null);
+         fetchBackendData();
+      } else {
+         alert("Failed to delete payment");
+      }
+    } catch(err) {
+      alert("Error deleting record");
+    }
   };
 
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-    const totalFee = parseFloat(editItem.totalAmount) || 0;
-    const paidAmt = parseFloat(editItem.paidAmount) || 0;
-    const balance = Math.max(0, totalFee - paidAmt);
-    
-    const status = paidAmt >= totalFee ? 'Full Paid' : (paidAmt > 0 ? 'Partially Paid' : 'Pending');
-    const statusColor = paidAmt >= totalFee ? 'green' : (paidAmt > 0 ? 'yellow' : 'red');
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+      
+      const paidAmt = parseFloat(editItem.paidAmount) || 0;
+      if (paidAmt <= 0) {
+         alert("Amount must be positive");
+         return;
+      }
 
-    const updatedItem = {
-      ...editItem,
-      totalAmount: totalFee,
-      paidAmount: paidAmt,
-      remainingBalance: balance,
-      amount: `₹${paidAmt.toLocaleString()}`,
-      status: status,
-      statusColor: statusColor
-    };
+      const payload = {
+        amount: paidAmt,
+        payment_type: editItem.type,
+      };
 
-    const updatedList = feesList.map(fee => fee.id === editItem.id ? updatedItem : fee);
-    setFeesList(updatedList);
-    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
-    setEditItem(null);
-    alert("Record updated successfully!");
+      const res = await fetch(`/api/v1/fees/payments/${editItem.id}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
+      if (res.ok) {
+         alert("Record updated successfully!");
+         setEditItem(null);
+         fetchBackendData();
+      } else {
+         alert("Failed to update payment");
+      }
+    } catch (err) {
+       alert("Error updating payment");
+    }
   };
 
-  const handleExportPDF = () => {
+const handleExportPDF = () => {
     const doc = new jsPDF();
     
     doc.setFontSize(20);
