@@ -47,7 +47,7 @@ const StudentAttendance = () => {
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const record = attendanceRecords.find(a => a.date === dateStr || a.date?.startsWith(dateStr));
+      const record = attendanceRecords.find(a => a.attendance_date === dateStr || a.attendance_date?.startsWith(dateStr));
 
       let bgColor = 'bg-slate-50';
       let textColor = 'text-slate-700';
@@ -118,41 +118,58 @@ const StudentAttendance = () => {
           </div>
         </div>
 
-        {/* Top Row: Summary */}
-        <div className="w-full mb-6">
-          <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2 text-[15px]">
-                <CalendarIcon size={18} className="text-[#003F87]" /> {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })} Summary
-              </h3>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-[#E5F7ED] border border-[#008A2E]/20 rounded-lg p-4 text-center">
-                <div className="text-[24px] font-black text-[#008A2E]">{presentCount}</div>
-                <div className="text-[12px] font-bold text-[#008A2E]/70 uppercase mt-1 tracking-wider">Present</div>
-              </div>
-              <div className="bg-[#FDE2E2] border border-[#D80000]/20 rounded-lg p-4 text-center">
-                <div className="text-[24px] font-black text-[#D80000]">{absentCount}</div>
-                <div className="text-[12px] font-bold text-[#D80000]/70 uppercase mt-1 tracking-wider">Absent</div>
-              </div>
-            </div>
+        {/* Bottom Row: Calendar & List View */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Calendar */}
+          <div className="lg:col-span-1">
+            <div className="bg-white border border-[#E2E8F0] rounded-xl p-6 shadow-sm h-full flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <button
+                    onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
+                    className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 transition-colors border border-slate-200"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <h3 className="font-bold text-slate-800 text-[16px]">
+                    {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                  </h3>
+                  <button
+                    onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
+                    className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 transition-colors border border-slate-200"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
 
-            {/* Attendance Rate Progress Bar */}
-            <div>
-              <div className="flex justify-between items-end mb-2">
-                <span className="text-[14px] font-bold text-slate-800">Attendance Rate</span>
-                <span className="text-[16px] font-black text-[#003F87]">{attendanceRate}%</span>
+                <div className="grid grid-cols-7 gap-2 text-center mb-3">
+                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                    <div key={day} className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">{day}</div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-2">
+                  {calendarDays}
+                </div>
               </div>
-              <div className="w-full bg-[#E2E8F0] rounded-full h-2.5">
-                <div className="bg-[#003F87] h-2.5 rounded-full" style={{ width: `${attendanceRate}%` }}></div>
+
+              {/* Compact stats summary inside Calendar card */}
+              <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100">
+                <div className="bg-slate-50/50 border border-slate-100 rounded-lg py-2.5 px-2 text-center">
+                  <div className="text-[16px] font-black text-slate-800">{presentCount}</div>
+                  <div className="text-[9px] font-bold text-slate-500 uppercase mt-0.5 tracking-wider">Present</div>
+                </div>
+                <div className="bg-slate-50/50 border border-slate-100 rounded-lg py-2.5 px-2 text-center">
+                  <div className="text-[16px] font-black text-slate-800">{absentCount}</div>
+                  <div className="text-[9px] font-bold text-slate-500 uppercase mt-0.5 tracking-wider">Absent</div>
+                </div>
+                <div className="bg-slate-50/50 border border-slate-100 rounded-lg py-2.5 px-2 text-center">
+                  <div className="text-[16px] font-black text-slate-800">{attendanceRate}%</div>
+                  <div className="text-[9px] font-bold text-slate-500 uppercase mt-0.5 tracking-wider">Attendance Rate</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Bottom Row: List View & Calendar */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Daily Attendance Log Table */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full">
@@ -180,7 +197,7 @@ const StudentAttendance = () => {
                       attendanceRecords.map((record, index) => (
                         <tr key={index} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-800">
-                            {new Date(record.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            {new Date(record.attendance_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-slate-600 font-medium">
                             {record.course_name || 'Class Session'}
@@ -200,38 +217,6 @@ const StudentAttendance = () => {
                     )}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          </div>
-
-          {/* Calendar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white border border-[#E2E8F0] rounded-xl p-6 shadow-sm h-full">
-              <div className="flex justify-between items-center mb-6">
-                <button
-                  onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-                  className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 transition-colors border border-slate-200"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <h3 className="font-bold text-slate-800 text-[16px]">
-                  {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                </h3>
-                <button
-                  onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-                  className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 transition-colors border border-slate-200"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-7 gap-2 text-center mb-3">
-                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                  <div key={day} className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">{day}</div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-2">
-                {calendarDays}
               </div>
             </div>
           </div>
