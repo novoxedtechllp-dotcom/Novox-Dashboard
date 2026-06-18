@@ -99,6 +99,7 @@ const LowerContent = ({ employees = [], students }) => {
           subtitle: s.course || 'Enrolled',
           initials: fullName.substring(0, 2).toUpperCase(),
           time: att ? formatTime(att.check_in) : '--:--',
+          checkoutTime: att && att.check_out ? formatTime(att.check_out) : '--:--',
           status: statusData.text,
           statusColor: statusData.color,
           dotColor: statusData.dot,
@@ -114,6 +115,7 @@ const LowerContent = ({ employees = [], students }) => {
           subtitle: e.department || 'Staff',
           initials: (e.name || 'UN').substring(0, 2).toUpperCase(),
           time: att ? formatTime(att.check_in) : '--:--',
+          checkoutTime: att && att.check_out ? formatTime(att.check_out) : '--:--',
           status: statusData.text,
           statusColor: statusData.color,
           dotColor: statusData.dot,
@@ -163,8 +165,8 @@ const LowerContent = ({ employees = [], students }) => {
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-2/5">Entity Name</th>
                 <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">Check-In</th>
+                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">Check-Out</th>
                 <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">Status</th>
-                <th className="py-4 px-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-1/5">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -180,14 +182,12 @@ const LowerContent = ({ employees = [], students }) => {
                     </div>
                   </td>
                   <td className="py-4 px-6 text-[13px] font-medium text-slate-700 truncate">{item.time}</td>
+                  <td className="py-4 px-6 text-[13px] font-medium text-slate-700 truncate">{item.checkoutTime}</td>
                   <td className="py-4 px-6 truncate">
                     <span className={`inline-flex items-center gap-1.5 ${item.statusColor} px-2.5 py-1 rounded-full text-[11px] font-bold`}>
                       <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${item.dotColor}`}></span>
                       {item.status}
                     </span>
-                  </td>
-                  <td className="py-4 px-6 truncate">
-                    <button className="text-[#003F87] text-xs font-bold hover:underline">Details</button>
                   </td>
                 </tr>
               )) : (
