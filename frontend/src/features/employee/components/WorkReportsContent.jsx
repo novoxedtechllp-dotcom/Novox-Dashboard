@@ -669,12 +669,63 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
                 <X size={20} />
               </button>
             </div>
-            <div className="flex-1 bg-slate-100 relative overflow-auto flex justify-center items-center p-4">
-              <iframe
-                src={currentDocAttachment.url}
-                title={currentDocAttachment.name}
-                className="w-full h-full border-none rounded shadow-sm"
-              ></iframe>
+            <div className="flex-1 bg-slate-100 relative overflow-hidden flex justify-center items-center">
+              {(() => {
+                const url = currentDocAttachment.url;
+                const isPdf = url.toLowerCase().endsWith(".pdf");
+                
+                // If it's a legacy Cloudinary PDF (image/upload), Cloudinary strictly blocks the PDF delivery (401 error).
+                // We bypass this entirely by asking Cloudinary to convert the PDF into a PNG image!
+                const isLegacyBlockedPdf = url.includes("res.cloudinary.com") && url.includes("/image/upload/") && isPdf;
+
+                if (isLegacyBlockedPdf) {
+                  const pngUrl = url.replace(/\.pdf$/i, ".png");
+                  const downloadPngUrl = pngUrl.replace("/image/upload/", "/image/upload/fl_attachment/");
+                  return (
+                    <div className="w-full h-full relative flex flex-col bg-slate-200/50 p-4 overflow-auto items-center">
+                      <div className="absolute top-4 right-8 z-10 flex gap-2">
+                        <a 
+                          href={downloadPngUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          download
+                          className="px-4 py-2 bg-[#003F87] text-white rounded-md text-sm font-semibold hover:bg-[#002B5E] shadow flex items-center gap-2"
+                        >
+                          <ExternalLink size={16} /> Download
+                        </a>
+                      </div>
+                      <img 
+                        src={pngUrl} 
+                        alt="Document Preview" 
+                        className="max-w-full shadow-md bg-white min-h-[500px]"
+                      />
+                    </div>
+                  );
+                }
+
+                // For new raw PDFs or other files, we show the reliable Download UI
+                // raw/upload URLs do not get 401 errors.
+                return (
+                  <div className="flex flex-col items-center justify-center w-full h-full text-center p-8">
+                    <div className="bg-white p-12 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center max-w-md w-full">
+                      <FileText size={64} className="text-[#003F87] mb-6 opacity-80" />
+                      <h4 className="text-xl font-bold text-slate-800 mb-2">Document Ready</h4>
+                      <p className="text-sm text-slate-500 mb-8 px-4">
+                        To access this document securely, please download it to your device.
+                      </p>
+                      <a 
+                        href={url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        download
+                        className="w-full py-3 bg-[#003F87] text-white rounded-xl text-sm font-bold hover:bg-[#002B5E] transition-all shadow-md hover:shadow-lg flex justify-center items-center gap-2"
+                      >
+                        <ExternalLink size={18} /> Download {isPdf ? 'PDF' : 'File'}
+                      </a>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
