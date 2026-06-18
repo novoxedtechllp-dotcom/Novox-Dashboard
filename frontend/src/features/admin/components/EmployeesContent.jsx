@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle } from 'lucide-react';
+import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle, Search, Shield } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const getAuthHeaders = () => {
@@ -53,7 +53,7 @@ const mapEmployeeFromApi = (employee, avatar = null) => ({
   courseIds: employee.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []
 });
 
-const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) => {
+const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setSearchQuery = () => {} }) => {
   const [courses, setCourses] = useState([]);
 
   useEffect(() => {
@@ -293,9 +293,10 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
       )}
 
       {/* Top Header / Actions Bar */}
-      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Department Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Department</span>
             <CustomSelect
               value={deptFilter}
@@ -308,7 +309,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="w-full sm:w-auto bg-[#003F87] text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95"
+          className="w-full sm:w-auto bg-[#003F87] text-white px-5 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95 shrink-0"
         >
           <Plus size={18} /> Add Employee
         </button>
@@ -524,7 +525,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
             
             <form onSubmit={handleUpdateEmployee} className="p-8 flex flex-col gap-6">
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name *</label>
                   <input 
                     type="text" required value={employeeToEdit.name}
@@ -532,7 +533,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email *</label>
                   <input 
                     type="email" required value={employeeToEdit.email}
@@ -540,7 +541,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Phone Number *</label>
                   <input 
                     type="text" required value={employeeToEdit.phone}
@@ -548,7 +549,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
                   <CustomSelect
                     value={employeeToEdit.department}
@@ -558,7 +559,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Position (Designation)</label>
                   <input 
                     type="text" value={employeeToEdit.position}
@@ -566,7 +567,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>
-                <div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mentoring Courses</label>
                   <CustomSelect
                     value={employeeToEdit.courseIds || []}

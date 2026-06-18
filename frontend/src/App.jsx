@@ -253,8 +253,8 @@ function App() {
                 <Route path={`${basePath}/dashboard`} element={userRole === 'STUDENT' ? <StudentDashboard userInfo={userInfo} /> : (userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />)} />
                 <Route path={`${basePath}/daily-plan`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/schedule`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
-                <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />)} />
-                <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave /> : (userRole === 'ADMIN' ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />))} />
+                <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance searchQuery={searchQuery} /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} searchQuery={searchQuery} /> : <AttendanceContent employees={employees} courses={courses} searchQuery={searchQuery} />)} />
+                <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave searchQuery={searchQuery} /> : (userRole === 'ADMIN' ? <LeaveManagementContent searchQuery={searchQuery} /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave searchQuery={searchQuery} /> : <Navigate to={`${basePath}/dashboard`} />))} />
                 <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
@@ -265,11 +265,11 @@ function App() {
                 <Route path={`${basePath}/journey`} element={userRole === 'STUDENT' ? <StudentAcademicJourney userInfo={userInfo} /> : (canViewJourney ? <AcademicJourneyContent /> : <Navigate to={`${basePath}/dashboard`} />)} />
                 <Route path={`${basePath}/support`} element={<SupportContent />} />
 
-                {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} />} />}
-                {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} />} />}
+                {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
+                {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
                 {canViewFees && <Route path={`${basePath}/fees`} element={<FeesContent />} />}
                 {canViewPayroll && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
-                {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} />} />}
+                {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} searchQuery={searchQuery} />} />}
                 {canViewRecruitment && <Route path={`${basePath}/recruitment`} element={<RecruitmentContent />} />}
                 {canViewWhatsapp && <Route path={`${basePath}/whatsapp-automation`} element={<WhatsappContent />} />}
                 {canViewSeo && <Route path={`${basePath}/seo`} element={<SeoAgentContent />} />}

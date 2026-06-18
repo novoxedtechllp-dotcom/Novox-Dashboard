@@ -21,7 +21,7 @@ const navItems = [
 
 
   // { id: 'payroll', label: 'Payroll', icon: Wallet },
-  { id: 'work-reports', label: 'Work Reports', icon: FileText },
+  { id: 'work-reports', label: 'Work Reports', icon: CheckSquare },
   // { id: 'whatsapp-automation', label: 'WhatsApp Automation', icon: MessageSquare },
   // { id: 'sales-crm', label: 'Sales CRM', icon: Handshake },
   // { id: 'recruitment', label: 'Recruitment', icon: Users },

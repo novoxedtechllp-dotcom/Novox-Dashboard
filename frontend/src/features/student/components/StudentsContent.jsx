@@ -21,7 +21,7 @@ const parseApiResponse = async (response) => {
   return data;
 };
 
-const StudentsContent = ({ searchQuery = '', courses = [] }) => {
+const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses = [] }) => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
   const isAdmin = userInfo?.role === 'ADMIN';
 
@@ -505,20 +505,23 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
       )}
 
       {/* Top Header / Actions Bar */}
-      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Status Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
             <CustomSelect 
               value={statusFilter}
               onChange={setStatusFilter}
               options={uniqueStatuses.map(s => ({ value: s, label: s }))}
-              className="w-36"
-              selectClassName="text-sm font-bold text-slate-700 bg-transparent py-1"
+              className="w-full sm:w-[200px]"
+              selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
             />
           </div>
+
+          {/* Department Filter */}
           {isAdmin && (
-            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Department</span>
               <CustomSelect 
                 value={departmentFilter}
@@ -534,8 +537,10 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
               />
             </div>
           )}
+
+          {/* Ownership Filter */}
           {!isAdmin && (
-            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Ownership</span>
               <CustomSelect 
                 value={ownershipFilter}
@@ -550,6 +555,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
             </div>
           )}
         </div>
+
         <button 
           onClick={() => {
             setNewStudent({
@@ -558,7 +564,7 @@ const StudentsContent = ({ searchQuery = '', courses = [] }) => {
             setNewStudentDocuments([]);
             setIsAddModalOpen(true);
           }}
-          className="w-full sm:w-auto bg-[#003F87] text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95"
+          className="w-full sm:w-auto bg-[#003F87] text-white px-5 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95 shrink-0"
         >
           <Plus size={18} /> Add New Student
         </button>
