@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { ChevronDown, MessageSquare, BookOpen, Send, Layers, CheckSquare, List, CalendarDays, ChevronLeft, ChevronRight, LayoutList, X, CheckCircle } from "lucide-react";
@@ -161,13 +161,23 @@ const DailySchedule = () => {
           </button>
           
           <div className="flex items-center gap-3">
-            <CalendarDays size={20} className="text-[#003F87]" />
             <div className="relative inline-flex items-center">
               <DatePicker
+                ref={datePickerRef}
                 selected={selectedDate}
                 onChange={(date) => setSelectedDate(date)}
-                dateFormat="MMMM d, yyyy"
-                className="bg-transparent text-slate-800 text-lg font-bold outline-none cursor-pointer w-[160px] text-center"
+                dateFormat="dd/MM/yyyy"
+                placeholderText="dd/mm/yyyy"
+                className="bg-transparent text-slate-800 text-lg font-bold outline-none cursor-pointer w-[150px] text-center pr-8"
+                showMonthDropdown
+                showYearDropdown
+                scrollableYearDropdown
+                dropdownMode="scroll"
+              />
+              <CalendarDays 
+                size={20} 
+                className="text-[#003F87] cursor-pointer absolute right-0" 
+                onClick={() => datePickerRef.current?.setFocus()} 
               />
             </div>
           </div>

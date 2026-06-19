@@ -6,6 +6,8 @@ import {
 import CustomSelect from './CustomSelect';
 import LoadingSpinner from './LoadingSpinner';
 import { useClickOutside } from '../hooks/useClickOutside';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const CATEGORY_STYLES = {
   EVENTS: { bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
@@ -17,6 +19,7 @@ const CATEGORY_STYLES = {
 
 
 const GalleryContent = ({ searchQuery = '', setSearchQuery = () => {} }) => {
+  const datePickerRef = useRef(null);
   const [websites, setWebsites] = useState([]);
   const [selectedWebsite, setSelectedWebsite] = useState('');
   const [showWebsiteModal, setShowWebsiteModal] = useState(false);
@@ -575,12 +578,35 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => {} }) => {
           </div>
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">DATE</span>
-            <input 
-              type="date"
-              value={selectedDate}
-              onChange={(e) => { setSelectedDate(e.target.value); setCurrentPage(1); }}
-              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer"
-            />
+            <div className="relative flex items-center">
+              <DatePicker
+                ref={datePickerRef}
+                selected={selectedDate ? new Date(selectedDate) : null}
+                onChange={(date) => {
+                  if (date) {
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    setSelectedDate(`${yyyy}-${mm}-${dd}`);
+                  } else {
+                    setSelectedDate('');
+                  }
+                  setCurrentPage(1);
+                }}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="dd/mm/yyyy"
+                showMonthDropdown
+                showYearDropdown
+                scrollableYearDropdown
+                dropdownMode="scroll"
+                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px] pr-8"
+              />
+              <Calendar 
+                size={16} 
+                className="text-slate-400 absolute right-0 cursor-pointer" 
+                onClick={() => datePickerRef.current?.setFocus()} 
+              />
+            </div>
           </div>
         </div>
         <button 
