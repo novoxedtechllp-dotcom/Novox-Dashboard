@@ -414,17 +414,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
           </div>
         ))}
 
-        {/* Add Employee Card */}
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-transparent rounded-[24px] border-2 border-dashed border-slate-200 p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group min-h-[260px]"
-        >
-          <div className="w-14 h-14 rounded-[16px] bg-white shadow-sm text-blue-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300 border border-slate-100">
-            <Plus size={24} />
-          </div>
-          <h3 className="text-lg font-black text-slate-800 mb-1">Add Employee</h3>
-          <p className="text-xs font-medium text-slate-500">Onboard a new team member.</p>
-        </button>
+
       </div>
 
       {/* Add Modal */}

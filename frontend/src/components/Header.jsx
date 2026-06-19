@@ -6,7 +6,7 @@ import { useClickOutside } from '../hooks/useClickOutside';
 const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', setSearchQuery = () => {}, toggleSidebar }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
-  const showSearchBar = ['students', 'employees', 'courses', 'sales-crm', 'leave', 'work-reports', 'attendance', 'gallery'].includes(activeTab);
+  const showSearchBar = ['students', 'employees', 'courses', 'sales-crm', 'leave', 'work-reports', 'attendance', 'gallery', 'fees'].includes(activeTab);
   
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -64,7 +64,7 @@ const Header = ({ onLogout, userInfo, basePath = '/admin', searchQuery = '', set
               type="text" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={activeTab === 'students' ? "Search by student ID, name..." : activeTab === 'courses' ? "Search courses, mentors..." : activeTab === 'gallery' ? "Search images by title or description..." : "Search employees..."} 
+              placeholder={activeTab === 'students' || activeTab === 'fees' ? "Search by student ID, name..." : activeTab === 'courses' ? "Search courses, mentors..." : activeTab === 'gallery' ? "Search images by title or description..." : "Search employees..."} 
               className="bg-transparent border-none outline-none text-[14px] w-full text-slate-800 placeholder:text-slate-400"
             />
           </div>

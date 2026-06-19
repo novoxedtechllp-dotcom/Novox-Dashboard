@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Receipt, IndianRupee } from 'lucide-react';
+import { CreditCard, Receipt, IndianRupee, Download } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const StudentFees = ({ userInfo }) => {
   const [studentFees, setStudentFees] = useState([]);
@@ -11,6 +13,56 @@ const StudentFees = ({ userInfo }) => {
 
   const studentId = userInfo?.student_profile_id || userInfo?.id;
   const token = userInfo?.token || sessionStorage.getItem('token');
+
+  const handleDownloadInvoice = (fee) => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(0, 63, 135);
+    doc.text('Novox EdTech', 14, 22);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('Payment Receipt', 14, 30);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(50);
+    doc.text(`Date: ${fee.date}`, 140, 22);
+    doc.text(`Receipt ID: ${fee.id}`, 140, 30);
+
+    // Student Info
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text('Student Details', 14, 45);
+    doc.setFontSize(10);
+    const studentName = userInfo?.first_name 
+      ? `${userInfo.first_name} ${userInfo.last_name || ''}`.trim() 
+      : 'Student';
+    doc.text(`Name: ${studentName}`, 14, 52);
+    doc.text(`Course: ${fee.course || 'N/A'}`, 14, 58);
+    
+    // Payment Details
+    doc.setFontSize(14);
+    doc.text('Payment Details', 14, 75);
+    
+    autoTable(doc, {
+      startY: 82,
+      head: [['Description', 'Payment Method', 'Amount Paid']],
+      body: [
+        [`Fee Payment - ${fee.status}`, fee.type || 'Cash', `Rs. ${(fee.paidAmount || 0).toLocaleString()}`]
+      ],
+      headStyles: { fillColor: [0, 63, 135] }
+    });
+    
+    // Footer
+    const finalY = doc.lastAutoTable.finalY || 100;
+    doc.setFontSize(10);
+    doc.text('Thank you for your payment.', 14, finalY + 20);
+    doc.text('This is a computer-generated receipt and requires no signature.', 14, finalY + 26);
+    
+    doc.save(`Receipt_${studentName.replace(/\s+/g, '_')}_${fee.id}.pdf`);
+  };
 
   useEffect(() => {
     const fetchFees = async () => {
@@ -164,11 +216,20 @@ const StudentFees = ({ userInfo }) => {
                               <span className="text-sm font-bold text-slate-800">{fee.course} Fee Payment</span>
                               <span className="text-xs font-medium text-slate-500 mt-0.5">{fee.date} • {fee.type}</span>
                             </div>
-                            <div className="flex flex-col items-end">
-                              <span className="text-sm font-black text-emerald-600">₹{(Number(fee.paidAmount) || 0).toLocaleString()}</span>
-                              <span className={`text-[10px] font-black uppercase tracking-wider mt-1 ${fee.status === 'Paid' || fee.status === 'Full Paid' ? 'text-emerald-500' : fee.status === 'Partially Paid' ? 'text-amber-500' : 'text-rose-500'}`}>
-                                {fee.status}
-                              </span>
+                            <div className="flex items-center gap-4">
+                              <div className="flex flex-col items-end">
+                                <span className="text-sm font-black text-emerald-600">₹{(Number(fee.paidAmount) || 0).toLocaleString()}</span>
+                                <span className={`text-[10px] font-black uppercase tracking-wider mt-1 ${fee.status === 'Paid' || fee.status === 'Full Paid' ? 'text-emerald-500' : fee.status === 'Partially Paid' ? 'text-amber-500' : 'text-rose-500'}`}>
+                                  {fee.status}
+                                </span>
+                              </div>
+                              <button 
+                                onClick={() => handleDownloadInvoice(fee)} 
+                                className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all"
+                                title="Download Receipt"
+                              >
+                                <Download size={14} />
+                              </button>
                             </div>
                           </div>
                         ))}
