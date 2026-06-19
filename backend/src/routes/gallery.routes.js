@@ -6,8 +6,12 @@ import {
   deleteGalleryImage,
   bulkDeleteGalleryImages,
   createCategory,
+  deleteCategory,
+  deleteWebsite,
   getCategories,
-  getCloudinaryUsage
+  getCloudinaryUsage,
+  getWebsites,
+  createWebsite
 } from "../controllers/gallery.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -19,6 +23,7 @@ const router = Router();
 
 // Public routes for fetching
 router.route("/").get(getGalleryImages);
+router.route("/websites").get(getWebsites);
 router.route("/categories").get(getCategories);
 router.route("/storage-usage").get(getCloudinaryUsage);
 
@@ -30,7 +35,10 @@ router.post("/upload", upload.single("image"), verifyJWT, authorize({ roles: [RO
 router.use(verifyJWT);
 router.use(authorize({ roles: [ROLES.ADMIN] }));
 
+router.route("/websites").post(createWebsite);
+router.route("/websites/:id").delete(deleteWebsite);
 router.route("/categories").post(createCategory);
+router.route("/categories/:id").delete(deleteCategory);
 router.route("/bulk-delete").post(bulkDeleteGalleryImages);
 router.route("/:id")
   .put(updateGalleryImageMetadata)

@@ -109,7 +109,7 @@ export const loginUserService = async (email, password) => {
         last_name,
         designation,
         avatar_url,
-        employee_roles(role_name)
+        employee_roles(role_name, permissions)
       ),
       students(
         id,
@@ -129,6 +129,7 @@ export const loginUserService = async (email, password) => {
   if ((user.role === 'EMPLOYEE' || user.role === 'ADMIN') && user.employee_profiles && user.employee_profiles.length > 0) {
     const profile = user.employee_profiles[0];
     user.employee_role = profile.employee_roles?.role_name;
+    user.permissions = profile.employee_roles?.permissions || {};
     user.employee_profile_id = profile.id;
     user.first_name = profile.first_name;
     user.last_name = profile.last_name;

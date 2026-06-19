@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Mail, 
   Phone, 
@@ -12,13 +12,45 @@ import {
   Camera,
   Terminal,
   User,
-  Upload
+  Upload,
+  CreditCard,
+  Receipt,
+  IndianRupee,
+  Globe,
+  Image
 } from 'lucide-react';
 
 const StudentProfile = ({ userInfo }) => {
   const studentId = userInfo?.student_profile_id || userInfo?.id;
   const token = userInfo?.token || sessionStorage.getItem('token');
   
+  const getSocialFields = () => {
+    const track = (profileData.courses?.[0]?.department || '').toUpperCase().trim();
+    if (track === 'DESIGN') {
+      return [
+        { key: 'behance', label: 'Behance', placeholder: 'https://behance.net/...' },
+        { key: 'dribbble', label: 'Dribbble', placeholder: 'https://dribbble.com/...' },
+        { key: 'linkedin', label: 'LinkedIn', placeholder: 'https://linkedin.com/in/...' },
+        { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/...' }
+      ];
+    }
+    if (track === 'MARKETING') {
+      return [
+        { key: 'linkedin', label: 'LinkedIn', placeholder: 'https://linkedin.com/in/...' },
+        { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/...' },
+        { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/...' },
+        { key: 'twitter', label: 'Twitter / X', placeholder: 'https://twitter.com/...' }
+      ];
+    }
+    // Default / DEVELOPMENT
+    return [
+      { key: 'github', label: 'GitHub', placeholder: 'https://github.com/...' },
+      { key: 'linkedin', label: 'LinkedIn', placeholder: 'https://linkedin.com/in/...' },
+      { key: 'leetcode', label: 'Leetcode', placeholder: 'https://leetcode.com/u/...' },
+      { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/...' }
+    ];
+  };
+
   const [profileData, setProfileData] = useState({
     firstName: userInfo?.first_name || '',
     lastName: userInfo?.last_name || '',
@@ -39,7 +71,11 @@ const StudentProfile = ({ userInfo }) => {
       github: '',
       linkedin: '',
       instagram: '',
-      leetcode: ''
+      leetcode: '',
+      behance: '',
+      dribbble: '',
+      facebook: '',
+      twitter: ''
     }
   });
 
@@ -58,7 +94,11 @@ const StudentProfile = ({ userInfo }) => {
       github: '',
       linkedin: '',
       instagram: '',
-      leetcode: ''
+      leetcode: '',
+      behance: '',
+      dribbble: '',
+      facebook: '',
+      twitter: ''
     }
   });
   const [submitting, setSubmitting] = useState(false);
@@ -66,12 +106,21 @@ const StudentProfile = ({ userInfo }) => {
   const [avatarError, setAvatarError] = useState(false);
 
   const [isEditingSocials, setIsEditingSocials] = useState(false);
+  const [transactionPage, setTransactionPage] = useState(1);
+  const transactionsPerPage = 5;
   const [tempSocialLinks, setTempSocialLinks] = useState({
     github: '',
     linkedin: '',
     instagram: '',
-    leetcode: ''
+    leetcode: '',
+    behance: '',
+    dribbble: '',
+    facebook: '',
+    twitter: ''
   });
+
+  const [studentFees, setStudentFees] = useState([]);
+  const [feeTotals, setFeeTotals] = useState({ total: 0, paid: 0, balance: 0 });
 
   const handleSaveSocials = () => {
     localStorage.setItem(`student_social_links_${studentId}`, JSON.stringify(tempSocialLinks));
@@ -135,7 +184,8 @@ const StudentProfile = ({ userInfo }) => {
         const progressList = resData.data || [];
         courseInfo.courses = progressList.map(p => ({
           course: p.courses?.name || 'Enrolled Course',
-          department: p.courses?.track || 'N/A'
+          department: p.courses?.track || 'N/A',
+          price: p.courses?.price || '₹0'
         }));
       }
 
@@ -150,45 +200,58 @@ const StudentProfile = ({ userInfo }) => {
         const resData = await tasksRes.json();
         const tasksList = resData.data || [];
         
-        if (tasksList.length > 0) {
-          const total = tasksList.length;
-          const approved = tasksList.filter(t => t.status === 'APPROVED').length;
-          
-          statsInfo = {
-            earnedCredits: approved * 10,
-            totalCredits: total * 10
-          };
+        let totalC = 0;
+        let earnedC = 0;
+        let totalPoints = 0;
 
-          let sumGrades = 0;
-          let gradedCount = 0;
-          tasksList.forEach(t => {
-            if (t.grade) {
-              const numericPart = t.grade.replace(/[^0-9.]/g, '');
-              const val = parseFloat(numericPart);
-              if (!isNaN(val)) {
-                const normalized = val > 10 ? (val / 100) * 4.0 : val;
-                sumGrades += normalized;
-                gradedCount++;
-              }
-            }
-          });
-          if (gradedCount > 0) {
-            statsInfo.gpa = (sumGrades / gradedCount).toFixed(2);
+        tasksList.forEach(task => {
+          const credits = task.course_tasks?.points || 10;
+          totalC += credits;
+          if (task.status === 'COMPLETED') {
+            earnedC += credits;
+            const score = task.score || 0;
+            // Rough conversion: 90+ = 4.0, 80+ = 3.0, etc.
+            let pt = 0;
+            if (score >= 90) pt = 4.0;
+            else if (score >= 80) pt = 3.0;
+            else if (score >= 70) pt = 2.0;
+            else if (score >= 60) pt = 1.0;
+            
+            totalPoints += (pt * credits);
           }
-        }
+        });
+
+        const gpa = earnedC > 0 ? (totalPoints / earnedC).toFixed(1) : 'N/A';
+        statsInfo = {
+          gpa,
+          earnedCredits: earnedC,
+          totalCredits: totalC
+        };
       }
 
-      const localSocialLinks = JSON.parse(localStorage.getItem(`student_social_links_${studentId}`) || '{}');
-      const mergedSocialLinks = {
-        github: localSocialLinks.github || '',
-        linkedin: localSocialLinks.linkedin || '',
-        instagram: localSocialLinks.instagram || '',
-        leetcode: localSocialLinks.leetcode || ''
-      };
+      // 4. Load stored social links
+      const storedSocialLinks = localStorage.getItem(`student_social_links_${studentId}`);
+      let mergedSocialLinks = { ...profileData.socialLinks };
+      if (storedSocialLinks) {
+        try {
+          mergedSocialLinks = { ...mergedSocialLinks, ...JSON.parse(storedSocialLinks) };
+        } catch (e) {
+          console.error("Error parsing stored social links:", e);
+        }
+      } else if (profileDetails.socialLinks) {
+         mergedSocialLinks = { ...mergedSocialLinks, ...profileDetails.socialLinks };
+      }
 
-    
-      if (!mergedSocialLinks.github && !mergedSocialLinks.linkedin) {
+      // 5. Optionally fetch notifications from localStorage or similar if needed
+      // (Mock logic kept simple here)
+      const mockNotifications = localStorage.getItem('mock_notifications') 
+        ? JSON.parse(localStorage.getItem('mock_notifications')) 
+        : [];
+      const hasRecentDocs = mockNotifications.some(n => n.type === 'document' && n.studentId === studentId);
+      
+      if (hasRecentDocs) {
         setShowNotification(true);
+        setTimeout(() => setShowNotification(false), 5000);
       } else {
         setShowNotification(false);
       }
@@ -209,6 +272,29 @@ const StudentProfile = ({ userInfo }) => {
       setAvatarError(false);
     }
   };
+
+  useEffect(() => {
+    try {
+      const storedFees = localStorage.getItem('novox_student_fees');
+      let myFees = [];
+      if (storedFees && studentId) {
+        const allFees = JSON.parse(storedFees);
+        myFees = allFees.filter(f => f.studentId === studentId);
+      }
+      setStudentFees(myFees);
+    } catch(e) {
+      console.error(e);
+    }
+  }, [studentId]);
+
+  useEffect(() => {
+    const hasEnrolledCourses = profileData.courses && profileData.courses.length > 0;
+    const total = hasEnrolledCourses ? profileData.courses.reduce((sum, c) => sum + (parseInt(String(c.price || '0').replace(/[^0-9]/g, ''), 10) || 0), 0) : 0;
+    const paid = studentFees.reduce((sum, f) => sum + (Number(f.paidAmount) || parseInt(String(f.amount).replace(/[^0-9]/g, ''), 10) || 0), 0);
+    const balance = Math.max(0, total - paid);
+    
+    setFeeTotals({ total, paid, balance });
+  }, [studentFees, profileData.courses]);
 
   useEffect(() => {
     fetchStudentData();
@@ -321,6 +407,36 @@ const StudentProfile = ({ userInfo }) => {
     }
   };
 
+  const currentMonthFee = useMemo(() => {
+    if (!studentId || !studentFees || studentFees.length === 0) {
+      return { amount: 0, status: 'Not Paid' };
+    }
+    
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const thisMonthFeeRecords = studentFees.filter(f => {
+      if (!f.date) return false;
+      const feeDate = new Date(f.date);
+      return feeDate.getMonth() === currentMonth && feeDate.getFullYear() === currentYear;
+    });
+    
+    if (thisMonthFeeRecords.length === 0) {
+      return { amount: 0, status: 'Not Paid' };
+    }
+    
+    const amount = thisMonthFeeRecords.reduce((sum, f) => sum + (Number(f.paidAmount) || Number(f.totalAmount) || Number(f.amount) || 0), 0);
+    const rawStatus = thisMonthFeeRecords[0].status || 'Not Paid';
+    
+    let status = 'Not Paid';
+    if (rawStatus === 'Paid' || rawStatus === 'Full Paid' || rawStatus === 'Approved' || rawStatus === 'Partially Paid') {
+      status = 'Paid';
+    }
+    
+    return { amount, status };
+  }, [studentFees, studentId]);
+
   const formattedAdmissionDate = () => {
     if (!profileData.joiningDate) return 'N/A';
     try {
@@ -375,11 +491,12 @@ const StudentProfile = ({ userInfo }) => {
           <div className="w-10 h-10 border-4 border-slate-200 border-t-[#003F87] rounded-full animate-spin"></div>
         </div>
       ) : (
-        /* Grid Layout matching mockup layout structure */
+        <>
+        {/* Grid Layout matching mockup layout structure */}
         <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           
           {/* ROW 1 Left: Academic Info Card */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <div className="bg-white rounded-xl border border-[#E2E8F0] p-5 shadow-sm min-h-[220px] flex flex-col justify-between">
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-4 border-b border-slate-100">
                 {/* Profile Photo */}
@@ -455,46 +572,6 @@ const StudentProfile = ({ userInfo }) => {
             </div>
           </div>
 
-          {/* ROW 1 Right: GPA Card */}
-          <div className="h-full">
-            <div className="bg-[#003F87] rounded-xl p-5 text-white flex flex-col justify-between min-h-[220px] h-full shadow-[0_8px_25px_rgba(0,63,135,0.08)] relative overflow-hidden">
-              <div className="absolute top-[-20%] right-[-10%] w-48 h-48 rounded-full bg-blue-500/10 blur-xl"></div>
-              
-              <div className="relative z-10 flex flex-col justify-between h-full gap-4">
-                <div className="flex justify-between items-start">
-                  <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
-                    <GraduationCap size={16} className="text-white" />
-                  </div>
-                  {profileData.gpa !== 'N/A' && parseFloat(profileData.gpa) >= 3.5 && (
-                    <span className="bg-[#E5F0FF] text-[#003F87] text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                      Top Student
-                    </span>
-                  )}
-                </div>
-
-                <div className="my-1">
-                  <span className="text-[9px] font-extrabold text-blue-200/80 uppercase tracking-widest block mb-0.5">Overall Grade</span>
-                  <div className="flex items-baseline gap-0.5">
-                    <span className="text-4xl font-black">{profileData.gpa}</span>
-                    {profileData.gpa !== 'N/A' && <span className="text-blue-200 text-base font-bold">/ 4.0</span>}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center text-[9px] font-extrabold text-blue-200/80 uppercase mb-1.5 tracking-wider">
-                    <span>Earned Credits</span>
-                    <span className="text-white font-black">{profileData.earnedCredits} / {profileData.totalCredits}</span>
-                  </div>
-                  <div className="w-full bg-white/15 h-1 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-white h-full rounded-full transition-all duration-1000"
-                      style={{ width: `${profileData.totalCredits > 0 ? (profileData.earnedCredits / profileData.totalCredits) * 100 : 0}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* ROW 2 Left: Contact Information */}
           <div className="lg:col-span-2">
@@ -592,105 +669,187 @@ const StudentProfile = ({ userInfo }) => {
                   </div>
                 )}
               </div>
-              
-              <div className="flex flex-col gap-3">
-                {/* GitHub */}
-                <div className="flex items-center justify-between border border-slate-100 rounded-lg p-3 hover:border-slate-200 transition-colors">
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-700">
-                      <GitBranch size={16} />
+                            <div className="flex flex-col gap-3">
+                {getSocialFields().map(field => {
+                  const Icon = field.key === 'github' ? GitBranch
+                             : field.key === 'linkedin' ? Briefcase
+                             : field.key === 'leetcode' ? Terminal
+                             : field.key === 'instagram' ? Camera
+                             : field.key === 'behance' ? Image // Behance representation
+                             : field.key === 'dribbble' ? Image // Dribbble representation
+                             : Globe; // Fallback
+                             
+                  return (
+                    <div key={field.key} className="flex items-center justify-between border border-slate-100 rounded-lg p-3 hover:border-slate-200 transition-colors">
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className={`w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center ${
+                          field.key === 'linkedin' ? 'text-[#0A66C2]' :
+                          field.key === 'instagram' ? 'text-pink-600' :
+                          field.key === 'behance' ? 'text-blue-600' :
+                          field.key === 'dribbble' ? 'text-pink-500' :
+                          'text-slate-700'
+                        }`}>
+                          <Icon size={16} />
+                        </div>
+                        <span className="text-[13px] font-bold text-slate-700">{field.label}</span>
+                      </div>
+                      {isEditingSocials ? (
+                        <input 
+                          type="url"
+                          value={tempSocialLinks[field.key] || ''}
+                          onChange={e => setTempSocialLinks({...tempSocialLinks, [field.key]: e.target.value})}
+                          placeholder={field.placeholder}
+                          className="flex-1 min-w-0 max-w-[180px] sm:max-w-[200px] text-[12px] px-2.5 py-1.5 border border-slate-200 rounded-md outline-none focus:border-[#003F87]"
+                        />
+                      ) : profileData.socialLinks[field.key] ? (
+                        <a href={profileData.socialLinks[field.key]} target="_blank" rel="noreferrer" className="text-[12px] font-bold text-blue-600 hover:underline truncate max-w-[200px]">View</a>
+                      ) : (
+                        <span className="text-[11px] font-bold text-slate-400">Not Added</span>
+                      )}
                     </div>
-                    <span className="text-[13px] font-bold text-slate-700">GitHub</span>
-                  </div>
-                  {isEditingSocials ? (
-                    <input 
-                      type="url"
-                      value={tempSocialLinks.github}
-                      onChange={e => setTempSocialLinks({...tempSocialLinks, github: e.target.value})}
-                      placeholder="https://github.com/..."
-                      className="flex-1 min-w-0 max-w-[180px] sm:max-w-[200px] text-[12px] px-2.5 py-1.5 border border-slate-200 rounded-md outline-none focus:border-[#003F87]"
-                    />
-                  ) : profileData.socialLinks.github ? (
-                    <a href={profileData.socialLinks.github} target="_blank" rel="noreferrer" className="text-[12px] font-bold text-blue-600 hover:underline truncate max-w-[200px]">View</a>
-                  ) : (
-                    <span className="text-[11px] font-bold text-slate-400">Not Added</span>
-                  )}
-                </div>
-
-                {/* LinkedIn */}
-                <div className="flex items-center justify-between border border-slate-100 rounded-lg p-3 hover:border-slate-200 transition-colors">
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-[#0A66C2]">
-                      <Briefcase size={16} />
-                    </div>
-                    <span className="text-[13px] font-bold text-slate-700">LinkedIn</span>
-                  </div>
-                  {isEditingSocials ? (
-                    <input 
-                      type="url"
-                      value={tempSocialLinks.linkedin}
-                      onChange={e => setTempSocialLinks({...tempSocialLinks, linkedin: e.target.value})}
-                      placeholder="https://linkedin.com/..."
-                      className="flex-1 min-w-0 max-w-[180px] sm:max-w-[200px] text-[12px] px-2.5 py-1.5 border border-slate-200 rounded-md outline-none focus:border-[#003F87]"
-                    />
-                  ) : profileData.socialLinks.linkedin ? (
-                    <a href={profileData.socialLinks.linkedin} target="_blank" rel="noreferrer" className="text-[12px] font-bold text-blue-600 hover:underline truncate max-w-[200px]">View</a>
-                  ) : (
-                    <span className="text-[11px] font-bold text-slate-400">Not Added</span>
-                  )}
-                </div>
-
-                {/* Leetcode */}
-                <div className="flex items-center justify-between border border-slate-100 rounded-lg p-3 hover:border-slate-200 transition-colors">
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-orange-500">
-                      <Terminal size={16} />
-                    </div>
-                    <span className="text-[13px] font-bold text-slate-700">Leetcode</span>
-                  </div>
-                  {isEditingSocials ? (
-                    <input 
-                      type="url"
-                      value={tempSocialLinks.leetcode}
-                      onChange={e => setTempSocialLinks({...tempSocialLinks, leetcode: e.target.value})}
-                      placeholder="https://leetcode.com/..."
-                      className="flex-1 min-w-0 max-w-[180px] sm:max-w-[200px] text-[12px] px-2.5 py-1.5 border border-slate-200 rounded-md outline-none focus:border-[#003F87]"
-                    />
-                  ) : profileData.socialLinks.leetcode ? (
-                    <a href={profileData.socialLinks.leetcode} target="_blank" rel="noreferrer" className="text-[12px] font-bold text-blue-600 hover:underline truncate max-w-[200px]">View</a>
-                  ) : (
-                    <span className="text-[11px] font-bold text-slate-400">Not Added</span>
-                  )}
-                </div>
-
-                {/* Instagram */}
-                <div className="flex items-center justify-between border border-slate-100 rounded-lg p-3 hover:border-slate-200 transition-colors">
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-pink-600">
-                      <Camera size={16} />
-                    </div>
-                    <span className="text-[13px] font-bold text-slate-700">Instagram</span>
-                  </div>
-                  {isEditingSocials ? (
-                    <input 
-                      type="url"
-                      value={tempSocialLinks.instagram}
-                      onChange={e => setTempSocialLinks({...tempSocialLinks, instagram: e.target.value})}
-                      placeholder="https://instagram.com/..."
-                      className="flex-1 min-w-0 max-w-[180px] sm:max-w-[200px] text-[12px] px-2.5 py-1.5 border border-slate-200 rounded-md outline-none focus:border-[#003F87]"
-                    />
-                  ) : profileData.socialLinks.instagram ? (
-                    <a href={profileData.socialLinks.instagram} target="_blank" rel="noreferrer" className="text-[12px] font-bold text-blue-600 hover:underline truncate max-w-[200px]">View</a>
-                  ) : (
-                    <span className="text-[11px] font-bold text-slate-400">Not Added</span>
-                  )}
-                </div>
-
+                  );
+                })}
               </div>
             </div>
           </div>
 
         </div>
+
+          {/* ROW 3: Financial Overview */}
+          <div className="w-full mt-6 mb-8">
+            <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2 mb-4">
+              <CreditCard className="w-5 h-5 text-[#003F87]" />
+              Financial Overview
+            </h3>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column: Summary */}
+              <div className="lg:col-span-1 flex flex-col gap-4 h-full">
+                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm flex-1 flex flex-col justify-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                      <Receipt size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Course Fees</p>
+                      <h4 className="text-lg font-black text-slate-800">₹{feeTotals.total.toLocaleString()}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm flex-1 flex flex-col justify-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                      <IndianRupee size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Amount Paid</p>
+                      <h4 className="text-lg font-black text-emerald-600">₹{feeTotals.paid.toLocaleString()}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm flex-1 flex flex-col justify-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                      <CreditCard size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Remaining Balance</p>
+                      <h4 className="text-lg font-black text-slate-800">₹{feeTotals.balance.toLocaleString()}</h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm flex-1 flex flex-col justify-center">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                        <Receipt size={20} />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">This Month's Fee</p>
+                        <h4 className="text-lg font-black text-slate-800">₹{currentMonthFee.amount.toLocaleString()}</h4>
+                      </div>
+                    </div>
+                    <div>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${
+                        currentMonthFee.status === 'Paid' 
+                          ? 'bg-[#E5F7ED] text-[#008A2E] border-[#008A2E]/20' 
+                          : 'bg-[#FDE2E2] text-[#D80000] border-[#D80000]/20'
+                      }`}>
+                        {currentMonthFee.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Transaction History */}
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-xl border border-slate-100 shadow-sm h-full flex flex-col">
+                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Recent Transactions</h4>
+                  </div>
+                  <div className="p-5 flex-1 flex flex-col justify-between">
+                    {studentFees.length > 0 ? (
+                      <div className="flex flex-col h-full">
+                        <div className="flex flex-col gap-3 min-h-[340px]">
+                          {studentFees.slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage).map((fee, idx) => (
+                            <div key={fee.id || idx} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors bg-slate-50/50">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-800">{fee.course} Fee Payment</span>
+                                <span className="text-xs font-medium text-slate-500 mt-0.5">{fee.date} • {fee.type}</span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-sm font-black text-emerald-600">₹{(Number(fee.paidAmount) || 0).toLocaleString()}</span>
+                                <span className={`text-[10px] font-black uppercase tracking-wider mt-1 ${fee.status === 'Paid' || fee.status === 'Full Paid' ? 'text-emerald-500' : fee.status === 'Partially Paid' ? 'text-amber-500' : 'text-rose-500'}`}>
+                                  {fee.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {studentFees.length > transactionsPerPage && (
+                          <div className="mt-4 pt-4 border-t border-slate-100 flex justify-center items-center gap-2">
+                            <button 
+                              onClick={() => setTransactionPage(p => Math.max(1, p - 1))}
+                              disabled={transactionPage === 1}
+                              className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold"
+                            >&lt;</button>
+                            {Array.from({ length: Math.ceil(studentFees.length / transactionsPerPage) }, (_, i) => i + 1).map(page => (
+                              <button 
+                                key={page}
+                                onClick={() => setTransactionPage(page)}
+                                className={`w-10 h-10 flex items-center justify-center rounded-lg font-bold transition-all shadow-sm ${
+                                  transactionPage === page ? 'bg-[#003F87] text-white shadow-[#003F87]/20' : 'text-slate-600 hover:bg-slate-50 border border-slate-200 bg-white'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            ))}
+                            <button 
+                              onClick={() => setTransactionPage(p => Math.min(Math.ceil(studentFees.length / transactionsPerPage), p + 1))}
+                              disabled={transactionPage === Math.ceil(studentFees.length / transactionsPerPage)}
+                              className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold"
+                            >&gt;</button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+                        <Receipt size={32} className="mb-3 text-slate-300" />
+                        <p className="text-sm font-bold">No transactions found</p>
+                        <p className="text-xs text-slate-400 mt-1">There are no fee records available.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </>
       )}
 
       {/* Edit Profile Modal */}
@@ -725,6 +884,40 @@ const StudentProfile = ({ userInfo }) => {
                   </div>
                 )}
 
+              <div className="flex flex-col items-center justify-center pt-2 pb-4">
+                <div className="relative group">
+                  <div className="w-24 h-24 rounded-full overflow-hidden bg-slate-100 border-2 border-slate-200">
+                    {editForm.avatarUrl ? (
+                      <img src={editForm.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50">
+                        <User size={32} />
+                      </div>
+                    )}
+                  </div>
+                  <label className="absolute bottom-0 right-0 w-8 h-8 bg-white border border-[#C2C6D4] text-slate-700 rounded-full flex items-center justify-center cursor-pointer shadow-sm hover:bg-slate-50 transition-colors">
+                    <Upload size={14} />
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      className="hidden" 
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          handleAvatarFileChange(e);
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setEditForm({ ...editForm, avatarUrl: reader.result });
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2 font-medium">JPG, PNG or GIF. Max 5MB.</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Student ID</label>
@@ -747,15 +940,6 @@ const StudentProfile = ({ userInfo }) => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Profile Picture</label>
-                <input 
-                  type="file" 
-                  accept="image/*"
-                  onChange={handleAvatarFileChange}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
-                />
-              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -819,85 +1003,25 @@ const StudentProfile = ({ userInfo }) => {
               <div className="pt-2 border-t border-slate-100">
                 <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-wider mb-3">Social Profiles</h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">GitHub URL</label>
-                    <input 
-                      type="url" 
-                      value={editForm.socialLinks.github}
-                      onChange={e => setEditForm({ ...editForm, socialLinks: { ...editForm.socialLinks, github: e.target.value } })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
-                      placeholder="https://github.com/..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">LinkedIn URL</label>
-                    <input 
-                      type="url" 
-                      value={editForm.socialLinks.linkedin}
-                      onChange={e => setEditForm({ ...editForm, socialLinks: { ...editForm.socialLinks, linkedin: e.target.value } })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
-                      placeholder="https://linkedin.com/in/..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Leetcode URL</label>
-                    <input 
-                      type="url" 
-                      value={editForm.socialLinks.leetcode}
-                      onChange={e => setEditForm({ ...editForm, socialLinks: { ...editForm.socialLinks, leetcode: e.target.value } })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
-                      placeholder="https://leetcode.com/u/..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Instagram URL</label>
-                    <input 
-                      type="url" 
-                      value={editForm.socialLinks.instagram}
-                      onChange={e => setEditForm({ ...editForm, socialLinks: { ...editForm.socialLinks, instagram: e.target.value } })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
-                      placeholder="https://instagram.com/..."
-                    />
-                  </div>
+                  {getSocialFields().map(field => (
+                    <div key={field.key}>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">{field.label} URL</label>
+                      <input 
+                        type="url" 
+                        value={editForm.socialLinks[field.key] || ''}
+                        onChange={e => setEditForm({ 
+                          ...editForm, 
+                          socialLinks: { ...editForm.socialLinks, [field.key]: e.target.value } 
+                        })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-[#003F87] text-sm font-semibold transition-all"
+                        placeholder={field.placeholder}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">Profile Picture</label>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
-                    {editForm.avatarUrl ? (
-                      <img src={editForm.avatarUrl} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-400 bg-slate-50">
-                        <User size={24} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <label className="cursor-pointer bg-white border border-[#C2C6D4] text-slate-700 px-4 py-2 rounded-lg text-[13px] font-bold hover:bg-slate-50 transition-colors inline-flex items-center gap-2">
-                      <Upload size={14} />
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        className="hidden" 
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setEditForm({ ...editForm, avatarUrl: reader.result });
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                      Choose Image
-                    </label>
-                    <p className="text-[11px] text-slate-500 mt-1">Upload a JPG, PNG or GIF.</p>
-                  </div>
-                </div>
-              </div>
+
 
                 <div className="flex justify-end gap-3 mt-3">
                   <button 

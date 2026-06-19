@@ -34,6 +34,8 @@ import Fab from './components/Fab';
 import DailyPlan from './features/employee/components/DailyPlan';
 import StudentTasks from './features/student/components/StudentTasks';
 import StudentProfile from './features/student/components/StudentProfile';
+import StudentJobs from './features/student/components/jobs/StudentJobs';
+import StudentAcademicJourney from './features/student/components/StudentAcademicJourney';
 
 // Employee Components
 import EmployeeSidebar from './features/employee/components/EmployeeSidebar';
@@ -92,7 +94,7 @@ const mapCourseFromApi = (d) => {
     mentorId: instructorProfile?.id || '',
     mentorName,
     mentorInitials: getInitials(mentorName),
-    price: d.price || '₹0.00',
+    price: d.total_fee ? `₹${d.total_fee}` : (d.price || '₹0.00'),
     imgUrl: d.imgUrl || null
   };
 };
@@ -124,7 +126,7 @@ function App() {
   useEffect(() => {
     if (isAuthenticated && userInfo?.token) {
       const headers = { Authorization: `Bearer ${userInfo.token}` };
-      
+
       // Fetch courses
       fetch('/api/v1/courses', { headers })
         .then(res => {
@@ -136,18 +138,20 @@ function App() {
         })
         .catch(err => console.error('Failed to fetch courses:', err));
 
-      // Fetch employees
-      fetch('/api/v1/employees', { headers })
-        .then(res => {
-          if (!res.ok) throw new Error(`Employees API error: ${res.status}`);
-          return res.json();
-        })
-        .then(resData => {
-          if (resData?.data) {
-            setEmployees(resData.data.map(mapEmployeeFromApi));
-          }
-        })
-        .catch(err => console.error('Failed to fetch employees:', err));
+      // Fetch employees (Only if not STUDENT)
+      if (userInfo.role !== 'STUDENT') {
+        fetch('/api/v1/employees', { headers })
+          .then(res => {
+            if (!res.ok) throw new Error(`Employees API error: ${res.status}`);
+            return res.json();
+          })
+          .then(resData => {
+            if (resData?.data) {
+              setEmployees(resData.data.map(mapEmployeeFromApi));
+            }
+          })
+          .catch(err => console.error('Failed to fetch employees:', err));
+      }
     }
   }, [isAuthenticated, userInfo]);
 
@@ -176,20 +180,21 @@ function App() {
   const isDevelopment = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'DEVELOPMENT';
   const isSales = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'SALES';
   const isMarketing = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'MARKETING';
+  const isAccounts = userRole === 'EMPLOYEE' && userInfo?.employee_role === 'ACCOUNTS';
 
   const basePath = userRole === 'STUDENT' ? '/student' :
-                   isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : '/admin';
+    isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : isAccounts ? '/accounts' : '/admin';
 
   const canViewEmployees = userRole === 'ADMIN' || isHR;
-  const canViewPayroll = userRole === 'ADMIN' || isHR;
+  const canViewPayroll = userRole === 'ADMIN' || isHR || isAccounts;
   const canViewRecruitment = userRole === 'ADMIN' || isHR;
   const canViewSalesCrm = userRole === 'ADMIN' || isSales;
   const canViewWhatsapp = userRole === 'ADMIN' || isSales || isMarketing;
   const canViewBlog = userRole === 'ADMIN' || isMarketing;
   const canViewSeo = userRole === 'ADMIN' || isMarketing;
-  const canViewFees = userRole === 'ADMIN' || isHR || isSales;
+  const canViewFees = userRole === 'ADMIN' || isHR || isSales || isAccounts;
   const canViewCourses = userRole === 'ADMIN' || userRole === 'EMPLOYEE';
-  const canViewJourney = userRole === 'ADMIN' || isDevelopment || isDesign || isHR || isSales; // General
+  const canViewJourney = userRole === 'ADMIN' || isDevelopment || isDesign || isHR || isSales || isAccounts; // General
   const canViewGallery = userRole === 'ADMIN' || isMarketing;
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -202,13 +207,14 @@ function App() {
   return (
     <div className="flex h-screen w-screen bg-white overflow-hidden font-sans text-slate-800 relative">
       {isAuthenticated && (
-        <Sidebar 
-          userRole={userRole} 
-          isHR={isHR} 
-          isDesign={isDesign} 
-          isDevelopment={isDevelopment} 
+        <Sidebar
+          userRole={userRole}
+          isHR={isHR}
+          isDesign={isDesign}
+          isDevelopment={isDevelopment}
           isSales={isSales}
           isMarketing={isMarketing}
+          isAccounts={isAccounts}
           basePath={basePath}
           isOpen={isSidebarOpen}
           setIsOpen={setIsSidebarOpen}
@@ -217,14 +223,14 @@ function App() {
       )}
 
       <div className={`flex-1 flex flex-col h-screen overflow-hidden relative transition-all duration-300 ${isSidebarOpen ? 'lg:pl-0' : 'lg:pl-0'}`}>
-        
+
         {isAuthenticated && (
-          <Header 
-            userRole={userRole} 
-            userInfo={userInfo} 
-            basePath={basePath} 
-            searchQuery={searchQuery} 
-            setSearchQuery={setSearchQuery} 
+          <Header
+            userRole={userRole}
+            userInfo={userInfo}
+            basePath={basePath}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             onLogout={handleLogout}
           />
@@ -243,34 +249,35 @@ function App() {
               <>
                 <Route path="/" element={<Navigate to={`${basePath}/dashboard`} replace />} />
                 <Route path={basePath} element={<Navigate to={`${basePath}/dashboard`} replace />} />
-                
+
                 <Route path={`${basePath}/dashboard`} element={userRole === 'STUDENT' ? <StudentDashboard userInfo={userInfo} /> : (userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />)} />
                 <Route path={`${basePath}/daily-plan`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
-                <Route path={`${basePath}/schedule`} element={<DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
+                <Route path={`${basePath}/schedule`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} /> : <AttendanceContent employees={employees} courses={courses} />)} />
-                <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave /> : ((userRole === 'ADMIN' || isHR) ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />))} />
+                <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave /> : (userRole === 'ADMIN' ? <LeaveManagementContent /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave /> : <Navigate to={`${basePath}/dashboard`} />))} />
                 <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
-                <Route path={`${basePath}/settings`} element={<SettingsContent />} />
+                <Route path={`${basePath}/settings`} element={<SettingsContent employees={employees} />} />
                 <Route path={`${basePath}/profile`} element={userRole === 'STUDENT' ? <StudentProfile userInfo={userInfo} /> : <EmployeeProfile />} />
                 <Route path={`${basePath}/tasks`} element={userRole === 'STUDENT' ? <StudentTasks userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
+                <Route path={`${basePath}/jobs`} element={userRole === 'STUDENT' ? <StudentJobs userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
+                <Route path={`${basePath}/journey`} element={userRole === 'STUDENT' ? <StudentAcademicJourney userInfo={userInfo} /> : (canViewJourney ? <AcademicJourneyContent /> : <Navigate to={`${basePath}/dashboard`} />)} />
                 <Route path={`${basePath}/support`} element={<SupportContent />} />
 
                 {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} />} />}
                 {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} />} />}
                 {canViewFees && <Route path={`${basePath}/fees`} element={<FeesContent />} />}
                 {canViewPayroll && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
-                {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} />} />}
+                {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} searchQuery={searchQuery} />} />}
                 {canViewRecruitment && <Route path={`${basePath}/recruitment`} element={<RecruitmentContent />} />}
                 {canViewWhatsapp && <Route path={`${basePath}/whatsapp-automation`} element={<WhatsappContent />} />}
-                {canViewJourney && <Route path={`${basePath}/journey`} element={<AcademicJourneyContent />} />}
                 {canViewSeo && <Route path={`${basePath}/seo`} element={<SeoAgentContent />} />}
                 {canViewBlog && <Route path={`${basePath}/blog`} element={<BlogDashboardContent />} />}
                 {canViewBlog && <Route path={`${basePath}/blog-agent`} element={<BlogAgentHub />} />}
                 {canViewBlog && <Route path={`${basePath}/blog-agent/:site`} element={<BlogAgentEditor />} />}
                 {canViewGallery && <Route path={`${basePath}/gallery`} element={<GalleryContent />} />}
-                
+
                 <Route path="*" element={<Navigate to={`${basePath}/dashboard`} replace />} />
               </>
             )}

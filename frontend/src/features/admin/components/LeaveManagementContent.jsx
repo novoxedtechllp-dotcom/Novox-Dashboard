@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, CheckCircle, XCircle, Clock, MessageSquare, X, Send, AlertCircle } from 'lucide-react';
+import { Search, Filter, CheckCircle, XCircle, Clock, MessageSquare, X, Send, AlertCircle, ExternalLink, FileText } from 'lucide-react';
 import { apiClient } from '../../../lib/apiClient';
+import CloudinaryPdfViewer from '../../../components/CloudinaryPdfViewer';
 
 const LeaveManagementContent = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
   
-  // Modal states
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [rejectionMessage, setRejectionMessage] = useState('');
+  
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [currentDocUrl, setCurrentDocUrl] = useState('');
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,13 +26,28 @@ const LeaveManagementContent = () => {
     try {
       setIsLoading(true);
       const res = await apiClient('/leaves');
-      // Ensure we map the joined employee_profiles data nicely
-      const formattedData = (res.data || []).map(req => ({
-        ...req,
-        employeeName: req.employee_profiles ? `${req.employee_profiles.first_name} ${req.employee_profiles.last_name}` : 'Unknown Employee',
-        role: req.employee_profiles ? req.employee_profiles.designation : 'N/A',
-        avatar: req.employee_profiles && req.employee_profiles.first_name ? req.employee_profiles.first_name[0] + (req.employee_profiles.last_name ? req.employee_profiles.last_name[0] : '') : '??'
-      }));
+      const formattedData = (res.data || []).map(req => {
+        let requesterName = 'Unknown User';
+        let role = 'N/A';
+        let avatar = '??';
+        
+        if (req.employee_profiles) {
+          requesterName = `${req.employee_profiles.first_name} ${req.employee_profiles.last_name}`;
+          role = req.employee_profiles.designation || 'Employee';
+          avatar = req.employee_profiles.first_name[0] + (req.employee_profiles.last_name ? req.employee_profiles.last_name[0] : '');
+        } else if (req.students) {
+          requesterName = `${req.students.first_name} ${req.students.last_name}`;
+          role = `Student (${req.students.student_code})`;
+          avatar = req.students.first_name[0] + (req.students.last_name ? req.students.last_name[0] : '');
+        }
+
+        return {
+          ...req,
+          requesterName,
+          role,
+          avatar
+        };
+      });
       setLeaveRequests(formattedData);
       setError(null);
     } catch (err) {
@@ -82,7 +100,7 @@ const LeaveManagementContent = () => {
   };
 
   const filteredRequests = leaveRequests.filter(req => {
-    const matchesSearch = req.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchesSearch = req.requesterName.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           req.type.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filterStatus === 'ALL' || req.status === filterStatus;
     return matchesSearch && matchesFilter;
@@ -103,7 +121,7 @@ const LeaveManagementContent = () => {
     <div className="p-[24px]">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-[24px] font-bold text-slate-900">Leave Management</h2>
+          <h2 className="text-[24px] font-bold text-[#003F87]">Leave Management</h2>
           <p className="text-slate-500 text-[14px] mt-1">Review and manage employee leave requests</p>
         </div>
       </div>
@@ -160,7 +178,7 @@ const LeaveManagementContent = () => {
               </div>
               <div className="space-y-1 w-full">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <h3 className="font-bold text-[16px] text-slate-900">{req.employeeName} <span className="text-[13px] font-medium text-slate-500 ml-2">({req.role})</span></h3>
+                  <h3 className="font-bold text-[16px] text-slate-900">{req.requesterName} <span className="text-[13px] font-medium text-slate-500 ml-2">({req.role})</span></h3>
                   {getStatusBadge(req.status)}
                 </div>
                 
@@ -178,6 +196,21 @@ const LeaveManagementContent = () => {
 
                 <div className="mt-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
                   <p className="text-[13px] text-slate-700"><span className="font-bold text-slate-800">Reason:</span> {req.reason}</p>
+                  
+                  {req.document_url && (
+                    <div className="mt-2 flex items-center">
+                      <button 
+                        onClick={() => {
+                          setCurrentDocUrl(req.document_url);
+                          setIsDocModalOpen(true);
+                        }}
+                        className="text-[13px] font-bold text-[#003F87] hover:text-[#002B5E] flex items-center gap-1"
+                      >
+                        <ExternalLink size={14} /> View Attached Document
+                      </button>
+                    </div>
+                  )}
+
                   {req.admin_message && (
                     <p className="text-[13px] text-[#D80000] mt-2"><span className="font-bold">Rejection Note:</span> {req.admin_message}</p>
                   )}
@@ -247,6 +280,45 @@ const LeaveManagementContent = () => {
                   <Send size={16} /> Send & Reject
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document View Modal */}
+      {isDocModalOpen && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className={`bg-white rounded-xl shadow-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 ${currentDocUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? 'w-fit max-w-[95vw] max-h-[95vh]' : 'w-full max-w-4xl h-[85vh]'}`}>
+            <div className="p-4 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50 shrink-0">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <FileText size={18} className="text-[#003F87]" />
+                Attached Document
+              </h3>
+              <button onClick={() => setIsDocModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200 rounded">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 bg-slate-100 relative overflow-auto flex justify-center items-center">
+              {currentDocUrl && currentDocUrl.split('?')[0].match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                <img src={currentDocUrl} alt="Attached Document" className="max-w-full max-h-[calc(95vh-60px)] object-contain" />
+              ) : currentDocUrl && currentDocUrl.split('?')[0].match(/\.pdf$/i) ? (
+                <CloudinaryPdfViewer pdfUrl={currentDocUrl} />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full w-full space-y-4 p-8 text-center bg-white">
+                  <div className="max-w-md border border-slate-200 rounded-xl p-8 bg-slate-50">
+                    <h4 className="text-[18px] font-bold text-slate-800 mb-2">Unsupported Document</h4>
+                    <p className="text-slate-500 text-[14px] mb-6 leading-relaxed">
+                      This document format requires direct download to view.
+                    </p>
+                    <a 
+                      href={currentDocUrl ? currentDocUrl.replace('/upload/', '/upload/fl_attachment/') : '#'} 
+                      className="bg-[#003F87] hover:bg-[#002B5E] text-white px-8 py-3 rounded-lg font-bold text-[14px] transition-colors inline-flex items-center justify-center shadow-sm w-full"
+                    >
+                      Download Document
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

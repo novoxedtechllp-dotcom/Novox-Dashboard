@@ -325,25 +325,26 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
       {/* Table Section */}
       <div className="w-full bg-white border border-[#C2C6D4] rounded-[8px] flex flex-col overflow-hidden">
         <div className="w-full overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+          <table className="w-full text-left border-collapse min-w-[800px] table-fixed">
             <thead>
               <tr className="border-b border-[#C2C6D4] bg-white">
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[120px]">ID</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Name</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Course / Dept</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[200px]">Status</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Check In</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">Check Out</th>
-                <th className="py-[16px] px-[24px] text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right">Actions</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[12%]">ID</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[22%]">Name</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[18%]">Course / Dept</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[14%]">Status</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[12%]">Check In</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[12%]">Check Out</th>
+                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider text-right w-[10%]">Actions</th>
+
               </tr>
             </thead>
             <tbody>
               {sortedData.length > 0 ? sortedData.map((item, index) => (
                 <tr key={item.userId} className={index !== sortedData.length - 1 ? "border-b border-slate-100" : ""}>
-                  <td className="py-[16px] px-[24px]">
+                  <td className="py-[16px] px-2">
                     <div className="text-[13px] font-bold text-[#003F87] leading-tight break-words max-w-[80px]">{item.identifier}</div>
                   </td>
-                  <td className="py-[16px] px-[24px]">
+                  <td className="py-[16px] px-2">
                     <div className="flex items-center gap-3">
                       <div className={`w-[32px] h-[32px] rounded-full font-bold text-[11px] flex items-center justify-center shrink-0 ${item.type === 'Student' ? 'bg-[#E5F0FF] text-[#003F87]' : 'bg-[#F3F4F6] text-[#555F6B]'}`}>
                         {item.initials}
@@ -351,10 +352,10 @@ const AttendanceContent = ({ employees = [], courses = [] }) => {
                       <div className="text-[14px] font-bold text-slate-900 leading-tight">{item.name}</div>
                     </div>
                   </td>
-                  <td className="py-[16px] px-[24px]">
+                  <td className="py-[16px] px-2">
                     <div className="text-[13px] text-[#555F6B] leading-tight">{item.course}</div>
                   </td>
-                  <td className="py-[16px] px-[24px]">
+                  <td className="py-[16px] px-2">
                     <div className="flex flex-col items-start gap-1">
                       <span className={`inline-flex items-center gap-2 px-[12px] py-[4px] rounded-full text-[11px] font-bold tracking-wide
                         ${item.status === 'PRESENT' ? 'bg-[#E5F7ED] text-[#008A2E]' : ''}

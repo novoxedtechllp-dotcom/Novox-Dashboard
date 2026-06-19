@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS
   work_reports, project_members, projects, 
   automated_alerts_log, employee_attendance, student_attendance, 
   student_tasks, student_courses, student_documents, students, 
-  course_tasks, course_submodules, course_schedules, course_instructors, course_modules, courses, 
+  course_module_reviews, course_task_subtasks, course_tasks, course_submodules, course_schedules, course_instructors, course_modules, courses, 
   employee_documents, employee_profiles, employee_roles, 
   user_sessions, users 
 CASCADE;
@@ -62,10 +62,12 @@ CREATE TABLE users (
 
 CREATE TABLE employee_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    role_name VARCHAR(50) UNIQUE NOT NULL
+    role_name VARCHAR(50) UNIQUE NOT NULL,
+    description VARCHAR(255),
+    permissions JSONB DEFAULT '{}'::jsonb
 );
 -- Optional defaults for roles:
-INSERT INTO employee_roles (role_name) VALUES ('SALES'), ('MARKETING'), ('DEVELOPMENT'), ('DESIGN'), ('HR');
+INSERT INTO employee_roles (role_name) VALUES ('SALES'), ('MARKETING'), ('DEVELOPMENT'), ('DESIGN'), ('HR'), ('ACCOUNTS');
 
 CREATE TABLE employee_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -109,7 +111,8 @@ CREATE TABLE course_modules (
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    sequence_order INTEGER NOT NULL
+    sequence_order INTEGER NOT NULL,
+    status COURSE_STATUS DEFAULT 'DRAFT'
 );
 
 CREATE TABLE course_submodules (
@@ -130,6 +133,24 @@ CREATE TABLE course_tasks (
     task_type TASK_TYPE DEFAULT 'PRE_PLANNED',
     due_date DATE,
     created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE course_task_subtasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES course_tasks(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    sequence_order INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS course_submodule_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  submodule_id UUID NOT NULL REFERENCES course_submodules(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  review_text TEXT NOT NULL,
+  suggestion_text TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 CREATE TABLE course_instructors (
@@ -426,11 +447,19 @@ CREATE TABLE audit_logs (
 );
 
 -- 14. GALLERY MODULE
+CREATE TABLE gallery_websites (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE gallery_categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) UNIQUE NOT NULL,
     parent_id UUID REFERENCES gallery_categories(id) ON DELETE CASCADE,
+    website_id UUID REFERENCES gallery_websites(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -440,13 +469,20 @@ CREATE TABLE gallery_images (
     description TEXT,
     cloudinary_url TEXT NOT NULL,
     cloudinary_public_id VARCHAR(255) NOT NULL,
-    image_hash TEXT UNIQUE NOT NULL,
-    category_id UUID REFERENCES gallery_categories(id) ON DELETE SET NULL,
+    image_hash TEXT NOT NULL,
     tags TEXT[],
     uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    website_id UUID REFERENCES gallery_websites(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
-    is_deleted BOOLEAN DEFAULT FALSE
+    is_deleted BOOLEAN DEFAULT FALSE,
+    CONSTRAINT gallery_images_image_hash_website_id_key UNIQUE NULLS NOT DISTINCT (image_hash, website_id)
+);
+
+CREATE TABLE gallery_image_categories (
+    image_id UUID REFERENCES gallery_images(id) ON DELETE CASCADE,
+    category_id UUID REFERENCES gallery_categories(id) ON DELETE CASCADE,
+    PRIMARY KEY (image_id, category_id)
 );
 
 -- Indexes
@@ -460,17 +496,20 @@ CREATE INDEX idx_work_reports_date ON work_reports(submitted_at);
 CREATE INDEX idx_notifications_user_unread ON notifications(user_id) WHERE is_read = FALSE;
 CREATE INDEX idx_audit_logs_created ON audit_logs(created_at DESC);
 CREATE INDEX idx_gallery_images_hash ON gallery_images(image_hash);
-CREATE INDEX idx_gallery_images_category ON gallery_images(category_id);
+CREATE INDEX idx_gallery_images_website ON gallery_images(website_id);
 CREATE INDEX idx_gallery_categories_slug ON gallery_categories(slug);
+CREATE INDEX idx_gallery_categories_website ON gallery_categories(website_id);
 
 -- 15. LEAVE MANAGEMENT MODULE
 CREATE TABLE IF NOT EXISTS leaves (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL REFERENCES employee_profiles(id) ON DELETE CASCADE,
+    employee_id UUID REFERENCES employee_profiles(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
     type VARCHAR(50) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     reason TEXT NOT NULL,
+    document_url TEXT,
     status APPROVAL_STATUS DEFAULT 'PENDING',
     admin_message TEXT,
     applied_on TIMESTAMP DEFAULT NOW()

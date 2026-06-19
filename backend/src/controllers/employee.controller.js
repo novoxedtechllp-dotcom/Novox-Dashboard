@@ -182,9 +182,9 @@ export const createEmployee = asyncHandler(async (req, res) => {
     responseData._defaultPassword = loginPassword;
   }
 
-  // Send Welcome Email
+  // Send Welcome Email (fire-and-forget, don't block API response)
   const loginEmailToSend = email || `${employeeCode.toLowerCase()}@employees.novox.local`;
-  await sendEmail({
+  sendEmail({
     to: loginEmailToSend,
     subject: 'Welcome to Novox Dashboard',
     html: `
@@ -214,7 +214,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
         </div>
       </div>
     `
-  });
+  }).catch(err => console.error('[CreateEmployee] Welcome email failed:', err?.message));
 
   return res.status(201).json(new ApiResponse(201, responseData, "Employee created successfully"));
 });
@@ -290,7 +290,7 @@ export const updateEmployee = asyncHandler(async (req, res) => {
         if (userError) throw new ApiError(500, userError.message || "Failed to update email and password in users table");
         
         // Send email and password update notification
-        await sendEmail({
+        sendEmail({
           to: email,
           subject: 'Your Novox Dashboard Login Credentials Have Been Updated',
           html: `
@@ -321,7 +321,7 @@ export const updateEmployee = asyncHandler(async (req, res) => {
               </div>
             </div>
           `
-        });
+        }).catch(err => console.error('[UpdateEmployee] Credential update email failed:', err?.message));
       }
     }
   }

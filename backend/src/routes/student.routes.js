@@ -17,7 +17,9 @@ import {
   updateStudentTask,
   getStudentDailyPlan,
   submitStudentTask,
-  reviewStudentTask
+  reviewStudentTask,
+  getStudentSubmoduleProgress,
+  toggleStudentSubmoduleProgress
 } from "../controllers/student.controller.js";
 
 import { getAcademicJourney } from "../controllers/journey.controller.js";
@@ -46,7 +48,7 @@ router.route("/:studentId/daily-plan").get(authorize({ roles: [ROLES.ADMIN, ROLE
 
 // Write
 router.route("/").post(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), createStudent);
-router.route("/:studentId").put(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE] }), updateStudent);
+router.route("/:studentId").put(authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUDENT] }), updateStudent);
 router.route("/:studentId").delete(authorize({ roles: [ROLES.ADMIN] }), deleteStudent);
 
 // ==========================================
@@ -60,6 +62,8 @@ router.route("/:studentId/courses/:courseId")
   .put(writeAuth, updateStudentCourse)
   .delete(writeAuth, removeStudentCourse);
 router.route("/:studentId/progress").get(readAuth, getStudentProgress);
+router.route("/:studentId/progress/submodules").get(readAuth, getStudentSubmoduleProgress);
+router.route("/:studentId/progress/submodules/:submoduleId").post(readAuth, toggleStudentSubmoduleProgress);
 
 router.route("/:studentId/tasks").get(readAuth, getStudentTasks);
 router.route("/:studentId/tasks/:taskId").put(readAuth, updateStudentTask);

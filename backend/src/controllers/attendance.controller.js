@@ -206,11 +206,14 @@ export const checkInEmployee = asyncHandler(async (req, res) => {
   const istTimeStr = `${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
   const istTimestampStr = `${istDateStr}T${istTimeStr}+05:30`;
   
-  // Logic for LATE (9:45 AM)
+  // Logic for LATE (9:50 AM) and HALF_DAY (11:00 AM)
   const hour = parseInt(getPart('hour'), 10);
   const minute = parseInt(getPart('minute'), 10);
   let status = 'PRESENT';
-  if (hour > 9 || (hour === 9 && minute > 45)) {
+  
+  if (hour >= 11) {
+    status = 'HALF_DAY';
+  } else if (hour > 9 || (hour === 9 && minute >= 50)) {
     status = 'LATE';
   }
 

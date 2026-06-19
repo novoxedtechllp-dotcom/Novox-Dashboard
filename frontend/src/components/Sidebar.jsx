@@ -4,12 +4,12 @@ import {
   LayoutDashboard, Users, Briefcase, BookOpen, Calendar, 
   CreditCard, Wallet, MessageSquare, Handshake, Trophy, 
   GraduationCap, FileText, Globe, Settings, HelpCircle, Menu, LogOut,
-  CheckSquare, ClipboardList, Bot, Image, User
+  CheckSquare, ClipboardList, Bot, Image, User,
 } from 'lucide-react';
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'daily-plan', label: 'Daily Schedule', icon: BookOpen },
+  { id: 'daily-plan', label: 'Action Plan', icon: BookOpen },
   { id: 'students', label: 'Students', icon: Users },
   { id: 'employees', label: 'Employees', icon: Briefcase },
   { id: 'courses', label: 'Courses', icon: BookOpen },
@@ -21,7 +21,7 @@ const navItems = [
 
 
   // { id: 'payroll', label: 'Payroll', icon: Wallet },
-  // { id: 'work-reports', label: 'Work Reports', icon: FileText },
+  { id: 'work-reports', label: 'Work Reports', icon: CheckSquare },
   // { id: 'whatsapp-automation', label: 'WhatsApp Automation', icon: MessageSquare },
   // { id: 'sales-crm', label: 'Sales CRM', icon: Handshake },
   // { id: 'recruitment', label: 'Recruitment', icon: Users },
@@ -31,7 +31,7 @@ const navItems = [
   // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
-const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
+const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, isSales, isMarketing, isAccounts, basePath = '/admin', isOpen, setIsOpen, onLogout }) => {
   const location = useLocation();
   const activeTab = location.pathname.split('/').pop() || 'dashboard';
   
@@ -39,23 +39,29 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
   if (userRole === 'STUDENT') {
     visibleNavItems = [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'schedule', label: 'Schedule', icon: Calendar },
+      { id: 'journey', label: 'My Academic Journey', icon: GraduationCap },
+      { id: 'daily-plan', label: 'Action Plan', icon: Calendar },
       { id: 'attendance', label: 'Attendance', icon: Calendar },
       { id: 'leave', label: 'Leave Requests', icon: FileText },
       { id: 'tasks', label: 'Tasks', icon: ClipboardList },
+      { id: 'jobs', label: 'Job Portal', icon: Briefcase },
       { id: 'profile', label: 'Profile', icon: User }
     ];
-  } else if (userRole !== 'ADMIN') {
+  }
+   else if (userRole !== 'ADMIN') {
     const hiddenItems = [];
     
     // Evaluate hidden items based on role
     if (!isHR) {
-      hiddenItems.push('employees', 'payroll', 'recruitment');
+      hiddenItems.push('employees', 'recruitment');
+    }
+    if (!(isHR || isAccounts)) {
+      hiddenItems.push('payroll');
     }
     if (!isSales) {
       hiddenItems.push('sales-crm');
     }
-    if (!(isHR || isSales)) {
+    if (!(isHR || isSales || isAccounts)) {
       hiddenItems.push('fees');
     }
     if (!(isSales || isMarketing)) {
@@ -81,6 +87,9 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
     visibleNavItems = navItems.map(item => {
         if (item.id === 'leave') {
           return { ...item, label: 'Leave Management' };
+        }
+        if (item.id === 'daily-plan') {
+          return { ...item, label: 'Class Feedback' };
         }
         return item;
     });
@@ -124,7 +133,9 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
           </div>
 
           {/* Main Nav Container */}
-          <nav className="flex-1 flex flex-col gap-1.5 overflow-y-auto mt-4 pr-3 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+          <nav 
+            className="flex-1 flex flex-col gap-1.5 overflow-y-auto mt-4 pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent"
+          >
             {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -135,7 +146,7 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
                   onClick={() => window.innerWidth < 1024 && setIsOpen && setIsOpen(false)}
                   className={`group flex items-center gap-[14px] px-[14px] py-[10px] rounded-xl transition-all duration-300 text-left w-full shrink-0 relative overflow-hidden
                     ${isActive 
-                      ? 'bg-blue-100/80 text-[#003F87] font-bold shadow-sm' 
+                      ? 'bg-blue-50 text-[#003F87] font-bold' 
                       : 'text-slate-500 font-medium hover:bg-slate-50 hover:text-slate-800'
                     }`}
                 >
@@ -151,9 +162,27 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
             })}
           </nav>
 
-          {/* Bottom Action (Logout) */}
-          {onLogout && (
-            <div className="mt-auto pt-4 border-t border-slate-100 shrink-0 pr-3">
+          {/* Bottom Action (Settings & Logout) */}
+          <div className="mt-auto pt-4 border-t border-slate-100 shrink-0 pr-3 flex flex-col gap-1.5">
+            {userRole === 'ADMIN' && (
+              <Link
+                to={`${basePath}/settings`}
+                onClick={() => window.innerWidth < 1024 && setIsOpen && setIsOpen(false)}
+                className={`group flex items-center gap-[14px] px-[14px] py-[10px] rounded-xl transition-all duration-300 text-left w-full shrink-0 relative overflow-hidden
+                  ${activeTab === 'settings' 
+                    ? 'bg-blue-50/80 text-[#003F87] font-bold shadow-sm border border-blue-100/50' 
+                    : 'text-slate-500 font-medium hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+              >
+                {activeTab === 'settings' && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#003F87] rounded-r-full"></div>
+                )}
+                <Settings size={18} className={`transition-transform duration-300 group-hover:scale-110 ${activeTab === 'settings' ? 'text-[#003F87]' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                <span className="text-[14px] leading-none whitespace-nowrap mt-0.5">Settings</span>
+              </Link>
+            )}
+
+            {onLogout && (
               <button
                 onClick={onLogout}
                 className="group flex items-center gap-[14px] px-[14px] py-[10px] rounded-xl transition-all duration-300 text-left w-full text-[#D80000] font-medium hover:bg-red-50 hover:shadow-sm"
@@ -161,8 +190,8 @@ const Sidebar = ({ userRole, isHR, isDesign, isDevelopment, isSales, isMarketing
                 <LogOut size={18} className="text-[#D80000]/80 group-hover:text-[#D80000] transition-transform duration-300 group-hover:-translate-x-1" />
                 <span className="text-[14px] leading-none whitespace-nowrap mt-0.5">Log Out</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </aside>
     </>

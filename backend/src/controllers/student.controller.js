@@ -253,7 +253,7 @@ const getStudentById = asyncHandler(async (req, res) => {
   const { data, error } = await supabase
     .from("students")
     .select(studentSelectFields)
-    .eq("id", studentId)
+    .or(`id.eq.${studentId},user_id.eq.${studentId}`)
     .single();
 
   if (error) throw new ApiError(404, "Student not found");
@@ -266,6 +266,14 @@ const getStudentById = asyncHandler(async (req, res) => {
 const updateStudent = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
   const { first_name, last_name, phone, parent_phone, guardian_name, address, status, avatar_url, email } = req.body;
+
+  // Students can only update their own profile
+  if (req.user.role === "STUDENT") {
+    const { data: studentRecord } = await supabase.from("students").select("user_id").eq("id", studentId).single();
+    if (!studentRecord || studentRecord.user_id !== req.user.id) {
+      throw new ApiError(403, "You can only update your own profile");
+    }
+  }
 
   if (email !== undefined) {
     const { data: currentStudent } = await supabase.from("students").select("user_id").eq("id", studentId).single();
@@ -493,6 +501,36 @@ const getStudentProgress = asyncHandler(async (req, res) => {
 const getStudentTasks = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
 
+  // Auto-assign missing tasks for this student to ensure older enrollments aren't missing them
+  const { data: enrollments } = await supabase.from("student_courses").select("course_id").eq("student_id", studentId);
+  if (enrollments && enrollments.length > 0) {
+    const courseIds = enrollments.map(e => e.course_id);
+    const { data: modulesTasks } = await supabase
+      .from("course_modules")
+      .select("id, course_submodules(id, course_tasks(id))")
+      .in("course_id", courseIds);
+      
+    if (modulesTasks && modulesTasks.length > 0) {
+      const { data: existingTasks } = await supabase.from("student_tasks").select("task_id").eq("student_id", studentId);
+      const existingTaskIds = new Set((existingTasks || []).map(t => t.task_id));
+      
+      const missingTasksToAssign = [];
+      modulesTasks.forEach(m => {
+        m.course_submodules?.forEach(sm => {
+          sm.course_tasks?.forEach(t => {
+            if (!existingTaskIds.has(t.id)) {
+              missingTasksToAssign.push({ student_id: studentId, task_id: t.id });
+            }
+          });
+        });
+      });
+      
+      if (missingTasksToAssign.length > 0) {
+        await supabase.from("student_tasks").insert(missingTasksToAssign);
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from("student_tasks")
     .select(`
@@ -500,6 +538,7 @@ const getStudentTasks = asyncHandler(async (req, res) => {
       reviewer_id, review_timestamp, review_comment,
       course_tasks(
         title, description, sequence_order, task_type, due_date,
+        course_task_subtasks(id, title, sequence_order),
         course_submodules(
           title, scheduled_date, module_id,
           course_modules(title, course_id, courses(name))
@@ -624,11 +663,15 @@ const getStudentDailyPlan = asyncHandler(async (req, res) => {
 
   if (!date) throw new ApiError(400, "Please provide a date query parameter");
 
+  // Resolve studentId in case it's a user_id
+  const { data: stu } = await supabase.from("students").select("id").or(`id.eq.${studentId},user_id.eq.${studentId}`).single();
+  const actualStudentId = stu ? stu.id : studentId;
+
   // Fetch courses this student is enrolled in
   const { data: enrollments, error: enrollError } = await supabase
     .from("student_courses")
     .select("course_id")
-    .eq("student_id", studentId);
+    .eq("student_id", actualStudentId);
 
   if (enrollError) throw new ApiError(500, "Failed to fetch student courses");
 
@@ -643,10 +686,14 @@ const getStudentDailyPlan = asyncHandler(async (req, res) => {
     .from("course_submodules")
     .select(`
       *,
-      course_modules!inner(course_id, title, courses(name)),
-      course_tasks(*)
+      course_modules!inner(id, course_id, title, sequence_order, status, courses(name)),
+      course_tasks(
+        *,
+        course_task_subtasks(*)
+      )
     `)
     .in("course_modules.course_id", courseIds)
+    .eq("course_modules.status", "PUBLISHED")
     .eq("scheduled_date", date)
     .order("sequence_order", { ascending: true });
 
@@ -873,3 +920,56 @@ export {
   submitStudentTask,
   reviewStudentTask
 };
+
+// @desc    Get student submodule progress
+// @route   GET /api/v1/students/:studentId/progress/submodules
+export const getStudentSubmoduleProgress = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const { data: stu } = await supabase.from("students").select("id").or(`id.eq.${studentId},user_id.eq.${studentId}`).single();
+  const actualStudentId = stu ? stu.id : studentId;
+
+  const { data, error } = await supabase
+    .from("student_submodule_progress")
+    .select("*")
+    .eq("student_id", actualStudentId);
+
+  if (error) throw new ApiError(500, error.message || "Failed to fetch submodule progress");
+  return res.status(200).json(new ApiResponse(200, data, "Submodule progress fetched successfully"));
+});
+
+// @desc    Toggle student submodule progress
+// @route   POST /api/v1/students/:studentId/progress/submodules/:submoduleId
+export const toggleStudentSubmoduleProgress = asyncHandler(async (req, res) => {
+  const { studentId, submoduleId } = req.params;
+  const { is_completed } = req.body;
+  const { data: stu } = await supabase.from("students").select("id").or(`id.eq.${studentId},user_id.eq.${studentId}`).single();
+  const actualStudentId = stu ? stu.id : studentId;
+
+  // check existing
+  const { data: existing } = await supabase
+    .from("student_submodule_progress")
+    .select("id")
+    .eq("student_id", actualStudentId)
+    .eq("submodule_id", submoduleId)
+    .single();
+
+  let resultData;
+  if (existing) {
+    const { data, error } = await supabase
+      .from("student_submodule_progress")
+      .update({ is_completed, completed_at: is_completed ? new Date().toISOString() : null })
+      .eq("id", existing.id)
+      .select();
+    if (error) throw new ApiError(500, error.message);
+    resultData = data[0];
+  } else {
+    const { data, error } = await supabase
+      .from("student_submodule_progress")
+      .insert([{ student_id: actualStudentId, submodule_id: submoduleId, is_completed, completed_at: is_completed ? new Date().toISOString() : null }])
+      .select();
+    if (error) throw new ApiError(500, error.message);
+    resultData = data[0];
+  }
+
+  return res.status(200).json(new ApiResponse(200, resultData, "Submodule progress updated"));
+});

@@ -232,36 +232,62 @@ return (
 
     {activeTab === 'My Record' && (
       <div className="flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-300 fade-in">
-        {/* Top Row: Summary */}
-        <div className="w-full">
-          <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2 text-[15px]">
-              <CalendarIcon size={18} className="text-[#003F87]" /> {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })} Summary
-            </h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="bg-[#E5F7ED] border border-[#008A2E]/20 rounded-lg p-3 text-center">
-                <div className="text-[20px] font-black text-[#008A2E]">{presentCount}</div>
-                <div className="text-[11px] font-bold text-[#008A2E]/70 uppercase mt-1 tracking-wider">Present</div>
+        {/* Bottom Row: Calendar (Left) & List View (Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Calendar */}
+          <div className="lg:col-span-1">
+            <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm h-full flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <button
+                    onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
+                    className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 transition-colors"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <h3 className="font-bold text-slate-800 text-[15px]">
+                    {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                  </h3>
+                  <button
+                    onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
+                    className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 transition-colors"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
+                    <div key={day} className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{day}</div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {calendarDays}
+                </div>
               </div>
-              <div className="bg-[#E5F0FF] border border-[#003F87]/20 rounded-lg p-3 text-center">
-                <div className="text-[20px] font-black text-[#003F87]">{halfDayCount}</div>
-                <div className="text-[11px] font-bold text-[#003F87]/70 uppercase mt-1 tracking-wider">Half Day</div>
-              </div>
-              <div className="bg-[#FFF4E5] border border-[#B26E00]/20 rounded-lg p-3 text-center flex flex-col justify-center">
-                <div className="text-[20px] font-black text-[#B26E00]">{lateCount}</div>
-                <div className="text-[11px] font-bold text-[#B26E00]/70 uppercase mt-1 tracking-wider">Late</div>
-                {formattedLateTime && <div className="text-[10px] font-bold text-[#B26E00]/60 mt-0.5">{formattedLateTime} total</div>}
-              </div>
-              <div className="bg-[#FDE2E2] border border-[#D80000]/20 rounded-lg p-3 text-center">
-                <div className="text-[20px] font-black text-[#D80000]">{absentCount}</div>
-                <div className="text-[11px] font-bold text-[#D80000]/70 uppercase mt-1 tracking-wider">Absent</div>
+
+              {/* Compact stats summary inside Calendar card */}
+              <div className="grid grid-cols-4 gap-2.5 mt-6 pt-6 border-t border-slate-100">
+                <div className="bg-slate-50/50 border border-slate-100 rounded-lg py-2.5 px-1.5 text-center">
+                  <div className="text-[16px] font-black text-slate-800">{presentCount}</div>
+                  <div className="text-[9px] font-bold text-slate-500 uppercase mt-0.5 tracking-wider">Present</div>
+                </div>
+                <div className="bg-slate-50/50 border border-slate-100 rounded-lg py-2.5 px-1.5 text-center">
+                  <div className="text-[16px] font-black text-slate-800">{halfDayCount}</div>
+                  <div className="text-[9px] font-bold text-slate-500 uppercase mt-0.5 tracking-wider">Half Day</div>
+                </div>
+                <div className="bg-slate-50/50 border border-slate-100 rounded-lg py-2.5 px-1.5 text-center">
+                  <div className="text-[16px] font-black text-slate-800">{lateCount}</div>
+                  <div className="text-[9px] font-bold text-slate-500 uppercase mt-0.5 tracking-wider">Late</div>
+                </div>
+                <div className="bg-slate-50/50 border border-slate-100 rounded-lg py-2.5 px-1.5 text-center">
+                  <div className="text-[16px] font-black text-slate-800">{absentCount}</div>
+                  <div className="text-[9px] font-bold text-slate-500 uppercase mt-0.5 tracking-wider">Absent</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Bottom Row: List View & Calendar */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Punches */}
           <div className="lg:col-span-1">
             <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm h-full">
@@ -311,38 +337,6 @@ return (
               </div>
             </div>
           </div>
-
-          {/* Calendar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm h-full">
-              <div className="flex justify-between items-center mb-4">
-                <button
-                  onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))}
-                  className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 transition-colors"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <h3 className="font-bold text-slate-800 text-[15px]">
-                  {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                </h3>
-                <button
-                  onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))}
-                  className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 transition-colors"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                  <div key={day} className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{day}</div>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     )}
@@ -365,17 +359,17 @@ return (
             <div className="text-[20px] font-black text-slate-800">{studentStats.total}</div>
             <div className="text-[11px] font-bold text-slate-500 uppercase mt-1 tracking-wider">Total Students</div>
           </div>
-          <div className="bg-[#E5F7ED] border border-[#008A2E]/20 rounded-lg p-3 text-center">
-            <div className="text-[20px] font-black text-[#008A2E]">{studentStats.present}</div>
-            <div className="text-[11px] font-bold text-[#008A2E]/70 uppercase mt-1 tracking-wider">Present</div>
+          <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-3 text-center">
+            <div className="text-[20px] font-black text-slate-800">{studentStats.present}</div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase mt-1 tracking-wider">Present</div>
           </div>
-          <div className="bg-[#FFF4E5] border border-[#B26E00]/20 rounded-lg p-3 text-center">
-            <div className="text-[20px] font-black text-[#B26E00]">{studentStats.late}</div>
-            <div className="text-[11px] font-bold text-[#B26E00]/70 uppercase mt-1 tracking-wider">Late</div>
+          <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-3 text-center">
+            <div className="text-[20px] font-black text-slate-800">{studentStats.late}</div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase mt-1 tracking-wider">Late</div>
           </div>
-          <div className="bg-[#FDE2E2] border border-[#D80000]/20 rounded-lg p-3 text-center">
-            <div className="text-[20px] font-black text-[#D80000]">{studentStats.absent}</div>
-            <div className="text-[11px] font-bold text-[#D80000]/70 uppercase mt-1 tracking-wider">Absent</div>
+          <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-3 text-center">
+            <div className="text-[20px] font-black text-slate-800">{studentStats.absent}</div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase mt-1 tracking-wider">Absent</div>
           </div>
         </div>
 

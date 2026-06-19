@@ -359,7 +359,25 @@ export const addCourseTask = asyncHandler(async (req, res) => {
     .select();
 
   if (error) throw new ApiError(500, error.message || "Failed to add course task");
-  return res.status(201).json(new ApiResponse(201, data[0], "Course task added successfully"));
+  
+  const newTask = data[0];
+
+  // Auto-assign to all students enrolled in this course
+  const { data: studentsEnrolled } = await supabase
+    .from("student_courses")
+    .select("student_id")
+    .eq("course_id", courseId);
+
+  if (studentsEnrolled && studentsEnrolled.length > 0) {
+    const tasksToAssign = studentsEnrolled.map(s => ({
+      student_id: s.student_id,
+      task_id: newTask.id,
+      status: 'NOT_STARTED'
+    }));
+    await supabase.from("student_tasks").insert(tasksToAssign);
+  }
+
+  return res.status(201).json(new ApiResponse(201, newTask, "Course task added successfully"));
 });
 
 export const updateCourseTask = asyncHandler(async (req, res) => {
@@ -918,3 +936,43 @@ export const deleteCourseSubtask = asyncHandler(async (req, res) => {
 
   return res.status(200).json(new ApiResponse(200, null, "Subtask deleted successfully"));
 });
+// ==========================================
+// MODULE REVIEWS
+// ==========================================
+
+export const submitSubmoduleReview = asyncHandler(async (req, res) => {
+  const { submoduleId } = req.params;
+  const { review_text, suggestion_text } = req.body;
+  const { data: student, error: studentError } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", req.user.id)
+    .single();
+
+  if (studentError || !student) throw new ApiError(403, "Only students can submit module reviews");
+  const student_id = student.id;
+
+  const { data, error } = await supabase
+    .from("course_submodule_reviews")
+    .insert([{ submodule_id: submoduleId, student_id, review_text, suggestion_text }])
+    .select()
+    .single();
+
+  if (error) throw new ApiError(500, error.message);
+  return res.status(201).json(new ApiResponse(201, data, "Review submitted successfully"));
+});
+
+export const getSubmoduleReviews = asyncHandler(async (req, res) => {
+  const { data, error } = await supabase
+    .from("course_submodule_reviews")
+    .select(`
+      *,
+      course_submodules ( title, course_modules ( course_id, courses ( name ) ) ),
+      students ( first_name, last_name, student_code, avatar_url )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new ApiError(500, error.message);
+  return res.status(200).json(new ApiResponse(200, data, "Reviews fetched successfully"));
+});
+
