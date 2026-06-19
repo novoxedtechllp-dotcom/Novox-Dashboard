@@ -385,7 +385,7 @@ const DailyPlan = ({ userType, userId }) => {
                     disabled={isWeekendDate(selectedDate)}
                     className="w-full py-3.5 mt-2 bg-[#003F87] hover:bg-[#002B5E] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-300 text-white text-sm font-bold rounded-xl cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-md shadow-blue-900/10"
                   >
-                    <Plus size={18} /> Edit Topics
+                    <Plus size={18} /> Add Topic
                   </button>
                   {isWeekendDate(selectedDate) && (
                     <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">Weekends are disabled</p>
@@ -541,6 +541,17 @@ const DailyPlan = ({ userType, userId }) => {
                                         {review.students?.first_name?.[0]}{review.students?.last_name?.[0]}
                                       </div>
                                       <span className="text-xs font-bold text-slate-800">{review.students?.first_name} {review.students?.last_name}</span>
+                                      
+                                      {/* Parse Rating */}
+                                      {review.suggestion_text?.startsWith('RATING:') && (
+                                        <div className="ml-auto flex gap-0.5">
+                                          {[1, 2, 3, 4, 5].map(star => (
+                                            <svg key={star} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill={star <= parseInt(review.suggestion_text.split(':')[1]) ? "#f59e0b" : "none"} stroke={star <= parseInt(review.suggestion_text.split(':')[1]) ? "#f59e0b" : "#d1d5db"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                            </svg>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                     {review.review_text && (
                                       <div>
@@ -548,7 +559,7 @@ const DailyPlan = ({ userType, userId }) => {
                                         <p className="text-xs text-slate-700 leading-relaxed">{review.review_text}</p>
                                       </div>
                                     )}
-                                    {review.suggestion_text && (
+                                    {review.suggestion_text && !review.suggestion_text.startsWith('RATING:') && (
                                       <div>
                                         <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Suggestion</div>
                                         <p className="text-xs text-slate-700 leading-relaxed">{review.suggestion_text}</p>
