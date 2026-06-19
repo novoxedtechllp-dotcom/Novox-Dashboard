@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle } from 'lucide-react';
+import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle, Search, Shield, Eye, EyeOff, BookOpen } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const getAuthHeaders = () => {
@@ -53,7 +53,7 @@ const mapEmployeeFromApi = (employee, avatar = null) => ({
   courseIds: employee.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []
 });
 
-const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) => {
+const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setSearchQuery = () => {} }) => {
   const [courses, setCourses] = useState([]);
 
   useEffect(() => {
@@ -72,6 +72,8 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
     fetchCourses();
   }, []);
 
+
+
   const [toast, setToast] = useState(null);
   const alert = (message) => {
     const isError = typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error'));
@@ -86,6 +88,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   
   const [deptFilter, setDeptFilter] = useState('All Departments');
   const [statusFilter, setStatusFilter] = useState('Active');
@@ -101,6 +104,18 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
     avatarUrl: null,
     courseIds: []
   });
+
+  // Lock body scroll when any modal is open
+  useEffect(() => {
+    if (isModalOpen || employeeToDelete || employeeToEdit) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isModalOpen, employeeToDelete, employeeToEdit]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -292,10 +307,17 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
         </div>
       )}
 
+      {/* Header Section */}
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold text-slate-800">Employee Directory</h1>
+        <p className="text-slate-500 mt-1">Manage employee profiles, roles, and departmental assignments.</p>
+      </div>
+
       {/* Top Header / Actions Bar */}
-      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Department Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Department</span>
             <CustomSelect
               value={deptFilter}
@@ -308,7 +330,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="w-full sm:w-auto bg-[#003F87] text-white px-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95"
+          className="w-full sm:w-auto bg-[#003F87] text-white px-5 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95 shrink-0"
         >
           <Plus size={18} /> Add Employee
         </button>
@@ -317,6 +339,18 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
       {/* Grid Container */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         
+        {/* Create Employee Card */}
+        <button 
+          onClick={() => setIsModalOpen(true)} 
+          className="bg-transparent rounded-[24px] border-2 border-dashed border-slate-200 p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group min-h-[260px] h-full"
+        >
+          <div className="w-14 h-14 rounded-[16px] bg-white shadow-sm text-blue-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300 border border-slate-100">
+            <Plus size={24} />
+          </div>
+          <h3 className="text-lg font-black text-slate-800 mb-1">Add New Employee</h3>
+          <p className="text-xs font-medium text-slate-500 leading-relaxed px-4">Click here to register a new employee profile in the system.</p>
+        </button>
+
         {filteredEmployees.map(emp => (
           <div key={emp.id} onClick={() => setEmployeeToEdit(emp)} className="cursor-pointer bg-white rounded-[24px] border border-slate-100/60 flex flex-col relative group shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-500 overflow-hidden">
             
@@ -373,6 +407,14 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                   <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
                     <Phone size={14} className="text-slate-400" /> <span className="truncate">{emp.phone}</span>
                   </div>
+                  {emp.courseIds && emp.courseIds.length > 0 && (
+                    <div className="flex items-start gap-2 text-xs font-medium text-slate-500 mt-1">
+                      <BookOpen size={14} className="text-slate-400 shrink-0 mt-0.5" /> 
+                      <span className="line-clamp-2">
+                        {emp.courseIds.map(id => courses.find(c => c.id === id)?.name || courses.find(c => c.id === id)?.title).filter(Boolean).join(', ')}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -380,17 +422,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
           </div>
         ))}
 
-        {/* Add Employee Card */}
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-transparent rounded-[24px] border-2 border-dashed border-slate-200 p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group min-h-[260px]"
-        >
-          <div className="w-14 h-14 rounded-[16px] bg-white shadow-sm text-blue-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300 border border-slate-100">
-            <Plus size={24} />
-          </div>
-          <h3 className="text-lg font-black text-slate-800 mb-1">Add Employee</h3>
-          <p className="text-xs font-medium text-slate-500">Onboard a new team member.</p>
-        </button>
+
       </div>
 
       {/* Add Modal */}
@@ -457,12 +489,22 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                 </div>
                 <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Password <span className="text-slate-300 normal-case font-normal">(optional)</span></label>
-                  <input 
-                    type="text" value={newEmployee.password}
-                    onChange={(e) => setNewEmployee({...newEmployee, password: e.target.value})}
-                    placeholder="Auto-generated"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
-                  />
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      value={newEmployee.password}
+                      onChange={(e) => setNewEmployee({...newEmployee, password: e.target.value})}
+                      placeholder="Auto-generated"
+                      className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>
@@ -488,7 +530,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                   <CustomSelect
                     value={newEmployee.courseIds}
                     onChange={(val) => setNewEmployee({...newEmployee, courseIds: val})}
-                    options={courses.map(c => ({ value: c.id, label: c.name }))}
+                    options={courses.map(c => ({ value: c.id, label: c.title || c.name }))}
                     multiple={true}
                     openUpwards={true}
                     className="w-full"
@@ -571,7 +613,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '' }) =>
                   <CustomSelect
                     value={employeeToEdit.courseIds || []}
                     onChange={(val) => setEmployeeToEdit({...employeeToEdit, courseIds: val})}
-                    options={courses.map(c => ({ value: c.id, label: c.name }))}
+                    options={courses.map(c => ({ value: c.id, label: c.title || c.name }))}
                     multiple={true}
                     className="w-full"
                     selectClassName="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all cursor-pointer"

@@ -15,6 +15,7 @@ import galleryRouter from "./routes/gallery.routes.js";
 import leaveRouter from "./routes/leave.routes.js";
 import blogRouter from "./routes/blog.routes.js";
 import roleRouter from "./routes/role.routes.js";
+import feeRouter from "./routes/fee.routes.js";
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use("/api/v1/profile", profileRouter);
 app.use("/api/v1/leaves", leaveRouter);
 app.use("/api/v1/blogs", blogRouter);
 app.use("/api/v1/roles", roleRouter);
+app.use("/api/v1/fees", feeRouter);
 app.use("/api/gallery", galleryRouter);
 
 import { streamImage } from "./controllers/blog.controller.js";

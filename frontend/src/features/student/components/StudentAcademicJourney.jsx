@@ -194,8 +194,8 @@ const StudentAcademicJourney = ({ userInfo }) => {
       {/* Header - Pinned at top */}
       <div className="shrink-0 p-6 md:px-8 md:pt-8 md:pb-6 border-b border-slate-200 bg-white z-20 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Academic Journey</h1>
-          <p className="text-slate-500 text-sm mt-1">Track your progress and complete topics sequentially</p>
+          <h1 className="text-2xl font-bold text-slate-800">Academic Journey</h1>
+          <p className="text-slate-500 mt-1">Track your progress and complete topics sequentially</p>
         </div>
       </div>
 

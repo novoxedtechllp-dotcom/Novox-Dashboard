@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Phone, Briefcase, Calendar, Edit3, Save, X, Camera, Zap, ShieldCheck } from 'lucide-react';
+import { User, Mail, Phone, Briefcase, Calendar, Edit3, Save, X, Camera, Zap, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 
 const EmployeeProfile = () => {
@@ -9,12 +9,17 @@ const EmployeeProfile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     phone: '',
-    password: '',
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -45,7 +50,9 @@ const EmployeeProfile = () => {
             first_name: resData.data.employeeProfile.first_name || '',
             last_name: resData.data.employeeProfile.last_name || '',
             phone: resData.data.employeeProfile.phone || '',
-            password: '',
+            oldPassword: '',
+            newPassword: '',
+            confirmPassword: '',
           });
           setAvatarPreview(resData.data.employeeProfile.avatar_url);
         }
@@ -92,11 +99,43 @@ const EmployeeProfile = () => {
       const sessionUser = userInfoStr ? JSON.parse(userInfoStr) : null;
       if (!sessionUser?.token) return;
 
+      // Password Change logic if newPassword is provided
+      if (formData.newPassword) {
+        if (!formData.oldPassword) {
+          alert("Please enter your old password.", true);
+          setSaving(false);
+          return;
+        }
+        if (formData.newPassword !== formData.confirmPassword) {
+          alert("New passwords do not match.", true);
+          setSaving(false);
+          return;
+        }
+
+        const pwdRes = await fetch('/api/v1/auth/change-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${sessionUser.token}`
+          },
+          body: JSON.stringify({
+            oldPassword: formData.oldPassword,
+            newPassword: formData.newPassword
+          })
+        });
+
+        const pwdData = await pwdRes.json();
+        if (!pwdRes.ok) {
+          alert(pwdData.message || "Failed to update password", true);
+          setSaving(false);
+          return;
+        }
+      }
+
       const data = new FormData();
       if (formData.first_name) data.append('first_name', formData.first_name);
       if (formData.last_name) data.append('last_name', formData.last_name);
       if (formData.phone) data.append('phone', formData.phone);
-      if (formData.password) data.append('password', formData.password);
       if (avatarFile) data.append('avatar', avatarFile);
 
       const res = await fetch('/api/v1/profile/me', {
@@ -125,7 +164,12 @@ const EmployeeProfile = () => {
         window.dispatchEvent(new Event('userInfoUpdated'));
         
         setIsEditing(false);
-        setFormData(prev => ({ ...prev, password: '' })); // clear password
+        setFormData(prev => ({ 
+          ...prev, 
+          oldPassword: '', 
+          newPassword: '', 
+          confirmPassword: '' 
+        }));
         alert('Profile updated successfully!');
       } else {
         alert(resData.message || "Failed to update profile", true);
@@ -286,36 +330,107 @@ const EmployeeProfile = () => {
             </h3>
             
             {isEditing ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in duration-300">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">First Name</label>
-                  <input 
-                    type="text" 
-                    name="first_name"
-                    value={formData.first_name}
-                    onChange={handleInputChange}
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold transition-all"
-                  />
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">First Name</label>
+                    <input 
+                      type="text" 
+                      name="first_name"
+                      value={formData.first_name}
+                      onChange={handleInputChange}
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Last Name</label>
+                    <input 
+                      type="text" 
+                      name="last_name"
+                      value={formData.last_name}
+                      onChange={handleInputChange}
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Phone Number</label>
+                    <input 
+                      type="text" 
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold transition-all"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Last Name</label>
-                  <input 
-                    type="text" 
-                    name="last_name"
-                    value={formData.last_name}
-                    onChange={handleInputChange}
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Phone Number</label>
-                  <input 
-                    type="text" 
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold transition-all"
-                  />
+
+                <div className="border-t border-slate-100 pt-6">
+                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <ShieldCheck size={16} className="text-[#003F87]" /> Change Password
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Old Password</label>
+                      <div className="relative flex items-center">
+                        <input 
+                          type={showOldPassword ? "text" : "password"} 
+                          name="oldPassword"
+                          value={formData.oldPassword}
+                          onChange={handleInputChange}
+                          placeholder="Enter old password"
+                          className="w-full px-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold transition-all placeholder:font-medium placeholder:text-slate-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowOldPassword(!showOldPassword)}
+                          className="absolute right-4 text-slate-400 hover:text-slate-600 focus:outline-none"
+                        >
+                          {showOldPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">New Password</label>
+                      <div className="relative flex items-center">
+                        <input 
+                          type={showNewPassword ? "text" : "password"} 
+                          name="newPassword"
+                          value={formData.newPassword}
+                          onChange={handleInputChange}
+                          placeholder="Enter new password"
+                          className="w-full px-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold transition-all placeholder:font-medium placeholder:text-slate-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-4 text-slate-400 hover:text-slate-600 focus:outline-none"
+                        >
+                          {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Confirm New Password</label>
+                      <div className="relative flex items-center">
+                        <input 
+                          type={showConfirmPassword ? "text" : "password"} 
+                          name="confirmPassword"
+                          value={formData.confirmPassword}
+                          onChange={handleInputChange}
+                          placeholder="Confirm new password"
+                          className="w-full px-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold transition-all placeholder:font-medium placeholder:text-slate-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-4 text-slate-400 hover:text-slate-600 focus:outline-none"
+                        >
+                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-400 font-medium mt-3">Leave blank if you do not want to change your password.</p>
                 </div>
               </div>
             ) : (
@@ -339,38 +454,6 @@ const EmployeeProfile = () => {
                 <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-50">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Account Role</p>
                   <p className="text-base text-slate-800 font-bold">{user?.role}</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Security */}
-          <div className="bg-white border border-slate-100 rounded-3xl shadow-sm p-8">
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
-              <ShieldCheck size={18} className="text-[#003F87]" /> Account Security
-            </h3>
-            
-            {isEditing ? (
-              <div className="max-w-md animate-in fade-in duration-300">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Change Password</label>
-                <input 
-                  type="password" 
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="Leave blank to keep current password"
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold transition-all placeholder:font-medium"
-                />
-                <p className="text-xs text-slate-400 font-medium mt-3">If you update your password, you will need to use it the next time you log in.</p>
-              </div>
-            ) : (
-              <div className="flex items-center gap-4 bg-emerald-50/50 border border-emerald-100 p-5 rounded-2xl max-w-md">
-                <div className="w-12 h-12 bg-emerald-100 rounded-xl text-emerald-600 flex items-center justify-center shrink-0">
-                  <ShieldCheck size={24} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800">Password is secure</h4>
-                  <p className="text-xs text-slate-500 font-medium mt-1">Your account uses standard password authentication. Click Edit Profile to change it.</p>
                 </div>
               </div>
             )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { ChevronDown, MessageSquare, BookOpen, Send, Layers, CheckSquare, List, CalendarDays, ChevronLeft, ChevronRight, LayoutList, X, CheckCircle } from "lucide-react";
@@ -14,6 +14,7 @@ const getLocalDateString = (d) => {
 const DailySchedule = () => {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const datePickerRef = useRef(null);
   const [dailyPlan, setDailyPlan] = useState([]);
   
   const [expandedCourse, setExpandedCourse] = useState(null);
@@ -147,8 +148,12 @@ const DailySchedule = () => {
   return (
     <div className="w-full p-4 md:p-6 lg:p-8 bg-[#FAFBFC] min-h-screen">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-extrabold text-[#003F87] tracking-tight mb-2">Action Plan</h1>
-        <p className="text-slate-500 font-medium mb-6 max-w-2xl">View your assigned topics and tasks for the day, and provide feedback on your modules.</p>
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Action Plan</h1>
+            <p className="text-slate-500 mt-1">View your assigned topics and tasks for the day, and provide feedback on your modules.</p>
+          </div>
+        </div>
 
         {/* Date Selector */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-8">
@@ -157,13 +162,23 @@ const DailySchedule = () => {
           </button>
           
           <div className="flex items-center gap-3">
-            <CalendarDays size={20} className="text-[#003F87]" />
             <div className="relative inline-flex items-center">
               <DatePicker
+                ref={datePickerRef}
                 selected={selectedDate}
                 onChange={(date) => setSelectedDate(date)}
-                dateFormat="MMMM d, yyyy"
-                className="bg-transparent text-slate-800 text-lg font-bold outline-none cursor-pointer w-[160px] text-center"
+                dateFormat="dd/MM/yyyy"
+                placeholderText="dd/mm/yyyy"
+                className="bg-transparent text-slate-800 text-lg font-bold outline-none cursor-pointer w-[150px] text-center pr-8"
+                showMonthDropdown
+                showYearDropdown
+                scrollableYearDropdown
+                dropdownMode="scroll"
+              />
+              <CalendarDays 
+                size={20} 
+                className="text-[#003F87] cursor-pointer absolute right-0" 
+                onClick={() => datePickerRef.current?.setFocus()} 
               />
             </div>
           </div>

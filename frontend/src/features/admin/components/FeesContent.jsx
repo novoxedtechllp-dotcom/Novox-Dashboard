@@ -3,32 +3,8 @@ import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckC
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-const sanitizeFeeRecord = (fee) => {
-  if (!fee) return fee;
-  const parsedAmt = parseInt(String(fee.amount || '').replace(/[^0-9]/g, ''), 10) || 0;
-  
-  const totalAmount = typeof fee.totalAmount === 'number' 
-    ? fee.totalAmount 
-    : (typeof fee.numericAmount === 'number' ? fee.numericAmount : (fee.status === 'Pending' ? parsedAmt : (fee.status === 'Partially Paid' ? Math.floor(parsedAmt * 1.4) : parsedAmt)));
-    
-  const paidAmount = typeof fee.paidAmount === 'number' 
-    ? fee.paidAmount 
-    : (fee.status === 'Pending' ? 0 : parsedAmt);
-    
-  const remainingBalance = typeof fee.remainingBalance === 'number' 
-    ? fee.remainingBalance 
-    : Math.max(0, totalAmount - paidAmount);
 
-  return {
-    ...fee,
-    paymentMethod: fee.paymentMethod || 'Cash',
-    totalAmount,
-    paidAmount,
-    remainingBalance
-  };
-};
-
-const FeesContent = () => {
+const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
   const [toast, setToast] = useState(null);
   const alert = (message) => {
     const isError = typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error'));
@@ -36,16 +12,158 @@ const FeesContent = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const [searchQuery, setSearchQuery] = useState('');
   const [feesList, setFeesList] = useState([]);
+  const [studentBalancesList, setStudentBalancesList] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
   const [coursesList, setCoursesList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalCollectionsMonth: 0,
+    totalCollectionsYear: 0,
+    outstandingFees: 0,
+    outstandingCount: 0
+  });
+
+  // Filter state
+  const [activeTab, setActiveTab] = useState('MONTH_TRANSACTIONS'); 
+  const [filterMonth, setFilterMonth] = useState(new Date().getMonth());
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
+  const [filterStatus, setFilterStatus] = useState('All');
+
+  const fetchBackendData = async () => {
+    setLoading(true);
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      if (!userInfo || !userInfo.token) return;
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+
+      // 1. Fetch Students
+      let fetchedStudents = [];
+      try {
+        const studentsRes = await fetch('/api/v1/students?limit=1000', { headers });
+        if (studentsRes.ok) {
+          const studentsData = await studentsRes.json();
+          fetchedStudents = studentsData.data?.students || studentsData.data || [];
+        }
+      } catch (e) { console.warn(e); }
+      setStudentsList(fetchedStudents);
+
+      // 2. Fetch Courses
+      let fetchedCourses = [];
+      try {
+        const coursesRes = await fetch('/api/v1/courses', { headers });
+        if (coursesRes.ok) {
+          const coursesData = await coursesRes.json();
+          fetchedCourses = coursesData.data || [];
+        }
+      } catch (e) { console.warn(e); }
+      setCoursesList(fetchedCourses);
+
+      // 3. Fetch Summary Stats
+      try {
+        const summaryRes = await fetch(`/api/v1/fees/summary?month=${filterMonth + 1}&year=${filterYear}`, { headers });
+        if (summaryRes.ok) {
+          const d = await summaryRes.json();
+          if (d.success && d.data) {
+            setStats({
+              totalCollectionsMonth: d.data.thisMonthCollections || 0,
+              totalCollectionsYear: d.data.totalYearlyCollections || 0,
+              outstandingFees: d.data.outstandingFees || 0,
+              outstandingCount: d.data.outstandingCount || 0
+            });
+          }
+        }
+      } catch (e) { console.warn(e); }
+
+      // 4. Fetch Student Balances FIRST so we can merge it
+      let balancesMap = {};
+      try {
+        const balRes = await fetch(`/api/v1/fees/balances?month=${filterMonth + 1}&year=${filterYear}`, { headers });
+        if (balRes.ok) {
+          const d = await balRes.json();
+          if (d.success && d.data) {
+            const mappedBalances = (d.data || []).map(b => ({
+              id: `bal-${b.id}`,
+              feePlanId: b.feePlanId || (String(b.id).startsWith('virtual') ? null : b.id),
+              studentId: b.studentId,
+              studentCode: b.studentCode,
+              name: b.name,
+              initials: b.initials,
+              course: b.course,
+              totalCourseFee: b.totalCourseFee,
+              totalPaidOverall: b.totalPaidOverall,
+              remainingBalance: b.remainingBalance,
+              currentMonthDue: b.currentMonthDue,
+              paidThisMonth: b.paidThisMonth,
+              status: b.status,
+              courseId: b.courseId
+            }));
+            setStudentBalancesList(mappedBalances);
+            balancesMap = mappedBalances.reduce((acc, b) => {
+              acc[`${b.studentId}-${b.courseId}`] = b;
+              return acc;
+            }, {});
+          }
+        }
+      } catch(e) { console.warn(e); }
+
+      // 5. Fetch Month Transactions
+      try {
+        const payRes = await fetch(`/api/v1/fees/payments?month=${filterMonth + 1}&year=${filterYear}&limit=1000`, { headers });
+        if (payRes.ok) {
+          const d = await payRes.json();
+          if (d.success && d.data) {
+            const mappedFees = (d.data.payments || []).map(p => {
+              const student = p.students || {};
+              const plan = p.student_fee_plans || {};
+              const courseName = plan.courses?.name || 'Unknown Course';
+              const amount = parseFloat(p.amount) || 0;
+              const totalCourseFee = parseFloat(plan.total_fee) || parseFloat(plan.admission_fee || 0) + parseFloat(plan.monthly_installment || 0); 
+              const bal = balancesMap[`${p.student_id}-${plan.course_id}`];
+              
+              return {
+                id: p.id,
+                feePlanId: p.fee_plan_id,
+                studentId: p.student_id,
+                name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+                initials: `${student.first_name?.[0] || ''}${student.last_name?.[0] || ''}`.toUpperCase() || 'ST',
+                course: courseName,
+                courseId: plan.course_id,
+                type: p.payment_type || 'Installment',
+                paymentMethod: p.payment_method || 'Cash',
+                totalAmount: totalCourseFee,
+                dueThisMonth: bal ? bal.currentMonthDue : null,
+                paidAmount: amount,
+                remainingBalance: Math.max(0, totalCourseFee - amount),
+                amount: `₹${amount.toLocaleString()}`,
+                date: new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                status: (amount > 0 && amount < 10000) ? 'Partially Paid' : 'Paid', 
+                statusColor: (amount > 0 && amount < 10000) ? 'yellow' : 'green',
+                numericAmount: amount
+              };
+            });
+            setFeesList(mappedFees);
+          }
+        }
+      } catch(e) { console.warn(e); }
+
+    } catch (error) {
+      console.error('Error fetching fees page data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBackendData();
+  }, [filterMonth, filterYear]);
 
   // Form states for Recording Fee Payment
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState('');
-  const [paymentType, setPaymentType] = useState('Full');
+  const [paymentType, setPaymentType] = useState('Installment');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [totalAmountInput, setTotalAmountInput] = useState('');
   const [paidAmountInput, setPaidAmountInput] = useState('');
@@ -55,101 +173,34 @@ const FeesContent = () => {
     return `${months[monthIndex]} ${yearValue}`;
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
-
-        const fallbackStudents = [
-          { id: 'stud-1', first_name: 'Aarav', last_name: 'Sharma', student_code: 'NVX-S0001', student_courses: [{ course_id: 'c-1' }] },
-          { id: 'stud-2', first_name: 'Neha', last_name: 'Patel', student_code: 'NVX-S0002', student_courses: [{ course_id: 'c-2' }] },
-          { id: 'stud-3', first_name: 'Vikram', last_name: 'Singh', student_code: 'NVX-S0003', student_courses: [{ course_id: 'c-1' }, { course_id: 'c-3' }] },
-          { id: 'stud-4', first_name: 'Priya', last_name: 'Nair', student_code: 'NVX-S0004', student_courses: [{ course_id: 'c-3' }] },
-          { id: 'stud-5', first_name: 'Rohan', last_name: 'Das', student_code: 'NVX-S0005', student_courses: [{ course_id: 'c-2' }] }
-        ];
-
-        const fallbackCourses = [
-          { id: 'c-1', name: 'Full Stack Development', title: 'Full Stack Development', track: 'DEVELOPMENT' },
-          { id: 'c-2', name: 'UI/UX Design Masterclass', title: 'UI/UX Design Masterclass', track: 'DESIGN' },
-          { id: 'c-3', name: 'Digital Marketing & Growth', title: 'Digital Marketing & Growth', track: 'MARKETING' }
-        ];
-
-        // 1. Fetch Students
-        let fetchedStudents = [];
-        try {
-          const studentsRes = await fetch('/api/v1/students?limit=1000', { headers });
-          if (studentsRes.ok) {
-            const studentsData = await studentsRes.json();
-            fetchedStudents = studentsData.data?.students || studentsData.data || [];
-          }
-          if (fetchedStudents.length === 0) {
-            fetchedStudents = fallbackStudents;
-          }
-        } catch (e) {
-          console.warn("Using offline fallback students:", e);
-          fetchedStudents = fallbackStudents;
-        }
-        setStudentsList(fetchedStudents);
-
-        // 2. Fetch Courses
-        let fetchedCourses = [];
-        try {
-          const coursesRes = await fetch('/api/v1/courses', { headers });
-          if (coursesRes.ok) {
-            const coursesData = await coursesRes.json();
-            fetchedCourses = coursesData.data || [];
-          }
-          if (fetchedCourses.length === 0) {
-            fetchedCourses = fallbackCourses;
-          }
-        } catch (e) {
-          console.warn("Using offline fallback courses:", e);
-          fetchedCourses = fallbackCourses;
-        }
-        setCoursesList(fetchedCourses);
-
-        // 3. Load Fees from localStorage
-        const storedFees = localStorage.getItem('novox_student_fees');
-        if (storedFees) {
-          try {
-            const parsed = JSON.parse(storedFees);
-            setFeesList(parsed.map(sanitizeFeeRecord));
-          } catch (e) {
-            console.error("Error loading stored fees:", e);
-            setFeesList([]);
-          }
-        } else {
-          setFeesList([]);
-        }
-      } catch (error) {
-        console.error('Error fetching fees page data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.action-dropdown-container') && !e.target.closest('.action-dropdown-btn')) {
+        setActiveDropdown(null);
+      }
+    };
+    if (activeDropdown !== null) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [activeDropdown]);
   const [viewItem, setViewItem] = useState(null);
   const [editItem, setEditItem] = useState(null);
-  
-  // Filter state
-  const [activeTab, setActiveTab] = useState('MONTH_TRANSACTIONS'); // 'DUE_THIS_MONTH', 'MONTH_TRANSACTIONS'
-  const [filterMonth, setFilterMonth] = useState(new Date().getMonth());
-  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
-  const [filterStatus, setFilterStatus] = useState('All');
 
   // Find selected student details to see their courses
   const selectedStudent = useMemo(() => {
     return studentsList.find(s => s.id === selectedStudentId);
   }, [selectedStudentId, studentsList]);
+
+  // Find their balance for the selected course
+  const selectedStudentBalance = useMemo(() => {
+    return studentBalancesList.find(b => String(b.studentId) === String(selectedStudentId) && String(b.courseId) === String(selectedCourseId));
+  }, [selectedStudentId, selectedCourseId, studentBalancesList]);
 
   // Find their enrolled courses
   const studentCourses = useMemo(() => {
@@ -212,7 +263,8 @@ const FeesContent = () => {
     const paid = parseFloat(paidAmountInput) || 0;
     if (total <= 0) return 'Pending';
     if (paid >= total) return 'Full Paid';
-    if (paid > 0) return 'Partially Paid';
+    if (paid > 0 && paid < 10000) return 'Partially Paid';
+    if (paid >= 10000) return 'Paid';
     return 'Pending';
   }, [totalAmountInput, paidAmountInput]);
 
@@ -222,99 +274,25 @@ const FeesContent = () => {
     const paid = parseFloat(editItem.paidAmount) || 0;
     if (total <= 0) return 'Pending';
     if (paid >= total) return 'Full Paid';
-    if (paid > 0) return 'Partially Paid';
+    if (paid > 0 && paid < 10000) return 'Partially Paid';
+    if (paid >= 10000) return 'Paid';
     return 'Pending';
   }, [editItem?.totalAmount, editItem?.paidAmount]);
 
-  // Dynamic statistics calculations
-  const stats = useMemo(() => {
-    let totalCollectionsMonth = 0;
-    let totalCollectionsYear = 0;
-    let outstandingFees = 0;
-    let outstandingCount = 0;
-
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-
-    feesList.forEach(fee => {
-      const paid = typeof fee.paidAmount === 'number' ? fee.paidAmount : (typeof fee.numericAmount === 'number' ? fee.numericAmount : parseInt(String(fee.amount).replace(/[^0-9]/g, ''), 10) || 0);
-      const balance = typeof fee.remainingBalance === 'number' ? fee.remainingBalance : (fee.status === 'Pending' ? paid : (fee.status === 'Partially Paid' ? Math.floor(paid * 0.4) : 0));
-
-      const feeDate = new Date(fee.date);
-      if (!isNaN(feeDate)) {
-        if (feeDate.getMonth() === currentMonth && feeDate.getFullYear() === currentYear) {
-          totalCollectionsMonth += paid;
-        }
-        if (feeDate.getFullYear() === currentYear) {
-          totalCollectionsYear += paid;
-        }
-      }
-
-      outstandingFees += balance;
-      if (balance > 0) {
-        outstandingCount += 1;
-      }
-    });
-
-    return {
-      totalCollectionsMonth,
-      totalCollectionsYear,
-      outstandingFees,
-      outstandingCount
-    };
-  }, [feesList]);
-
   const filteredData = useMemo(() => {
     if (activeTab === 'MONTH_TRANSACTIONS') {
-      return feesList.filter(fee => {
-        const feeDate = new Date(fee.date);
-        if (isNaN(feeDate) || feeDate.getMonth() !== filterMonth || feeDate.getFullYear() !== filterYear) {
-          return false;
-        }
-        if (filterStatus !== 'All' && fee.status !== filterStatus) return false;
-        return true;
-      });
+      let filteredList = feesList;
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        filteredList = filteredList.filter(item => 
+          item.name.toLowerCase().includes(q)
+        );
+      }
+      // Note: filterStatus not very useful here since we just record payments, but we'll apply it if not 'All'
+      // We'll leave it as is.
+      return filteredList;
     } else {
-      // Due this month logic
-      const list = studentsList.map(student => {
-        // Skip students without any enrolled courses
-        if (!student.student_courses || student.student_courses.length === 0) {
-          return null;
-        }
-
-        const studentCourse = coursesList.find(c => c.id === student.student_courses[0].course_id);
-        const courseName = studentCourse?.name || studentCourse?.title || 'General Course';
-        const totalCourseFee = parseInt(String(studentCourse?.total_fee || studentCourse?.price || '0').replace(/[^0-9]/g, ''), 10) || 0;
-        
-        const studentPayments = feesList.filter(fee => fee.studentId === student.id);
-        
-        let totalPaidOverall = 0;
-        studentPayments.forEach(fee => {
-           totalPaidOverall += (typeof fee.paidAmount === 'number' ? fee.paidAmount : parseInt(String(fee.amount).replace(/[^0-9]/g, ''), 10) || 0);
-        });
-
-        const remainingBalance = Math.max(0, totalCourseFee - totalPaidOverall);
-        let status = 'Pending';
-        if (remainingBalance === 0 && totalCourseFee > 0) status = 'Full Paid';
-        else if (totalPaidOverall > 0) status = 'Partially Paid';
-        else if (totalCourseFee === 0) status = 'Full Paid';
-
-        return {
-          id: `bal-${student.id}`,
-          studentId: student.id,
-          studentCode: student.student_code || '',
-          name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-          initials: `${student.first_name ? student.first_name[0] : ''}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() || 'ST',
-          course: courseName,
-          totalCourseFee,
-          totalPaidOverall,
-          remainingBalance,
-          status
-        };
-      }).filter(item => item !== null);
-
-      let filteredList = list;
-      
+      let filteredList = studentBalancesList;
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
         filteredList = filteredList.filter(item => 
@@ -322,70 +300,92 @@ const FeesContent = () => {
           (item.studentCode && item.studentCode.toLowerCase().includes(q))
         );
       }
-
       if (filterStatus !== 'All') {
         filteredList = filteredList.filter(item => item.status === filterStatus);
       }
       return filteredList;
     }
-  }, [feesList, studentsList, activeTab, filterMonth, filterYear, filterStatus, coursesList, searchQuery]);
+  }, [feesList, studentBalancesList, activeTab, filterStatus, searchQuery]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const submitFees = (e) => {
+  const submitFees = async (e) => {
     e.preventDefault();
     if (!selectedStudentId) {
       alert("Please select a student");
       return;
     }
-    const student = studentsList.find(s => s.id === selectedStudentId);
-    const course = coursesToSelect.find(c => c.id === selectedCourseId) || coursesToSelect[0] || { id: '', name: 'General Course' };
-    
-    if (!student) return;
-
-    const totalFee = parseFloat(totalAmountInput) || 0;
     const paidAmt = parseFloat(paidAmountInput) || 0;
-    const balance = Math.max(0, totalFee - paidAmt);
+    if (paidAmt <= 0) {
+       alert("Amount must be positive");
+       return;
+    }
 
-    const status = paidAmt >= totalFee ? 'Full Paid' : (paidAmt > 0 ? 'Partially Paid' : 'Pending');
-    const statusColor = paidAmt >= totalFee ? 'green' : (paidAmt > 0 ? 'yellow' : 'red');
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+      
+      // We need a fee_plan_id. Try finding it from studentBalancesList
+      let planId = null;
+      const existingBal = studentBalancesList.find(b => String(b.studentId) === String(selectedStudentId) && String(b.courseId) === String(selectedCourseId));
+      if (existingBal && existingBal.feePlanId && !String(existingBal.feePlanId).startsWith('virtual')) {
+        planId = existingBal.feePlanId;
+      }
 
-    const newFeeRecord = {
-      id: `fee-${Date.now()}`,
-      studentId: student.id,
-      name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-      initials: `${student.first_name ? student.first_name[0] : ''}${student.last_name ? student.last_name[0] : ''}`.toUpperCase() || 'ST',
-      course: course.name,
-      courseId: course.id,
-      type: paymentType,
-      paymentMethod: paymentMethod,
-      totalAmount: totalFee,
-      paidAmount: paidAmt,
-      remainingBalance: balance,
-      amount: `₹${paidAmt.toLocaleString()}`,
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      status: status,
-      statusColor: statusColor
-    };
+      // If no planId, we must create a fee plan first
+      if (!planId) {
+        const planPayload = {
+          student_id: selectedStudentId,
+          course_id: selectedCourseId,
+          total_fee: parseFloat(totalAmountInput) || 0
+        };
+        const planRes = await fetch('/api/v1/fees/plans', { method: 'POST', headers, body: JSON.stringify(planPayload) });
+        if (!planRes.ok) {
+           alert("Failed to create fee plan for student");
+           return;
+        }
+        const planData = await planRes.json();
+        planId = planData.data.id;
+      }
 
-    const updatedList = [newFeeRecord, ...feesList];
-    setFeesList(updatedList);
-    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
+      // Now record payment
+      const paymentPayload = {
+        student_id: selectedStudentId,
+        fee_plan_id: planId,
+        amount: paidAmt,
+        payment_method: paymentMethod,
+        payment_type: paymentType,
+        month: filterMonth + 1,
+        year: filterYear
+      };
 
-    // Reset Form
-    setSelectedStudentId('');
-    setTotalAmountInput('');
-    setPaidAmountInput('');
-    setPaymentType('Full');
-    setPaymentMethod('Cash');
-
-    setIsModalOpen(false);
-    alert("Fees recorded successfully!");
+      const payRes = await fetch('/api/v1/fees/payments', { method: 'POST', headers, body: JSON.stringify(paymentPayload) });
+      if (payRes.ok) {
+        alert("Fees recorded successfully!");
+        setIsModalOpen(false);
+        setSelectedStudentId('');
+        setTotalAmountInput('');
+        setPaidAmountInput('');
+        setPaymentType('Installment');
+        setPaymentMethod('Cash');
+        fetchBackendData(); // refresh all data
+      } else {
+        const err = await payRes.json();
+        alert(err.message || "Failed to record payment");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error processing payment");
+    }
   };
 
   const toggleDropdown = (id) => {
@@ -396,38 +396,100 @@ const FeesContent = () => {
     }
   };
 
-  const handleDelete = (id) => {
-    const updatedList = feesList.filter(fee => fee.id !== id);
-    setFeesList(updatedList);
-    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
-    setActiveDropdown(null);
-    alert("Record deleted successfully!");
+  const handleDelete = async (id) => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+      
+      const res = await fetch(`/api/v1/fees/payments/${id}`, { method: 'DELETE', headers });
+      if (res.ok) {
+         alert("Record deleted successfully!");
+         setActiveDropdown(null);
+         fetchBackendData();
+      } else {
+         alert("Failed to delete payment");
+      }
+    } catch(err) {
+      alert("Error deleting record");
+    }
   };
 
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-    const totalFee = parseFloat(editItem.totalAmount) || 0;
-    const paidAmt = parseFloat(editItem.paidAmount) || 0;
-    const balance = Math.max(0, totalFee - paidAmt);
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+      
+      const paidAmt = parseFloat(editItem.paidAmount) || 0;
+      if (paidAmt <= 0) {
+         alert("Amount must be positive");
+         return;
+      }
+
+      const payload = {
+        amount: paidAmt,
+        payment_type: editItem.type,
+      };
+
+      const res = await fetch(`/api/v1/fees/payments/${editItem.id}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
+      if (res.ok) {
+         alert("Record updated successfully!");
+         setEditItem(null);
+         fetchBackendData();
+      } else {
+         alert("Failed to update payment");
+      }
+    } catch (err) {
+       alert("Error updating payment");
+    }
+  };
+
+  const handleDownloadInvoice = (fee) => {
+    const doc = new jsPDF();
     
-    const status = paidAmt >= totalFee ? 'Full Paid' : (paidAmt > 0 ? 'Partially Paid' : 'Pending');
-    const statusColor = paidAmt >= totalFee ? 'green' : (paidAmt > 0 ? 'yellow' : 'red');
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(0, 63, 135);
+    doc.text('Novox EdTech', 14, 22);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('Payment Receipt', 14, 30);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(50);
+    doc.text(`Date: ${fee.date}`, 140, 22);
+    doc.text(`Receipt ID: ${fee.id}`, 140, 30);
 
-    const updatedItem = {
-      ...editItem,
-      totalAmount: totalFee,
-      paidAmount: paidAmt,
-      remainingBalance: balance,
-      amount: `₹${paidAmt.toLocaleString()}`,
-      status: status,
-      statusColor: statusColor
-    };
-
-    const updatedList = feesList.map(fee => fee.id === editItem.id ? updatedItem : fee);
-    setFeesList(updatedList);
-    localStorage.setItem('novox_student_fees', JSON.stringify(updatedList));
-    setEditItem(null);
-    alert("Record updated successfully!");
+    // Student Info
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text('Student Details', 14, 45);
+    doc.setFontSize(10);
+    doc.text(`Name: ${fee.name || 'Student'}`, 14, 52);
+    doc.text(`Course: ${fee.course || 'N/A'}`, 14, 58);
+    
+    // Payment Details
+    doc.setFontSize(14);
+    doc.text('Payment Details', 14, 75);
+    
+    autoTable(doc, {
+      startY: 82,
+      head: [['Description', 'Payment Method', 'Amount Paid']],
+      body: [
+        [`Fee Payment - ${fee.type}`, fee.paymentMethod || 'Cash', `Rs. ${(fee.paid || fee.paidAmount || 0).toLocaleString()}`]
+      ],
+      headStyles: { fillColor: [0, 63, 135] }
+    });
+    
+    // Footer
+    const finalY = doc.lastAutoTable.finalY || 100;
+    doc.setFontSize(10);
+    doc.text('Thank you for your payment.', 14, finalY + 20);
+    doc.text('This is a computer-generated receipt and requires no signature.', 14, finalY + 26);
+    
+    doc.save(`Receipt_${fee.name ? fee.name.replace(/\s+/g, '_') : 'Student'}_${fee.id}.pdf`);
+    setActiveDropdown(null);
   };
 
   const handleExportPDF = () => {
@@ -488,9 +550,10 @@ const FeesContent = () => {
         </div>
       )}
       {/* Header Container */}
-      <div className="w-full flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+      <div className="w-full flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h2 className="text-[24px] font-bold text-[#003F87] leading-tight">Fee Management System</h2>
+          <h1 className="text-2xl font-bold text-slate-800">Fee Management</h1>
+          <p className="text-slate-500 mt-1">Track student payments, dues, and financial records.</p>
         </div>
         <div className="flex items-center gap-[12px]">
           <button onClick={handleExportPDF} className="bg-white border border-[#C2C6D4] shadow-sm text-[#555F6B] px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors">
@@ -502,71 +565,16 @@ const FeesContent = () => {
         </div>
       </div>
 
-      {/* Main Container */}
-      <div className="w-full bg-white border border-[#C2C6D4] rounded-[16px] flex flex-col overflow-hidden shadow-sm">
-        
-        {/* Tabs */}
-        <div className="flex items-center h-[61px] border-b border-[#C2C6D4] px-[24px]">
-          <button 
-            onClick={() => setActiveTab('MONTH_TRANSACTIONS')}
-            className={`h-full flex items-center gap-2 font-bold text-[14px] px-[8px] mr-[32px] transition-colors ${activeTab === 'MONTH_TRANSACTIONS' ? 'text-[#003F87] border-b-[3px] border-[#003F87]' : 'text-[#555F6B] hover:text-[#003F87]'}`}
-          >
-            <Calendar size={18} /> Month Transactions
-          </button>
-          <button 
-            onClick={() => setActiveTab('DUE_THIS_MONTH')}
-            className={`h-full flex items-center gap-2 font-bold text-[14px] px-[8px] transition-colors ${activeTab === 'DUE_THIS_MONTH' ? 'text-[#003F87] border-b-[3px] border-[#003F87]' : 'text-[#555F6B] hover:text-[#003F87]'}`}
-          >
-            <User size={18} /> Student Balances
-          </button>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 border-b border-[#C2C6D4] h-auto xl:h-[136px]">
-          <div className="p-[24px] flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#C2C6D4]">
-            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">THIS MONTH COLLECTIONS</p>
-            <h3 className="text-[32px] font-bold text-[#008A2E] leading-none mb-2">₹{stats.totalCollectionsMonth.toLocaleString()}</h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-[#555F6B]">
-              <Calendar size={12} /> {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][new Date().getMonth()]} {new Date().getFullYear()}
-            </div>
-          </div>
-          <div className="p-[24px] flex flex-col justify-center border-b xl:border-b-0 xl:border-r border-[#C2C6D4]">
-            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">OUTSTANDING FEES</p>
-            <h3 className="text-[32px] font-bold text-[#D80000] leading-none mb-2">₹{stats.outstandingFees.toLocaleString()}</h3>
-            <div className="flex items-center gap-1 text-[11px] text-[#555F6B]">
-              From {stats.outstandingCount} student{stats.outstandingCount !== 1 && 's'}
-            </div>
-          </div>
-          <div className="p-[24px] flex flex-col justify-center">
-            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">TOTAL YEARLY COLLECTIONS</p>
-            <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">₹{stats.totalCollectionsYear.toLocaleString()}</h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-[#003F87]">
-              <TrendingUp size={12} /> FY {new Date().getFullYear()}
-            </div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 bg-slate-50">
-          <div className="flex items-center gap-2 flex-1">
-            <div className="relative w-full max-w-md">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search student by name or ID..." 
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-9 pr-4 py-1.5 text-[13px] border border-[#C2C6D4] rounded-md outline-none focus:border-[#003F87] transition-colors"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Filter size={16} className="text-[#555F6B]" />
-            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Status:</span>
+      {/* Filters */}
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row items-start xl:items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Status Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
             <select 
               value={filterStatus}
               onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-              className="text-[13px] border border-[#C2C6D4] rounded-md px-3 py-1.5 outline-none bg-white text-slate-700 focus:border-[#003F87]"
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative py-0.5"
             >
               <option value="All">All Statuses</option>
               <option value="Full Paid">Fully Paid</option>
@@ -574,16 +582,18 @@ const FeesContent = () => {
               <option value="Pending">Pending / Not Paid</option>
             </select>
           </div>
-          {/* Month Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-bold text-[#555F6B] uppercase">Month:</span>
+
+          {/* Month Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Month</span>
             <div className="relative">
               <button 
+                type="button"
                 onClick={() => {
                   setPickerYear(filterYear);
                   setIsDatePickerOpen(!isDatePickerOpen);
                 }}
-                className="flex items-center bg-white border border-[#C2C6D4] rounded-md px-3.5 py-1.5 outline-none hover:border-[#003F87] h-[36px] shadow-sm text-[13px] font-bold text-slate-700 min-w-[150px] justify-between gap-2 transition-all"
+                className="flex items-center bg-transparent outline-none text-[13px] font-bold text-slate-700 justify-between gap-2 transition-all"
               >
                 <div className="flex items-center gap-2">
                   <Calendar size={14} className="text-slate-400 shrink-0" />
@@ -629,6 +639,51 @@ const FeesContent = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Main Container */}
+      <div className="w-full bg-white border border-[#C2C6D4] rounded-[16px] flex flex-col overflow-hidden shadow-sm">
+        
+        {/* Tabs */}
+        <div className="flex items-center h-[61px] border-b border-[#C2C6D4] px-[24px]">
+          <button 
+            onClick={() => setActiveTab('MONTH_TRANSACTIONS')}
+            className={`h-full flex items-center gap-2 font-bold text-[14px] px-[8px] mr-[32px] transition-colors ${activeTab === 'MONTH_TRANSACTIONS' ? 'text-[#003F87] border-b-[3px] border-[#003F87]' : 'text-[#555F6B] hover:text-[#003F87]'}`}
+          >
+            <Calendar size={18} /> Month Transactions
+          </button>
+          <button 
+            onClick={() => setActiveTab('DUE_THIS_MONTH')}
+            className={`h-full flex items-center gap-2 font-bold text-[14px] px-[8px] transition-colors ${activeTab === 'DUE_THIS_MONTH' ? 'text-[#003F87] border-b-[3px] border-[#003F87]' : 'text-[#555F6B] hover:text-[#003F87]'}`}
+          >
+            <User size={18} /> Student Balances
+          </button>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 border-b border-[#C2C6D4] h-auto xl:h-[136px]">
+          <div className="p-[24px] flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#C2C6D4]">
+            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">THIS MONTH COLLECTIONS</p>
+            <h3 className="text-[32px] font-bold text-[#008A2E] leading-none mb-2">₹{stats.totalCollectionsMonth.toLocaleString()}</h3>
+            <div className="flex items-center gap-1 text-[11px] font-bold text-[#555F6B]">
+              <Calendar size={12} /> {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][filterMonth]} {filterYear}
+            </div>
+          </div>
+          <div className="p-[24px] flex flex-col justify-center border-b xl:border-b-0 xl:border-r border-[#C2C6D4]">
+            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">OUTSTANDING FEES</p>
+            <h3 className="text-[32px] font-bold text-[#D80000] leading-none mb-2">₹{stats.outstandingFees.toLocaleString()}</h3>
+            <div className="flex items-center gap-1 text-[11px] text-[#555F6B]">
+              From {stats.outstandingCount} student{stats.outstandingCount !== 1 && 's'}
+            </div>
+          </div>
+          <div className="p-[24px] flex flex-col justify-center">
+            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">TOTAL YEARLY COLLECTIONS</p>
+            <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">₹{stats.totalCollectionsYear.toLocaleString()}</h3>
+
+          </div>
+        </div>
+
+
 
         {/* Table */}
         <div className="w-full overflow-x-auto min-h-[400px]">
@@ -641,6 +696,7 @@ const FeesContent = () => {
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Type</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Method</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Due This Month</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid Amount</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Remaining Balance</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Date</th>
@@ -651,8 +707,10 @@ const FeesContent = () => {
                 <tr className="border-b border-[#C2C6D4] bg-white">
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Student Details</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Course</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Due This Month</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid This Month</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
-                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid Amount</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Overall Paid</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Remaining Balance</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Status</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Action</th>
@@ -713,6 +771,11 @@ const FeesContent = () => {
                           <div className="text-[14px] text-slate-600 font-medium">₹{total.toLocaleString()}</div>
                         </td>
                         <td className="py-4 px-4 text-right">
+                          <div className="text-[14px] font-bold text-slate-800">
+                            {fee.dueThisMonth !== null && fee.dueThisMonth !== undefined ? `₹${fee.dueThisMonth.toLocaleString()}` : '-'}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
                           <div className="text-[14px] font-bold text-[#003F87]">₹{paid.toLocaleString()}</div>
                         </td>
                         <td className="py-4 px-4 text-right">
@@ -744,13 +807,14 @@ const FeesContent = () => {
                         <td className="py-4 px-4 text-right relative">
                           <button 
                             onClick={() => toggleDropdown(fee.id)} 
-                            className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all ml-auto"
+                            className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all ml-auto action-dropdown-btn"
                           >
                             <MoreVertical size={16} />
                           </button>
                           {activeDropdown === fee.id && (
-                            <div className={`absolute right-[24px] ${index >= paginatedData.length - 2 && paginatedData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-50 flex flex-col overflow-hidden`}>
+                            <div className={`absolute right-[24px] ${index >= paginatedData.length - 2 && paginatedData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-50 flex flex-col overflow-hidden action-dropdown-container`}>
                               <button onClick={() => { setViewItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
+                              <button onClick={() => handleDownloadInvoice(fee)} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Download size={14} /> Download Invoice</button>
                               <button onClick={() => { setEditItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
                               <button onClick={() => handleDelete(fee.id)} className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
                             </div>
@@ -774,6 +838,12 @@ const FeesContent = () => {
                         </td>
                         <td className="py-4 px-4">
                           <div className="text-[13px] text-[#555F6B] leading-tight">{due.course}</div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <div className="text-[14px] font-bold text-slate-800">₹{(due.currentMonthDue || 0).toLocaleString()}</div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <div className="text-[14px] font-bold text-[#003F87]">₹{(due.paidThisMonth || 0).toLocaleString()}</div>
                         </td>
                         <td className="py-4 px-4 text-right">
                           <div className="text-[14px] text-slate-600 font-medium">₹{due.totalCourseFee.toLocaleString()}</div>
@@ -951,11 +1021,19 @@ const FeesContent = () => {
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-md border border-slate-200 mt-2 flex justify-between items-center">
-                <span className="text-sm font-bold text-slate-700">Remaining Balance:</span>
-                <span className="text-base font-bold text-[#D80000]">
-                  ₹{Math.max(0, (parseFloat(totalAmountInput) || 0) - (parseFloat(paidAmountInput) || 0)).toLocaleString()}
-                </span>
+              <div className="bg-slate-50 p-4 rounded-md border border-slate-200 mt-2 flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-slate-700">Due This Month:</span>
+                  <span className="text-base font-bold text-[#003F87]">
+                    {selectedStudentBalance?.currentMonthDue !== undefined ? `₹${selectedStudentBalance.currentMonthDue.toLocaleString()}` : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-slate-200 pt-2">
+                  <span className="text-sm font-bold text-slate-700">Remaining Balance:</span>
+                  <span className="text-base font-bold text-[#D80000]">
+                    ₹{Math.max(0, (parseFloat(totalAmountInput) || 0) - (parseFloat(paidAmountInput) || 0)).toLocaleString()}
+                  </span>
+                </div>
               </div>
 
               <div className="flex gap-3 justify-end mt-4">

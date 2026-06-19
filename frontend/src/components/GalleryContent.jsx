@@ -3,6 +3,11 @@ import {
   Image as ImageIcon, Calendar, Cloud, Plus, Search,
   MoreVertical, ChevronLeft, ChevronRight, Check, X, Upload, ExternalLink, Pencil, Trash2
 } from 'lucide-react';
+import CustomSelect from './CustomSelect';
+import LoadingSpinner from './LoadingSpinner';
+import { useClickOutside } from '../hooks/useClickOutside';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const CATEGORY_STYLES = {
   EVENTS: { bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
@@ -13,7 +18,8 @@ const CATEGORY_STYLES = {
 
 
 
-const GalleryContent = () => {
+const GalleryContent = ({ searchQuery = '', setSearchQuery = () => {} }) => {
+  const datePickerRef = useRef(null);
   const [websites, setWebsites] = useState([]);
   const [selectedWebsite, setSelectedWebsite] = useState('');
   const [showWebsiteModal, setShowWebsiteModal] = useState(false);
@@ -30,7 +36,6 @@ const GalleryContent = () => {
   const [storageError, setStorageError] = useState(false);
   
   // Filters
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedDate, setSelectedDate] = useState('');
   
@@ -58,6 +63,8 @@ const GalleryContent = () => {
   const [editForm, setEditForm] = useState({ title: '', description: '' });
   const [isEditing, setIsEditing] = useState(false);
   
+  const previewRef = useClickOutside(() => setPreviewImage(null));
+
   // Category Management
   const [showCategoryManageModal, setShowCategoryManageModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -107,8 +114,14 @@ const GalleryContent = () => {
       const res = await fetch('/api/gallery/websites', { headers: getAuthHeaders(), cache: 'no-store' });
       if (res.ok) {
         const result = await res.json();
-        setWebsites(result.data || []);
-        if (result.data?.length > 0) setSelectedWebsite(result.data[0].id);
+        const data = result.data || [];
+        setWebsites(data);
+        const saved = localStorage.getItem('gallerySelectedWebsite');
+        if (saved && data.find(w => w.id === saved)) {
+          setSelectedWebsite(saved);
+        } else if (data.length > 0) {
+          setSelectedWebsite(data[0].id);
+        }
       }
     } catch (e) { console.error(e); }
   };
@@ -544,38 +557,79 @@ const GalleryContent = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto flex flex-col">
       {/* 1. Header Section */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Gallery Management</h1>
-          <p className="text-slate-500 mt-1">Manage gallery images and view your gallery collection.</p>
-        </div>
-        <div className="flex gap-3">
-          <button 
-            onClick={() => setShowCategoryManageModal(true)}
-            className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-200 transition-colors font-medium border border-slate-300"
-          >
-            Manage Categories
-          </button>
-          <button 
-            onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-2 bg-[#003F87] text-white px-4 py-2 rounded-md hover:bg-blue-800 transition-colors font-medium"
-          >
-            <Plus size={18} />
-            Upload Images
-          </button>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">Gallery Management</h1>
+        <p className="text-slate-500 mt-1">Manage gallery images and view your gallery collection.</p>
       </div>
 
-      {/* 1.5 Website Selection Tabs */}
+      {/* 2. Filter Bar & Actions */}
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">CATEGORY</span>
+            <CustomSelect
+              options={[{value: 'All Categories', label: 'All Categories'}, ...categories.map(cat => ({value: cat.name, label: cat.name}))]}
+              value={selectedCategory}
+              onChange={(val) => { setSelectedCategory(val); setCurrentPage(1); }}
+              placeholder="Category"
+              className="w-full sm:w-[200px]"
+              selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
+            />
+          </div>
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">DATE</span>
+            <div className="relative flex items-center">
+              <DatePicker
+                ref={datePickerRef}
+                selected={selectedDate ? new Date(selectedDate) : null}
+                onChange={(date) => {
+                  if (date) {
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    setSelectedDate(`${yyyy}-${mm}-${dd}`);
+                  } else {
+                    setSelectedDate('');
+                  }
+                  setCurrentPage(1);
+                }}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="dd/mm/yyyy"
+                showMonthDropdown
+                showYearDropdown
+                scrollableYearDropdown
+                dropdownMode="scroll"
+                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px] pr-8"
+              />
+              <Calendar 
+                size={16} 
+                className="text-slate-400 absolute right-0 cursor-pointer" 
+                onClick={() => datePickerRef.current?.setFocus()} 
+              />
+            </div>
+          </div>
+        </div>
+        <button 
+          onClick={() => setShowUploadModal(true)}
+          className="w-full sm:w-auto px-6 py-2.5 bg-[#003F87] text-white text-sm font-bold rounded-xl hover:bg-[#002B5E] shadow-sm hover:shadow active:scale-95 transition-all flex items-center justify-center"
+        >
+          <Plus size={18} className="mr-2" />
+          Upload Images
+        </button>
+      </div>
+
+      {/* 3. Website Selection Tabs */}
       <div className="flex items-center gap-4 mb-6">
         <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg w-fit border border-slate-200">
           {websites.map(site => (
             <button
               key={site.id}
-              onClick={() => { setSelectedWebsite(site.id); setSelectedIds(new Set()); setCurrentPage(1); }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                handleDeleteWebsite(site.id, site.name);
+              onClick={() => { 
+                setSelectedWebsite(site.id); 
+                localStorage.setItem('gallerySelectedWebsite', site.id);
+                setSelectedIds(new Set()); 
+                setCurrentPage(1); 
+                setPreviewImage(null);
               }}
               className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 group ${
                 selectedWebsite === site.id 
@@ -584,25 +638,13 @@ const GalleryContent = () => {
               }`}
             >
               {site.name}
-              {selectedWebsite === site.id && (
-                <div 
-                  onClick={(e) => { e.stopPropagation(); handleDeleteWebsite(site.id, site.name); }}
-                  className="hover:bg-slate-100 p-1 rounded-full text-slate-400 hover:text-red-500 transition-colors ml-1"
-                  title="Delete Site"
-                >
-                  <X size={14} />
-                </div>
-              )}
             </button>
           ))}
         </div>
-        <button onClick={() => setShowWebsiteModal(true)} className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-200 transition-colors font-medium border border-slate-300 h-fit">
-          <Plus size={16}/> New Site
-        </button>
       </div>
 
-      {/* 2. Top Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {/* 4. Top Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <div className="text-3xl font-bold text-slate-800">{images.length}</div>
@@ -610,18 +652,6 @@ const GalleryContent = () => {
           </div>
           <div className="bg-green-100 p-3 rounded-full">
             <ImageIcon className="text-green-600" size={24} />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm flex items-center justify-between">
-          <div>
-            <div className="text-3xl font-bold text-slate-800">{currentMonthImagesCount}</div>
-            <div className={`text-sm mt-1 font-medium ${isIncrease ? 'text-green-600' : 'text-red-600'}`}>
-              {isIncrease ? '↑' : '↓'} {Math.abs(percentageChange).toFixed(1)}% from last month
-            </div>
-          </div>
-          <div className="bg-purple-100 p-3 rounded-full">
-            <Calendar className="text-purple-600" size={24} />
           </div>
         </div>
 
@@ -643,40 +673,12 @@ const GalleryContent = () => {
         )}
       </div>
 
-      {/* 3. Search & Filter Bar */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div className="relative flex-1 min-w-[250px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search images by title or description..." 
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003F87]/20 focus:border-[#003F87] text-sm"
-          />
-        </div>
-        <select 
-          value={selectedCategory}
-          onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
-          className="border border-slate-300 rounded-md px-4 py-2 text-sm text-slate-700 focus:outline-none focus:border-[#003F87] capitalize"
-        >
-          <option value="All Categories">All Categories</option>
-          {categories.map(cat => (
-            <option key={cat.id} value={cat.name}>{cat.name}</option>
-          ))}
-        </select>
-        <input 
-          type="date"
-          value={selectedDate}
-          onChange={(e) => { setSelectedDate(e.target.value); setCurrentPage(1); }}
-          className="border border-slate-300 rounded-md px-4 py-2 text-sm text-slate-700 focus:outline-none focus:border-[#003F87]"
-        />
-      </div>
-
       {/* 4. Main Image Grid */}
       <div className="flex-1 min-h-[400px]">
         {loading ? (
-          <div className="flex items-center justify-center h-64 text-slate-500">Loading gallery...</div>
+          <div className="flex flex-col items-center justify-center py-32">
+            <LoadingSpinner text="Loading gallery..." />
+          </div>
         ) : paginatedImages.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-24">
             {paginatedImages.map((img) => {
@@ -762,6 +764,25 @@ const GalleryContent = () => {
           <span className="text-sm font-medium text-slate-700">
             {selectedIds.size} selected
           </span>
+          {selectedIds.size > 0 && (
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-sm font-medium text-slate-600 border border-slate-300 px-3 py-1.5 rounded hover:bg-slate-50 transition-colors"
+            >
+              Unselect
+            </button>
+          )}
+          {filteredImages.length > 0 && selectedIds.size !== filteredImages.length && (
+            <button
+              onClick={() => setSelectedIds(new Set(filteredImages.map(img => img.id)))}
+              className="text-sm font-medium text-[#003F87] border border-[#003F87] px-3 py-1.5 rounded hover:bg-blue-50 transition-colors"
+            >
+              Select All
+            </button>
+          )}
+          {selectedIds.size > 0 && (
+            <div className="h-6 w-[1px] bg-slate-300 mx-1"></div>
+          )}
           {selectedIds.size > 0 && (
             <>
               <button 
@@ -851,27 +872,25 @@ const GalleryContent = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Confirm Deletion</h3>
-            <p className="text-slate-600 text-sm mb-6">
-              Are you sure you want to delete {selectedIds.size} selected image{selectedIds.size > 1 ? 's' : ''}? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button 
-                onClick={() => setShowDeleteModal(false)}
-                disabled={isDeleting}
-                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors disabled:opacity-50"
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowDeleteModal(false)}>
+          <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="p-6 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 mb-2">Delete Images?</h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                Are you sure you want to delete {selectedIds.size} selected image{selectedIds.size > 1 ? 's' : ''}? This action cannot be undone.
+              </p>
+              
+              <div className="flex w-full gap-3">
+                <button onClick={() => setShowDeleteModal(false)} disabled={isDeleting} className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors flex-1">
+                  Cancel
+                </button>
+                <button onClick={handleDelete} disabled={isDeleting} className={`px-6 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all flex-1 ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-700'}`}>
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -879,7 +898,7 @@ const GalleryContent = () => {
 
       {/* Image Preview Panel */}
       {previewImage && (
-        <div className="fixed bottom-24 right-8 w-80 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 z-40 overflow-hidden flex flex-col transition-all">
+        <div ref={previewRef} className="fixed bottom-24 right-8 w-80 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 z-40 overflow-hidden flex flex-col transition-all">
           <div className="relative h-56 bg-slate-100 flex items-center justify-center group">
             <img 
               src={previewImage.image_url || previewImage.url || previewImage.cloudinary_url} 

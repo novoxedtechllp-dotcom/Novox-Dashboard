@@ -111,10 +111,10 @@ const StudentAttendance = () => {
       <div className="max-w-6xl mx-auto w-full">
         
         {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex justify-between items-start mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-[#003F87] mb-2">Attendance Portal</h1>
-            <p className="text-slate-500">Review your monthly presence and manage your schedule.</p>
+            <h1 className="text-2xl font-bold text-slate-800">My Attendance</h1>
+            <p className="text-slate-500 mt-1">Track your class attendance and daily presence.</p>
           </div>
         </div>
 

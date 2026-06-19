@@ -35,54 +35,10 @@ const cleanLegacyReport = (report) => {
   };
 };
 
-const CustomSelect = ({ label, options, value, onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const selectedOption = options.find(o => o.value === value) || options[0] || { label: "Select..." };
-  const dropdownRef = useRef(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
-  return (
-    <div className="flex-1 max-w-xs relative" ref={dropdownRef}>
-      <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">{label}</label>
-      <div 
-        className={`w-full bg-slate-50 border ${isOpen ? 'border-[#003F87] ring-1 ring-[#003F87]' : 'border-[#E2E8F0]'} text-[14px] text-slate-700 px-3 py-2.5 rounded-lg flex justify-between items-center cursor-pointer hover:border-[#003F87] transition-all duration-200 shadow-sm`}
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <span className="font-medium truncate pr-4">{selectedOption.label}</span>
-        <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#003F87]' : ''}`} />
-      </div>
-      
-      {isOpen && (
-        <div className="absolute z-20 w-full mt-2 bg-white border border-[#E2E8F0] rounded-xl shadow-lg max-h-60 overflow-auto py-1 animate-in fade-in zoom-in-95 duration-100">
-          {options.map((option) => (
-            <div
-              key={option.value}
-              className={`px-3 py-2.5 cursor-pointer text-[14px] transition-colors flex justify-between items-center ${option.value === value ? 'bg-[#F0F5FF] text-[#003F87] font-bold' : 'text-slate-700 hover:bg-slate-50 font-medium'}`}
-              onClick={() => {
-                onChange(option.value);
-                setIsOpen(false);
-              }}
-            >
-              <span className="truncate pr-2">{option.label}</span>
-              {option.value === value && <Check size={16} className="text-[#003F87] shrink-0" />}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const WorkReportsContent = () => {
+const WorkReportsContent = ({ searchQuery = "" }) => {
+  const datePickerRef = useRef(null);
   const [reports, setReports] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -191,6 +147,19 @@ const WorkReportsContent = () => {
       }
     }
 
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const emp = r.employee || {};
+      const empName = `${emp.first_name || ""} ${emp.last_name || ""}`.toLowerCase();
+      const cleaned = cleanLegacyReport(r);
+      const proj = cleaned.projectArea.toLowerCase();
+      const work = cleaned.workDone.toLowerCase();
+      
+      if (!empName.includes(q) && !proj.includes(q) && !work.includes(q)) {
+        return false;
+      }
+    }
+
     return true;
   });
 
@@ -280,12 +249,8 @@ const WorkReportsContent = () => {
       <div className="p-[24px] flex flex-col gap-[24px] w-full">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-[24px] font-bold text-[#003F87]">
-              Work Reports
-            </h2>
-            <p className="text-slate-500 text-[14px] mt-1">
-              Review and manage employee submissions
-            </p>
+            <h1 className="text-2xl font-bold text-slate-800">Work Reports</h1>
+            <p className="text-slate-500 mt-1">Review and manage employee submissions.</p>
           </div>
           {isEmployee && (
             <button
@@ -298,40 +263,56 @@ const WorkReportsContent = () => {
         </div>
 
         {userRole === "ADMIN" && (
-          <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-start bg-white p-4 rounded-xl border border-[#E2E8F0] shadow-sm">
-            <CustomSelect 
-              label="Select Employee"
-              value={selectedEmployee}
-              onChange={setSelectedEmployee}
-              options={[
-                { value: "ALL", label: "All Employees" },
-                ...employees.map(emp => ({
-                  value: emp.id,
-                  label: `${emp.first_name} ${emp.last_name} (${emp.employee_code || 'N/A'})`
-                }))
-              ]}
-            />
-            
-            <div className="flex flex-col flex-1 max-w-xs">
-              <label className="block text-[12px] font-bold text-slate-500 uppercase mb-1.5">Report Date</label>
-              <div className="relative">
-                <DatePicker
-                  selected={selectedSpecificDate ? new Date(selectedSpecificDate) : null}
-                  onChange={(date) => {
-                    if (date) {
-                      const yyyy = date.getFullYear();
-                      const mm = String(date.getMonth() + 1).padStart(2, '0');
-                      const dd = String(date.getDate()).padStart(2, '0');
-                      setSelectedSpecificDate(`${yyyy}-${mm}-${dd}`);
-                    } else {
-                      setSelectedSpecificDate("");
-                    }
-                  }}
-                  dateFormat="MMMM d, yyyy"
-                  placeholderText="Select a date"
-                  className="w-full bg-white border border-[#E2E8F0] text-[14px] text-slate-700 px-3 py-2.5 pl-10 rounded-lg focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] outline-none transition-all duration-200 shadow-sm cursor-pointer"
-                />
-                <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between w-full mb-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+              {/* Employee Filter */}
+              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Employee</span>
+                <select 
+                  value={selectedEmployee}
+                  onChange={(e) => setSelectedEmployee(e.target.value)}
+                  className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative py-0.5"
+                >
+                  <option value="ALL">All Employees</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.first_name} {emp.last_name} ({emp.employee_code || 'N/A'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Date Filter */}
+              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Date</span>
+                <div className="relative flex items-center">
+                  <DatePicker
+                    ref={datePickerRef}
+                    selected={selectedSpecificDate ? new Date(selectedSpecificDate) : null}
+                    onChange={(date) => {
+                      if (date) {
+                        const yyyy = date.getFullYear();
+                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                        const dd = String(date.getDate()).padStart(2, '0');
+                        setSelectedSpecificDate(`${yyyy}-${mm}-${dd}`);
+                      } else {
+                        setSelectedSpecificDate("");
+                      }
+                    }}
+                    dateFormat="dd/MM/yyyy"
+                    placeholderText="dd/mm/yyyy"
+                    className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px] pr-8"
+                    showMonthDropdown
+                    showYearDropdown
+                    scrollableYearDropdown
+                    dropdownMode="scroll"
+                  />
+                  <CalendarDays 
+                    className="text-slate-400 absolute right-0 cursor-pointer" 
+                    size={16} 
+                    onClick={() => datePickerRef.current?.setFocus()}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -694,12 +675,63 @@ const WorkReportsContent = () => {
                 <X size={20} />
               </button>
             </div>
-            <div className="flex-1 bg-slate-100 relative overflow-auto flex justify-center items-center p-4">
-              <iframe
-                src={currentDocAttachment.url}
-                title={currentDocAttachment.name}
-                className="w-full h-full border-none rounded shadow-sm"
-              ></iframe>
+            <div className="flex-1 bg-slate-100 relative overflow-hidden flex justify-center items-center">
+              {(() => {
+                const url = currentDocAttachment.url;
+                const isPdf = url.toLowerCase().endsWith(".pdf");
+                
+                // If it's a legacy Cloudinary PDF (image/upload), Cloudinary strictly blocks the PDF delivery (401 error).
+                // We bypass this entirely by asking Cloudinary to convert the PDF into a PNG image!
+                const isLegacyBlockedPdf = url.includes("res.cloudinary.com") && url.includes("/image/upload/") && isPdf;
+
+                if (isLegacyBlockedPdf) {
+                  const pngUrl = url.replace(/\.pdf$/i, ".png");
+                  const downloadPngUrl = pngUrl.replace("/image/upload/", "/image/upload/fl_attachment/");
+                  return (
+                    <div className="w-full h-full relative flex flex-col bg-slate-200/50 p-4 overflow-auto items-center">
+                      <div className="absolute top-4 right-8 z-10 flex gap-2">
+                        <a 
+                          href={downloadPngUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          download
+                          className="px-4 py-2 bg-[#003F87] text-white rounded-md text-sm font-semibold hover:bg-[#002B5E] shadow flex items-center gap-2"
+                        >
+                          <ExternalLink size={16} /> Download
+                        </a>
+                      </div>
+                      <img 
+                        src={pngUrl} 
+                        alt="Document Preview" 
+                        className="max-w-full shadow-md bg-white min-h-[500px]"
+                      />
+                    </div>
+                  );
+                }
+
+                // For new raw PDFs or other files, we show the reliable Download UI
+                // raw/upload URLs do not get 401 errors.
+                return (
+                  <div className="flex flex-col items-center justify-center w-full h-full text-center p-8">
+                    <div className="bg-white p-12 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center max-w-md w-full">
+                      <FileText size={64} className="text-[#003F87] mb-6 opacity-80" />
+                      <h4 className="text-xl font-bold text-slate-800 mb-2">Document Ready</h4>
+                      <p className="text-sm text-slate-500 mb-8 px-4">
+                        To access this document securely, please download it to your device.
+                      </p>
+                      <a 
+                        href={url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        download
+                        className="w-full py-3 bg-[#003F87] text-white rounded-xl text-sm font-bold hover:bg-[#002B5E] transition-all shadow-md hover:shadow-lg flex justify-center items-center gap-2"
+                      >
+                        <ExternalLink size={18} /> Download {isPdf ? 'PDF' : 'File'}
+                      </a>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

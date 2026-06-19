@@ -286,9 +286,9 @@ const DailyPlan = ({ userType, userId }) => {
       {/* Header & Date Navigation Banner */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">{userType === 'ADMIN' ? 'Class Feedback' : 'Action Plan'}</h2>
-          <p className="text-slate-500 text-sm mt-1 flex items-center gap-2">
-            <CalendarDays size={14} /> Plan and manage your curriculum seamlessly.
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Action Plan & Feedback</h1>
+          <p className="text-slate-500 mt-1 flex items-center gap-2">
+            <CalendarDays size={14} /> Organize your daily tasks and review class feedback.
           </p>
         </div>
 

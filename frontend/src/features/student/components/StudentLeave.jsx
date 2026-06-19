@@ -2,8 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Send, FileText, Info, UploadCloud, Trash2, X } from 'lucide-react';
 import { apiClient } from '../../../lib/apiClient';
 import CloudinaryPdfViewer from '../../../components/CloudinaryPdfViewer';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const StudentLeave = () => {
+  const startDatePickerRef = useRef(null);
+  const endDatePickerRef = useRef(null);
   const [activeTab, setActiveTab] = useState('Request Leave');
   const [formData, setFormData] = useState({
     leaveType: 'Medical Leave',
@@ -217,8 +221,8 @@ const StudentLeave = () => {
       <div className="max-w-6xl mx-auto w-full">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-[24px] font-bold text-[#003F87]">Leave Requests</h2>
-            <p className="text-slate-500 text-[14px] mt-1">Apply for leave and track your request status</p>
+            <h1 className="text-2xl font-bold text-slate-800">My Leaves</h1>
+            <p className="text-slate-500 mt-1">Apply for leaves and track your application status.</p>
           </div>
         </div>
 
@@ -307,26 +311,68 @@ const StudentLeave = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-[13px] font-bold text-slate-700 mb-2">Start Date</label>
-                      <input
-                        type="date"
-                        name="startDate"
-                        value={formData.startDate}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors"
-                      />
+                      <div className="relative flex items-center">
+                        <DatePicker
+                          ref={startDatePickerRef}
+                          selected={formData.startDate ? new Date(formData.startDate) : null}
+                          onChange={(date) => {
+                            if (date) {
+                              const yyyy = date.getFullYear();
+                              const mm = String(date.getMonth() + 1).padStart(2, '0');
+                              const dd = String(date.getDate()).padStart(2, '0');
+                              setFormData(prev => ({ ...prev, startDate: `${yyyy}-${mm}-${dd}` }));
+                            } else {
+                              setFormData(prev => ({ ...prev, startDate: '' }));
+                            }
+                          }}
+                          dateFormat="dd/MM/yyyy"
+                          placeholderText="dd/mm/yyyy"
+                          showMonthDropdown
+                          showYearDropdown
+                          scrollableYearDropdown
+                          dropdownMode="scroll"
+                          required
+                          className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 pl-4 pr-10 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors cursor-pointer"
+                        />
+                        <Calendar 
+                          size={16} 
+                          className="text-slate-400 absolute right-3 cursor-pointer" 
+                          onClick={() => startDatePickerRef.current?.setFocus()} 
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-[13px] font-bold text-slate-700 mb-2">End Date</label>
-                      <input
-                        type="date"
-                        name="endDate"
-                        value={formData.endDate}
-                        onChange={handleInputChange}
-                        required
-                        min={formData.startDate}
-                        className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 px-4 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors"
-                      />
+                      <div className="relative flex items-center">
+                        <DatePicker
+                          ref={endDatePickerRef}
+                          selected={formData.endDate ? new Date(formData.endDate) : null}
+                          onChange={(date) => {
+                            if (date) {
+                              const yyyy = date.getFullYear();
+                              const mm = String(date.getMonth() + 1).padStart(2, '0');
+                              const dd = String(date.getDate()).padStart(2, '0');
+                              setFormData(prev => ({ ...prev, endDate: `${yyyy}-${mm}-${dd}` }));
+                            } else {
+                              setFormData(prev => ({ ...prev, endDate: '' }));
+                            }
+                          }}
+                          dateFormat="dd/MM/yyyy"
+                          placeholderText="dd/mm/yyyy"
+                          showMonthDropdown
+                          showYearDropdown
+                          scrollableYearDropdown
+                          dropdownMode="scroll"
+                          required
+                          minDate={formData.startDate ? new Date(formData.startDate) : null}
+                          className="w-full bg-white border border-[#C2C6D4] text-[14px] text-slate-800 pl-4 pr-10 py-2.5 rounded-lg focus:outline-none focus:border-[#003F87] focus:ring-1 focus:ring-[#003F87] transition-colors cursor-pointer"
+                        />
+                        <Calendar 
+                          size={16} 
+                          className="text-slate-400 absolute right-3 cursor-pointer" 
+                          onClick={() => endDatePickerRef.current?.setFocus()} 
+                        />
+                      </div>
                     </div>
                   </div>
 
