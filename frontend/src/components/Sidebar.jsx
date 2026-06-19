@@ -45,6 +45,7 @@ const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, is
       { id: 'leave', label: 'Leave Requests', icon: FileText },
       { id: 'tasks', label: 'Tasks', icon: ClipboardList },
       { id: 'jobs', label: 'Job Portal', icon: Briefcase },
+      { id: 'fees', label: 'Financial Overview', icon: CreditCard },
       { id: 'profile', label: 'Profile', icon: User }
     ];
   }

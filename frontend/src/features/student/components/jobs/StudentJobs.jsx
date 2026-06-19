@@ -88,8 +88,8 @@ const StudentJobs = ({ userInfo }) => {
     <div className="h-full flex flex-col bg-[#F8FAFC]">
       {/* Header */}
       <div className="bg-white border-b border-[#C2C6D4] px-[32px] py-[24px] shrink-0">
-        <h1 className="text-[24px] font-bold text-[#003F87] tracking-tight">Job Portal</h1>
-        <p className="text-[14px] text-[#555F6B] mt-1">
+        <h1 className="text-2xl font-bold text-slate-800">Job Portal</h1>
+        <p className="text-slate-500 mt-1">
           Discover curated opportunities tailored for our students and alumni.
         </p>
       </div>

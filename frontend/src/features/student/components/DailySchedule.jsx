@@ -147,8 +147,12 @@ const DailySchedule = () => {
   return (
     <div className="w-full p-4 md:p-6 lg:p-8 bg-[#FAFBFC] min-h-screen">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-extrabold text-[#003F87] tracking-tight mb-2">Action Plan</h1>
-        <p className="text-slate-500 font-medium mb-6 max-w-2xl">View your assigned topics and tasks for the day, and provide feedback on your modules.</p>
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Action Plan</h1>
+            <p className="text-slate-500 mt-1">View your assigned topics and tasks for the day, and provide feedback on your modules.</p>
+          </div>
+        </div>
 
         {/* Date Selector */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between mb-8">

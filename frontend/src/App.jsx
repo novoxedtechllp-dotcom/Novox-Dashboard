@@ -34,6 +34,7 @@ import Fab from './components/Fab';
 import DailyPlan from './features/employee/components/DailyPlan';
 import StudentTasks from './features/student/components/StudentTasks';
 import StudentProfile from './features/student/components/StudentProfile';
+import StudentFees from './features/student/components/StudentFees';
 import StudentJobs from './features/student/components/jobs/StudentJobs';
 import StudentAcademicJourney from './features/student/components/StudentAcademicJourney';
 
@@ -263,6 +264,7 @@ function App() {
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
                 <Route path={`${basePath}/settings`} element={<SettingsContent employees={employees} />} />
                 <Route path={`${basePath}/profile`} element={userRole === 'STUDENT' ? <StudentProfile userInfo={userInfo} /> : <EmployeeProfile />} />
+                <Route path={`${basePath}/fees`} element={userRole === 'STUDENT' ? <StudentFees userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
                 <Route path={`${basePath}/tasks`} element={userRole === 'STUDENT' ? <StudentTasks userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
                 <Route path={`${basePath}/jobs`} element={userRole === 'STUDENT' ? <StudentJobs userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
                 <Route path={`${basePath}/journey`} element={userRole === 'STUDENT' ? <StudentAcademicJourney userInfo={userInfo} /> : (canViewJourney ? <AcademicJourneyContent /> : <Navigate to={`${basePath}/dashboard`} />)} />
