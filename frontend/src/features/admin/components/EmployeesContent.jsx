@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle, Search, Shield, Eye, EyeOff } from 'lucide-react';
+import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle, Search, Shield, Eye, EyeOff, BookOpen } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const getAuthHeaders = () => {
@@ -407,6 +407,14 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
                   <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
                     <Phone size={14} className="text-slate-400" /> <span className="truncate">{emp.phone}</span>
                   </div>
+                  {emp.courseIds && emp.courseIds.length > 0 && (
+                    <div className="flex items-start gap-2 text-xs font-medium text-slate-500 mt-1">
+                      <BookOpen size={14} className="text-slate-400 shrink-0 mt-0.5" /> 
+                      <span className="line-clamp-2">
+                        {emp.courseIds.map(id => courses.find(c => c.id === id)?.name || courses.find(c => c.id === id)?.title).filter(Boolean).join(', ')}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

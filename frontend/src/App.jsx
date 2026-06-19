@@ -81,7 +81,8 @@ const mapEmployeeFromApi = (d) => {
   joinDate: d.joining_date ? new Date(d.joining_date).toLocaleDateString() : '',
   avatar: d.avatar_url || null,
   email: d.users?.email || '',
-  systemRole: d.users?.role || 'EMPLOYEE'
+  systemRole: d.users?.role || 'EMPLOYEE',
+  courseIds: d.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []
   };
 };
 
