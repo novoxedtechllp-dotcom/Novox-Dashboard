@@ -121,6 +121,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [isStudentsLoading, setIsStudentsLoading] = useState(false);
   const [assigningStudents, setAssigningStudents] = useState(false);
+  const [studentFilter, setStudentFilter] = useState('All');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
@@ -566,15 +567,21 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       const response = await fetch(`/api/v1/students?limit=1000`, { headers });
       const resData = await parseApiResponse(response);
       const students = resData.data.students || [];
-      const unassignedStudents = students.filter(student => {
-        if (!student.student_courses) return true;
-        return !student.student_courses.some(sc => String(sc.course_id) === String(selectedCourse?.id));
-      }).sort((a, b) => {
+      
+      const sortedStudents = students.sort((a, b) => {
         const nameA = `${a.first_name || ''} ${a.last_name || ''}`.trim().toLowerCase();
         const nameB = `${b.first_name || ''} ${b.last_name || ''}`.trim().toLowerCase();
         return nameA.localeCompare(nameB);
       });
-      setAllStudents(unassignedStudents);
+      
+      setAllStudents(sortedStudents);
+
+      const enrolledIds = sortedStudents.filter(student => {
+        if (!student.student_courses) return false;
+        return student.student_courses.some(sc => String(sc.course_id) === String(selectedCourse?.id));
+      }).map(s => s.id);
+
+      setSelectedStudentIds(enrolledIds);
     } catch (error) {
       alert(error.message || 'Failed to fetch students');
     } finally {
@@ -627,6 +634,15 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     
     return normalizedCourses;
   }, [courses, categoryFilter, employees, searchQuery]);
+
+  const filteredStudents = useMemo(() => {
+    return allStudents.filter(student => {
+      const isEnrolled = student.student_courses?.some(sc => String(sc.course_id) === String(selectedCourse?.id));
+      if (studentFilter === 'Enrolled') return isEnrolled;
+      if (studentFilter === 'Not Enrolled') return !isEnrolled;
+      return true;
+    });
+  }, [allStudents, studentFilter, selectedCourse?.id]);
 
   const uniqueCategories = ['All Categories', 'DEVELOPMENT', 'MARKETING', 'DESIGN'];
 
@@ -1002,10 +1018,23 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                 <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300 fade-in">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-xl font-black text-slate-800">Assign Students</h3>
-                      <p className="text-sm text-slate-500 mt-1">Select students to enroll them in {selectedCourse.title}</p>
+                      <h3 className="text-xl font-black text-slate-800">Course Students ({selectedCourse.enrollmentCount} Enrolled)</h3>
+                      <p className="text-sm text-slate-500 mt-1">Select new students to enroll them in {selectedCourse.title}</p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 items-center">
+                      <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
+                        <CustomSelect
+                          options={[
+                            { value: 'All', label: 'All Students' },
+                            { value: 'Enrolled', label: 'Enrolled Only' },
+                            { value: 'Not Enrolled', label: 'Not Enrolled' }
+                          ]}
+                          value={studentFilter}
+                          onChange={(val) => setStudentFilter(val)}
+                          className="w-[140px]"
+                          selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
+                        />
+                      </div>
                       <button 
                         onClick={loadStudentsForAssignment}
                         className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
@@ -1014,10 +1043,10 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                       </button>
                       <button 
                         onClick={handleBatchAssignStudents}
-                        disabled={selectedStudentIds.length === 0 || assigningStudents}
+                        disabled={selectedStudentIds.filter(id => !allStudents.find(s => s.id === id)?.student_courses?.some(sc => String(sc.course_id) === String(selectedCourse?.id))).length === 0 || assigningStudents}
                         className="px-6 py-2 bg-[#003F87] rounded-xl text-sm font-bold text-white hover:bg-[#002B5E] shadow-md shadow-blue-900/10 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
                       >
-                        {assigningStudents ? 'Assigning...' : `Assign ${selectedStudentIds.length} Student${selectedStudentIds.length !== 1 ? 's' : ''}`}
+                        {assigningStudents ? 'Assigning...' : `Assign ${selectedStudentIds.filter(id => !allStudents.find(s => s.id === id)?.student_courses?.some(sc => String(sc.course_id) === String(selectedCourse?.id))).length} New Student${selectedStudentIds.filter(id => !allStudents.find(s => s.id === id)?.student_courses?.some(sc => String(sc.course_id) === String(selectedCourse?.id))).length !== 1 ? 's' : ''}`}
                       </button>
                     </div>
                   </div>
@@ -1036,8 +1065,17 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                 <input 
                                   type="checkbox" 
                                   className="w-4 h-4 rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] cursor-pointer inline-block align-middle"
-                                  onChange={(e) => setSelectedStudentIds(e.target.checked ? allStudents.map(s => s.id) : [])}
-                                  checked={selectedStudentIds.length === allStudents.length && allStudents.length > 0}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      const newIds = new Set(selectedStudentIds);
+                                      filteredStudents.forEach(s => newIds.add(s.id));
+                                      setSelectedStudentIds(Array.from(newIds));
+                                    } else {
+                                      const idsToRemove = new Set(filteredStudents.filter(s => !s.student_courses?.some(sc => String(sc.course_id) === String(selectedCourse?.id))).map(s => s.id));
+                                      setSelectedStudentIds(selectedStudentIds.filter(id => !idsToRemove.has(id)));
+                                    }
+                                  }}
+                                  checked={filteredStudents.length > 0 && filteredStudents.every(s => selectedStudentIds.includes(s.id))}
                                 />
                               </th>
                               <th className="py-4 px-6 text-[11px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 text-left">Student Name</th>
@@ -1046,13 +1084,14 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                             </tr>
                           </thead>
                           <tbody>
-                            {allStudents.map(student => (
+                            {filteredStudents.map(student => (
                               <tr key={student.id} className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors group">
                                 <td className="py-4 px-6 text-center">
                                   <input 
                                     type="checkbox" 
-                                    className="w-4 h-4 rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] cursor-pointer inline-block align-middle"
+                                    className="w-4 h-4 rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] cursor-pointer inline-block align-middle disabled:opacity-50 disabled:cursor-not-allowed"
                                     checked={selectedStudentIds.includes(student.id)}
+                                    disabled={student.student_courses?.some(sc => String(sc.course_id) === String(selectedCourse?.id))}
                                     onChange={(e) => {
                                       if (e.target.checked) setSelectedStudentIds([...selectedStudentIds, student.id]);
                                       else setSelectedStudentIds(selectedStudentIds.filter(id => id !== student.id));
@@ -1065,6 +1104,9 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                       {student.first_name?.[0] || 'U'}{student.last_name?.[0] || ''}
                                     </div>
                                     <span className="font-bold text-slate-800 text-sm">{student.first_name} {student.last_name}</span>
+                                    {student.student_courses?.some(sc => String(sc.course_id) === String(selectedCourse?.id)) && (
+                                      <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider">Enrolled</span>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="py-4 px-6 text-sm font-bold text-slate-500">{student.student_code}</td>
