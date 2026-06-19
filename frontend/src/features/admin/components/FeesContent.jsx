@@ -4,7 +4,7 @@ import LoadingSpinner from '../../../components/LoadingSpinner';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const FeesContent = () => {
+const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
   const [toast, setToast] = useState(null);
   const alert = (message) => {
     const isError = typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error'));
@@ -12,7 +12,6 @@ const FeesContent = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const [searchQuery, setSearchQuery] = useState('');
   const [feesList, setFeesList] = useState([]);
   const [studentBalancesList, setStudentBalancesList] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
@@ -176,6 +175,20 @@ const FeesContent = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.action-dropdown-container') && !e.target.closest('.action-dropdown-btn')) {
+        setActiveDropdown(null);
+      }
+    };
+    if (activeDropdown !== null) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [activeDropdown]);
   const [viewItem, setViewItem] = useState(null);
   const [editItem, setEditItem] = useState(null);
 
@@ -298,6 +311,10 @@ const FeesContent = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -427,7 +444,55 @@ const FeesContent = () => {
     }
   };
 
-const handleExportPDF = () => {
+  const handleDownloadInvoice = (fee) => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(0, 63, 135);
+    doc.text('Novox EdTech', 14, 22);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('Payment Receipt', 14, 30);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(50);
+    doc.text(`Date: ${fee.date}`, 140, 22);
+    doc.text(`Receipt ID: ${fee.id}`, 140, 30);
+
+    // Student Info
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text('Student Details', 14, 45);
+    doc.setFontSize(10);
+    doc.text(`Name: ${fee.name || 'Student'}`, 14, 52);
+    doc.text(`Course: ${fee.course || 'N/A'}`, 14, 58);
+    
+    // Payment Details
+    doc.setFontSize(14);
+    doc.text('Payment Details', 14, 75);
+    
+    autoTable(doc, {
+      startY: 82,
+      head: [['Description', 'Payment Method', 'Amount Paid']],
+      body: [
+        [`Fee Payment - ${fee.type}`, fee.paymentMethod || 'Cash', `Rs. ${(fee.paid || fee.paidAmount || 0).toLocaleString()}`]
+      ],
+      headStyles: { fillColor: [0, 63, 135] }
+    });
+    
+    // Footer
+    const finalY = doc.lastAutoTable.finalY || 100;
+    doc.setFontSize(10);
+    doc.text('Thank you for your payment.', 14, finalY + 20);
+    doc.text('This is a computer-generated receipt and requires no signature.', 14, finalY + 26);
+    
+    doc.save(`Receipt_${fee.name ? fee.name.replace(/\s+/g, '_') : 'Student'}_${fee.id}.pdf`);
+    setActiveDropdown(null);
+  };
+
+  const handleExportPDF = () => {
     const doc = new jsPDF();
     
     doc.setFontSize(20);
@@ -485,7 +550,7 @@ const handleExportPDF = () => {
         </div>
       )}
       {/* Header Container */}
-      <div className="w-full flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+      <div className="w-full flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Fee Management</h1>
           <p className="text-slate-500 mt-1">Track student payments, dues, and financial records.</p>
@@ -497,6 +562,82 @@ const handleExportPDF = () => {
           <button onClick={() => setIsModalOpen(true)} className="bg-[#003F87] text-white px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-[#002B5E] transition-colors shadow-sm">
             <CreditCard size={16} /> Record Payment
           </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row items-start xl:items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Status Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
+            <select 
+              value={filterStatus}
+              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative py-0.5"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Full Paid">Fully Paid</option>
+              <option value="Partially Paid">Partially Paid</option>
+              <option value="Pending">Pending / Not Paid</option>
+            </select>
+          </div>
+
+          {/* Month Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Month</span>
+            <div className="relative">
+              <button 
+                type="button"
+                onClick={() => {
+                  setPickerYear(filterYear);
+                  setIsDatePickerOpen(!isDatePickerOpen);
+                }}
+                className="flex items-center bg-transparent outline-none text-[13px] font-bold text-slate-700 justify-between gap-2 transition-all"
+              >
+                <div className="flex items-center gap-2">
+                  <Calendar size={14} className="text-slate-400 shrink-0" />
+                  <span>{formatMonthDisplay(filterMonth, filterYear)}</span>
+                </div>
+                <span className="text-[10px] text-slate-400">▼</span>
+              </button>
+
+              {isDatePickerOpen && (
+                <>
+                  <div className="fixed inset-0 z-[100]" onClick={() => setIsDatePickerOpen(false)}></div>
+                  <div className="absolute right-0 top-full mt-2 bg-white border border-[#C2C6D4] rounded-xl shadow-xl z-[101] p-3 w-[260px] animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                      <button type="button" onClick={() => setPickerYear(y => y - 1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 font-bold transition-all text-lg">&lsaquo;</button>
+                      <span className="font-extrabold text-[14px] text-slate-800">{pickerYear}</span>
+                      <button type="button" onClick={() => setPickerYear(y => y + 1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 font-bold transition-all text-lg">&rsaquo;</button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((monthName, idx) => {
+                        const isSelected = filterMonth === idx && filterYear === pickerYear;
+                        return (
+                          <button
+                            key={monthName}
+                            type="button"
+                            onClick={() => {
+                              setFilterMonth(idx);
+                              setFilterYear(pickerYear);
+                              setCurrentPage(1);
+                              setIsDatePickerOpen(false);
+                            }}
+                            className={`py-2 rounded-lg text-[12px] font-bold transition-all text-center ${
+                              isSelected ? 'bg-[#003F87] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                          >
+                            {monthName}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -538,99 +679,11 @@ const handleExportPDF = () => {
           <div className="p-[24px] flex flex-col justify-center">
             <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">TOTAL YEARLY COLLECTIONS</p>
             <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">₹{stats.totalCollectionsYear.toLocaleString()}</h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-[#003F87]">
-              <TrendingUp size={12} /> FY {filterYear}
-            </div>
+
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex flex-col xl:flex-row items-start xl:items-center gap-4 bg-slate-50">
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-            {/* Search Input */}
-            <div className="relative w-full sm:w-[240px] md:w-[280px] shrink-0">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search student by name or ID..." 
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                className="w-full bg-white border border-[#C2C6D4] pl-10 pr-4 py-2 rounded-lg text-[13px] font-medium outline-none focus:border-[#003F87] transition-all placeholder:text-slate-400 text-slate-700"
-              />
-            </div>
 
-            {/* Status Filter */}
-            <div className="flex items-center bg-white border border-[#C2C6D4] rounded-lg px-4 py-1.5 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
-              <select 
-                value={filterStatus}
-                onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative py-0.5"
-              >
-                <option value="All">All Statuses</option>
-                <option value="Full Paid">Fully Paid</option>
-                <option value="Partially Paid">Partially Paid</option>
-                <option value="Pending">Pending / Not Paid</option>
-              </select>
-            </div>
-
-            {/* Month Filter */}
-            <div className="flex items-center bg-white border border-[#C2C6D4] rounded-lg px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Month</span>
-              <div className="relative">
-                <button 
-                  type="button"
-                  onClick={() => {
-                    setPickerYear(filterYear);
-                    setIsDatePickerOpen(!isDatePickerOpen);
-                  }}
-                  className="flex items-center bg-transparent outline-none text-[13px] font-bold text-slate-700 justify-between gap-2 transition-all"
-                >
-                  <div className="flex items-center gap-2">
-                    <Calendar size={14} className="text-slate-400 shrink-0" />
-                    <span>{formatMonthDisplay(filterMonth, filterYear)}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400">▼</span>
-                </button>
-
-              {isDatePickerOpen && (
-                <>
-                  <div className="fixed inset-0 z-[100]" onClick={() => setIsDatePickerOpen(false)}></div>
-                  <div className="absolute right-0 top-full mt-2 bg-white border border-[#C2C6D4] rounded-xl shadow-xl z-[101] p-3 w-[260px] animate-in fade-in slide-in-from-top-2 duration-150">
-                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                      <button type="button" onClick={() => setPickerYear(y => y - 1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 font-bold transition-all text-lg">&lsaquo;</button>
-                      <span className="font-extrabold text-[14px] text-slate-800">{pickerYear}</span>
-                      <button type="button" onClick={() => setPickerYear(y => y + 1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 font-bold transition-all text-lg">&rsaquo;</button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((monthName, idx) => {
-                        const isSelected = filterMonth === idx && filterYear === pickerYear;
-                        return (
-                          <button
-                            key={monthName}
-                            type="button"
-                            onClick={() => {
-                              setFilterMonth(idx);
-                              setFilterYear(pickerYear);
-                              setCurrentPage(1);
-                              setIsDatePickerOpen(false);
-                            }}
-                            className={`py-2 rounded-lg text-[12px] font-bold transition-all text-center ${
-                              isSelected ? 'bg-[#003F87] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                            }`}
-                          >
-                            {monthName}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
 
         {/* Table */}
         <div className="w-full overflow-x-auto min-h-[400px]">
@@ -754,13 +807,14 @@ const handleExportPDF = () => {
                         <td className="py-4 px-4 text-right relative">
                           <button 
                             onClick={() => toggleDropdown(fee.id)} 
-                            className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all ml-auto"
+                            className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all ml-auto action-dropdown-btn"
                           >
                             <MoreVertical size={16} />
                           </button>
                           {activeDropdown === fee.id && (
-                            <div className={`absolute right-[24px] ${index >= paginatedData.length - 2 && paginatedData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-50 flex flex-col overflow-hidden`}>
+                            <div className={`absolute right-[24px] ${index >= paginatedData.length - 2 && paginatedData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-50 flex flex-col overflow-hidden action-dropdown-container`}>
                               <button onClick={() => { setViewItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
+                              <button onClick={() => handleDownloadInvoice(fee)} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Download size={14} /> Download Invoice</button>
                               <button onClick={() => { setEditItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
                               <button onClick={() => handleDelete(fee.id)} className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
                             </div>

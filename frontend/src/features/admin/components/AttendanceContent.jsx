@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, Calendar, RefreshCcw, MoreVertical, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import EmployeeCalendarModal from './EmployeeCalendarModal';
 import CustomSelect from '../../../components/CustomSelect';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', setSearchQuery = () => {} }) => {
+  const datePickerRef = useRef(null);
   const [students, setStudents] = useState([]);
   
   // Database tables mock state
@@ -327,12 +330,34 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
           {/* Date Filter */}
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Date</span>
-            <input 
-              type="date" 
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
-            />
+            <div className="relative flex items-center">
+              <DatePicker
+                ref={datePickerRef}
+                selected={dateFilter ? new Date(dateFilter) : null}
+                onChange={(date) => {
+                  if (date) {
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    setDateFilter(`${yyyy}-${mm}-${dd}`);
+                  } else {
+                    setDateFilter('');
+                  }
+                }}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="dd/mm/yyyy"
+                showMonthDropdown
+                showYearDropdown
+                scrollableYearDropdown
+                dropdownMode="scroll"
+                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px] pr-8"
+              />
+              <Calendar 
+                size={16} 
+                className="text-slate-400 absolute right-0 cursor-pointer" 
+                onClick={() => datePickerRef.current?.setFocus()} 
+              />
+            </div>
           </div>
         </div>
 

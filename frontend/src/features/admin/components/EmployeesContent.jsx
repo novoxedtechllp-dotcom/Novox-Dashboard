@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle, Search, Shield, BookOpen } from 'lucide-react';
+import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle, Search, Shield, Eye, EyeOff, BookOpen } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
 const getAuthHeaders = () => {
@@ -88,6 +88,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   
   const [deptFilter, setDeptFilter] = useState('All Departments');
   const [statusFilter, setStatusFilter] = useState('Active');
@@ -421,17 +422,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
           </div>
         ))}
 
-        {/* Add Employee Card */}
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-transparent rounded-[24px] border-2 border-dashed border-slate-200 p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group min-h-[260px]"
-        >
-          <div className="w-14 h-14 rounded-[16px] bg-white shadow-sm text-blue-500 flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-[#003F87] group-hover:text-white transition-all duration-300 border border-slate-100">
-            <Plus size={24} />
-          </div>
-          <h3 className="text-lg font-black text-slate-800 mb-1">Add Employee</h3>
-          <p className="text-xs font-medium text-slate-500">Onboard a new team member.</p>
-        </button>
+
       </div>
 
       {/* Add Modal */}
@@ -498,12 +489,22 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
                 </div>
                 <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Password <span className="text-slate-300 normal-case font-normal">(optional)</span></label>
-                  <input 
-                    type="text" value={newEmployee.password}
-                    onChange={(e) => setNewEmployee({...newEmployee, password: e.target.value})}
-                    placeholder="Auto-generated"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
-                  />
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      value={newEmployee.password}
+                      onChange={(e) => setNewEmployee({...newEmployee, password: e.target.value})}
+                      placeholder="Auto-generated"
+                      className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Department</label>

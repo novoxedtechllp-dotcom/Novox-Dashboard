@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import MainContent from './features/admin/components/MainContent';
@@ -34,6 +34,7 @@ import Fab from './components/Fab';
 import DailyPlan from './features/employee/components/DailyPlan';
 import StudentTasks from './features/student/components/StudentTasks';
 import StudentProfile from './features/student/components/StudentProfile';
+import StudentFees from './features/student/components/StudentFees';
 import StudentJobs from './features/student/components/jobs/StudentJobs';
 import StudentAcademicJourney from './features/student/components/StudentAcademicJourney';
 
@@ -108,6 +109,7 @@ function App() {
   const initialUserInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
 
   const navigate = useNavigate();
+  const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(!!initialUserInfo);
   const [logoutPath, setLogoutPath] = useState('/login');
   const [userRole, setUserRole] = useState(initialUserInfo ? initialUserInfo.role : null);
@@ -115,6 +117,10 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [courses, setCourses] = useState([]);
   const [employees, setEmployees] = useState([]);
+
+  useEffect(() => {
+    setSearchQuery('');
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleUserInfoUpdate = () => {
@@ -264,6 +270,7 @@ function App() {
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
                 <Route path={`${basePath}/settings`} element={<SettingsContent employees={employees} />} />
                 <Route path={`${basePath}/profile`} element={userRole === 'STUDENT' ? <StudentProfile userInfo={userInfo} /> : <EmployeeProfile />} />
+                <Route path={`${basePath}/fees`} element={userRole === 'STUDENT' ? <StudentFees userInfo={userInfo} /> : (canViewFees ? <FeesContent searchQuery={searchQuery} setSearchQuery={setSearchQuery} /> : <Navigate to={`${basePath}/dashboard`} />)} />
                 <Route path={`${basePath}/tasks`} element={userRole === 'STUDENT' ? <StudentTasks userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
                 <Route path={`${basePath}/jobs`} element={userRole === 'STUDENT' ? <StudentJobs userInfo={userInfo} /> : <Navigate to={`${basePath}/dashboard`} />} />
                 <Route path={`${basePath}/journey`} element={userRole === 'STUDENT' ? <StudentAcademicJourney userInfo={userInfo} /> : (canViewJourney ? <AcademicJourneyContent /> : <Navigate to={`${basePath}/dashboard`} />)} />
@@ -271,7 +278,7 @@ function App() {
 
                 {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
                 {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
-                {canViewFees && <Route path={`${basePath}/fees`} element={<FeesContent />} />}
+
                 {canViewPayroll && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
                 {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} searchQuery={searchQuery} />} />}
                 {canViewRecruitment && <Route path={`${basePath}/recruitment`} element={<RecruitmentContent />} />}

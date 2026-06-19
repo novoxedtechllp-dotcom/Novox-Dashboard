@@ -28,6 +28,7 @@ const navItems = [
   // { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
   // { id: 'journey', label: 'Academic Journey', icon: GraduationCap },
   { id: 'blog-agent', label: 'Blog Agent', icon: Bot },
+  { id: 'profile', label: 'My Profile', icon: User },
   // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
@@ -45,6 +46,7 @@ const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, is
       { id: 'leave', label: 'Leave Requests', icon: FileText },
       { id: 'tasks', label: 'Tasks', icon: ClipboardList },
       { id: 'jobs', label: 'Job Portal', icon: Briefcase },
+      { id: 'fees', label: 'Financial Overview', icon: CreditCard },
       { id: 'profile', label: 'Profile', icon: User }
     ];
   }
@@ -80,11 +82,14 @@ const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, is
         if (item.id === 'leave') {
           return { ...item, label: userRole === 'STUDENT' ? 'Leave Requests' : 'Leave Management' };
         }
+        if (item.id === 'profile') {
+          return { ...item, label: 'Profile' };
+        }
         return item;
       });
   } else {
     // Admin role
-    visibleNavItems = navItems.map(item => {
+    visibleNavItems = navItems.filter(item => item.id !== 'profile').map(item => {
         if (item.id === 'leave') {
           return { ...item, label: 'Leave Management' };
         }
