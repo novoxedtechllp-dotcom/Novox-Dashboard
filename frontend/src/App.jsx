@@ -67,19 +67,23 @@ const getInitials = (name) => {
   return words.length > 1 ? `${words[0][0]}${words[1][0]}`.toUpperCase() : words[0][0].toUpperCase();
 };
 
-const mapEmployeeFromApi = (d) => ({
-  id: d.id,
-  eid: d.employee_code || `EMP-${String(d.id).slice(0, 4)}`,
-  name: `${d.first_name || ''} ${d.last_name || ''}`.trim(),
-  department: employeeDepartmentFromApi(d.employee_roles?.role_name),
+const mapEmployeeFromApi = (d) => {
+  const id = d.id || d._id;
+  return {
+    id,
+    eid: d.employee_code || `EMP-${String(id).slice(0, 4)}`,
+    name: `${d.first_name || ''} ${d.last_name || ''}`.trim(),
+    department: employeeDepartmentFromApi(d.employee_roles?.role_name),
   designation: d.designation || '',
   phone: d.phone,
   status: employeeStatusFromApi(d.status),
   joinDate: d.joining_date ? new Date(d.joining_date).toLocaleDateString() : '',
   avatar: d.avatar_url || null,
   email: d.users?.email || '',
-  systemRole: d.users?.role || 'EMPLOYEE'
-});
+  systemRole: d.users?.role || 'EMPLOYEE',
+  courseIds: d.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []
+  };
+};
 
 const mapCourseFromApi = (d) => {
   const instructorProfile = d.course_instructors?.[0]?.employee_profiles;
@@ -236,7 +240,7 @@ function App() {
           />
         )}
 
-        <div className="flex-1 overflow-y-auto">
+        <div id="main-scroll-container" className="flex-1 overflow-y-auto">
           <Routes>
             {!isAuthenticated ? (
               <>
@@ -253,7 +257,7 @@ function App() {
                 <Route path={`${basePath}/dashboard`} element={userRole === 'STUDENT' ? <StudentDashboard userInfo={userInfo} /> : (userRole === 'EMPLOYEE' ? <EmployeeDashboard /> : <MainContent activeTab="dashboard" employees={employees} />)} />
                 <Route path={`${basePath}/daily-plan`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/schedule`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
-                <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance searchQuery={searchQuery} /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} searchQuery={searchQuery} /> : <AttendanceContent employees={employees} courses={courses} searchQuery={searchQuery} />)} />
+                <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance searchQuery={searchQuery} setSearchQuery={setSearchQuery} /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} searchQuery={searchQuery} setSearchQuery={setSearchQuery} /> : <AttendanceContent employees={employees} courses={courses} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />)} />
                 <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave searchQuery={searchQuery} /> : (userRole === 'ADMIN' ? <LeaveManagementContent searchQuery={searchQuery} /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave searchQuery={searchQuery} /> : <Navigate to={`${basePath}/dashboard`} />))} />
                 <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
@@ -276,7 +280,7 @@ function App() {
                 {canViewBlog && <Route path={`${basePath}/blog`} element={<BlogDashboardContent />} />}
                 {canViewBlog && <Route path={`${basePath}/blog-agent`} element={<BlogAgentHub />} />}
                 {canViewBlog && <Route path={`${basePath}/blog-agent/:site`} element={<BlogAgentEditor />} />}
-                {canViewGallery && <Route path={`${basePath}/gallery`} element={<GalleryContent />} />}
+                {canViewGallery && <Route path={`${basePath}/gallery`} element={<GalleryContent searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
 
                 <Route path="*" element={<Navigate to={`${basePath}/dashboard`} replace />} />
               </>

@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail, GitBranch, Camera, Terminal, Calendar, IndianRupee, CreditCard, BookOpen, Link as LinkIcon } from 'lucide-react';
+import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, Briefcase, ListTodo, CheckCircle, Eye, EyeOff, Search, Pencil, Mail, GitBranch, Camera, Terminal, Calendar, IndianRupee, CreditCard, BookOpen, AlertCircle, Link as LinkIcon } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
+import CloudinaryPdfViewer from '../../../components/CloudinaryPdfViewer';
 
 const getAuthHeaders = () => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -49,7 +50,8 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
   const [activeStudent, setActiveStudent] = useState(null);
   const [detailsTab, setDetailsTab] = useState('overview'); // overview, courses, documents, tasks
   const [selectedDocFile, setSelectedDocFile] = useState(null);
-
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [currentDocUrl, setCurrentDocUrl] = useState(null);
   // Filter States
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [departmentFilter, setDepartmentFilter] = useState('All Departments');
@@ -172,6 +174,18 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
     fetchStudentBalances();
     return () => clearTimeout(loadTimer);
   }, [fetchStudents, ownershipFilter, departmentFilter, fetchStudentBalances]);
+
+  // Lock body scroll when any modal is open
+  useEffect(() => {
+    if (activeStudent || isAddModalOpen || isEditStudentOpen || studentToDelete || documentToDelete || courseToRemove) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [activeStudent, isAddModalOpen, isEditStudentOpen, studentToDelete, documentToDelete, courseToRemove]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -520,6 +534,12 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
           {toast.message}
         </div>
       )}
+
+      {/* Header Section */}
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold text-slate-800">Student Management</h1>
+        <p className="text-slate-500 mt-1">Manage enrollments, track performance, and maintain student records.</p>
+      </div>
 
       {/* Top Header / Actions Bar */}
       <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between">
@@ -1422,7 +1442,7 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <button onClick={() => window.open(sd.document_url, '_blank')} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:bg-[#003F87] hover:text-white transition-colors" title="View Document">
+                            <button onClick={() => { setCurrentDocUrl(sd.document_url); setIsDocModalOpen(true); }} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:bg-[#003F87] hover:text-white transition-colors" title="View Document">
                               <Eye size={16} />
                             </button>
                             <button onClick={() => setDocumentToDelete({ student_id: activeStudent.id, id: sd.id })} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:bg-rose-500 hover:text-white transition-colors" title="Delete Document">
@@ -1471,7 +1491,8 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
                           {(() => {
                             const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
                             const isAdmin = userInfo.role === 'ADMIN';
-                            const isTeacher = task.course_tasks?.course_submodules?.course_modules?.courses?.instructor_id === userInfo.employee_profile_id;
+                            const instructors = task.course_tasks?.course_submodules?.course_modules?.courses?.course_instructors || [];
+                            const isTeacher = instructors.some(inst => inst.employee_id === userInfo.employee_profile_id);
                             const canViewResources = isAdmin || isTeacher;
                             
                             return task.task_submission_resources && task.task_submission_resources.length > 0 && (
@@ -1489,9 +1510,9 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
                                           res.resource_type === 'NOTE' ? (
                                             <div className="text-[11px] text-slate-500 mt-1 line-clamp-3 italic">"{res.content}"</div>
                                           ) : (
-                                            <a href={res.content} target="_blank" rel="noopener noreferrer" className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline truncate block mt-0.5">
+                                            <button onClick={() => { setCurrentDocUrl(res.content); setIsDocModalOpen(true); }} className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline truncate block mt-0.5 text-left">
                                               View Material
-                                            </a>
+                                            </button>
                                           )
                                         ) : (
                                           <div className="text-[10px] font-black text-rose-500 mt-1 uppercase tracking-wide flex items-center gap-1">
@@ -1543,6 +1564,44 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
                 </div>
               )}
 
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Document View Modal */}
+      {isDocModalOpen && (
+        <div className="fixed inset-0 bg-black/70 z-[150] flex items-center justify-center p-4">
+          <div className={`bg-white rounded-xl shadow-xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 ${currentDocUrl && currentDocUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? 'w-fit max-w-[95vw] max-h-[95vh]' : 'w-full max-w-4xl h-[85vh]'}`}>
+            <div className="p-4 border-b border-[#E2E8F0] flex justify-between items-center bg-slate-50 shrink-0">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <FileText size={18} className="text-[#003F87]" />
+                Attached Document
+              </h3>
+              <button onClick={() => setIsDocModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200 rounded">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 bg-slate-100 relative overflow-auto flex justify-center items-center">
+              {currentDocUrl && currentDocUrl.split('?')[0].match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                <img src={currentDocUrl} alt="Attached Document" className="max-w-full max-h-[calc(95vh-60px)] object-contain" />
+              ) : currentDocUrl && currentDocUrl.split('?')[0].match(/\.pdf$/i) ? (
+                <CloudinaryPdfViewer pdfUrl={currentDocUrl} />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full w-full space-y-4 p-8 text-center bg-white">
+                  <div className="max-w-md border border-slate-200 rounded-xl p-8 bg-slate-50">
+                    <h4 className="text-[18px] font-bold text-slate-800 mb-2">Unsupported Document</h4>
+                    <p className="text-slate-500 text-[14px] mb-6 leading-relaxed">
+                      This document format requires direct download to view.
+                    </p>
+                    <a 
+                      href={currentDocUrl ? currentDocUrl.replace('/upload/', '/upload/fl_attachment/') : '#'} 
+                      className="bg-[#003F87] hover:bg-[#002B5E] text-white px-8 py-3 rounded-lg font-bold text-[14px] transition-colors inline-flex items-center justify-center shadow-sm w-full"
+                    >
+                      Download Document
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

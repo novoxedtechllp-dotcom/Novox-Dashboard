@@ -66,8 +66,10 @@ const calculateFeeBreakdown = (feePlan, payments, upToMonth, upToYear) => {
   }
 
   const carryForward = Math.max(0, dueUpToPreviousMonth - totalPaid);
+  const overPayment = Math.max(0, totalPaid - dueUpToPreviousMonth);
+  
   const currentMonthDue = monthsElapsed > 0
-    ? monthlyInstallment + carryForward
+    ? monthlyInstallment + carryForward - overPayment
     : admissionFee - totalPaid; // first month: just the admission fee minus what's paid
 
   return {

@@ -57,7 +57,13 @@ const EmployeeDashboard = () => {
         if (crsRes.ok) {
           const crsData = await crsRes.json();
           const allCourses = crsData.data || [];
-          const myCourses = allCourses.filter(c => c.instructor_id === userInfo.id || c.employee_id === userInfo.id || c.employee_profile_id === userInfo.id || (c.instructors && c.instructors.includes(userInfo.id)));
+          const myCourses = allCourses.filter(c => 
+            c.instructor_id === userInfo.id || 
+            c.employee_id === userInfo.employee_profile_id || 
+            c.employee_profile_id === userInfo.employee_profile_id || 
+            (c.instructors && c.instructors.includes(userInfo.id)) ||
+            (c.course_instructors && c.course_instructors.some(ci => ci.employee_profiles?.id === userInfo.employee_profile_id || ci.employee_id === userInfo.employee_profile_id))
+          );
           myCourseIdSet = new Set(myCourses.map(c => c.id || c._id));
           setCourseCount(myCourseIdSet.size);
         }
@@ -70,6 +76,9 @@ const EmployeeDashboard = () => {
           let assignedCount = 0;
           if (myCourseIdSet.size > 0) {
             assignedCount = allStudents.filter(s => {
+              if (s.student_courses && Array.isArray(s.student_courses)) {
+                return s.student_courses.some(sc => myCourseIdSet.has(sc.course_id));
+              }
               if (s.course_ids && Array.isArray(s.course_ids)) return s.course_ids.some(id => myCourseIdSet.has(id));
               if (s.course && (s.course.id || s.course._id)) return myCourseIdSet.has(s.course.id || s.course._id);
               if (s.course_id) return myCourseIdSet.has(s.course_id);
