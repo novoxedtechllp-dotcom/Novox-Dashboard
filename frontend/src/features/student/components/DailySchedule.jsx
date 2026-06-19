@@ -14,6 +14,7 @@ const getLocalDateString = (d) => {
 const DailySchedule = () => {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const datePickerRef = useRef(null);
   const [dailyPlan, setDailyPlan] = useState([]);
   
   const [expandedCourse, setExpandedCourse] = useState(null);

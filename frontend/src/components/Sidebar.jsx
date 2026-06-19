@@ -28,6 +28,7 @@ const navItems = [
   // { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
   // { id: 'journey', label: 'Academic Journey', icon: GraduationCap },
   { id: 'blog-agent', label: 'Blog Agent', icon: Bot },
+  { id: 'profile', label: 'My Profile', icon: User },
   // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 

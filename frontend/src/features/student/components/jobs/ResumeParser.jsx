@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2, Sparkles, Trophy, Cpu } from 'lucide-react';
 
-const ResumeParser = () => {
+const ResumeParser = ({ onParseSuccess }) => {
   const [file, setFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
@@ -72,6 +72,9 @@ const ResumeParser = () => {
 
       if (response.ok) {
         setParsedData(data);
+        if (onParseSuccess) {
+          onParseSuccess(data);
+        }
       } else {
         setError(data.detail || 'Failed to parse resume.');
       }
