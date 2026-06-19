@@ -66,11 +66,12 @@ const EmployeeCalendarModal = ({ employee, onClose }) => {
   };
 
   const getStatusColor = (status) => {
-    switch(status) {
-      case 'PRESENT': return 'bg-[#E5F7ED] text-[#008A2E] border-[#008A2E]';
-      case 'LATE': return 'bg-[#FFF4E5] text-[#B26E00] border-[#B26E00]';
-      case 'ABSENT': return 'bg-[#FDE2E2] text-[#D80000] border-[#D80000]';
-      case 'HALF_DAY': return 'bg-[#E5F0FF] text-[#003F87] border-[#003F87]';
+    if (!status) return 'bg-slate-50 text-slate-400 border-slate-200';
+    switch(status.toUpperCase()) {
+      case 'PRESENT': return 'bg-emerald-50 text-emerald-600 border-emerald-600';
+      case 'LATE': return 'bg-amber-50 text-amber-600 border-amber-600';
+      case 'ABSENT': return 'bg-rose-50 text-rose-600 border-rose-600';
+      case 'HALF_DAY': return 'bg-blue-50 text-blue-600 border-blue-600';
       default: return 'bg-slate-50 text-slate-400 border-slate-200';
     }
   };
@@ -84,8 +85,8 @@ const EmployeeCalendarModal = ({ employee, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-800">{employee.name || employee.first_name}</h2>
@@ -142,10 +143,10 @@ const EmployeeCalendarModal = ({ employee, onClose }) => {
           )}
 
           <div className="mt-6 flex justify-center gap-6">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-600"><span className="w-3 h-3 rounded-full bg-[#E5F7ED] border border-[#008A2E]"></span> Present</div>
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-600"><span className="w-3 h-3 rounded-full bg-[#FFF4E5] border border-[#B26E00]"></span> Late</div>
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-600"><span className="w-3 h-3 rounded-full bg-[#E5F0FF] border border-[#003F87]"></span> Half Day</div>
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-600"><span className="w-3 h-3 rounded-full bg-[#FDE2E2] border border-[#D80000]"></span> Absent</div>
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-600">Present</div>
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-600">Late</div>
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-600">Half Day</div>
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-600">Absent</div>
           </div>
         </div>
       </div>

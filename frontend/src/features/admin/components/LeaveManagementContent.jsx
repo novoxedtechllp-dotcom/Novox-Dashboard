@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, CheckCircle, XCircle, Clock, MessageSquare, X, Send, AlertCircle, ExternalLink, FileText, RefreshCcw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Filter, CheckCircle, XCircle, Clock, MessageSquare, X, Send, AlertCircle, ExternalLink, FileText, RefreshCcw, Calendar } from 'lucide-react';
 import { apiClient } from '../../../lib/apiClient';
 import CloudinaryPdfViewer from '../../../components/CloudinaryPdfViewer';
 import CustomSelect from '../../../components/CustomSelect';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const LeaveManagementContent = ({ searchQuery = '' }) => {
+  const datePickerRef = useRef(null);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [filterStatus, setFilterStatus] = useState('ALL');
+  const [filterDate, setFilterDate] = useState('');
   
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
@@ -103,7 +107,21 @@ const LeaveManagementContent = ({ searchQuery = '' }) => {
     const matchesSearch = req.requesterName.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           req.type.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filterStatus === 'ALL' || req.status === filterStatus;
-    return matchesSearch && matchesFilter;
+    
+    let matchesDate = true;
+    if (filterDate) {
+      const filterD = new Date(filterDate);
+      const startD = new Date(req.start_date);
+      const endD = new Date(req.end_date);
+      
+      filterD.setHours(0,0,0,0);
+      startD.setHours(0,0,0,0);
+      endD.setHours(0,0,0,0);
+      
+      matchesDate = (filterD >= startD && filterD <= endD);
+    }
+
+    return matchesSearch && matchesFilter && matchesDate;
   });
 
   const getStatusBadge = (status) => {
@@ -121,8 +139,8 @@ const LeaveManagementContent = ({ searchQuery = '' }) => {
     <div className="p-[24px]">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-[24px] font-bold text-[#003F87]">Leave Management</h2>
-          <p className="text-slate-500 text-[14px] mt-1">Review and manage employee leave requests</p>
+          <h1 className="text-2xl font-bold text-slate-800">Leave Management</h1>
+          <p className="text-slate-500 mt-1">Review, approve, and manage employee leave requests.</p>
         </div>
       </div>
 
@@ -150,6 +168,44 @@ const LeaveManagementContent = ({ searchQuery = '' }) => {
               className="w-full sm:w-[160px]"
               selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
             />
+          </div>
+
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Date</span>
+            <div className="relative flex items-center">
+              <DatePicker
+                ref={datePickerRef}
+                selected={filterDate ? new Date(filterDate) : null}
+                onChange={(date) => {
+                  if (date) {
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    setFilterDate(`${yyyy}-${mm}-${dd}`);
+                  } else {
+                    setFilterDate('');
+                  }
+                }}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="dd/mm/yyyy"
+                showMonthDropdown
+                showYearDropdown
+                scrollableYearDropdown
+                dropdownMode="scroll"
+                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px] pr-8"
+              />
+              {filterDate ? (
+                <button onClick={() => setFilterDate('')} className="absolute right-0 text-slate-400 hover:text-[#D80000] transition-colors bg-slate-50 pl-2">
+                  <X size={14} />
+                </button>
+              ) : (
+                <Calendar 
+                  size={16} 
+                  className="text-slate-400 absolute right-0 cursor-pointer" 
+                  onClick={() => datePickerRef.current?.setFocus()} 
+                />
+              )}
+            </div>
           </div>
         </div>
 

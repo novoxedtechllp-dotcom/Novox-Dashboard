@@ -38,6 +38,7 @@ const cleanLegacyReport = (report) => {
 
 
 const WorkReportsContent = ({ searchQuery = "" }) => {
+  const datePickerRef = useRef(null);
   const [reports, setReports] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -248,12 +249,8 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
       <div className="p-[24px] flex flex-col gap-[24px] w-full">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-[24px] font-bold text-[#003F87]">
-              Work Reports
-            </h2>
-            <p className="text-slate-500 text-[14px] mt-1">
-              Review and manage employee submissions
-            </p>
+            <h1 className="text-2xl font-bold text-slate-800">Work Reports</h1>
+            <p className="text-slate-500 mt-1">Review and manage employee submissions.</p>
           </div>
           {isEmployee && (
             <button
@@ -290,6 +287,7 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Date</span>
                 <div className="relative flex items-center">
                   <DatePicker
+                    ref={datePickerRef}
                     selected={selectedSpecificDate ? new Date(selectedSpecificDate) : null}
                     onChange={(date) => {
                       if (date) {
@@ -301,11 +299,19 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
                         setSelectedSpecificDate("");
                       }
                     }}
-                    dateFormat="MMMM d, yyyy"
-                    placeholderText="Select a date"
-                    className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px]"
+                    dateFormat="dd/MM/yyyy"
+                    placeholderText="dd/mm/yyyy"
+                    className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px] pr-8"
+                    showMonthDropdown
+                    showYearDropdown
+                    scrollableYearDropdown
+                    dropdownMode="scroll"
                   />
-                  <CalendarDays className="text-slate-400 ml-2" size={16} />
+                  <CalendarDays 
+                    className="text-slate-400 absolute right-0 cursor-pointer" 
+                    size={16} 
+                    onClick={() => datePickerRef.current?.setFocus()}
+                  />
                 </div>
               </div>
             </div>

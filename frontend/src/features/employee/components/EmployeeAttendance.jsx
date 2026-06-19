@@ -209,8 +209,8 @@ return (
   <div className="p-[24px]">
     <div className="flex justify-between items-center mb-6">
       <div>
-        <h2 className="text-[24px] font-bold text-slate-900">Attendance Portal</h2>
-        <p className="text-slate-500 text-[14px] mt-1">Manage your attendance and view your students' records</p>
+        <h1 className="text-2xl font-bold text-slate-800">My Attendance</h1>
+        <p className="text-slate-500 mt-1">View your daily attendance, check-ins, and monthly summaries.</p>
       </div>
     </div>
 
