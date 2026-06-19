@@ -2,20 +2,45 @@ import React, { useState, useEffect } from 'react';
 import { Phone, Mail, MessageSquare, Plus, ChevronRight, TrendingUp, Users, BookOpen, Zap, MoreHorizontal, Paperclip, RefreshCw, CheckSquare, Search, X } from 'lucide-react';
 import LoadingSpinner from '../../../../components/LoadingSpinner';
 
+// ─── Responsive breakpoint hook ────────────────────────────────────────────────
+function useBreakpoint() {
+  const [width, setWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  useEffect(() => {
+    const handleResize = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return {
+    isMobile: width < 640,
+    isTablet: width >= 640 && width < 1024,
+  };
+}
+
 // ─── Mock / fallback data (replace with real API calls) ───────────────────────
 const MOCK_LEADS = [
-  { id: 'l1', name: 'Sarah Jenkins', phone: '+91 98001 11111', email: 'sarah@example.com', source_id: 'src-1', stage: 'NEW', course: 'UI/UX Design Masterclass', note: 'Interested in weekend batch...', assignee: 'AJ', assigneeName: 'Alex J.', created_at: '2h ago', hot: false },
-  { id: 'l2', name: 'Michael Chen',  phone: '+91 98001 22222', email: 'michael@example.com', source_id: 'src-2', stage: 'NEW', course: 'Full-Stack Development', note: 'Requested syllabus via email', assignee: 'MS', assigneeName: 'Maria S.', created_at: '5h ago', hot: false },
-  { id: 'l3', name: 'David Miller',  phone: '+91 98001 33333', email: 'david@example.com', source_id: 'src-1', stage: 'CONTACTED', course: 'Digital Marketing Pro', note: 'Follow-up sent', assignee: 'AJ', assigneeName: 'Alex J.', created_at: '2d ago', hot: false },
-  { id: 'l4', name: 'Aisha Khan',    phone: '+91 98001 44444', email: 'aisha@example.com', source_id: 'src-3', stage: 'CONTACTED', course: 'Corporate Leadership', note: '', assignee: 'AJ', assigneeName: 'Alex J.', created_at: '3d ago', hot: false },
-  { id: 'l5', name: 'Robert Wilson', phone: '+91 98001 55555', email: 'robert@example.com', source_id: 'src-2', stage: 'INTERESTED', course: 'Cloud Computing Arch.', note: '', assignee: 'MS', assigneeName: 'Maria S.', created_at: '1w ago', hot: true },
-  { id: 'l6', name: 'Sophie Martin', phone: '+91 98001 66666', email: 'sophie@example.com', source_id: 'src-1', stage: 'INTERESTED', course: 'Python for Beginners', note: '', assignee: 'MS', assigneeName: 'Maria S.', created_at: '5d ago', hot: false },
+  { id: 'l1', name: 'Sarah Jenkins', phone: '+91 98001 11111', email: 'sarah@example.com', source_id: 'src-3', stage: 'NEW', course: 'UI/UX Design Masterclass', note: 'Interested in weekend batch...', assignee: 'AJ', assigneeName: 'Alex J.', foundBy: 'AJ', foundByName: 'Alex J.', owner: '', created_at: '2h ago', hot: false },
+  { id: 'l2', name: 'Michael Chen',  phone: '+91 98001 22222', email: 'michael@example.com', source_id: 'src-1', stage: 'NEW', course: 'Full-Stack Development', note: 'Requested syllabus via email', assignee: 'MS', assigneeName: 'Maria S.', foundBy: 'MS', foundByName: 'Maria S.', owner: '', created_at: '5h ago', hot: false },
+  { id: 'l3', name: 'David Miller',  phone: '+91 98001 33333', email: 'david@example.com', source_id: 'src-3', stage: 'CONTACTED', course: 'Digital Marketing Pro', note: 'Follow-up sent', assignee: 'AJ', assigneeName: 'Alex J.', foundBy: 'RK', foundByName: 'Raj K.', owner: '', created_at: '2d ago', hot: false },
+  { id: 'l4', name: 'Aisha Khan',    phone: '+91 98001 44444', email: 'aisha@example.com', source_id: 'src-2', stage: 'CONTACTED', course: 'Corporate Leadership', note: '', assignee: 'AJ', assigneeName: 'Alex J.', foundBy: 'PN', foundByName: 'Priya N.', owner: '', created_at: '3d ago', hot: false },
+  { id: 'l5', name: 'Robert Wilson', phone: '+91 98001 55555', email: 'robert@example.com', source_id: 'src-1', stage: 'INTERESTED', course: 'Cloud Computing Arch.', note: '', assignee: 'MS', assigneeName: 'Maria S.', foundBy: 'MS', foundByName: 'Maria S.', owner: '', created_at: '1w ago', hot: true },
+  { id: 'l6', name: 'Sophie Martin', phone: '+91 98001 66666', email: 'sophie@example.com', source_id: 'src-4', stage: 'INTERESTED', course: 'Python for Beginners', note: '', assignee: 'MS', assigneeName: 'Maria S.', foundBy: 'AJ', foundByName: 'Alex J.', owner: '', created_at: '5d ago', hot: false },
 ];
 
 const MOCK_SOURCES = [
-  { id: 'src-1', source_name: 'Website' },
-  { id: 'src-2', source_name: 'Referral' },
-  { id: 'src-3', source_name: 'Social' },
+  { id: 'src-1', source_name: 'WhatsApp' },
+  { id: 'src-2', source_name: 'Instagram' },
+  { id: 'src-3', source_name: 'Website' },
+  { id: 'src-4', source_name: 'Referral' },
+];
+
+// Team members available to be selected as "Sales Lead"
+const TEAM_MEMBERS = [
+  { id: 'AJ', name: 'Alex J.' },
+  { id: 'MS', name: 'Maria S.' },
+  { id: 'RK', name: 'Raj K.' },
+  { id: 'PN', name: 'Priya N.' },
 ];
 
 const getUniqueCourses = (leads) => {
@@ -196,7 +221,7 @@ function InsightsHeader({ isMobile, isTablet }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Row 1: 3 stat cards */}
-      <div style={{ display: 'flex', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 12, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <InsightCard title="New Lead Inflow" icon={<Users size={15} />}>
           <div className="flex justify-around">
             <StatBadge label="Daily" value="0" />
@@ -333,26 +358,60 @@ function KanbanColumn({ stage, leads, getSourceName, onOpenDetails }) {
 }
 
 // ─── Add Lead Modal ───────────────────────────────────────────────────────────
+const labelStyle = { display: 'block', fontSize: 11, fontWeight: 700, color: '#555', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 };
+const fieldStyle = { width: '100%', padding: '9px 12px', border: '1px solid #D8E0EC', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
+
 function AddLeadModal({ isOpen, onClose, onSave, sources, stages }) {
   const { isMobile } = useBreakpoint();
-  const [form, setForm] = useState({ name: '', phone: '', email: '', source_id: sources[0]?.id || 'src-1', stage: stages[0], course: '', note: '', assignee: 'AJ', assigneeName: 'Alex J.' });
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    source_id: sources[0]?.id || 'src-1',
+    stage: stages[0],
+    course: '',
+    note: '',
+    foundBy: TEAM_MEMBERS[0].id,
+    owner: '',
+    assignee: 'AJ',
+    assigneeName: 'Alex J.',
+  });
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({ ...form, id: `lead-${Date.now()}`, created_at: 'Just now', hot: false });
-    setForm({ name: '', phone: '', email: '', source_id: sources[0]?.id || 'src-1', stage: stages[0], course: '', note: '', assignee: 'AJ', assigneeName: 'Alex J.' });
+    const foundByMember = TEAM_MEMBERS.find(m => m.id === form.foundBy) || TEAM_MEMBERS[0];
+    onSave({
+      ...form,
+      foundByName: foundByMember.name,
+      id: `lead-${Date.now()}`,
+      created_at: 'Just now',
+      hot: false,
+    });
+    setForm({
+      name: '',
+      phone: '',
+      email: '',
+      source_id: sources[0]?.id || 'src-1',
+      stage: stages[0],
+      course: '',
+      note: '',
+      foundBy: TEAM_MEMBERS[0].id,
+      owner: '',
+      assignee: 'AJ',
+      assigneeName: 'Alex J.',
+    });
   };
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,20,50,.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 440, boxShadow: '0 16px 48px rgba(0,63,135,.18)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: isMobile ? '100%' : 440, boxShadow: '0 16px 48px rgba(0,63,135,.18)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: '18px 24px', borderBottom: '1px solid #EEF2F8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F7F9FC' }}>
           <span style={{ fontSize: 16, fontWeight: 800, color: '#1A2B4A' }}>Add New Lead</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: '#999', cursor: 'pointer' }}>×</button>
         </div>
-        <form onSubmit={handleSubmit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleSubmit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '75vh', overflowY: 'auto' }}>
           {[['Name', 'name', 'text', 'John Doe'], ['Phone', 'phone', 'text', '+91 98765 43210'], ['Email', 'email', 'email', 'john@example.com'], ['Course', 'course', 'text', 'UI/UX Design Masterclass']].map(([label, key, type, ph]) => (
             <div key={key}>
               <label style={labelStyle}>{label}</label>
@@ -371,6 +430,18 @@ function AddLeadModal({ isOpen, onClose, onSave, sources, stages }) {
               <select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} style={{ ...fieldStyle, background: '#fff' }}>
                 {stages.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Sales Lead</label>
+              <select value={form.foundBy} onChange={e => setForm({ ...form, foundBy: e.target.value })} style={{ ...fieldStyle, background: '#fff' }}>
+                {TEAM_MEMBERS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Owner</label>
+              <input type="text" value={form.owner} onChange={e => setForm({ ...form, owner: e.target.value })} placeholder="Owner name" style={fieldStyle} />
             </div>
           </div>
           <div>
@@ -408,7 +479,7 @@ function DetailsModal({ lead, initialTab = 'overview', onClose, onUpdateStage, s
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,20,50,.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
-      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 440, boxShadow: '0 16px 48px rgba(0,63,135,.18)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: isMobile ? '100%' : 440, boxShadow: '0 16px 48px rgba(0,63,135,.18)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div style={{ padding: '16px 24px', borderBottom: '1px solid #EEF2F8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F7F9FC' }}>
           <span style={{ fontSize: 16, fontWeight: 800, color: '#1A2B4A' }}>Lead Details</span>
@@ -418,7 +489,7 @@ function DetailsModal({ lead, initialTab = 'overview', onClose, onUpdateStage, s
         {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid #EEF2F8', background: '#F7F9FC', padding: '0 24px' }}>
           {['overview', 'messages'].map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ padding: '12px 0', marginRight: 24, fontSize: 13, fontWeight: 700, color: tab === t ? '#003F87' : '#999', borderBottom: `2px solid ${tab === t ? '#003F87' : 'transparent'}`, background: 'none', border: 'none', borderBottomWidth: 2, borderBottomStyle: 'solid', borderBottomColor: tab === t ? '#003F87' : 'transparent', cursor: 'pointer', textTransform: 'capitalize' }}>{t === 'messages' ? 'Messages & Notes' : 'Overview'}</button>
+            <button key={t} onClick={() => setTab(t)} style={{ padding: '12px 0', marginRight: 24, fontSize: 13, fontWeight: 700, color: tab === t ? '#003F87' : '#999', background: 'none', border: 'none', borderBottomWidth: 2, borderBottomStyle: 'solid', borderBottomColor: tab === t ? '#003F87' : 'transparent', cursor: 'pointer', textTransform: 'capitalize' }}>{t === 'messages' ? 'Messages & Notes' : 'Overview'}</button>
           ))}
         </div>
 
@@ -443,12 +514,31 @@ function DetailsModal({ lead, initialTab = 'overview', onClose, onUpdateStage, s
                 ))}
               </div>
 
+              {/* Sales Lead / Owner */}
+              {(lead.foundByName || lead.owner) && (
+                <div className="flex flex-col gap-1.5 -mt-1.5">
+                  {lead.foundByName && (
+                    <div className="flex items-center gap-2.5 text-[13px] text-slate-600">
+                      <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wide">Sales Lead:</span>
+                      <span>{lead.foundByName}</span>
+                    </div>
+                  )}
+                  {lead.owner && (
+                    <div className="flex items-center gap-2.5 text-[13px] text-slate-600">
+                      <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wide">Owner:</span>
+                      <span>{lead.owner}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div>
                 <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2.5">Update Stage</div>
                 <div className="flex flex-wrap gap-2">
                   {stages.map((s, i) => {
                     const isActive = s === lead.stage;
-                    const isDisabled = s !== 'LOST' && i < currentIndex;
+                    const isException = s === 'NEGATIVE' || s === 'NOT CONTACTED';
+                    const isDisabled = !isException && i < currentIndex;
                     return (
                       <button
                         key={s}
@@ -502,6 +592,8 @@ function DetailsModal({ lead, initialTab = 'overview', onClose, onUpdateStage, s
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const SalesCrmContent = () => {
+  const { isMobile, isTablet } = useBreakpoint();
+
   const [leads, setLeads] = useState([]);
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -515,7 +607,7 @@ const SalesCrmContent = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
 
-  const stages = ['NEW', 'CONTACTED', 'INTERESTED', 'COUNSELLING', 'ENROLLED', 'LOST'];
+  const stages = ['NEW', 'CONTACTED', 'INTERESTED', 'ADMISSION', 'NEGATIVE', 'NOT CONTACTED'];
 
   useEffect(() => {
     const load = async () => {
@@ -543,6 +635,8 @@ const SalesCrmContent = () => {
     };
     load();
   }, []);
+
+  const getSourceName = (sourceId) => sources.find(s => s.id === sourceId)?.source_name || 'Unknown';
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = !searchTerm ||
@@ -584,7 +678,7 @@ const SalesCrmContent = () => {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Inter, system-ui, sans-serif', color: '#003F87', fontSize: 14, fontWeight: 600 }}>
-        Loading CRM data…
+        <LoadingSpinner />
       </div>
     );
   }
@@ -603,17 +697,17 @@ const SalesCrmContent = () => {
       />
 
       {/* ── Main content area ── */}
-      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, flex: 1 }}>
+      <div style={{ padding, display: 'flex', flexDirection: 'column', gap: 20, flex: 1 }}>
 
         {/* Page header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: 12 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 22, fontWeight: 800, color: '#003F87' }}>Lead Insights</span>
             </div>
             <p style={{ margin: 0, fontSize: 13, color: '#777', marginTop: 2 }}>Manage leads and track your sales pipeline.</p>
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#555', background: '#fff', border: '1px solid #D8E0EC', borderRadius: 8, padding: '6px 12px' }}>
               📅 Oct 1 – Oct 31, 2023
             </div>
@@ -625,11 +719,11 @@ const SalesCrmContent = () => {
         </div>
 
         {/* Insights */}
-        <InsightsHeader />
+        <InsightsHeader isMobile={isMobile} isTablet={isTablet} />
 
         {/* Active filter indicator */}
         {(searchTerm || selectedCourse) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#555F6B' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#555F6B', flexWrap: 'wrap' }}>
             <span>Showing <strong style={{ color: '#003F87' }}>{filteredLeads.length}</strong> of {leads.length} leads</span>
             {searchTerm && (
               <span style={{ background: '#E8EEF7', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -654,7 +748,7 @@ const SalesCrmContent = () => {
               stage={stage}
               leads={filteredLeads}
               getSourceName={getSourceName}
-              onOpenDetails={(lead) => setActiveLead(lead)}
+              onOpenDetails={handleOpenDetails}
             />
           ))}
         </div>
