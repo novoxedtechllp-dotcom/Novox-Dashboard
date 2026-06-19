@@ -82,11 +82,14 @@ const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, is
         if (item.id === 'leave') {
           return { ...item, label: userRole === 'STUDENT' ? 'Leave Requests' : 'Leave Management' };
         }
+        if (item.id === 'profile') {
+          return { ...item, label: 'Profile' };
+        }
         return item;
       });
   } else {
     // Admin role
-    visibleNavItems = navItems.map(item => {
+    visibleNavItems = navItems.filter(item => item.id !== 'profile').map(item => {
         if (item.id === 'leave') {
           return { ...item, label: 'Leave Management' };
         }
