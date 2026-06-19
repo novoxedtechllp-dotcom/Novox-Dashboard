@@ -573,10 +573,6 @@ const GalleryContent = () => {
             <button
               key={site.id}
               onClick={() => { setSelectedWebsite(site.id); setSelectedIds(new Set()); setCurrentPage(1); }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                handleDeleteWebsite(site.id, site.name);
-              }}
               className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 group ${
                 selectedWebsite === site.id 
                   ? 'bg-white text-[#003F87] shadow border border-slate-200' 
@@ -584,21 +580,9 @@ const GalleryContent = () => {
               }`}
             >
               {site.name}
-              {selectedWebsite === site.id && (
-                <div 
-                  onClick={(e) => { e.stopPropagation(); handleDeleteWebsite(site.id, site.name); }}
-                  className="hover:bg-slate-100 p-1 rounded-full text-slate-400 hover:text-red-500 transition-colors ml-1"
-                  title="Delete Site"
-                >
-                  <X size={14} />
-                </div>
-              )}
             </button>
           ))}
         </div>
-        <button onClick={() => setShowWebsiteModal(true)} className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-200 transition-colors font-medium border border-slate-300 h-fit">
-          <Plus size={16}/> New Site
-        </button>
       </div>
 
       {/* 2. Top Statistics Cards */}
