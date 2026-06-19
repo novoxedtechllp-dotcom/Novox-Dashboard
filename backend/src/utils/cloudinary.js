@@ -13,8 +13,8 @@ const uploadOnCloudinary = async (localFilePath) => {
     if (!localFilePath) return null;
 
     // Determine resource type based on file extension
-    const isPdf = localFilePath.toLowerCase().endsWith('.pdf');
-    const resourceType = isPdf ? 'raw' : 'auto';
+    // PDFs must be uploaded as 'image' or 'auto' to bypass Cloudinary's Strict Delivery block for raw PDFs
+    const resourceType = 'auto';
 
     // Upload the file to Cloudinary
     const result = await cloudinary.uploader.upload(localFilePath, {
