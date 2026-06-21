@@ -1,16 +1,55 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, Mail, MessageSquare, Plus, ChevronRight, TrendingUp, Users, BookOpen, Zap, MoreHorizontal, Paperclip, CheckSquare, Search, X, RefreshCcw } from 'lucide-react';
+import { Phone, Mail, MessageSquare, Plus, ChevronRight, TrendingUp, Users, BookOpen, Zap, MoreHorizontal, Paperclip, RefreshCw, CheckSquare, X } from 'lucide-react';
 import LoadingSpinner from '../../../../components/LoadingSpinner';
 import CustomSelect from '../../../../components/CustomSelect';
 
-// ─── Unique course list derived from leads ─────────────────────────────────────
+// ─── Responsive breakpoint hook ────────────────────────────────────────────────
+function useBreakpoint() {
+  const [width, setWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  useEffect(() => {
+    const handleResize = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return {
+    isMobile: width < 640,
+    isTablet: width >= 640 && width < 1024,
+  };
+}
+
+// ─── Mock / fallback data (replace with real API calls) ───────────────────────
+const MOCK_LEADS = [
+  { id: 'l1', name: 'Sarah Jenkins', phone: '+91 98001 11111', email: 'sarah@example.com', source_id: 'src-3', stage: 'NEW', course: 'UI/UX Design Masterclass', note: 'Interested in weekend batch...', assignee: 'AJ', assigneeName: 'Alex J.', foundBy: 'AJ', foundByName: 'Alex J.', owner: '', created_at: '2h ago', hot: false },
+  { id: 'l2', name: 'Michael Chen',  phone: '+91 98001 22222', email: 'michael@example.com', source_id: 'src-1', stage: 'NEW', course: 'Full-Stack Development', note: 'Requested syllabus via email', assignee: 'MS', assigneeName: 'Maria S.', foundBy: 'MS', foundByName: 'Maria S.', owner: '', created_at: '5h ago', hot: false },
+  { id: 'l3', name: 'David Miller',  phone: '+91 98001 33333', email: 'david@example.com', source_id: 'src-3', stage: 'CONTACTED', course: 'Digital Marketing Pro', note: 'Follow-up sent', assignee: 'AJ', assigneeName: 'Alex J.', foundBy: 'RK', foundByName: 'Raj K.', owner: '', created_at: '2d ago', hot: false },
+  { id: 'l4', name: 'Aisha Khan',    phone: '+91 98001 44444', email: 'aisha@example.com', source_id: 'src-2', stage: 'CONTACTED', course: 'Corporate Leadership', note: '', assignee: 'AJ', assigneeName: 'Alex J.', foundBy: 'PN', foundByName: 'Priya N.', owner: '', created_at: '3d ago', hot: false },
+  { id: 'l5', name: 'Robert Wilson', phone: '+91 98001 55555', email: 'robert@example.com', source_id: 'src-1', stage: 'INTERESTED', course: 'Cloud Computing Arch.', note: '', assignee: 'MS', assigneeName: 'Maria S.', foundBy: 'MS', foundByName: 'Maria S.', owner: '', created_at: '1w ago', hot: true },
+  { id: 'l6', name: 'Sophie Martin', phone: '+91 98001 66666', email: 'sophie@example.com', source_id: 'src-4', stage: 'INTERESTED', course: 'Python for Beginners', note: '', assignee: 'MS', assigneeName: 'Maria S.', foundBy: 'AJ', foundByName: 'Alex J.', owner: '', created_at: '5d ago', hot: false },
+];
+
+const MOCK_SOURCES = [
+  { id: 'src-1', source_name: 'WhatsApp' },
+  { id: 'src-2', source_name: 'Instagram' },
+  { id: 'src-3', source_name: 'Website' },
+  { id: 'src-4', source_name: 'Referral' },
+];
+
+// Team members available to be selected as "Sales Lead"
+const TEAM_MEMBERS = [
+  { id: 'AJ', name: 'Alex J.' },
+  { id: 'MS', name: 'Maria S.' },
+  { id: 'RK', name: 'Raj K.' },
+  { id: 'PN', name: 'Priya N.' },
+];
+
 const getUniqueCourses = (leads) => {
   const courses = leads.map(l => l.course).filter(Boolean);
   return [...new Set(courses)];
 };
 
-
-// ─── Color avatar helper ───────────────────────────────────────────────────────
+// ─── Avatar ───────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = ['#003F87','#1565C0','#1976D2','#2196F3','#0288D1','#00796B','#388E3C','#F57C00','#7B1FA2'];
 const avatarColor = (initials) => AVATAR_COLORS[(initials || 'A').charCodeAt(0) % AVATAR_COLORS.length];
 
@@ -25,13 +64,13 @@ function Avatar({ initials, size = 32 }) {
   );
 }
 
-// ─── Top stats strip ──────────────────────────────────────────────────────────
+// ─── Insight cards ────────────────────────────────────────────────────────────
 function InsightCard({ title, icon, children }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E8EEF7] p-4 flex-1 min-w-0">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-[#003F87]">{icon}</span>
-        <span className="text-[13px] font-bold text-slate-600">{title}</span>
+    <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E8EEF7', padding: '18px 20px', flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <span style={{ color: '#003F87' }}>{icon}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#555F6B' }}>{title}</span>
       </div>
       {children}
     </div>
@@ -40,10 +79,10 @@ function InsightCard({ title, icon, children }) {
 
 function StatBadge({ label, value, delta }) {
   return (
-    <div className="flex flex-col items-center">
-      <span className="text-[26px] font-extrabold text-[#003F87] leading-none">{value}</span>
-      <span className="text-[11px] text-slate-500 mt-0.5">{label}</span>
-      {delta && <span className="text-[10px] text-green-600 font-bold mt-0.5">{delta}</span>}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <span style={{ fontSize: 26, fontWeight: 800, color: '#003F87', lineHeight: 1 }}>{value}</span>
+      <span style={{ fontSize: 11, color: '#777', marginTop: 2 }}>{label}</span>
+      {delta && <span style={{ fontSize: 10, color: '#27AE60', fontWeight: 700, marginTop: 1 }}>{delta}</span>}
     </div>
   );
 }
@@ -51,10 +90,10 @@ function StatBadge({ label, value, delta }) {
 function BarRow({ label, value, max, color = '#003F87' }) {
   const pct = Math.round((value / max) * 100);
   return (
-    <div className="flex items-center gap-2 mb-1.5">
-      <span className="text-[11px] font-bold text-slate-600 w-[52px] shrink-0">{label}</span>
-      <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-300" style={{ width: `${pct}%`, background: color }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: '#555', width: 52, flexShrink: 0 }}>{label}</span>
+      <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#EEF2F8', overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4, transition: 'width .4s' }} />
       </div>
       <span className="text-[11px] font-bold text-[#003F87] w-5 text-right">{value}</span>
     </div>
@@ -63,20 +102,21 @@ function BarRow({ label, value, max, color = '#003F87' }) {
 
 function SalespersonChip({ initials, name, count }) {
   return (
-    <div className="flex items-center gap-2 bg-blue-50/50 rounded-xl px-3.5 py-2 flex-1 min-w-[120px]">
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F4F7FC', borderRadius: 10, padding: '8px 14px', flex: 1, minWidth: 120 }}>
       <Avatar initials={initials} size={30} />
       <div>
-        <div className="text-[13px] font-bold text-slate-800">{name}</div>
-        <div className="text-[11px] text-slate-500">{count} leads</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#1A2B4A' }}>{name}</div>
+        <div style={{ fontSize: 11, color: '#777' }}>{count} leads</div>
       </div>
     </div>
   );
 }
 
-function InsightsHeader() {
+function InsightsHeader({ isMobile, isTablet }) {
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-3">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Row 1: 3 stat cards */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <InsightCard title="New Lead Inflow" icon={<Users size={15} />}>
           <div className="flex justify-around">
             <StatBadge label="Daily" value="0" />
@@ -93,11 +133,11 @@ function InsightsHeader() {
               <span className="text-[18px] font-extrabold text-[#003F87] min-w-[28px]">0</span>
               <span className="text-xs text-slate-500">Enrolled</span>
             </div>
-            <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
-              <div className="flex-1 h-2 rounded-full bg-red-500 w-0" />
-              <span className="text-[18px] font-extrabold text-red-500 min-w-[28px]">0</span>
-              <span className="text-xs text-slate-500">Lost</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#E53935', flexShrink: 0 }} />
+              <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#E53935', width: '33%', maxWidth: 70 }} />
+              <span style={{ fontSize: 18, fontWeight: 800, color: '#E53935', minWidth: 28 }}>14</span>
+              <span style={{ fontSize: 12, color: '#555' }}>Lost</span>
             </div>
           </div>
         </InsightCard>
@@ -109,10 +149,11 @@ function InsightsHeader() {
         </InsightCard>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#E8EEF7] px-5 py-3.5">
-        <div className="flex items-center gap-2 mb-3">
-          <TrendingUp size={15} className="text-[#003F87]" />
-          <span className="text-[13px] font-bold text-slate-600">Performance by Salesperson</span>
+      {/* Row 2: Performance by salesperson */}
+      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E8EEF7', padding: '14px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <TrendingUp size={15} color="#003F87" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#555F6B' }}>Performance by Salesperson</span>
         </div>
         <div className="flex gap-2.5 flex-wrap">
           <div className="text-xs text-slate-400 italic">No lead data available to show salesperson performance.</div>
@@ -122,20 +163,20 @@ function InsightsHeader() {
   );
 }
 
-// ─── Lead card ────────────────────────────────────────────────────────────────
-function LeadCard({ lead, getSourceName, onOpenDetails }) {
+// ─── Lead Card ────────────────────────────────────────────────────────────────
+function LeadCard({ lead, onOpenDetails }) {
   return (
     <div
-      onClick={() => onOpenDetails(lead, 'overview')}
-      className="bg-white rounded-[12px] border border-slate-200 p-3.5 flex flex-col gap-2.5 cursor-pointer hover:shadow-md hover:border-[#A8C0E8] transition-all duration-200"
+      style={{ background: '#fff', borderRadius: 12, border: '1px solid #E8EEF7', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10, cursor: 'pointer', transition: 'box-shadow .15s, border-color .15s' }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,63,135,.10)'; e.currentTarget.style.borderColor = '#A8C0E8'; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#E8EEF7'; }}
     >
       {/* Top row */}
-      <div className="flex justify-between items-start">
-        <span className="text-[13px] font-bold text-[#003F87]">{lead.name}</span>
-        <span className="text-[10px] text-slate-400">{lead.created_at || 'New'}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#003F87' }}>{lead.name}</span>
+        <span style={{ fontSize: 10, color: '#999' }}>{lead.created_at}</span>
       </div>
 
-      {/* Course */}
       {lead.course && (
         <div className="text-[11px] text-slate-600">
           <span className="font-bold text-slate-800 text-[10px] uppercase tracking-wide">Course: </span>
@@ -145,8 +186,8 @@ function LeadCard({ lead, getSourceName, onOpenDetails }) {
 
       {/* Note or badge */}
       {lead.note ? (
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-          <Paperclip size={11} className="text-slate-400" /> {lead.note}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#666' }}>
+          <Paperclip size={11} color="#999" /> {lead.note}
         </div>
       ) : lead.hot ? (
         <div className="inline-flex items-center gap-1 bg-orange-50 text-orange-600 text-[10px] font-bold rounded-md px-2 py-0.5 w-fit">
@@ -155,16 +196,16 @@ function LeadCard({ lead, getSourceName, onOpenDetails }) {
       ) : null}
 
       {lead.note === 'Follow-up sent' && (
-        <div className="inline-flex items-center gap-1 bg-blue-50 text-[#1565C0] text-[10px] font-bold rounded-md px-2 py-0.5 w-fit -mt-1">
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#E3F2FD', color: '#1565C0', fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '2px 8px', width: 'fit-content', marginTop: -4 }}>
           {lead.note}
         </div>
       )}
 
       {/* Footer */}
-      <div className="flex justify-between items-center border-t border-slate-50 pt-2 mt-1">
-        <div className="flex items-center gap-1.5">
-          <Avatar initials={lead.assignee || lead.name.charAt(0)} size={24} />
-          <span className="text-[11px] text-slate-500">{lead.assigneeName || 'Unassigned'}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F0F4FA', paddingTop: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Avatar initials={lead.assignee} size={24} />
+          <span style={{ fontSize: 11, color: '#666' }}>{lead.assigneeName}</span>
         </div>
         <div className="flex gap-1.5">
           <button
@@ -189,20 +230,18 @@ function LeadCard({ lead, getSourceName, onOpenDetails }) {
 
 // ─── Kanban column ────────────────────────────────────────────────────────────
 function KanbanColumn({ stage, leads, getSourceName, onOpenDetails }) {
-  const stageLeads = leads.filter(l => l.stage === stage);
-  const count = stageLeads.length;
-  
+  const count = leads.filter(l => l.stage === stage).length;
   return (
-    <div className="min-w-[260px] w-[260px] flex flex-col bg-slate-50/50 rounded-[14px] border border-[#E8EEF7] h-[600px]">
-      <div className="px-4 py-3 border-b border-[#E8EEF7] flex justify-between items-center bg-slate-100/50 rounded-t-[14px]">
-        <div className="flex items-center gap-2">
-          <span className="text-[13px] font-extrabold text-slate-700">{stage}</span>
-          <span className="bg-white text-slate-600 text-[10px] font-bold rounded-md px-1.5 py-0.5 border border-slate-200">{count}</span>
+    <div style={{ minWidth: 260, width: 260, display: 'flex', flexDirection: 'column', background: '#F7F9FC', borderRadius: 14, border: '1px solid #E8EEF7', height: '100%' }}>
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid #E8EEF7', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#EEF2F8', borderRadius: '14px 14px 0 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#1A2B4A' }}>{stage}</span>
+          <span style={{ background: '#fff', color: '#555', fontSize: 11, fontWeight: 700, borderRadius: 6, padding: '1px 7px', border: '1px solid #D8E0EC' }}>{count}</span>
         </div>
         <MoreHorizontal size={15} className="text-slate-400 cursor-pointer hover:text-slate-600 transition-colors" />
       </div>
-      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2.5">
-        {stageLeads.map(lead => (
+      <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {leads.filter(l => l.stage === stage).map(lead => (
           <LeadCard key={lead.id} lead={lead} getSourceName={getSourceName} onOpenDetails={onOpenDetails} />
         ))}
         {count === 0 && (
@@ -214,52 +253,99 @@ function KanbanColumn({ stage, leads, getSourceName, onOpenDetails }) {
 }
 
 // ─── Add Lead Modal ───────────────────────────────────────────────────────────
+const labelStyle = { display: 'block', fontSize: 11, fontWeight: 700, color: '#555', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 };
+const fieldStyle = { width: '100%', padding: '9px 12px', border: '1px solid #D8E0EC', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
+
 function AddLeadModal({ isOpen, onClose, onSave, sources, stages }) {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', source_id: sources[0]?.id || 'src-1', stage: stages[0], course: '', note: '', assignee: 'AJ', assigneeName: 'Alex J.' });
+  const { isMobile } = useBreakpoint();
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    source_id: sources[0]?.id || 'src-1',
+    stage: stages[0],
+    course: '',
+    note: '',
+    foundBy: TEAM_MEMBERS[0].id,
+    owner: '',
+    assignee: 'AJ',
+    assigneeName: 'Alex J.',
+  });
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave({ ...form, id: `lead-${Date.now()}`, created_at: 'Just now', hot: false });
-    setForm({ name: '', phone: '', email: '', source_id: sources[0]?.id || 'src-1', stage: stages[0], course: '', note: '', assignee: 'AJ', assigneeName: 'Alex J.' });
+    const foundByMember = TEAM_MEMBERS.find(m => m.id === form.foundBy) || TEAM_MEMBERS[0];
+    onSave({
+      ...form,
+      foundByName: foundByMember.name,
+      id: `lead-${Date.now()}`,
+      created_at: 'Just now',
+      hot: false,
+    });
+    setForm({
+      name: '',
+      phone: '',
+      email: '',
+      source_id: sources[0]?.id || 'src-1',
+      stage: stages[0],
+      course: '',
+      note: '',
+      foundBy: TEAM_MEMBERS[0].id,
+      owner: '',
+      assignee: 'AJ',
+      assigneeName: 'Alex J.',
+    });
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="bg-white rounded-[16px] w-full max-w-[440px] shadow-xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <span className="text-base font-extrabold text-slate-800">Add New Lead</span>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,20,50,.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: isMobile ? '100%' : 440, boxShadow: '0 16px 48px rgba(0,63,135,.18)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid #EEF2F8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F7F9FC' }}>
+          <span style={{ fontSize: 16, fontWeight: 800, color: '#1A2B4A' }}>Add New Lead</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: '#999', cursor: 'pointer' }}>×</button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-3.5">
+        <form onSubmit={handleSubmit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '75vh', overflowY: 'auto' }}>
           {[['Name', 'name', 'text', 'John Doe'], ['Phone', 'phone', 'text', '+91 98765 43210'], ['Email', 'email', 'email', 'john@example.com'], ['Course', 'course', 'text', 'UI/UX Design Masterclass']].map(([label, key, type, ph]) => (
             <div key={key}>
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block mb-1">{label}</label>
-              <input type={type} required={key !== 'course'} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} placeholder={ph} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[13px] outline-none bg-white focus:border-[#003F87] transition-colors" />
+              <label style={labelStyle}>{label}</label>
+              <input type={type} required={key !== 'course'} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} placeholder={ph} style={fieldStyle} />
             </div>
           ))}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Source</label>
-              <select value={form.source_id} onChange={e => setForm({ ...form, source_id: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[13px] outline-none bg-white focus:border-[#003F87] transition-colors">
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Source</label>
+              <select value={form.source_id} onChange={e => setForm({ ...form, source_id: e.target.value })} style={{ ...fieldStyle, background: '#fff' }}>
                 {sources.map(s => <option key={s.id} value={s.id}>{s.source_name}</option>)}
               </select>
             </div>
-            <div className="flex-1">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Stage</label>
-              <select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[13px] outline-none bg-white focus:border-[#003F87] transition-colors">
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Stage</label>
+              <select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} style={{ ...fieldStyle, background: '#fff' }}>
                 {stages.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
-          <div>
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Note</label>
-            <input type="text" value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Optional note..." className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[13px] outline-none bg-white focus:border-[#003F87] transition-colors" />
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Sales Lead</label>
+              <select value={form.foundBy} onChange={e => setForm({ ...form, foundBy: e.target.value })} style={{ ...fieldStyle, background: '#fff' }}>
+                {TEAM_MEMBERS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Owner</label>
+              <input type="text" value={form.owner} onChange={e => setForm({ ...form, owner: e.target.value })} placeholder="Owner name" style={fieldStyle} />
+            </div>
           </div>
-          <div className="flex gap-2.5 justify-end mt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 border border-slate-200 rounded-lg bg-white text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-[#003F87] text-white rounded-lg text-[13px] font-bold hover:bg-blue-900 transition-colors">Save Lead</button>
+          <div>
+            <label style={labelStyle}>Note</label>
+            <input type="text" value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Optional note..." style={fieldStyle} />
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 6 }}>
+            <button type="button" onClick={onClose} style={{ padding: '8px 18px', border: '1px solid #D8E0EC', borderRadius: 8, background: '#fff', fontSize: 13, fontWeight: 700, color: '#555', cursor: 'pointer' }}>Cancel</button>
+            <button type="submit" style={{ padding: '8px 18px', background: '#003F87', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save Lead</button>
           </div>
         </form>
       </div>
@@ -268,9 +354,12 @@ function AddLeadModal({ isOpen, onClose, onSave, sources, stages }) {
 }
 
 // ─── Details Modal ────────────────────────────────────────────────────────────
-function DetailsModal({ lead, onClose, onUpdateStage, stages, messages, onSendMessage }) {
-  const [tab, setTab] = useState('overview');
+function DetailsModal({ lead, initialTab = 'overview', onClose, onUpdateStage, stages, messages, onSendMessage }) {
+  const { isMobile } = useBreakpoint();
+  const [tab, setTab] = useState(initialTab);
   const [msg, setMsg] = useState('');
+
+  useEffect(() => { setTab(initialTab); }, [initialTab]);
 
   if (!lead) return null;
 
@@ -284,33 +373,27 @@ function DetailsModal({ lead, onClose, onUpdateStage, stages, messages, onSendMe
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="bg-white rounded-[16px] w-full max-w-[440px] shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,20,50,.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: isMobile ? '100%' : 440, boxShadow: '0 16px 48px rgba(0,63,135,.18)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <span className="text-base font-extrabold text-slate-800">Lead Details</span>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={20} /></button>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid #EEF2F8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F7F9FC' }}>
+          <span style={{ fontSize: 16, fontWeight: 800, color: '#1A2B4A' }}>Lead Details</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: '#999', cursor: 'pointer' }}>×</button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-100 bg-slate-50/50 px-6 pt-2">
+        <div style={{ display: 'flex', borderBottom: '1px solid #EEF2F8', background: '#F7F9FC', padding: '0 24px' }}>
           {['overview', 'messages'].map(t => (
-            <button 
-              key={t} 
-              onClick={() => setTab(t)} 
-              className={`py-3 mr-6 text-[13px] font-bold border-b-2 capitalize transition-colors ${tab === t ? 'text-[#003F87] border-[#003F87]' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
-            >
-              {t === 'messages' ? 'Messages & Notes' : 'Overview'}
-            </button>
+            <button key={t} onClick={() => setTab(t)} style={{ padding: '12px 0', marginRight: 24, fontSize: 13, fontWeight: 700, color: tab === t ? '#003F87' : '#999', background: 'none', border: 'none', borderBottomWidth: 2, borderBottomStyle: 'solid', borderBottomColor: tab === t ? '#003F87' : 'transparent', cursor: 'pointer', textTransform: 'capitalize' }}>{t === 'messages' ? 'Messages & Notes' : 'Overview'}</button>
           ))}
         </div>
 
-        <div className="flex-1 overflow-hidden flex flex-col min-h-[300px] max-h-[500px]">
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 300, maxHeight: 500 }}>
           {tab === 'overview' && (
-            <div className="p-6 overflow-y-auto flex flex-col gap-5">
+            <div style={{ padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
               {/* Profile */}
-              <div className="flex items-center gap-3.5 pb-4 border-b border-slate-100">
-                <Avatar initials={(lead.name || 'A').charAt(0)} size={48} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottom: '1px solid #EEF2F8' }}>
+                <Avatar initials={lead.name.charAt(0)} size={48} />
                 <div>
                   <div className="text-[17px] font-extrabold text-slate-800">{lead.name}</div>
                   {lead.course && <div className="text-xs text-slate-500 mt-0.5">{lead.course}</div>}
@@ -318,7 +401,7 @@ function DetailsModal({ lead, onClose, onUpdateStage, stages, messages, onSendMe
               </div>
 
               {/* Contact */}
-              <div className="flex flex-col gap-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[{ icon: <Phone size={15} />, val: lead.phone, href: `tel:${lead.phone}` }, { icon: <Mail size={15} />, val: lead.email, href: `mailto:${lead.email}` }].map(({ icon, val, href }) => (
                   <a key={href} href={href} className="flex items-center gap-2.5 text-[13px] font-semibold text-slate-700 p-2.5 bg-slate-50/50 rounded-[9px] border border-slate-100 hover:bg-slate-50 transition-colors decoration-transparent">
                     <span className="text-[#003F87]">{icon}</span> {val}
@@ -326,19 +409,43 @@ function DetailsModal({ lead, onClose, onUpdateStage, stages, messages, onSendMe
                 ))}
               </div>
 
-              {/* Stage update */}
+              {/* Sales Lead / Owner */}
+              {(lead.foundByName || lead.owner) && (
+                <div className="flex flex-col gap-1.5 -mt-1.5">
+                  {lead.foundByName && (
+                    <div className="flex items-center gap-2.5 text-[13px] text-slate-600">
+                      <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wide">Sales Lead:</span>
+                      <span>{lead.foundByName}</span>
+                    </div>
+                  )}
+                  {lead.owner && (
+                    <div className="flex items-center gap-2.5 text-[13px] text-slate-600">
+                      <span className="font-bold text-slate-700 text-[11px] uppercase tracking-wide">Owner:</span>
+                      <span>{lead.owner}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div>
                 <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2.5">Update Stage</div>
                 <div className="flex flex-wrap gap-2">
                   {stages.map((s, i) => {
                     const isActive = s === lead.stage;
-                    const isDisabled = s !== 'LOST' && i < currentIndex;
+                    const isException = s === 'NEGATIVE' || s === 'NOT CONTACTED';
+                    const isDisabled = !isException && i < currentIndex;
                     return (
                       <button
                         key={s}
                         onClick={() => { if (!isDisabled) onUpdateStage(lead.id, s); }}
                         disabled={isDisabled}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${isActive ? 'bg-[#003F87] text-white border-[#003F87]' : isDisabled ? 'bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 cursor-pointer'}`}
+                        style={{
+                          padding: '6px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: isDisabled ? 'not-allowed' : 'pointer', border: '1px solid',
+                          background: isActive ? '#003F87' : isDisabled ? '#F4F7FC' : '#fff',
+                          color: isActive ? '#fff' : isDisabled ? '#bbb' : '#555',
+                          borderColor: isActive ? '#003F87' : '#D8E0EC',
+                          opacity: isDisabled ? .6 : 1,
+                        }}
                       >
                         {s}
                       </button>
@@ -350,8 +457,8 @@ function DetailsModal({ lead, onClose, onUpdateStage, stages, messages, onSendMe
           )}
 
           {tab === 'messages' && (
-            <div className="flex-1 flex flex-col bg-slate-50/50 overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2.5">
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#F7F9FC', overflow: 'hidden' }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {(messages[lead.id] || []).length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center text-slate-400 pt-10">
                     <MessageSquare size={32} className="opacity-40 mb-2" />
@@ -366,9 +473,9 @@ function DetailsModal({ lead, onClose, onUpdateStage, stages, messages, onSendMe
                   ))
                 )}
               </div>
-              <form onSubmit={handleSend} className="p-3 border-t border-slate-100 bg-white flex gap-2">
-                <input value={msg} onChange={e => setMsg(e.target.value)} placeholder="Type a note..." className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-[#003F87] transition-colors" />
-                <button type="submit" disabled={!msg.trim()} className={`bg-[#003F87] text-white border-none rounded-lg px-4 py-2 text-[13px] font-bold transition-opacity ${!msg.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-900 cursor-pointer'}`}>Send</button>
+              <form onSubmit={handleSend} style={{ padding: '12px 16px', borderTop: '1px solid #E8EEF7', background: '#fff', display: 'flex', gap: 8 }}>
+                <input value={msg} onChange={e => setMsg(e.target.value)} placeholder="Type a note..." style={{ flex: 1, border: '1px solid #D8E0EC', borderRadius: 8, padding: '8px 12px', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+                <button type="submit" disabled={!msg.trim()} style={{ background: '#003F87', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: msg.trim() ? 'pointer' : 'not-allowed', opacity: msg.trim() ? 1 : .5 }}>Send</button>
               </form>
             </div>
           )}
@@ -379,18 +486,22 @@ function DetailsModal({ lead, onClose, onUpdateStage, stages, messages, onSendMe
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-const SalesCrmContent = ({ courses = [], searchQuery = '' }) => {
+const SalesCrmContent = () => {
+  const { isMobile, isTablet } = useBreakpoint();
+
   const [leads, setLeads] = useState([]);
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [activeLead, setActiveLead] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
   const [messages, setMessages] = useState({});
+  const [mobileStage, setMobileStage] = useState('NEW');
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [selectedCourse, setSelectedCourse] = useState('');
 
-  const stages = ['NEW', 'CONTACTED', 'INTERESTED', 'COUNSELLING', 'ENROLLED', 'LOST'];
+  const stages = ['NEW', 'CONTACTED', 'INTERESTED', 'ADMISSION', 'NEGATIVE', 'NOT CONTACTED'];
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -406,11 +517,11 @@ const SalesCrmContent = ({ courses = [], searchQuery = '' }) => {
       const lData = leadsRes?.ok ? await leadsRes.json() : null;
       const sData = sourcesRes?.ok ? await sourcesRes.json() : null;
 
-      setLeads(lData?.data?.leads || lData?.data || []);
-      setSources(sData?.data?.sources || sData?.data || []);
+      setLeads(lData?.data?.leads || lData?.data || MOCK_LEADS);
+      setSources(sData?.data?.sources || sData?.data || MOCK_SOURCES);
     } catch {
-      setLeads([]);
-      setSources([]);
+      setLeads(MOCK_LEADS);
+      setSources(MOCK_SOURCES);
     } finally {
       setLoading(false);
     }
@@ -420,26 +531,14 @@ const SalesCrmContent = ({ courses = [], searchQuery = '' }) => {
     fetchLeads();
   }, []);
 
-  const getSourceName = (id) => (sources.find(s => s.id === id)?.source_name ?? 'Unknown');
+  const getSourceName = (sourceId) => sources.find(s => s.id === sourceId)?.source_name || 'Unknown';
 
-  // ── Filtered leads ─────────────────────────────────────────────────────────
   const filteredLeads = leads.filter(lead => {
-    const matchesSearch = !searchQuery ||
-      (lead.name && lead.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (lead.email && lead.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (lead.phone && lead.phone.includes(searchQuery)) ||
-      (lead.course && lead.course.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (lead.note && lead.note.toLowerCase().includes(searchQuery.toLowerCase()));
-
     const matchesCourse = !selectedCourse || lead.course === selectedCourse;
-
-    return matchesSearch && matchesCourse;
+    return matchesCourse;
   });
 
-  const handleAddLead = (lead) => {
-    setLeads(prev => [...prev, lead]);
-    setIsAddOpen(false);
-  };
+  const handleAddLead = (lead) => { setLeads(prev => [...prev, lead]); setIsAddOpen(false); };
 
   const handleUpdateStage = (id, newStage) => {
     setLeads(prev => prev.map(l => l.id === id ? { ...l, stage: newStage } : l));
@@ -451,22 +550,51 @@ const SalesCrmContent = ({ courses = [], searchQuery = '' }) => {
     setMessages(prev => ({ ...prev, [leadId]: [...(prev[leadId] || []), msg] }));
   };
 
-  const uniqueCourses = getUniqueCourses(leads);
+  const handleOpenDetails = (lead, tab) => {
+    setActiveLead(lead);
+    setActiveTab(tab);
+  };
 
-  if (loading) return <LoadingSpinner text="Loading CRM data..." />;
+  const uniqueCourses = getUniqueCourses(leads);
+  const padding = isMobile ? 12 : 24;
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Inter, system-ui, sans-serif', color: '#003F87', fontSize: 14, fontWeight: 600 }}>
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 md:p-8 flex flex-col gap-8 w-full relative bg-[#FAFBFC] min-h-full">
-      
-      {/* Header Section */}
-      <div className="mb-2">
-        <h1 className="text-2xl font-bold text-slate-800">Sales CRM</h1>
-        <p className="text-slate-500 mt-1">Manage leads, track conversions, and monitor sales performance.</p>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, -apple-system, sans-serif', background: '#F0F4FA', minHeight: '100vh' }}>
 
-      {/* Top Header / Actions Bar */}
-      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+      {/* ── Main content area ── */}
+      <div style={{ padding, display: 'flex', flexDirection: 'column', gap: 20, flex: 1 }}>
+
+        {/* Page header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: 12 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 22, fontWeight: 800, color: '#003F87' }}>Lead Insights</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 13, color: '#777', marginTop: 2 }}>Manage leads and track your sales pipeline.</p>
+          </div>
+        </div>
+
+        {/* ── Moved-up row: date range + last-updated badge (now above the filter bar) ── */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#555', background: '#fff', border: '1px solid #D8E0EC', borderRadius: 8, padding: '6px 12px' }}>
+            📅 Oct 1 – Oct 31, 2023
+          </div>
+          <span style={{ fontSize: 11, color: '#27AE60', background: '#E8F5E9', padding: '4px 10px', borderRadius: 20, fontWeight: 700 }}>Last updated: Just now</span>
+          <button onClick={fetchLeads} className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors shrink-0" title="Refresh">
+            <RefreshCw size={15} />
+          </button>
+        </div>
+
+        {/* ── Course filter bar (Course filter on left, Add Lead button on right) ── */}
+        <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Course</span>
             <CustomSelect
@@ -480,55 +608,59 @@ const SalesCrmContent = ({ courses = [], searchQuery = '' }) => {
               selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
             />
           </div>
-        </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          <button onClick={fetchLeads} className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
-            <RefreshCcw size={16} />
-          </button>
-          <button onClick={() => setIsAddOpen(true)} className="px-5 py-2.5 bg-[#003F87] text-white rounded-xl text-sm font-bold shadow-md hover:bg-[#002B5E] shadow-blue-900/10 active:scale-95 transition-all flex items-center gap-2">
-            <Plus size={16} /> Add Lead
+          <button onClick={() => setIsAddOpen(true)} style={{ background: '#003F87', color: '#fff', border: 'none', borderRadius: 9, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <Plus size={15} /> Add Lead
           </button>
         </div>
-      </div>
 
-      {/* Insights */}
-      <InsightsHeader />
+        {/* Insights */}
+        <InsightsHeader isMobile={isMobile} isTablet={isTablet} />
 
-      {/* Active filter indicator */}
-      {(searchQuery || selectedCourse) && (
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span>Showing <strong className="text-[#003F87]">{filteredLeads.length}</strong> of {leads.length} leads</span>
-          {searchQuery && (
-            <span className="bg-slate-100 rounded-md px-2 py-0.5 text-[11px] font-semibold flex items-center gap-1 text-slate-700">
-              Search: "{searchQuery}"
-            </span>
-          )}
-          {selectedCourse && (
-            <span className="bg-slate-100 rounded-md px-2 py-0.5 text-[11px] font-semibold flex items-center gap-1 text-slate-700">
+        {/* Active filter indicator */}
+        {selectedCourse && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#555F6B', flexWrap: 'wrap' }}>
+            <span>Showing <strong style={{ color: '#003F87' }}>{filteredLeads.length}</strong> of {leads.length} leads</span>
+            <span style={{ background: '#E8EEF7', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               Course: {selectedCourse}
-              <button onClick={() => setSelectedCourse('')} className="bg-transparent border-none cursor-pointer text-slate-400 p-0 flex items-center hover:text-slate-600"><X size={10} /></button>
+              <button onClick={() => setSelectedCourse('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: 0, display: 'flex', alignItems: 'center' }}><X size={10} /></button>
             </span>
-          )}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Kanban */}
-      <div className="flex gap-4 overflow-x-auto pb-4 flex-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-        {stages.map(stage => (
-          <KanbanColumn
-            key={stage}
-            stage={stage}
-            leads={filteredLeads}
-            getSourceName={getSourceName}
-            onOpenDetails={(lead) => setActiveLead(lead)}
-          />
-        ))}
+        {/* Kanban */}
+        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, flex: 1 }}>
+          {stages.map(stage => (
+            <KanbanColumn
+              key={stage}
+              stage={stage}
+              leads={filteredLeads}
+              getSourceName={getSourceName}
+              onOpenDetails={handleOpenDetails}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Modals */}
+      {/* FAB */}
+      <button
+        onClick={() => setIsAddOpen(true)}
+        style={{ position: 'fixed', bottom: 28, right: 28, width: 52, height: 52, borderRadius: '50%', background: '#003F87', color: '#fff', border: 'none', fontSize: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 20px rgba(0,63,135,.35)', zIndex: 50 }}
+        title="Add Lead"
+      >
+        <Plus size={22} />
+      </button>
+
       <AddLeadModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onSave={handleAddLead} sources={sources} stages={stages} />
-      <DetailsModal lead={activeLead} onClose={() => setActiveLead(null)} onUpdateStage={handleUpdateStage} stages={stages} messages={messages} onSendMessage={handleSendMessage} />
+      <DetailsModal
+        lead={activeLead}
+        initialTab={activeTab}
+        onClose={() => setActiveLead(null)}
+        onUpdateStage={handleUpdateStage}
+        stages={stages}
+        messages={messages}
+        onSendMessage={handleSendMessage}
+      />
     </div>
   );
 };

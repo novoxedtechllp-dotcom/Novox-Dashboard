@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, BookOpen, CheckCircle, Plus, LayoutList, X, ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Clock, User, MessageSquare } from 'lucide-react';
+import { Calendar as CalendarIcon, BookOpen, CheckCircle, Plus, LayoutList, X, ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Clock, User, MessageSquare, Search } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 
 const getAuthHeaders = () => {
@@ -65,6 +65,7 @@ const DailyPlan = ({ userType, userId }) => {
   const [employeesList, setEmployeesList] = useState([]);
   const [selectedAdminEmployeeId, setSelectedAdminEmployeeId] = useState('');
   const [isStaffDropdownOpen, setIsStaffDropdownOpen] = useState(false);
+  const [staffSearchTerm, setStaffSearchTerm] = useState('');
   const [reviews, setReviews] = useState([]);
 
   // Date array for custom date selector (3 days before, today, 3 days after)
@@ -264,13 +265,15 @@ const DailyPlan = ({ userType, userId }) => {
       });
       
       await parseApiResponse(response);
-      alert('Extra task added successfully!');
+      setToast({ type: 'success', message: 'Note added successfully!' });
+      setTimeout(() => setToast(null), 3000);
       setNewTask({ title: '', description: '' });
       setNewTaskVisible(null);
       fetchDailyPlan(); 
     } catch (error) {
-      console.error('Error adding extra task:', error);
-      alert(error.message || 'Failed to add extra task');
+      console.error('Error adding note:', error);
+      setToast({ type: 'error', message: error.message || 'Failed to add note' });
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -350,19 +353,40 @@ const DailyPlan = ({ userType, userId }) => {
                     <ChevronDown size={16} className={`text-slate-400 transition-transform ${isStaffDropdownOpen ? 'rotate-180' : ''}`} />
                   </div>
                   {isStaffDropdownOpen && (
-                    <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                      {employeesList.map(emp => (
-                        <div 
-                          key={emp.id} 
-                          className="px-4 py-3 hover:bg-slate-50 cursor-pointer text-sm font-bold text-slate-700 transition-colors"
-                          onClick={() => {
-                            setSelectedAdminEmployeeId(emp.id);
-                            setIsStaffDropdownOpen(false);
-                          }}
-                        >
-                          {emp.first_name} {emp.last_name}
+                    <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg max-h-[300px] flex flex-col overflow-hidden">
+                      <div className="p-2 border-b border-slate-100 bg-slate-50 shrink-0">
+                        <div className="relative">
+                          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input 
+                            type="text" 
+                            placeholder="Search staff..." 
+                            value={staffSearchTerm}
+                            onChange={(e) => setStaffSearchTerm(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-[#003F87] focus:ring-2 focus:ring-[#003F87]/10 transition-all"
+                            onClick={(e) => e.stopPropagation()}
+                          />
                         </div>
-                      ))}
+                      </div>
+                      <div className="overflow-y-auto flex-1">
+                        {employeesList
+                          .filter(emp => `${emp.first_name} ${emp.last_name}`.toLowerCase().includes(staffSearchTerm.toLowerCase()))
+                          .map(emp => (
+                          <div 
+                            key={emp.id} 
+                            className="px-4 py-3 hover:bg-slate-50 cursor-pointer text-sm font-bold text-slate-700 transition-colors"
+                            onClick={() => {
+                              setSelectedAdminEmployeeId(emp.id);
+                              setIsStaffDropdownOpen(false);
+                              setStaffSearchTerm('');
+                            }}
+                          >
+                            {emp.first_name} {emp.last_name}
+                          </div>
+                        ))}
+                        {employeesList.filter(emp => `${emp.first_name} ${emp.last_name}`.toLowerCase().includes(staffSearchTerm.toLowerCase())).length === 0 && (
+                          <div className="px-4 py-6 text-sm text-slate-500 text-center italic">No staff found</div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -385,7 +409,7 @@ const DailyPlan = ({ userType, userId }) => {
                     disabled={isWeekendDate(selectedDate)}
                     className="w-full py-3.5 mt-2 bg-[#003F87] hover:bg-[#002B5E] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-300 text-white text-sm font-bold rounded-xl cursor-pointer active:scale-95 flex items-center justify-center gap-2 shadow-md shadow-blue-900/10"
                   >
-                    <Plus size={18} /> Edit Topics
+                    <Plus size={18} /> Add Topic
                   </button>
                   {isWeekendDate(selectedDate) && (
                     <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">Weekends are disabled</p>
@@ -463,7 +487,7 @@ const DailyPlan = ({ userType, userId }) => {
                       <div className="p-5 bg-slate-50/50">
                         <div className="flex justify-between items-center mb-4">
                           <h5 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                            <CheckCircle size={14} className="text-slate-400" /> Tasks & Homework
+                            <BookOpen size={14} className="text-slate-400" /> Notes & Remarks
                           </h5>
                           {(userType === 'EMPLOYEE' || userType === 'ADMIN') && (
                             <button 
@@ -474,51 +498,41 @@ const DailyPlan = ({ userType, userId }) => {
                               `}
                             >
                               {newTaskVisible === submodule.id ? <X size={14} /> : <Plus size={14} />} 
-                              {newTaskVisible === submodule.id ? 'Cancel' : 'Add Task'}
+                              {newTaskVisible === submodule.id ? 'Cancel' : 'Add Note'}
                             </button>
                           )}
                         </div>
 
                         {!submodule.course_tasks || submodule.course_tasks.length === 0 ? (
                           <div className="py-4 px-4 bg-white border border-dashed border-slate-200 rounded-xl flex items-center gap-3 text-slate-400">
-                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0"><CheckCircle size={14} /></div>
-                            <p className="text-sm font-medium">No specific tasks defined.</p>
+                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center shrink-0"><BookOpen size={14} /></div>
+                            <p className="text-sm font-medium">No notes added for this topic.</p>
                           </div>
                         ) : (
                           <div className="flex flex-col gap-3">
                             {submodule.course_tasks.map(task => (
-                              <div key={task.id} className="flex gap-4 items-center p-3.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-slate-300 transition-colors">
-                                <div className="w-6 h-6 rounded-full border-2 border-slate-200 flex items-center justify-center shrink-0 bg-slate-50 text-transparent hover:border-green-500 hover:text-green-500 cursor-pointer transition-colors">
-                                  <CheckCircle size={14} />
-                                </div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-sm font-bold text-slate-800">{task.title}</span>
-                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${task.task_type === 'EXTRA' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
-                                      {task.task_type}
-                                    </span>
-                                  </div>
-                                  {task.description && <div className="text-xs text-slate-500 mt-1 font-medium">{task.description}</div>}
-                                </div>
+                              <div key={task.id} className="p-3.5 bg-[#FFFDF0] border border-[#F2E8A2]/60 rounded-xl shadow-sm text-sm font-medium text-slate-700 leading-relaxed relative overflow-hidden">
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#F59E0B]"></div>
+                                {task.title}
                               </div>
                             ))}
                           </div>
                         )}
 
-                        {/* Inline Add Task Form */}
+                        {/* Inline Add Note Form */}
                         {newTaskVisible === submodule.id && (
                           <div className="mt-4 p-4 bg-blue-50/50 border border-blue-100 rounded-xl animate-in slide-in-from-top-2 opacity-100 duration-200">
                             <form onSubmit={(e) => handleAddExtraTask(e, submodule.module_id, submodule.id)} className="flex flex-col md:flex-row gap-3">
                               <input 
                                 type="text" 
-                                placeholder="What needs to be done?" 
+                                placeholder="Add a note or remark..." 
                                 required 
                                 value={newTask.title} 
                                 onChange={e => setNewTask({...newTask, title: e.target.value})} 
                                 className="flex-1 text-sm font-medium p-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:font-normal" 
                               />
                               <button type="submit" className="px-6 py-3 bg-[#003F87] text-white text-sm font-bold rounded-xl hover:bg-[#002B5E] active:scale-95 transition-all shadow-md flex justify-center items-center gap-2 shrink-0">
-                                <Plus size={16} /> Save Task
+                                <Plus size={16} /> Save Note
                               </button>
                             </form>
                           </div>
@@ -541,6 +555,17 @@ const DailyPlan = ({ userType, userId }) => {
                                         {review.students?.first_name?.[0]}{review.students?.last_name?.[0]}
                                       </div>
                                       <span className="text-xs font-bold text-slate-800">{review.students?.first_name} {review.students?.last_name}</span>
+                                      
+                                      {/* Parse Rating */}
+                                      {review.suggestion_text?.startsWith('RATING:') && (
+                                        <div className="ml-auto flex gap-0.5">
+                                          {[1, 2, 3, 4, 5].map(star => (
+                                            <svg key={star} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill={star <= parseInt(review.suggestion_text.split(':')[1]) ? "#f59e0b" : "none"} stroke={star <= parseInt(review.suggestion_text.split(':')[1]) ? "#f59e0b" : "#d1d5db"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                            </svg>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                     {review.review_text && (
                                       <div>
@@ -548,7 +573,7 @@ const DailyPlan = ({ userType, userId }) => {
                                         <p className="text-xs text-slate-700 leading-relaxed">{review.review_text}</p>
                                       </div>
                                     )}
-                                    {review.suggestion_text && (
+                                    {review.suggestion_text && !review.suggestion_text.startsWith('RATING:') && (
                                       <div>
                                         <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Suggestion</div>
                                         <p className="text-xs text-slate-700 leading-relaxed">{review.suggestion_text}</p>
