@@ -14,6 +14,8 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  font-variant-ligatures: none;
+  -webkit-font-variant-ligatures: none;
 }
 
 /* Global Button Styles */
