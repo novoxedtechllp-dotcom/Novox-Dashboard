@@ -55,6 +55,18 @@ const EmployeeProfile = () => {
             confirmPassword: '',
           });
           setAvatarPreview(resData.data.employeeProfile.avatar_url);
+          
+          // Update session storage to keep Header in sync
+          const updatedSessionUser = {
+            ...userInfo,
+            first_name: resData.data.employeeProfile.first_name || userInfo.first_name,
+            last_name: resData.data.employeeProfile.last_name || userInfo.last_name,
+            avatar_url: resData.data.employeeProfile.avatar_url || userInfo.avatar_url,
+            name: `${resData.data.employeeProfile.first_name || ''} ${resData.data.employeeProfile.last_name || ''}`.trim() || userInfo.name,
+            designation: resData.data.employeeProfile.designation || userInfo.designation,
+          };
+          sessionStorage.setItem('userInfo', JSON.stringify(updatedSessionUser));
+          window.dispatchEvent(new Event('userInfoUpdated'));
         }
       }
     } catch (error) {
