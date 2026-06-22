@@ -370,6 +370,7 @@ const EmployeeLeave = () => {
                      <div className="relative flex items-center">
                        <DatePicker
                          ref={startDatePickerRef}
+                         wrapperClassName="w-full"
                          selected={formData.startDate ? new Date(formData.startDate) : null}
                          onChange={(date) => {
                            if (date) {
@@ -402,6 +403,7 @@ const EmployeeLeave = () => {
                      <div className="relative flex items-center">
                        <DatePicker
                          ref={endDatePickerRef}
+                         wrapperClassName="w-full"
                          selected={formData.endDate ? new Date(formData.endDate) : null}
                          onChange={(date) => {
                            if (date) {
