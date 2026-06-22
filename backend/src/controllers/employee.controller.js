@@ -267,7 +267,7 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   console.log(`\n[PUT /api/v1/employees/${employeeId}] -> updateEmployee called`);
   console.log(`Update Body:`, JSON.stringify(req.body, null, 2));
   
-  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url, email, course_ids } = req.body;
+  const { first_name, last_name, phone, designation, status, joining_date, role_id, employee_role, department, salary, avatar_url, email, course_ids, custom_permissions } = req.body;
 
   if (email !== undefined) {
     const { data: currentEmployee } = await supabase.from("employee_profiles").select("user_id").eq("id", employeeId).single();
@@ -340,6 +340,7 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   if (salary !== undefined) updates.salary = salary;
   if (role_id !== undefined) updates.role_id = role_id;
   if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+  if (custom_permissions !== undefined) updates.custom_permissions = custom_permissions;
 
   if (req.file) {
     const uploadResult = await uploadOnCloudinary(req.file.path);
@@ -396,7 +397,8 @@ export const updateEmployee = asyncHandler(async (req, res) => {
       *,
       employee_roles(role_name),
       users(email, role, status),
-      course_instructors(course_id)
+      course_instructors(course_id),
+      custom_permissions
     `)
     .eq("id", employeeId)
     .single();

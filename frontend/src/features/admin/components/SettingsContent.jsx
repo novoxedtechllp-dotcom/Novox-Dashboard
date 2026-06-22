@@ -104,6 +104,18 @@ const SettingsContent = ({ employees = [] }) => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [customPermissions, setCustomPermissions] = useState({});
 
+  useEffect(() => {
+    if (employees && employees.length > 0) {
+      const initialCustomPerms = {};
+      employees.forEach(emp => {
+        if (emp.custom_permissions) {
+          initialCustomPerms[emp.id || emp.name] = emp.custom_permissions;
+        }
+      });
+      setCustomPermissions(initialCustomPerms);
+    }
+  }, [employees]);
+
   const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDesc, setNewRoleDesc] = useState('');
@@ -206,10 +218,29 @@ const SettingsContent = ({ employees = [] }) => {
   };
 
   // Role Permissions Handlers
-  const handlePermissionsSave = () => {
-    setToastText('Permissions saved successfully.');
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+  const handlePermissionsSave = async () => {
+    try {
+      const permsToSave = permissions[selectedRoleId] || {};
+      const response = await apiClient(`/roles/${selectedRoleId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ permissions: permsToSave })
+      });
+      
+      if (response && response.success) {
+        setToastText('Permissions saved successfully.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        // Refresh local user info to see their own changes immediately if possible,
+        // but typically handled by reload or user navigating.
+      } else {
+        throw new Error(response?.message || 'Failed to save');
+      }
+    } catch (err) {
+      console.error('Save permissions error:', err);
+      setToastText('Failed to save permissions.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
   };
 
   const handleResetPermissions = () => {
@@ -350,11 +381,31 @@ const SettingsContent = ({ employees = [] }) => {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handleEmployeePermissionsSave = () => {
+  const handleEmployeePermissionsSave = async () => {
     if (selectedEmployee) {
-      setToastText(`Custom permissions for ${selectedEmployee.name} saved successfully.`);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      try {
+        const empKey = selectedEmployee.id || selectedEmployee.name;
+        const permsToSave = customPermissions[empKey];
+        
+        // Pass null if we are disabling the override
+        const response = await apiClient(`/employees/${selectedEmployee.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ custom_permissions: permsToSave || null })
+        });
+
+        if (response && response.success) {
+          setToastText(`Custom permissions for ${selectedEmployee.name} saved successfully.`);
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+        } else {
+          throw new Error(response?.message || 'Failed to save employee permissions');
+        }
+      } catch (err) {
+        console.error('Save employee permissions error:', err);
+        setToastText(`Failed to save custom permissions for ${selectedEmployee.name}.`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      }
     }
   };
 

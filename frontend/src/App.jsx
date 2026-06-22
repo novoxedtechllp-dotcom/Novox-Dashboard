@@ -82,7 +82,8 @@ const mapEmployeeFromApi = (d) => {
   avatar: d.avatar_url || null,
   email: d.users?.email || '',
   systemRole: d.users?.role || 'EMPLOYEE',
-  courseIds: d.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []
+  courseIds: d.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || [],
+  custom_permissions: d.custom_permissions || null
   };
 };
 
@@ -172,6 +173,8 @@ function App() {
             if (profile) {
               const updatedUserInfoStr = sessionStorage.getItem('userInfo');
               const currentUserInfo = updatedUserInfoStr ? JSON.parse(updatedUserInfoStr) : userInfo;
+              const mergedPermissions = profile.custom_permissions || profile.employee_roles?.permissions || {};
+
               const updatedSessionUser = {
                 ...currentUserInfo,
                 first_name: profile.first_name || currentUserInfo.first_name,
@@ -179,6 +182,7 @@ function App() {
                 avatar_url: profile.avatar_url || currentUserInfo.avatar_url,
                 name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || currentUserInfo.name,
                 designation: profile.designation || currentUserInfo.designation,
+                permissions: mergedPermissions
               };
               sessionStorage.setItem('userInfo', JSON.stringify(updatedSessionUser));
               setUserInfo(updatedSessionUser);
@@ -243,6 +247,7 @@ function App() {
       {isAuthenticated && (
         <Sidebar
           userRole={userRole}
+          permissions={userInfo?.permissions || {}}
           isHR={isHR}
           isDesign={isDesign}
           isDevelopment={isDevelopment}

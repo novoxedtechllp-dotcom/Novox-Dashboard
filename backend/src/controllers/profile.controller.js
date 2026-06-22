@@ -26,7 +26,7 @@ export const getMyProfile = asyncHandler(async (req, res) => {
   const isStudent = user.role === "STUDENT";
   const tableName = isStudent ? "students" : "employee_profiles";
   
-  let query = supabase.from(tableName).select(isStudent ? "*" : "*, employee_roles(role_name)").eq("user_id", userId).single();
+  let query = supabase.from(tableName).select(isStudent ? "*" : "*, employee_roles(role_name, permissions)").eq("user_id", userId).single();
 
   const { data: profile } = await query;
 
@@ -90,7 +90,7 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
   let updatedProfile = null;
 
   if (Object.keys(updates).length > 0) {
-    let query = supabase.from(tableName).update(updates).eq("user_id", userId).select(isStudent ? "*" : "*, employee_roles(role_name)");
+    let query = supabase.from(tableName).update(updates).eq("user_id", userId).select(isStudent ? "*" : "*, employee_roles(role_name, permissions)");
     const { data, error } = await query;
 
     if (error) throw new ApiError(500, "Failed to update profile details");
@@ -99,7 +99,7 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
     }
   } else {
     // Just fetch current profile to return
-    let query = supabase.from(tableName).select(isStudent ? "*" : "*, employee_roles(role_name)").eq("user_id", userId).single();
+    let query = supabase.from(tableName).select(isStudent ? "*" : "*, employee_roles(role_name, permissions)").eq("user_id", userId).single();
     const { data } = await query;
     updatedProfile = data;
   }
