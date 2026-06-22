@@ -9,19 +9,17 @@ import 'react-datepicker/dist/react-datepicker.css';
 const EmployeeLeave = () => {
   const startDatePickerRef = useRef(null);
   const endDatePickerRef = useRef(null);
-  const [viewMode, setViewMode] = useState('My Record');
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState(location.hash === '#request' ? 'Request Leave' : 'Student Leaves');
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('employee_leave_view') || 'My Record');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('employee_leave_tab') || 'Request Leave');
   
-  // Listen for hash changes
   useEffect(() => {
-    if (location.hash === '#request') {
-      setActiveTab('Request Leave');
-    } else if (location.hash === '#management' || !location.hash) {
-      // Default to Student Leaves if accessed from sidebar (which doesn't have a hash)
-      setActiveTab('Student Leaves');
-    }
-  }, [location.hash]);
+    localStorage.setItem('employee_leave_view', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    localStorage.setItem('employee_leave_tab', activeTab);
+  }, [activeTab]);
   const [formData, setFormData] = useState({
     leaveType: 'Sick Leave',
     startDate: '',
@@ -272,13 +270,17 @@ const EmployeeLeave = () => {
       {/* Top Level Toggle */}
       <div className="flex bg-[#F8FAFC] rounded-[4px] p-[4px] border border-[#C2C6D4] w-fit mb-6 shadow-sm">
         <button
-          onClick={() => setViewMode('My Record')}
+          onClick={() => {
+            setViewMode('My Record');
+          }}
           className={`px-8 py-2 rounded-[4px] text-[14px] font-semibold transition-all ${viewMode === 'My Record' ? 'bg-[#003F87] text-white shadow-md' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
         >
           My Record
         </button>
         <button
-          onClick={() => setViewMode('Manage Leaves')}
+          onClick={() => {
+            setViewMode('Manage Leaves');
+          }}
           className={`px-8 py-2 rounded-[4px] text-[14px] font-semibold transition-all ${viewMode === 'Manage Leaves' ? 'bg-[#003F87] text-white shadow-md' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
         >
           Manage Leaves
@@ -296,7 +298,9 @@ const EmployeeLeave = () => {
         <>
           <div className="flex gap-4 border-b border-[#E2E8F0] mb-6">
             <button
-              onClick={() => setActiveTab('Request Leave')}
+              onClick={() => {
+                setActiveTab('Request Leave');
+              }}
               className={`pb-3 px-1 text-[14px] font-bold transition-all relative ${
                 activeTab === 'Request Leave' 
                   ? 'text-[#003F87]' 
@@ -309,7 +313,9 @@ const EmployeeLeave = () => {
               )}
             </button>
             <button
-              onClick={() => setActiveTab('My Leave History')}
+              onClick={() => {
+                setActiveTab('My Leave History');
+              }}
               className={`pb-3 px-1 text-[14px] font-bold transition-all relative ${
                 activeTab === 'My Leave History' 
                   ? 'text-[#003F87]' 

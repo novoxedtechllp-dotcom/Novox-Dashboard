@@ -152,7 +152,11 @@ const EmployeeDashboard = () => {
           </p>
         </div>
         <button 
-          onClick={() => navigate(window.location.pathname.replace('/dashboard', '/leave#request'))}
+          onClick={() => {
+            localStorage.setItem('employee_leave_view', 'My Record');
+            localStorage.setItem('employee_leave_tab', 'Request Leave');
+            navigate(window.location.pathname.replace('/dashboard', '/leave'));
+          }}
           className="bg-white border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
         >
           <FileText size={16} /> Request Leave

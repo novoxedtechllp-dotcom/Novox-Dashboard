@@ -148,7 +148,13 @@ const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, is
                 <Link
                   key={item.id}
                   to={`${basePath}/${item.id}`}
-                  onClick={() => window.innerWidth < 1024 && setIsOpen && setIsOpen(false)}
+                  onClick={() => {
+                    if (item.id === 'leave') {
+                      localStorage.setItem('employee_leave_view', 'My Record');
+                      localStorage.setItem('employee_leave_tab', 'Request Leave');
+                    }
+                    if (window.innerWidth < 1024 && setIsOpen) setIsOpen(false);
+                  }}
                   className={`group flex items-center gap-[14px] px-[14px] py-[10px] rounded-xl transition-all duration-300 text-left w-full shrink-0 relative overflow-hidden
                     ${isActive 
                       ? 'bg-blue-50 text-[#003F87] font-bold' 

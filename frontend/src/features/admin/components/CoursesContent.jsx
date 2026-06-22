@@ -104,7 +104,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const [submodules, setSubmodules] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [newSubmodule, setNewSubmodule] = useState({ title: '', sequence_order: 1 });
-  const [newTask, setNewTask] = useState({ title: '', sequence_order: 1, task_type: 'PRE_PLANNED' });
+  const [newTask, setNewTask] = useState({ title: '', sequence_order: 1, task_type: 'PRE_PLANNED', due_date: '' });
   const [subtasks, setSubtasks] = useState([]);
   const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [newSubtask, setNewSubtask] = useState({ title: '', description: '', sequence_order: 1 });
@@ -423,11 +423,16 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       const headers = getAuthHeaders();
       const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules/${moduleId}/submodules/${submoduleId}/tasks`, {
         method: 'POST', headers,
-        body: JSON.stringify({ title: newTask.title, sequence_order: Number(newTask.sequence_order), task_type: newTask.task_type })
+        body: JSON.stringify({ 
+          title: newTask.title, 
+          sequence_order: Number(newTask.sequence_order), 
+          task_type: newTask.task_type,
+          due_date: newTask.due_date ? new Date(newTask.due_date).toISOString() : null
+        })
       });
       const resData = await parseApiResponse(response);
       setTasks([...tasks, resData.data]);
-      setNewTask({ title: '', sequence_order: tasks.filter(t => t.submodule_id === submoduleId).length + 1, task_type: 'PRE_PLANNED' });
+      setNewTask({ title: '', sequence_order: tasks.filter(t => t.submodule_id === submoduleId).length + 1, task_type: 'PRE_PLANNED', due_date: '' });
     } catch (error) {
       alert(error.message || 'Failed to add task');
     } finally {
@@ -1372,9 +1377,16 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                             </div>
                                             
                                             <form onSubmit={(e) => handleAddTask(e, m.id, sm.id)} className="flex flex-wrap sm:flex-nowrap gap-2 items-center bg-white p-2 rounded-lg border border-slate-200 w-full">
-                                              <input type="text" placeholder="Add a new task..." required value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="flex-1 text-sm p-2 outline-none font-medium placeholder-slate-400 w-full" />
-                                              <div className="h-4 w-px bg-slate-200"></div>
-                                              <input type="number" placeholder="Seq" required value={newTask.sequence_order} onChange={e => setNewTask({...newTask, sequence_order: e.target.value})} className="w-[50px] text-xs p-2 outline-none text-center font-bold text-[#003F87]" />
+                                              <input type="text" placeholder="Add a new task..." required value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="flex-1 text-sm p-2 outline-none font-medium placeholder-slate-400 min-w-[200px]" />
+                                              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+                                              <select value={newTask.task_type} onChange={e => setNewTask({...newTask, task_type: e.target.value})} className="text-xs p-2 outline-none font-medium text-slate-600 bg-transparent min-w-[100px]">
+                                                <option value="PRE_PLANNED">Required</option>
+                                                <option value="EXTRA">Bonus</option>
+                                              </select>
+                                              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+                                              <input type="date" value={newTask.due_date} onChange={e => setNewTask({...newTask, due_date: e.target.value})} className="text-xs p-2 outline-none font-medium text-slate-600 bg-transparent" />
+                                              <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+                                              <input type="number" placeholder="Seq" required value={newTask.sequence_order} onChange={e => setNewTask({...newTask, sequence_order: e.target.value})} className="w-[50px] text-xs p-2 outline-none text-center font-bold text-[#003F87] bg-transparent" />
                                               <button type="submit" disabled={isAddingModule} className={`py-2 px-4 bg-[#008A2E] text-white text-[10px] uppercase tracking-widest font-black rounded-md transition-colors shadow-sm ${isAddingModule ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#006E24]'}`}>
                                                 {isAddingModule ? '...' : <Plus size={14} />}
                                               </button>
