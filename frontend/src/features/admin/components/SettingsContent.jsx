@@ -104,6 +104,18 @@ const SettingsContent = ({ employees = [] }) => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [customPermissions, setCustomPermissions] = useState({});
 
+  useEffect(() => {
+    if (employees && employees.length > 0) {
+      const initialCustomPerms = {};
+      employees.forEach(emp => {
+        if (emp.custom_permissions) {
+          initialCustomPerms[emp.id || emp.name] = emp.custom_permissions;
+        }
+      });
+      setCustomPermissions(initialCustomPerms);
+    }
+  }, [employees]);
+
   const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDesc, setNewRoleDesc] = useState('');
@@ -140,33 +152,22 @@ const SettingsContent = ({ employees = [] }) => {
 
   const filteredEmployeesList = useMemo(() => {
     if (!employees || employees.length === 0) return [];
-    if (selectedRoleId === 'super-admin') {
-      return employees;
-    }
     
     const activeRole = roles.find(r => r.id === selectedRoleId);
-    const roleName = activeRole ? activeRole.name : '';
+    if (!activeRole) return [];
     
-    // Map role ID to system departments
-    const roleIdToDept = {
-      'design': 'design',
-      'development': 'development',
-      'sales': 'sales',
-      'marketing': 'marketing',
-      'hr': 'hr',
-      'accountant': ['accountant', 'accounts', 'account'],
-      'accounts': ['accountant', 'accounts', 'account']
-    };
-    
-    const targetDept = roleIdToDept[String(selectedRoleId).toLowerCase()] || roleIdToDept[roleName.toLowerCase()];
-    if (!targetDept) return [];
+    if (activeRole.name === 'SUPER-ADMIN') {
+      return employees.filter(emp => {
+        const empDept = (emp.department || '').toLowerCase().trim();
+        return empDept === 'super-admin' || emp.systemRole === 'ADMIN';
+      });
+    }
     
     return employees.filter(emp => {
       const empDept = (emp.department || '').toLowerCase().trim();
-      if (Array.isArray(targetDept)) {
-        return targetDept.includes(empDept);
-      }
-      return empDept === targetDept;
+      const roleName = (activeRole.name || '').toLowerCase().trim();
+      
+      return empDept === roleName;
     });
   }, [employees, selectedRoleId, roles]);
 
@@ -206,10 +207,29 @@ const SettingsContent = ({ employees = [] }) => {
   };
 
   // Role Permissions Handlers
-  const handlePermissionsSave = () => {
-    setToastText('Permissions saved successfully.');
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+  const handlePermissionsSave = async () => {
+    try {
+      const permsToSave = permissions[selectedRoleId] || {};
+      const response = await apiClient(`/roles/${selectedRoleId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ permissions: permsToSave })
+      });
+      
+      if (response && response.success) {
+        setToastText('Permissions saved successfully.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        // Refresh local user info to see their own changes immediately if possible,
+        // but typically handled by reload or user navigating.
+      } else {
+        throw new Error(response?.message || 'Failed to save');
+      }
+    } catch (err) {
+      console.error('Save permissions error:', err);
+      setToastText('Failed to save permissions.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
   };
 
   const handleResetPermissions = () => {
@@ -350,11 +370,31 @@ const SettingsContent = ({ employees = [] }) => {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handleEmployeePermissionsSave = () => {
+  const handleEmployeePermissionsSave = async () => {
     if (selectedEmployee) {
-      setToastText(`Custom permissions for ${selectedEmployee.name} saved successfully.`);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
+      try {
+        const empKey = selectedEmployee.id || selectedEmployee.name;
+        const permsToSave = customPermissions[empKey];
+        
+        // Pass null if we are disabling the override
+        const response = await apiClient(`/employees/${selectedEmployee.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ custom_permissions: permsToSave || null })
+        });
+
+        if (response && response.success) {
+          setToastText(`Custom permissions for ${selectedEmployee.name} saved successfully.`);
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+        } else {
+          throw new Error(response?.message || 'Failed to save employee permissions');
+        }
+      } catch (err) {
+        console.error('Save employee permissions error:', err);
+        setToastText(`Failed to save custom permissions for ${selectedEmployee.name}.`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      }
     }
   };
 
@@ -489,7 +529,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.view}
-                            onChange={() => togglePermission(mod.key, 'view')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'view')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -498,7 +538,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.create}
-                            onChange={() => togglePermission(mod.key, 'create')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'create')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -507,7 +547,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.edit}
-                            onChange={() => togglePermission(mod.key, 'edit')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'edit')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -516,7 +556,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.delete}
-                            onChange={() => togglePermission(mod.key, 'delete')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'delete')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -525,7 +565,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.export}
-                            onChange={() => togglePermission(mod.key, 'export')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'export')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
