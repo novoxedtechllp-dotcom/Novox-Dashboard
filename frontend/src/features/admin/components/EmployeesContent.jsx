@@ -39,19 +39,27 @@ const splitName = (name) => {
   };
 };
 
-const mapEmployeeFromApi = (employee, avatar = null) => ({
-  id: employee.id,
-  eid: employee.employee_code || `EMP-${String(employee.id).slice(0, 4)}`,
-  name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim(),
-  department: departmentFromApi(employee.employee_roles?.role_name || employee.employee_role || 'DEVELOPMENT'),
-  position: employee.designation || '',
-  phone: employee.phone || '',
-  joinDate: employee.joining_date ? new Date(employee.joining_date).toLocaleDateString() : '',
-  avatar: avatar || employee.avatar_url || null,
-  email: employee.users?.email || '',
-  systemRole: employee.users?.role || 'EMPLOYEE',
-  courseIds: employee.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []
-});
+const mapEmployeeFromApi = (employee, avatar = null) => {
+  const id = employee.id;
+  const localCourseIds = localStorage.getItem(`employee_courses_${id}`);
+  const courseIds = localCourseIds 
+    ? JSON.parse(localCourseIds) 
+    : (employee.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []);
+
+  return {
+    id,
+    eid: employee.employee_code || `EMP-${String(employee.id).slice(0, 4)}`,
+    name: `${employee.first_name || ''} ${employee.last_name || ''}`.trim(),
+    department: departmentFromApi(employee.employee_roles?.role_name || employee.employee_role || 'DEVELOPMENT'),
+    position: employee.designation || '',
+    phone: employee.phone || '',
+    joinDate: employee.joining_date ? new Date(employee.joining_date).toLocaleDateString() : '',
+    avatar: avatar || employee.avatar_url || null,
+    email: employee.users?.email || '',
+    systemRole: employee.users?.role || 'EMPLOYEE',
+    courseIds
+  };
+};
 
 const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setSearchQuery = () => {} }) => {
   const [courses, setCourses] = useState([]);
@@ -190,6 +198,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
           body: JSON.stringify(payload)
         });
       const resData = await parseApiResponse(response);
+      localStorage.setItem(`employee_courses_${resData.data.id}`, JSON.stringify(newEmployee.courseIds));
       const addedEmployee = mapEmployeeFromApi(resData.data, resData.data?.avatar_url || resData.data?.avatar || newEmployee.avatarUrl || null);
 
       setEmployees([addedEmployee, ...employees]);
@@ -221,6 +230,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
 
       if (resData.message && resData.message.includes('permanently')) {
         setEmployees(employees.filter(emp => emp.id !== id));
+        localStorage.removeItem(`employee_courses_${id}`);
         alert('Employee deleted permanently!');
       } else {
         setEmployees(employees.map(emp => emp.id === id ? { ...emp, status: 'Terminated' } : emp));
@@ -267,6 +277,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
       });
       
       const resData = await parseApiResponse(response);
+      localStorage.setItem(`employee_courses_${employeeToEdit.id}`, JSON.stringify(employeeToEdit.courseIds));
       const updatedEmp = mapEmployeeFromApi(resData.data, employeeToEdit.avatar);
 
       setEmployees(employees.map(emp => emp.id === updatedEmp.id ? updatedEmp : emp));

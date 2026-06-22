@@ -70,6 +70,11 @@ const getInitials = (name) => {
 
 const mapEmployeeFromApi = (d) => {
   const id = d.id || d._id;
+  const localCourseIds = localStorage.getItem(`employee_courses_${id}`);
+  const courseIds = localCourseIds 
+    ? JSON.parse(localCourseIds) 
+    : (d.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []);
+
   return {
     id,
     eid: d.employee_code || `EMP-${String(id).slice(0, 4)}`,
@@ -82,7 +87,7 @@ const mapEmployeeFromApi = (d) => {
   avatar: d.avatar_url || null,
   email: d.users?.email || '',
   systemRole: d.users?.role || 'EMPLOYEE',
-  courseIds: d.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []
+  courseIds
   };
 };
 

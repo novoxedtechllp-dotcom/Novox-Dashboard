@@ -365,9 +365,6 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
                         <div className="text-[13px] text-slate-600">
                           <span className="font-semibold">Project:</span> {projectArea}
                         </div>
-                        <div className="text-[13px] text-slate-600">
-                          <span className="font-semibold">Type:</span> <span className="font-bold text-slate-800">{report.report_type}</span>
-                        </div>
                         <div className="text-[13px] text-slate-500">
                           <span className="font-semibold">Submitted:</span> {new Date(report.submitted_at).toLocaleDateString()}
                         </div>
@@ -431,9 +428,6 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
                       <Briefcase size={12} />{" "}
                       {projectArea}
                     </div>
-                    <span className="inline-block bg-slate-100 text-slate-600 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">
-                      {report.report_type}
-                    </span>
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-slate-700 mb-1">
@@ -503,39 +497,19 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
               onSubmit={handleSubmitReport}
               className="p-6 flex flex-col gap-4"
             >
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                    Project/Task Area
-                  </label>
-                  <input
-                    type="text"
-                    value={newReport.project_id}
-                    onChange={(e) =>
-                      setNewReport({ ...newReport, project_id: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none bg-white"
-                    placeholder="e.g. Frontend, Marketing..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                    Report Type
-                  </label>
-                  <select
-                    value={newReport.report_type}
-                    onChange={(e) =>
-                      setNewReport({
-                        ...newReport,
-                        report_type: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none bg-white"
-                  >
-                    <option value="DAILY">DAILY</option>
-                    <option value="WEEKLY">WEEKLY</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                  Project/Task Area
+                </label>
+                <input
+                  type="text"
+                  value={newReport.project_id}
+                  onChange={(e) =>
+                    setNewReport({ ...newReport, project_id: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none bg-white"
+                  placeholder="e.g. Frontend, Marketing..."
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
