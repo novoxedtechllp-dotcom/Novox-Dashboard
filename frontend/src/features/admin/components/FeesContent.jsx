@@ -696,7 +696,7 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Type</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Method</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
-                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Due This Month</th>
+
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid Amount</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Remaining Balance</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Date</th>
@@ -770,11 +770,7 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
                         <td className="py-4 px-4 text-right">
                           <div className="text-[14px] text-slate-600 font-medium">₹{total.toLocaleString()}</div>
                         </td>
-                        <td className="py-4 px-4 text-right">
-                          <div className="text-[14px] font-bold text-slate-800">
-                            {fee.dueThisMonth !== null && fee.dueThisMonth !== undefined ? `₹${fee.dueThisMonth.toLocaleString()}` : '-'}
-                          </div>
-                        </td>
+
                         <td className="py-4 px-4 text-right">
                           <div className="text-[14px] font-bold text-[#003F87]">₹{paid.toLocaleString()}</div>
                         </td>
@@ -858,6 +854,10 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
                           {due.status === 'Full Paid' ? (
                             <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
                               <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> Fully Paid
+                            </span>
+                          ) : due.status === 'Paid' ? (
+                            <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
+                              <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> Paid
                             </span>
                           ) : due.status === 'Partially Paid' ? (
                             <div className="inline-flex items-center gap-2 bg-[#FFF4E5] text-[#B26E00] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
