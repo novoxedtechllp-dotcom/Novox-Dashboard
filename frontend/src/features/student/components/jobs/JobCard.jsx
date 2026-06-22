@@ -1,7 +1,7 @@
 import React from 'react';
 import { MapPin, Briefcase, DollarSign, ChevronRight, Globe, Heart, Brain } from 'lucide-react';
 
-const JobCard = ({ job, onClick, relevanceScore = 0, isSaved = false, onSaveToggle = null }) => {
+const JobCard = ({ job, onClick, relevanceScore = 0, isSaved = false, isApplied = false, onSaveToggle = null }) => {
   const { title, company, location, salary, source, description, category } = job;
 
   return (
@@ -39,29 +39,6 @@ const JobCard = ({ job, onClick, relevanceScore = 0, isSaved = false, onSaveTogg
             {company || 'Unknown Company'}
           </p>
         </div>
-        
-        <div className="flex items-center gap-2 shrink-0 relative z-20">
-          {onSaveToggle && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onSaveToggle(job);
-              }}
-              className={`p-2 rounded-full border transition-all ${
-                isSaved 
-                  ? 'bg-rose-50 border-rose-100 text-rose-500 hover:bg-rose-100' 
-                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-rose-500 hover:bg-slate-100'
-              }`}
-              title={isSaved ? "Saved" : "Save Job"}
-            >
-              <Heart size={16} fill={isSaved ? "currentColor" : "none"} />
-            </button>
-          )}
-          
-          <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0 group-hover:bg-[#003F87] transition-colors duration-300">
-            <ChevronRight size={20} className="text-[#003F87] group-hover:text-white transition-colors duration-300 translate-x-0 group-hover:translate-x-0.5" />
-          </div>
-        </div>
       </div>
 
       <div className="flex-1 mt-2 relative z-10">
@@ -70,17 +47,37 @@ const JobCard = ({ job, onClick, relevanceScore = 0, isSaved = false, onSaveTogg
         </p>
       </div>
 
-      <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center gap-y-2 gap-x-4 relative z-10">
-        <div className="flex items-center gap-1.5 text-sm font-medium text-[#555F6B]">
-          <MapPin size={16} className="text-[#003F87]/60" />
-          {location || 'Remote / Unspecified'}
+      <div className="mt-5 pt-4 flex flex-wrap justify-between items-center gap-y-2 relative z-10">
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            className="px-6 py-2 bg-[#2563EB] text-white text-sm font-bold rounded hover:bg-blue-700 transition-colors"
+          >
+            Details
+          </button>
+          
+          {isApplied && (
+            <div className="px-6 py-2 bg-emerald-50 text-emerald-600 border border-emerald-100 text-sm font-bold rounded flex items-center justify-center">
+              Applied
+            </div>
+          )}
         </div>
-        
-        {salary && (
-          <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
-            <DollarSign size={16} />
-            {salary}
-          </div>
+
+        {onSaveToggle && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSaveToggle(job);
+            }}
+            className={`p-2 rounded border transition-all ${
+              isSaved 
+                ? 'bg-rose-50 border-rose-100 text-rose-500 hover:bg-rose-100' 
+                : 'bg-white border-slate-200 text-slate-400 hover:text-rose-500 hover:bg-slate-50'
+            }`}
+            title={isSaved ? "Saved" : "Save Job"}
+          >
+            <Heart size={18} fill={isSaved ? "currentColor" : "none"} />
+          </button>
         )}
       </div>
     </div>

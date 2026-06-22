@@ -23,7 +23,7 @@ const JobApplicationModal = ({ job, userInfo, onClose, onApplySuccess }) => {
     };
 
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://novox-job-scraper-api.onrender.com';
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/scraper-api';
       const response = await fetch(`${baseUrl}/applications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

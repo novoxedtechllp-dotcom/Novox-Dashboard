@@ -118,7 +118,7 @@ const StudentJobs = ({ userInfo }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://novox-job-scraper-api.onrender.com';
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/scraper-api';
       const response = await fetch(`${baseUrl}/jobs`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
@@ -143,12 +143,29 @@ const StudentJobs = ({ userInfo }) => {
     if (localApplied) setAppliedJobs(JSON.parse(localApplied));
   }, [userInfo]);
 
+  const abortControllerRef = useRef(null);
+
+  const handleCancelSearch = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsSimulatingScrape(false);
+    setIsLoading(false);
+  };
+
   const simulateScraping = async () => {
     setIsSimulatingScrape(true);
     setScrapeProgress(0);
     setStatusLogs(['Initializing headless browsers...', 'Connecting to job boards...']);
     setIsSearchSubmitted(true);
     setError(null);
+    
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
     
     let currentProgress = 0;
     const interval = setInterval(() => {
@@ -185,10 +202,16 @@ const StudentJobs = ({ userInfo }) => {
       const activeSources = Object.keys(activeBoards).filter(key => activeBoards[key]);
       formData.append('sources', activeSources.length > 0 ? activeSources.join(',') : 'Internshala,LinkedIn');
 
-      const response = await fetch('https://novox-job-scraper.onrender.com/jobs', {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/scraper-api';
+      const response = await fetch(`${baseUrl}/jobs`, {
         method: 'POST',
-        body: formData
+        body: formData,
+        signal
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
       const data = await response.json();
       
@@ -202,6 +225,9 @@ const StudentJobs = ({ userInfo }) => {
         }
       }
     } catch (err) {
+      if (err?.name === 'AbortError') {
+        return; // Aborted by user, exit gracefully without showing errors
+      }
       console.error('Failed to scrape jobs:', err);
       setError('🚦 Server is busy right now. Please try again later.');
     } finally {
@@ -210,8 +236,17 @@ const StudentJobs = ({ userInfo }) => {
       setScrapeProgress(100);
       setStatusLogs(prev => [...prev, 'Done!']);
       setTimeout(() => setIsSimulatingScrape(false), 800);
+      abortControllerRef.current = null;
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const handleSearch = () => {
     simulateScraping();
@@ -267,7 +302,7 @@ const StudentJobs = ({ userInfo }) => {
     setIsDetailsLoading(true);
     
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://novox-job-scraper-api.onrender.com';
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/scraper-api';
       const urlParam = encodeURIComponent(job.link);
       const sourceParam = encodeURIComponent(job.source || 'Direct');
       const response = await fetch(`${baseUrl}/job-details?url=${urlParam}&source=${sourceParam}`);
@@ -531,6 +566,7 @@ const StudentJobs = ({ userInfo }) => {
                           onClick={() => handleJobClick(job)} 
                           relevanceScore={getRelevanceScore(job)}
                           isSaved={savedJobs.some(sj => sj.link === job.link)}
+                          isApplied={appliedJobs.some(aj => aj.link === job.link)}
                           onSaveToggle={handleSaveToggle}
                         />
                       ))}
@@ -633,6 +669,7 @@ const StudentJobs = ({ userInfo }) => {
                       job={job} 
                       onClick={() => handleJobClick(job)} 
                       isSaved={true}
+                      isApplied={appliedJobs.some(aj => aj.link === job.link)}
                       onSaveToggle={handleSaveToggle}
                     />
                   ))}
@@ -660,6 +697,9 @@ const StudentJobs = ({ userInfo }) => {
                       key={idx} 
                       job={job} 
                       onClick={() => handleJobClick(job)} 
+                      isApplied={true}
+                      isSaved={savedJobs.some(sj => sj.link === job.link)}
+                      onSaveToggle={handleSaveToggle}
                     />
                   ))}
                 </div>
@@ -687,8 +727,15 @@ const StudentJobs = ({ userInfo }) => {
           job={selectedJob} 
           details={jobDetails}
           isLoading={isDetailsLoading}
+          isApplied={appliedJobs.some(aj => aj.link === selectedJob.link)}
           onClose={() => setSelectedJob(null)}
           onApplyClick={() => setShowApplyModal(true)}
+          onMarkApplied={() => {
+            const email = userInfo?.email || 'default';
+            const updatedApplied = [...appliedJobs, selectedJob];
+            setAppliedJobs(updatedApplied);
+            localStorage.setItem(`appliedJobs_${email}`, JSON.stringify(updatedApplied));
+          }}
         />
       )}
 
@@ -731,7 +778,14 @@ const StudentJobs = ({ userInfo }) => {
       {/* Scraper Loading Simulation Overlay */}
       {isSimulatingScrape && (
         <div className="console-progress-card-overlay animate-fade-in" style={{ zIndex: 9999, position: 'fixed' }}>
-          <div className="premium-progress-card animate-slide-up">
+          <div className="premium-progress-card animate-slide-up relative">
+            <button 
+              onClick={() => setIsSimulatingScrape(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 z-50 p-1 bg-white rounded-full shadow-sm border border-slate-100 transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            
             {/* Progress Bar Container */}
             <div className="loading-progress-bar-container">
               <div className="loading-progress-bar" style={{ width: `${scrapeProgress}%` }}></div>
