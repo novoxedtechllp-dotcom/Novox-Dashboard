@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Phone, Mail, MessageSquare, Plus, ChevronRight, TrendingUp, Users, BookOpen, Zap, MoreHorizontal, Paperclip, RefreshCw, CheckSquare, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Phone, Mail, MessageSquare, Plus, ChevronRight, TrendingUp, Users, BookOpen, Zap, MoreHorizontal, Paperclip, RefreshCw, CheckSquare, X, Calendar, RefreshCcw } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import LoadingSpinner from '../../../../components/LoadingSpinner';
 import CustomSelect from '../../../../components/CustomSelect';
 
@@ -45,7 +47,7 @@ function InsightCard({ title, icon, children }) {
     <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E8EEF7', padding: '18px 20px', flex: 1, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <span style={{ color: '#003F87' }}>{icon}</span>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#555F6B' }}>{title}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#555F6B' }}>{title}</span>
       </div>
       {children}
     </div>
@@ -66,7 +68,7 @@ function BarRow({ label, value, max, color = '#003F87' }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: '#555', width: 52, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: '#555', width: 90, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={label}>{label}</span>
       <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#EEF2F8', overflow: 'hidden' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4, transition: 'width .4s' }} />
       </div>
@@ -80,7 +82,7 @@ function SalespersonChip({ initials, name, count }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F4F7FC', borderRadius: 10, padding: '8px 14px', flex: 1, minWidth: 120 }}>
       <Avatar initials={initials} size={30} />
       <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#1A2B4A' }}>{name}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#1A2B4A' }}>{name}</div>
         <div style={{ fontSize: 11, color: '#777' }}>{count} leads</div>
       </div>
     </div>
@@ -149,7 +151,7 @@ function InsightsHeader({ isMobile, isTablet, performance, leads = [] }) {
                 <div style={{ width: `${lostPct}%`, height: '100%', background: '#E53935', borderRadius: 4 }} />
               </div>
               <span style={{ fontSize: 18, fontWeight: 800, color: '#E53935', minWidth: 28 }}>{lost}</span>
-              <span style={{ fontSize: 12, color: '#555' }}>Lost</span>
+              <span style={{ fontSize: 13, color: '#555' }}>Lost</span>
             </div>
           </div>
         </InsightCard>
@@ -157,7 +159,7 @@ function InsightsHeader({ isMobile, isTablet, performance, leads = [] }) {
         <InsightCard title="Top Course Interest" icon={<BookOpen size={15} />}>
           {sortedCourses.length > 0 ? (
             sortedCourses.map(([course, count], idx) => (
-              <BarRow key={course} label={course.length > 8 ? course.substring(0,8)+'..' : course} value={count} max={maxCourseCount} color={courseColors[idx]} />
+              <BarRow key={course} label={course} value={count} max={maxCourseCount} color={courseColors[idx]} />
             ))
           ) : (
             <div className="text-xs text-slate-400 italic text-center mt-4">No course data</div>
@@ -169,7 +171,7 @@ function InsightsHeader({ isMobile, isTablet, performance, leads = [] }) {
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #E8EEF7', padding: '14px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <TrendingUp size={15} color="#003F87" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#555F6B' }}>Performance by Salesperson</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#555F6B' }}>Performance by Salesperson</span>
         </div>
         <div className="flex gap-2.5 flex-wrap">
           {performance && performance.length > 0 ? (
@@ -195,7 +197,7 @@ function LeadCard({ lead, onOpenDetails }) {
     >
       {/* Top row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#003F87' }}>{lead.name}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#003F87' }}>{lead.name}</span>
         <span style={{ fontSize: 10, color: '#999' }}>{lead.created_at}</span>
       </div>
 
@@ -270,7 +272,7 @@ function KanbanColumn({ stage, leads, getSourceName, onOpenDetails }) {
 
 // ─── Add Lead Modal ───────────────────────────────────────────────────────────
 const labelStyle = { display: 'block', fontSize: 11, fontWeight: 700, color: '#555', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 };
-const fieldStyle = { width: '100%', padding: '9px 12px', border: '1px solid #D8E0EC', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
+const fieldStyle = { width: '100%', padding: '9px 12px', border: '1px solid #D8E0EC', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
 
 function AddLeadModal({ isOpen, onClose, onSave, sources, stages, teamMembers, coursesList }) {
   const { isMobile } = useBreakpoint();
@@ -355,8 +357,8 @@ function AddLeadModal({ isOpen, onClose, onSave, sources, stages, teamMembers, c
             <input type="text" value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Optional note..." style={fieldStyle} />
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 6 }}>
-            <button type="button" onClick={onClose} style={{ padding: '8px 18px', border: '1px solid #D8E0EC', borderRadius: 8, background: '#fff', fontSize: 13, fontWeight: 700, color: '#555', cursor: 'pointer' }}>Cancel</button>
-            <button type="submit" style={{ padding: '8px 18px', background: '#003F87', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save Lead</button>
+            <button type="button" onClick={onClose} style={{ padding: '8px 18px', border: '1px solid #D8E0EC', borderRadius: 8, background: '#fff', fontSize: 14, fontWeight: 700, color: '#555', cursor: 'pointer' }}>Cancel</button>
+            <button type="submit" style={{ padding: '8px 18px', background: '#003F87', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Save Lead</button>
           </div>
         </form>
       </div>
@@ -395,7 +397,7 @@ function DetailsModal({ lead, initialTab = 'overview', onClose, onUpdateStage, s
         {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid #EEF2F8', background: '#F7F9FC', padding: '0 24px' }}>
           {['overview', 'messages'].map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ padding: '12px 0', marginRight: 24, fontSize: 13, fontWeight: 700, color: tab === t ? '#003F87' : '#999', background: 'none', border: 'none', borderBottomWidth: 2, borderBottomStyle: 'solid', borderBottomColor: tab === t ? '#003F87' : 'transparent', cursor: 'pointer', textTransform: 'capitalize' }}>{t === 'messages' ? 'Messages & Notes' : 'Overview'}</button>
+            <button key={t} onClick={() => setTab(t)} style={{ padding: '12px 0', marginRight: 24, fontSize: 14, fontWeight: 700, color: tab === t ? '#003F87' : '#999', background: 'none', border: 'none', borderBottomWidth: 2, borderBottomStyle: 'solid', borderBottomColor: tab === t ? '#003F87' : 'transparent', cursor: 'pointer', textTransform: 'capitalize' }}>{t === 'messages' ? 'Messages & Notes' : 'Overview'}</button>
           ))}
         </div>
 
@@ -485,8 +487,8 @@ function DetailsModal({ lead, initialTab = 'overview', onClose, onUpdateStage, s
                 )}
               </div>
               <form onSubmit={handleSend} style={{ padding: '12px 16px', borderTop: '1px solid #E8EEF7', background: '#fff', display: 'flex', gap: 8 }}>
-                <input value={msg} onChange={e => setMsg(e.target.value)} placeholder="Type a note..." style={{ flex: 1, border: '1px solid #D8E0EC', borderRadius: 8, padding: '8px 12px', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
-                <button type="submit" disabled={!msg.trim()} style={{ background: '#003F87', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: msg.trim() ? 'pointer' : 'not-allowed', opacity: msg.trim() ? 1 : .5 }}>Send</button>
+                <input value={msg} onChange={e => setMsg(e.target.value)} placeholder="Type a note..." style={{ flex: 1, border: '1px solid #D8E0EC', borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none', fontFamily: 'inherit' }} />
+                <button type="submit" disabled={!msg.trim()} style={{ background: '#003F87', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 14, fontWeight: 700, cursor: msg.trim() ? 'pointer' : 'not-allowed', opacity: msg.trim() ? 1 : .5 }}>Send</button>
               </form>
             </div>
           )}
@@ -514,6 +516,9 @@ const SalesCrmContent = () => {
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [selectedCourse, setSelectedCourse] = useState('');
+  const [dateRange, setDateRange] = useState([null, null]);
+  const [startDate, endDate] = dateRange;
+  const datePickerRef = useRef(null);
 
   const stages = ['NEW', 'CONTACTED', 'COUNSELLING', 'FOLLOWUP', 'ENROLLED', 'LOST'];
 
@@ -557,7 +562,25 @@ const SalesCrmContent = () => {
 
   const filteredLeads = leads.filter(lead => {
     const matchesCourse = !selectedCourse || lead.course === selectedCourse;
-    return matchesCourse;
+    
+    let matchesDate = true;
+    if (startDate || endDate) {
+      if (lead.raw_created_at) {
+        const leadDate = new Date(lead.raw_created_at);
+        leadDate.setHours(0,0,0,0);
+        
+        if (startDate && endDate) {
+           matchesDate = leadDate >= startDate && leadDate <= endDate;
+        } else if (startDate) {
+           matchesDate = leadDate >= startDate;
+        } else if (endDate) {
+           matchesDate = leadDate <= endDate;
+        }
+      } else {
+        matchesDate = false;
+      }
+    }
+    return matchesCourse && matchesDate;
   });
 
   const handleAddLead = async (form) => {
@@ -648,58 +671,105 @@ const SalesCrmContent = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'Inter, system-ui, sans-serif', color: '#003F87', fontSize: 14, fontWeight: 600 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#003F87', fontSize: 14, fontWeight: 600 }}>
         <LoadingSpinner />
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, -apple-system, sans-serif', background: '#F0F4FA', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', boxSizing: 'border-box', background: 'transparent', minHeight: '100vh' }}>
 
       {/* ── Main content area ── */}
       <div style={{ padding, display: 'flex', flexDirection: 'column', gap: 20, flex: 1 }}>
 
         {/* Page header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: 12 }}>
+        <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 min-h-[52px]">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 22, fontWeight: 800, color: '#003F87' }}>Lead Insights</span>
+            <h1 className="text-2xl font-bold text-slate-800">Lead Insights</h1>
+            <p className="text-slate-500 mt-1">Manage leads and track your sales pipeline.</p>
+          </div>
+        </div>
+
+        {/* ── Filter bar ── */}
+        <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between w-full relative z-[60]">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+            {/* Course Select */}
+            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Course</span>
+              <CustomSelect
+                value={selectedCourse}
+                onChange={setSelectedCourse}
+                options={[
+                  { value: '', label: 'All Courses' },
+                  ...uniqueCourses.map(c => ({ value: c, label: c }))
+                ]}
+                className="w-full sm:w-[200px]"
+                selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
+              />
             </div>
-            <p style={{ margin: 0, fontSize: 13, color: '#777', marginTop: 2 }}>Manage leads and track your sales pipeline.</p>
-          </div>
-        </div>
 
-        {/* ── Moved-up row: date range + last-updated badge (now above the filter bar) ── */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#555', background: '#fff', border: '1px solid #D8E0EC', borderRadius: 8, padding: '6px 12px' }}>
-            📅 Oct 1 – Oct 31, 2023
-          </div>
-          <span style={{ fontSize: 11, color: '#27AE60', background: '#E8F5E9', padding: '4px 10px', borderRadius: 20, fontWeight: 700 }}>Last updated: Just now</span>
-          <button onClick={fetchLeads} className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors shrink-0" title="Refresh">
-            <RefreshCw size={15} />
-          </button>
-        </div>
+            {/* Date Filters (From and To) */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 hover:border-[#003F87]/30 transition-colors">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 shrink-0">From</span>
+                <div className="flex items-center gap-1">
+                  <DatePicker
+                    selected={startDate}
+                    onChange={(date) => setDateRange([date, endDate])}
+                    selectsStart
+                    startDate={startDate}
+                    endDate={endDate}
+                    isClearable={true}
+                    dateFormat="dd/MM/yyyy"
+                    placeholderText="Select Date"
+                    showMonthDropdown
+                    showYearDropdown
+                    scrollableYearDropdown
+                    dropdownMode="scroll"
+                    className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px] pr-7"
+                  />
+                  <Calendar size={14} className="text-slate-400 shrink-0 pointer-events-none" />
+                </div>
+              </div>
 
-        {/* ── Course filter bar (Course filter on left, Add Lead button on right) ── */}
-        <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Course</span>
-            <CustomSelect
-              value={selectedCourse}
-              onChange={setSelectedCourse}
-              options={[
-                { value: '', label: 'All Courses' },
-                ...uniqueCourses.map(c => ({ value: c, label: c }))
-              ]}
-              className="w-full sm:w-[200px]"
-              selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
-            />
+              <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 hover:border-[#003F87]/30 transition-colors">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 shrink-0">To</span>
+                <div className="flex items-center gap-1">
+                  <DatePicker
+                    selected={endDate}
+                    onChange={(date) => setDateRange([startDate, date])}
+                    selectsEnd
+                    startDate={startDate}
+                    endDate={endDate}
+                    minDate={startDate}
+                    isClearable={true}
+                    dateFormat="dd/MM/yyyy"
+                    placeholderText="Select Date"
+                    showMonthDropdown
+                    showYearDropdown
+                    scrollableYearDropdown
+                    dropdownMode="scroll"
+                    className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px] pr-7"
+                  />
+                  <Calendar size={14} className="text-slate-400 shrink-0 pointer-events-none" />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <button onClick={() => setIsAddOpen(true)} style={{ background: '#003F87', color: '#fff', border: 'none', borderRadius: 9, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <Plus size={15} /> Add Lead
-          </button>
+          <div className="flex items-center gap-3 shrink-0 mt-4 sm:mt-0">
+            <button 
+              onClick={fetchLeads}
+              className="bg-white border border-slate-200 hover:bg-slate-50 w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 transition-colors"
+              title="Refresh Data"
+            >
+              <RefreshCcw size={16} />
+            </button>
+            <button onClick={() => setIsAddOpen(true)} style={{ background: '#003F87', color: '#fff', border: 'none', borderRadius: 9, padding: '8px 16px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <Plus size={15} /> Add Lead
+            </button>
+          </div>
         </div>
 
         {/* Insights */}
@@ -707,7 +777,7 @@ const SalesCrmContent = () => {
 
         {/* Active filter indicator */}
         {selectedCourse && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#555F6B', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#555F6B', flexWrap: 'wrap' }}>
             <span>Showing <strong style={{ color: '#003F87' }}>{filteredLeads.length}</strong> of {leads.length} leads</span>
             <span style={{ background: '#E8EEF7', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               Course: {selectedCourse}
