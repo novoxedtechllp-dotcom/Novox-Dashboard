@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { ChevronDown, MessageSquare, BookOpen, Send, Layers, CheckSquare, List, CalendarDays, ChevronLeft, ChevronRight, LayoutList, X, CheckCircle } from "lucide-react";
+import CustomSelect from "../../../components/CustomSelect";
 
 const getLocalDateString = (d) => {
   const date = new Date(d);
@@ -16,6 +17,7 @@ const DailySchedule = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const datePickerRef = useRef(null);
   const [dailyPlan, setDailyPlan] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState('ALL');
   
   const [expandedCourse, setExpandedCourse] = useState(null);
   const [expandedModule, setExpandedModule] = useState(null);
@@ -140,39 +142,59 @@ const DailySchedule = () => {
           <p className="text-slate-500 mt-1">View assigned topics and provide feedback.</p>
         </div>
 
-        <div className="bg-white p-4 px-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-start gap-8 mb-8 w-full">
-          <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-            <CalendarDays size={18} className="text-[#003F87]" /> Date Filter
-          </div>
-          
-          <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
-            <button onClick={handlePrevDay} className="w-9 h-9 flex items-center justify-center rounded-lg bg-white text-slate-600 hover:text-[#003F87] hover:shadow-sm border border-slate-200 transition-all active:scale-95">
-              <ChevronLeft size={18} />
-            </button>
+        <div className="bg-white p-4 px-6 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-start gap-8 mb-8 w-full">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+              <CalendarDays size={18} className="text-[#003F87]" /> Date
+            </div>
             
-            <div className="relative inline-flex items-center bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
-              <DatePicker
-                ref={datePickerRef}
-                selected={selectedDate}
-                onChange={(date) => setSelectedDate(date)}
-                dateFormat="dd/MM/yyyy"
-                placeholderText="dd/mm/yyyy"
-                className="bg-transparent text-slate-800 text-sm font-bold outline-none cursor-pointer w-[125px] text-center pr-6"
-                showMonthDropdown
-                showYearDropdown
-                scrollableYearDropdown
-                dropdownMode="scroll"
-              />
-              <CalendarDays 
-                size={16} 
-                className="text-[#003F87] cursor-pointer absolute right-3" 
-                onClick={() => datePickerRef.current?.setFocus()} 
+            <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
+              <button onClick={handlePrevDay} className="w-9 h-9 flex items-center justify-center rounded-lg bg-white text-slate-600 hover:text-[#003F87] hover:shadow-sm border border-slate-200 transition-all active:scale-95">
+                <ChevronLeft size={18} />
+              </button>
+              
+              <div className="relative inline-flex items-center bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+                <DatePicker
+                  ref={datePickerRef}
+                  selected={selectedDate}
+                  onChange={(date) => setSelectedDate(date)}
+                  dateFormat="dd/MM/yyyy"
+                  placeholderText="dd/mm/yyyy"
+                  className="bg-transparent text-slate-800 text-sm font-bold outline-none cursor-pointer w-[125px] text-center pr-6"
+                  showMonthDropdown
+                  showYearDropdown
+                  scrollableYearDropdown
+                  dropdownMode="scroll"
+                />
+                <CalendarDays 
+                  size={16} 
+                  className="text-[#003F87] cursor-pointer absolute right-3" 
+                  onClick={() => datePickerRef.current?.setFocus()} 
+                />
+              </div>
+
+              <button onClick={handleNextDay} className="w-9 h-9 flex items-center justify-center rounded-lg bg-white text-slate-600 hover:text-[#003F87] hover:shadow-sm border border-slate-200 transition-all active:scale-95">
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+              <BookOpen size={18} className="text-[#003F87]" /> Course
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 flex items-center">
+              <CustomSelect 
+                value={selectedCourse}
+                onChange={setSelectedCourse}
+                options={[
+                  { value: 'ALL', label: 'All Courses' },
+                  ...Array.from(new Set(dailyPlan.map(sm => sm.course_modules?.courses?.name).filter(Boolean))).map(c => ({ value: c, label: c }))
+                ]}
+                className="w-[200px]"
+                selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
               />
             </div>
-
-            <button onClick={handleNextDay} className="w-9 h-9 flex items-center justify-center rounded-lg bg-white text-slate-600 hover:text-[#003F87] hover:shadow-sm border border-slate-200 transition-all active:scale-95">
-              <ChevronRight size={18} />
-            </button>
           </div>
         </div>
 
@@ -181,20 +203,20 @@ const DailySchedule = () => {
             <div className="w-8 h-8 border-4 border-blue-200 border-t-[#003F87] rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-slate-500 font-medium">Loading schedule...</p>
           </div>
-        ) : dailyPlan.length === 0 ? (
+        ) : dailyPlan.filter(sm => selectedCourse === 'ALL' || sm.course_modules?.courses?.name === selectedCourse).length === 0 ? (
           <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center text-slate-500 font-medium shadow-sm flex flex-col items-center">
             <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
               <BookOpen size={40} className="opacity-50" />
             </div>
             <h3 className="text-xl font-bold text-slate-700 mb-2">A Clear Day</h3>
-            <p className="text-sm">You do not have any tasks or topics scheduled for this date.</p>
+            <p className="text-sm">You do not have any tasks or topics scheduled for this date matching the selected filter.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-6 max-w-4xl mx-auto">
-            {dailyPlan.map((submodule, index) => (
+            {dailyPlan.filter(sm => selectedCourse === 'ALL' || sm.course_modules?.courses?.name === selectedCourse).map((submodule, index, arr) => (
               <div key={submodule.id} className="relative pl-6 md:pl-10">
                 {/* Timeline Line */}
-                {index !== dailyPlan.length - 1 && <div className="absolute left-3 md:left-[19px] top-8 bottom-[-24px] w-[2px] bg-slate-200"></div>}
+                {index !== arr.length - 1 && <div className="absolute left-3 md:left-[19px] top-8 bottom-[-24px] w-[2px] bg-slate-200"></div>}
                 {/* Timeline Dot */}
                 <div className="absolute left-0 md:left-[10px] top-5 w-6 h-6 rounded-full bg-white border-[3px] border-[#003F87] shadow-sm z-10 flex items-center justify-center">
                   <div className="w-2 h-2 bg-[#003F87] rounded-full"></div>
