@@ -13,9 +13,6 @@ import {
   Terminal,
   User,
   Upload,
-  CreditCard,
-  Receipt,
-  IndianRupee,
   Globe,
   Image
 } from 'lucide-react';
@@ -106,8 +103,6 @@ const StudentProfile = ({ userInfo }) => {
   const [avatarError, setAvatarError] = useState(false);
 
   const [isEditingSocials, setIsEditingSocials] = useState(false);
-  const [transactionPage, setTransactionPage] = useState(1);
-  const transactionsPerPage = 5;
   const [tempSocialLinks, setTempSocialLinks] = useState({
     github: '',
     linkedin: '',
@@ -118,9 +113,6 @@ const StudentProfile = ({ userInfo }) => {
     facebook: '',
     twitter: ''
   });
-
-  const [studentFees, setStudentFees] = useState([]);
-  const [feeTotals, setFeeTotals] = useState({ total: 0, paid: 0, balance: 0 });
 
   const handleSaveSocials = () => {
     localStorage.setItem(`student_social_links_${studentId}`, JSON.stringify(tempSocialLinks));
@@ -274,29 +266,6 @@ const StudentProfile = ({ userInfo }) => {
   };
 
   useEffect(() => {
-    try {
-      const storedFees = localStorage.getItem('novox_student_fees');
-      let myFees = [];
-      if (storedFees && studentId) {
-        const allFees = JSON.parse(storedFees);
-        myFees = allFees.filter(f => f.studentId === studentId);
-      }
-      setStudentFees(myFees);
-    } catch(e) {
-      console.error(e);
-    }
-  }, [studentId]);
-
-  useEffect(() => {
-    const hasEnrolledCourses = profileData.courses && profileData.courses.length > 0;
-    const total = hasEnrolledCourses ? profileData.courses.reduce((sum, c) => sum + (parseInt(String(c.price || '0').replace(/[^0-9]/g, ''), 10) || 0), 0) : 0;
-    const paid = studentFees.reduce((sum, f) => sum + (Number(f.paidAmount) || parseInt(String(f.amount).replace(/[^0-9]/g, ''), 10) || 0), 0);
-    const balance = Math.max(0, total - paid);
-    
-    setFeeTotals({ total, paid, balance });
-  }, [studentFees, profileData.courses]);
-
-  useEffect(() => {
     fetchStudentData();
   }, [studentId, token]);
 
@@ -407,36 +376,6 @@ const StudentProfile = ({ userInfo }) => {
     }
   };
 
-  const currentMonthFee = useMemo(() => {
-    if (!studentId || !studentFees || studentFees.length === 0) {
-      return { amount: 0, status: 'Not Paid' };
-    }
-    
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    
-    const thisMonthFeeRecords = studentFees.filter(f => {
-      if (!f.date) return false;
-      const feeDate = new Date(f.date);
-      return feeDate.getMonth() === currentMonth && feeDate.getFullYear() === currentYear;
-    });
-    
-    if (thisMonthFeeRecords.length === 0) {
-      return { amount: 0, status: 'Not Paid' };
-    }
-    
-    const amount = thisMonthFeeRecords.reduce((sum, f) => sum + (Number(f.paidAmount) || Number(f.totalAmount) || Number(f.amount) || 0), 0);
-    const rawStatus = thisMonthFeeRecords[0].status || 'Not Paid';
-    
-    let status = 'Not Paid';
-    if (rawStatus === 'Paid' || rawStatus === 'Full Paid' || rawStatus === 'Approved' || rawStatus === 'Partially Paid') {
-      status = 'Paid';
-    }
-    
-    return { amount, status };
-  }, [studentFees, studentId]);
-
   const formattedAdmissionDate = () => {
     if (!profileData.joiningDate) return 'N/A';
     try {
@@ -457,8 +396,8 @@ const StudentProfile = ({ userInfo }) => {
       {/* Compact Header aligned matching Figma Dimensions */}
       <div className="max-w-7xl mx-auto w-full mb-6 border-b border-slate-100 pb-0 md:h-24 md:min-h-[96px] flex flex-col md:flex-row md:items-end justify-between">
         <div className="mb-4 md:mb-0 pb-3 flex flex-col justify-end h-full">
-          <h1 className="text-[28px] font-extrabold text-[#003F87] leading-none mb-1.5 tracking-tight">Student Profile</h1>
-          <p className="text-slate-500 font-medium text-[13px] max-w-xl leading-relaxed">
+          <h1 className="text-2xl font-bold text-slate-800">Student Profile</h1>
+          <p className="text-slate-500 mt-1">
             Manage your academic identity and preferences.
           </p>
         </div>
@@ -715,139 +654,6 @@ const StudentProfile = ({ userInfo }) => {
 
         </div>
 
-          {/* ROW 3: Financial Overview */}
-          <div className="w-full mt-6 mb-8">
-            <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2 mb-4">
-              <CreditCard className="w-5 h-5 text-[#003F87]" />
-              Financial Overview
-            </h3>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column: Summary */}
-              <div className="lg:col-span-1 flex flex-col gap-4 h-full">
-                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm flex-1 flex flex-col justify-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
-                      <Receipt size={20} />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Course Fees</p>
-                      <h4 className="text-lg font-black text-slate-800">₹{feeTotals.total.toLocaleString()}</h4>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm flex-1 flex flex-col justify-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
-                      <IndianRupee size={20} />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Amount Paid</p>
-                      <h4 className="text-lg font-black text-emerald-600">₹{feeTotals.paid.toLocaleString()}</h4>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm flex-1 flex flex-col justify-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
-                      <CreditCard size={20} />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Remaining Balance</p>
-                      <h4 className="text-lg font-black text-slate-800">₹{feeTotals.balance.toLocaleString()}</h4>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm flex-1 flex flex-col justify-center">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
-                        <Receipt size={20} />
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">This Month's Fee</p>
-                        <h4 className="text-lg font-black text-slate-800">₹{currentMonthFee.amount.toLocaleString()}</h4>
-                      </div>
-                    </div>
-                    <div>
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${
-                        currentMonthFee.status === 'Paid' 
-                          ? 'bg-[#E5F7ED] text-[#008A2E] border-[#008A2E]/20' 
-                          : 'bg-[#FDE2E2] text-[#D80000] border-[#D80000]/20'
-                      }`}>
-                        {currentMonthFee.status}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Transaction History */}
-              <div className="lg:col-span-2">
-                <div className="bg-white rounded-xl border border-slate-100 shadow-sm h-full flex flex-col">
-                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                    <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Recent Transactions</h4>
-                  </div>
-                  <div className="p-5 flex-1 flex flex-col justify-between">
-                    {studentFees.length > 0 ? (
-                      <div className="flex flex-col h-full">
-                        <div className="flex flex-col gap-3 min-h-[340px]">
-                          {studentFees.slice((transactionPage - 1) * transactionsPerPage, transactionPage * transactionsPerPage).map((fee, idx) => (
-                            <div key={fee.id || idx} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors bg-slate-50/50">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-bold text-slate-800">{fee.course} Fee Payment</span>
-                                <span className="text-xs font-medium text-slate-500 mt-0.5">{fee.date} • {fee.type}</span>
-                              </div>
-                              <div className="flex flex-col items-end">
-                                <span className="text-sm font-black text-emerald-600">₹{(Number(fee.paidAmount) || 0).toLocaleString()}</span>
-                                <span className={`text-[10px] font-black uppercase tracking-wider mt-1 ${fee.status === 'Paid' || fee.status === 'Full Paid' ? 'text-emerald-500' : fee.status === 'Partially Paid' ? 'text-amber-500' : 'text-rose-500'}`}>
-                                  {fee.status}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        {studentFees.length > transactionsPerPage && (
-                          <div className="mt-4 pt-4 border-t border-slate-100 flex justify-center items-center gap-2">
-                            <button 
-                              onClick={() => setTransactionPage(p => Math.max(1, p - 1))}
-                              disabled={transactionPage === 1}
-                              className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold"
-                            >&lt;</button>
-                            {Array.from({ length: Math.ceil(studentFees.length / transactionsPerPage) }, (_, i) => i + 1).map(page => (
-                              <button 
-                                key={page}
-                                onClick={() => setTransactionPage(page)}
-                                className={`w-10 h-10 flex items-center justify-center rounded-lg font-bold transition-all shadow-sm ${
-                                  transactionPage === page ? 'bg-[#003F87] text-white shadow-[#003F87]/20' : 'text-slate-600 hover:bg-slate-50 border border-slate-200 bg-white'
-                                }`}
-                              >
-                                {page}
-                              </button>
-                            ))}
-                            <button 
-                              onClick={() => setTransactionPage(p => Math.min(Math.ceil(studentFees.length / transactionsPerPage), p + 1))}
-                              disabled={transactionPage === Math.ceil(studentFees.length / transactionsPerPage)}
-                              className="w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold"
-                            >&gt;</button>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
-                        <Receipt size={32} className="mb-3 text-slate-300" />
-                        <p className="text-sm font-bold">No transactions found</p>
-                        <p className="text-xs text-slate-400 mt-1">There are no fee records available.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
         </>
       )}

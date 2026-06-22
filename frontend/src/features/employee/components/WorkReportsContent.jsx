@@ -38,6 +38,7 @@ const cleanLegacyReport = (report) => {
 
 
 const WorkReportsContent = ({ searchQuery = "" }) => {
+  const datePickerRef = useRef(null);
   const [reports, setReports] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +96,7 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
   const [attachmentFile, setAttachmentFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [fileError, setFileError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFileSelect = (file) => {
     setFileError("");
@@ -154,7 +156,14 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
       const proj = cleaned.projectArea.toLowerCase();
       const work = cleaned.workDone.toLowerCase();
       
-      if (!empName.includes(q) && !proj.includes(q) && !work.includes(q)) {
+      const nameWords = empName.split(/\s+/);
+      const projWords = proj.split(/\s+/);
+      const workWords = work.split(/\s+/);
+      const matchesName = nameWords.some(word => word.startsWith(q));
+      const matchesProj = projWords.some(word => word.startsWith(q));
+      const matchesWork = workWords.some(word => word.startsWith(q));
+      
+      if (!matchesName && !matchesProj && !matchesWork) {
         return false;
       }
     }
@@ -164,8 +173,9 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
 
   const handleSubmitReport = async (e) => {
     e.preventDefault();
-    if (!newReport.work_done) return;
+    if (!newReport.work_done || isSubmitting) return;
 
+    setIsSubmitting(true);
     try {
       const userInfo = JSON.parse(sessionStorage.getItem("userInfo"));
       
@@ -190,6 +200,7 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
           attachmentName = attachmentFile.name;
         } else {
           setFileError("Failed to upload file");
+          setIsSubmitting(false);
           return;
         }
       }
@@ -236,6 +247,8 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -248,12 +261,8 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
       <div className="p-[24px] flex flex-col gap-[24px] w-full">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-[24px] font-bold text-[#003F87]">
-              Work Reports
-            </h2>
-            <p className="text-slate-500 text-[14px] mt-1">
-              Review and manage employee submissions
-            </p>
+            <h1 className="text-2xl font-bold text-slate-800">Work Reports</h1>
+            <p className="text-slate-500 mt-1">Review and manage employee submissions.</p>
           </div>
           {isEmployee && (
             <button
@@ -290,6 +299,7 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Date</span>
                 <div className="relative flex items-center">
                   <DatePicker
+                    ref={datePickerRef}
                     selected={selectedSpecificDate ? new Date(selectedSpecificDate) : null}
                     onChange={(date) => {
                       if (date) {
@@ -301,11 +311,19 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
                         setSelectedSpecificDate("");
                       }
                     }}
-                    dateFormat="MMMM d, yyyy"
-                    placeholderText="Select a date"
-                    className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px]"
+                    dateFormat="dd/MM/yyyy"
+                    placeholderText="dd/mm/yyyy"
+                    className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px] pr-8"
+                    showMonthDropdown
+                    showYearDropdown
+                    scrollableYearDropdown
+                    dropdownMode="scroll"
                   />
-                  <CalendarDays className="text-slate-400 ml-2" size={16} />
+                  <CalendarDays 
+                    className="text-slate-400 absolute right-0 cursor-pointer" 
+                    size={16} 
+                    onClick={() => datePickerRef.current?.setFocus()}
+                  />
                 </div>
               </div>
             </div>
@@ -639,16 +657,25 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
               <div className="flex gap-3 justify-end mt-4">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setIsSubmitModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600"
+                  className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  Submit
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit"
+                  )}
                 </button>
               </div>
             </form>
@@ -669,12 +696,63 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
                 <X size={20} />
               </button>
             </div>
-            <div className="flex-1 bg-slate-100 relative overflow-auto flex justify-center items-center p-4">
-              <iframe
-                src={currentDocAttachment.url}
-                title={currentDocAttachment.name}
-                className="w-full h-full border-none rounded shadow-sm"
-              ></iframe>
+            <div className="flex-1 bg-slate-100 relative overflow-hidden flex justify-center items-center">
+              {(() => {
+                const url = currentDocAttachment.url;
+                const isPdf = url.toLowerCase().endsWith(".pdf");
+                
+                // If it's a legacy Cloudinary PDF (image/upload), Cloudinary strictly blocks the PDF delivery (401 error).
+                // We bypass this entirely by asking Cloudinary to convert the PDF into a PNG image!
+                const isLegacyBlockedPdf = url.includes("res.cloudinary.com") && url.includes("/image/upload/") && isPdf;
+
+                if (isLegacyBlockedPdf) {
+                  const pngUrl = url.replace(/\.pdf$/i, ".png");
+                  const downloadPngUrl = pngUrl.replace("/image/upload/", "/image/upload/fl_attachment/");
+                  return (
+                    <div className="w-full h-full relative flex flex-col bg-slate-200/50 p-4 overflow-auto items-center">
+                      <div className="absolute top-4 right-8 z-10 flex gap-2">
+                        <a 
+                          href={downloadPngUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          download
+                          className="px-4 py-2 bg-[#003F87] text-white rounded-md text-sm font-semibold hover:bg-[#002B5E] shadow flex items-center gap-2"
+                        >
+                          <ExternalLink size={16} /> Download
+                        </a>
+                      </div>
+                      <img 
+                        src={pngUrl} 
+                        alt="Document Preview" 
+                        className="max-w-full shadow-md bg-white min-h-[500px]"
+                      />
+                    </div>
+                  );
+                }
+
+                // For new raw PDFs or other files, we show the reliable Download UI
+                // raw/upload URLs do not get 401 errors.
+                return (
+                  <div className="flex flex-col items-center justify-center w-full h-full text-center p-8">
+                    <div className="bg-white p-12 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center max-w-md w-full">
+                      <FileText size={64} className="text-[#003F87] mb-6 opacity-80" />
+                      <h4 className="text-xl font-bold text-slate-800 mb-2">Document Ready</h4>
+                      <p className="text-sm text-slate-500 mb-8 px-4">
+                        To access this document securely, please download it to your device.
+                      </p>
+                      <a 
+                        href={url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        download
+                        className="w-full py-3 bg-[#003F87] text-white rounded-xl text-sm font-bold hover:bg-[#002B5E] transition-all shadow-md hover:shadow-lg flex justify-center items-center gap-2"
+                      >
+                        <ExternalLink size={18} /> Download {isPdf ? 'PDF' : 'File'}
+                      </a>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
+import {
   Image as ImageIcon, Calendar, Cloud, Plus, Search,
   MoreVertical, ChevronLeft, ChevronRight, Check, X, Upload, ExternalLink, Pencil, Trash2
 } from 'lucide-react';
+import CustomSelect from './CustomSelect';
+import LoadingSpinner from './LoadingSpinner';
+import { useClickOutside } from '../hooks/useClickOutside';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const CATEGORY_STYLES = {
   EVENTS: { bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
@@ -13,7 +18,8 @@ const CATEGORY_STYLES = {
 
 
 
-const GalleryContent = () => {
+const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
+  const datePickerRef = useRef(null);
   const [websites, setWebsites] = useState([]);
   const [selectedWebsite, setSelectedWebsite] = useState('');
   const [showWebsiteModal, setShowWebsiteModal] = useState(false);
@@ -24,16 +30,15 @@ const GalleryContent = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [lastSelectedId, setLastSelectedId] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
-  
+
   // Storage
   const [storageData, setStorageData] = useState(null);
   const [storageError, setStorageError] = useState(false);
-  
+
   // Filters
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [selectedDate, setSelectedDate] = useState('');
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(12);
@@ -41,7 +46,7 @@ const GalleryContent = () => {
   // Modals & Actions
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFiles, setUploadFiles] = useState([]);
   const [uploadCategories, setUploadCategories] = useState([]);
@@ -57,7 +62,9 @@ const GalleryContent = () => {
   const [editImage, setEditImage] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', description: '' });
   const [isEditing, setIsEditing] = useState(false);
-  
+
+  const previewRef = useClickOutside(() => setPreviewImage(null));
+
   // Category Management
   const [showCategoryManageModal, setShowCategoryManageModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -80,7 +87,7 @@ const GalleryContent = () => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedIds.size > 0) {
           setShowDeleteModal(true);
@@ -107,8 +114,14 @@ const GalleryContent = () => {
       const res = await fetch('/api/gallery/websites', { headers: getAuthHeaders(), cache: 'no-store' });
       if (res.ok) {
         const result = await res.json();
-        setWebsites(result.data || []);
-        if (result.data?.length > 0) setSelectedWebsite(result.data[0].id);
+        const data = result.data || [];
+        setWebsites(data);
+        const saved = localStorage.getItem('gallerySelectedWebsite');
+        if (saved && data.find(w => w.id === saved)) {
+          setSelectedWebsite(saved);
+        } else if (data.length > 0) {
+          setSelectedWebsite(data[0].id);
+        }
       }
     } catch (e) { console.error(e); }
   };
@@ -130,30 +143,30 @@ const GalleryContent = () => {
   };
 
   const handleDeleteCategory = async (id) => {
-    if(!window.confirm("Are you sure you want to delete this category?")) return;
+    if (!window.confirm("Are you sure you want to delete this category?")) return;
     try {
       const res = await fetch(`/api/gallery/categories/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if(res.ok) fetchCategories();
+      if (res.ok) fetchCategories();
       else alert("Failed to delete category");
-    } catch(e) { console.error(e); }
+    } catch (e) { console.error(e); }
   };
 
   const handleCreateWebsite = async () => {
     if (!newWebsiteName.trim()) return;
     try {
       const slug = newWebsiteName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const res = await fetch('/api/gallery/websites', { method: 'POST', headers: {'Content-Type': 'application/json', ...getAuthHeaders()}, body: JSON.stringify({ name: newWebsiteName.trim(), slug }) });
-      if(res.ok) {
+      const res = await fetch('/api/gallery/websites', { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ name: newWebsiteName.trim(), slug }) });
+      if (res.ok) {
         setNewWebsiteName('');
         setShowWebsiteModal(false);
         fetchWebsites();
       }
-    } catch(e) { console.error(e); }
+    } catch (e) { console.error(e); }
   };
 
   const handleDeleteWebsite = async (siteId, siteName) => {
     if (!window.confirm(`Are you absolutely sure you want to completely delete "${siteName}" and all its categories and images? This action cannot be undone.`)) return;
-    
+
     try {
       const res = await fetch(`/api/gallery/websites/${siteId}`, {
         method: 'DELETE',
@@ -168,7 +181,7 @@ const GalleryContent = () => {
         const err = await res.json();
         alert(`Failed to delete website: ${err.message}`);
       }
-    } catch(e) {
+    } catch (e) {
       console.error(e);
       alert(`Network error: ${e.message}`);
     }
@@ -230,15 +243,15 @@ const GalleryContent = () => {
         if (data.data?.storage) {
           const usageBytes = data.data.storage.usage || 0;
           const limitBytes = data.data.storage.limit || (5 * 1024 * 1024 * 1024); // fallback 5GB
-          
+
           const gb = 1024 * 1024 * 1024;
           const usedGB = (usageBytes / gb).toFixed(2);
           const limitGB = (limitBytes / gb).toFixed(2);
           const leftGB = ((limitBytes - usageBytes) / gb).toFixed(2);
-          
+
           const usedPercent = (usageBytes / limitBytes) * 100;
           const leftPercent = 100 - usedPercent;
-          
+
           setStorageData({ usedGB, limitGB, leftGB, leftPercent });
         } else {
           setStorageError(true);
@@ -263,7 +276,7 @@ const GalleryContent = () => {
         },
         body: JSON.stringify({ ids: Array.from(selectedIds) })
       });
-      
+
       if (response.ok) {
         setSelectedIds(new Set());
         fetchGalleryData();
@@ -284,7 +297,7 @@ const GalleryContent = () => {
   const handleChangeCategory = async () => {
     if (newBulkCategories.length === 0 || selectedIds.size === 0) return;
     setIsChangingCategory(true);
-    
+
     let completed = 0;
     for (const id of selectedIds) {
       try {
@@ -306,7 +319,7 @@ const GalleryContent = () => {
       }
       completed++;
     }
-    
+
     setIsChangingCategory(false);
     setShowCategoryModal(false);
     setNewBulkCategories([]);
@@ -442,14 +455,17 @@ const GalleryContent = () => {
 
   // Filtering
   const filteredImages = images.filter(img => {
-    const titleStr = String(img.title || '').toLowerCase();
-    const descStr = String(img.description || '').toLowerCase();
-    const matchesSearch = titleStr.includes(searchQuery.toLowerCase()) || 
-                          descStr.includes(searchQuery.toLowerCase());
-                          
+    const q = searchQuery.toLowerCase();
+    const titleWords = img.title ? String(img.title).toLowerCase().split(/\s+/) : [];
+    const descWords = img.description ? String(img.description).toLowerCase().split(/\s+/) : [];
+    const matchesSearch = !searchQuery ? true : (
+      titleWords.some(word => word.startsWith(q)) ||
+      descWords.some(word => word.startsWith(q))
+    );
+
     const imgCategories = img.categories ? img.categories.map(c => typeof c.category === 'object' ? c.category.name : '').filter(Boolean) : [];
     const matchesCategory = selectedCategory === 'All Categories' || imgCategories.some(cat => String(cat).toUpperCase() === selectedCategory.toUpperCase());
-                            
+
     let matchesDate = true;
     if (selectedDate && img.created_at) {
       const d = new Date(img.created_at);
@@ -471,11 +487,11 @@ const GalleryContent = () => {
     if (e.shiftKey && lastSelectedId) {
       const lastIdx = filteredImages.findIndex(img => img.id === lastSelectedId);
       const currIdx = filteredImages.findIndex(img => img.id === id);
-      
+
       if (lastIdx !== -1 && currIdx !== -1) {
         const start = Math.min(lastIdx, currIdx);
         const end = Math.max(lastIdx, currIdx);
-        
+
         for (let i = start; i <= end; i++) {
           newSelected.add(filteredImages[i].id);
         }
@@ -544,65 +560,93 @@ const GalleryContent = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto flex flex-col">
       {/* 1. Header Section */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Gallery Management</h1>
-          <p className="text-slate-500 mt-1">Manage gallery images and view your gallery collection.</p>
-        </div>
-        <div className="flex gap-3">
-          <button 
-            onClick={() => setShowCategoryManageModal(true)}
-            className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-200 transition-colors font-medium border border-slate-300"
-          >
-            Manage Categories
-          </button>
-          <button 
-            onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-2 bg-[#003F87] text-white px-4 py-2 rounded-md hover:bg-blue-800 transition-colors font-medium"
-          >
-            <Plus size={18} />
-            Upload Images
-          </button>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">Gallery Management</h1>
+        <p className="text-slate-500 mt-1">Manage gallery images and view your gallery collection.</p>
       </div>
 
-      {/* 1.5 Website Selection Tabs */}
+      {/* 2. Filter Bar & Actions */}
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col sm:flex-row gap-4 items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">CATEGORY</span>
+            <CustomSelect
+              options={[{ value: 'All Categories', label: 'All Categories' }, ...categories.map(cat => ({ value: cat.name, label: cat.name }))]}
+              value={selectedCategory}
+              onChange={(val) => { setSelectedCategory(val); setCurrentPage(1); }}
+              placeholder="Category"
+              className="w-full sm:w-[200px]"
+              selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
+            />
+          </div>
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">DATE</span>
+            <div className="relative flex items-center">
+              <DatePicker
+                ref={datePickerRef}
+                selected={selectedDate ? new Date(selectedDate) : null}
+                onChange={(date) => {
+                  if (date) {
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    setSelectedDate(`${yyyy}-${mm}-${dd}`);
+                  } else {
+                    setSelectedDate('');
+                  }
+                  setCurrentPage(1);
+                }}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="dd/mm/yyyy"
+                showMonthDropdown
+                showYearDropdown
+                scrollableYearDropdown
+                dropdownMode="scroll"
+                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px] pr-8"
+              />
+              <Calendar
+                size={16}
+                className="text-slate-400 absolute right-0 cursor-pointer"
+                onClick={() => datePickerRef.current?.setFocus()}
+              />
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowUploadModal(true)}
+          className="w-full sm:w-auto px-6 py-2.5 bg-[#003F87] text-white text-sm font-bold rounded-xl hover:bg-[#002B5E] shadow-sm hover:shadow active:scale-95 transition-all flex items-center justify-center"
+        >
+          <Plus size={18} className="mr-2" />
+          Upload Images
+        </button>
+      </div>
+
+      {/* 3. Website Selection Tabs */}
       <div className="flex items-center gap-4 mb-6">
         <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg w-fit border border-slate-200">
           {websites.map(site => (
             <button
               key={site.id}
-              onClick={() => { setSelectedWebsite(site.id); setSelectedIds(new Set()); setCurrentPage(1); }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                handleDeleteWebsite(site.id, site.name);
+              onClick={() => {
+                setSelectedWebsite(site.id);
+                localStorage.setItem('gallerySelectedWebsite', site.id);
+                setSelectedIds(new Set());
+                setCurrentPage(1);
+                setPreviewImage(null);
               }}
-              className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 group ${
-                selectedWebsite === site.id 
-                  ? 'bg-white text-[#003F87] shadow border border-slate-200' 
+              className={`flex items-center gap-2 px-6 py-2 rounded-md text-sm font-medium transition-all duration-200 group ${selectedWebsite === site.id
+                  ? 'bg-white text-[#003F87] shadow border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
+                }`}
             >
               {site.name}
-              {selectedWebsite === site.id && (
-                <div 
-                  onClick={(e) => { e.stopPropagation(); handleDeleteWebsite(site.id, site.name); }}
-                  className="hover:bg-slate-100 p-1 rounded-full text-slate-400 hover:text-red-500 transition-colors ml-1"
-                  title="Delete Site"
-                >
-                  <X size={14} />
-                </div>
-              )}
             </button>
           ))}
         </div>
-        <button onClick={() => setShowWebsiteModal(true)} className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-md hover:bg-slate-200 transition-colors font-medium border border-slate-300 h-fit">
-          <Plus size={16}/> New Site
-        </button>
       </div>
 
-      {/* 2. Top Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {/* 4. Top Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <div className="text-3xl font-bold text-slate-800">{images.length}</div>
@@ -613,26 +657,13 @@ const GalleryContent = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm flex items-center justify-between">
-          <div>
-            <div className="text-3xl font-bold text-slate-800">{currentMonthImagesCount}</div>
-            <div className={`text-sm mt-1 font-medium ${isIncrease ? 'text-green-600' : 'text-red-600'}`}>
-              {isIncrease ? '↑' : '↓'} {Math.abs(percentageChange).toFixed(1)}% from last month
-            </div>
-          </div>
-          <div className="bg-purple-100 p-3 rounded-full">
-            <Calendar className="text-purple-600" size={24} />
-          </div>
-        </div>
-
         {!storageError && storageData && (
           <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
               <div className="text-3xl font-bold text-slate-800">{storageData.usedGB} GB</div>
-              <div className={`text-sm mt-1 font-medium ${
-                storageData.leftPercent <= 10 ? 'text-red-600' : 
-                storageData.leftPercent <= 25 ? 'text-orange-500' : 'text-slate-500'
-              }`}>
+              <div className={`text-sm mt-1 font-medium ${storageData.leftPercent <= 10 ? 'text-red-600' :
+                  storageData.leftPercent <= 25 ? 'text-orange-500' : 'text-slate-500'
+                }`}>
                 {storageData.leftGB}/{storageData.limitGB} GB left
               </div>
             </div>
@@ -643,40 +674,12 @@ const GalleryContent = () => {
         )}
       </div>
 
-      {/* 3. Search & Filter Bar */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div className="relative flex-1 min-w-[250px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search images by title or description..." 
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#003F87]/20 focus:border-[#003F87] text-sm"
-          />
-        </div>
-        <select 
-          value={selectedCategory}
-          onChange={(e) => { setSelectedCategory(e.target.value); setCurrentPage(1); }}
-          className="border border-slate-300 rounded-md px-4 py-2 text-sm text-slate-700 focus:outline-none focus:border-[#003F87] capitalize"
-        >
-          <option value="All Categories">All Categories</option>
-          {categories.map(cat => (
-            <option key={cat.id} value={cat.name}>{cat.name}</option>
-          ))}
-        </select>
-        <input 
-          type="date"
-          value={selectedDate}
-          onChange={(e) => { setSelectedDate(e.target.value); setCurrentPage(1); }}
-          className="border border-slate-300 rounded-md px-4 py-2 text-sm text-slate-700 focus:outline-none focus:border-[#003F87]"
-        />
-      </div>
-
       {/* 4. Main Image Grid */}
       <div className="flex-1 min-h-[400px]">
         {loading ? (
-          <div className="flex items-center justify-center h-64 text-slate-500">Loading gallery...</div>
+          <div className="flex flex-col items-center justify-center py-32">
+            <LoadingSpinner text="Loading gallery..." />
+          </div>
         ) : paginatedImages.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-24">
             {paginatedImages.map((img) => {
@@ -687,34 +690,33 @@ const GalleryContent = () => {
               const catKey = String(catName || 'EVENTS').split(',')[0].trim().toUpperCase();
               const badgeStyle = CATEGORY_STYLES[catKey] || CATEGORY_STYLES.DEFAULT;
               const isSelected = selectedIds.has(img.id);
-              
+
               return (
-                <div 
-                  key={img.id} 
+                <div
+                  key={img.id}
                   className="bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow group relative cursor-pointer select-none"
                   onClick={(e) => handleImageClick(e, img)}
                 >
                   <div className="relative h-48 w-full bg-slate-100 overflow-hidden">
-                    <img 
-                      src={img.image_url || img.url || img.cloudinary_url} 
-                      alt={img.title || 'Gallery image'} 
+                    <img
+                      src={img.image_url || img.url || img.cloudinary_url}
+                      alt={img.title || 'Gallery image'}
                       className={`w-full h-full object-cover transition-all duration-200 ${isSelected ? 'p-3 rounded-2xl' : ''}`}
                     />
                     {/* Overlays */}
                     <div className={`absolute inset-0 transition-opacity duration-200 ${isSelected ? 'bg-[#003F87]/10 opacity-100' : 'bg-gradient-to-b from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100'}`}></div>
-                    
-                    <button 
+
+                    <button
                       onClick={(e) => handleSelect(e, img.id)}
-                      className={`absolute top-3 left-3 w-6 h-6 rounded-full flex items-center justify-center border transition-all duration-200 z-10 ${
-                        isSelected 
-                          ? 'bg-[#003F87] border-[#003F87] scale-100' 
+                      className={`absolute top-3 left-3 w-6 h-6 rounded-full flex items-center justify-center border transition-all duration-200 z-10 ${isSelected
+                          ? 'bg-[#003F87] border-[#003F87] scale-100'
                           : 'bg-white/90 border-slate-300 opacity-0 group-hover:opacity-100 hover:bg-white hover:scale-105'
-                      }`}
+                        }`}
                     >
                       {isSelected && <Check size={14} strokeWidth={3} className="text-white" />}
                     </button>
-                    
-                    <button 
+
+                    <button
                       onClick={(e) => handleEditClick(e, img)}
                       className="absolute top-3 right-3 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md p-1.5 hover:bg-black/30 rounded-full z-10"
                       title="Edit Details"
@@ -722,7 +724,7 @@ const GalleryContent = () => {
                       <Pencil size={18} />
                     </button>
                   </div>
-                  
+
                   <div className="p-4">
                     <h3 className="font-semibold text-slate-800 text-sm truncate" title={img.title}>
                       {img.title || 'Untitled Image'}
@@ -763,14 +765,33 @@ const GalleryContent = () => {
             {selectedIds.size} selected
           </span>
           {selectedIds.size > 0 && (
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-sm font-medium text-slate-600 border border-slate-300 px-3 py-1.5 rounded hover:bg-slate-50 transition-colors"
+            >
+              Unselect
+            </button>
+          )}
+          {filteredImages.length > 0 && selectedIds.size !== filteredImages.length && (
+            <button
+              onClick={() => setSelectedIds(new Set(filteredImages.map(img => img.id)))}
+              className="text-sm font-medium text-[#003F87] border border-[#003F87] px-3 py-1.5 rounded hover:bg-blue-50 transition-colors"
+            >
+              Select All
+            </button>
+          )}
+          {selectedIds.size > 0 && (
+            <div className="h-6 w-[1px] bg-slate-300 mx-1"></div>
+          )}
+          {selectedIds.size > 0 && (
             <>
-              <button 
+              <button
                 onClick={() => setShowDeleteModal(true)}
                 className="text-sm font-medium text-red-600 border border-red-600 px-3 py-1.5 rounded hover:bg-red-50 transition-colors"
               >
                 Delete Selected
               </button>
-              <button 
+              <button
                 onClick={() => setShowCategoryModal(true)}
                 className="text-sm font-medium text-[#003F87] border border-[#003F87] px-3 py-1.5 rounded hover:bg-blue-50 transition-colors"
               >
@@ -779,10 +800,10 @@ const GalleryContent = () => {
             </>
           )}
         </div>
-        
+
         <div className="flex items-center gap-6">
-          <select 
-            value={rowsPerPage} 
+          <select
+            value={rowsPerPage}
             onChange={handleRowsPerPageChange}
             className="border border-slate-300 rounded px-2 py-1.5 text-sm text-slate-600 focus:outline-none focus:border-[#003F87]"
           >
@@ -790,35 +811,34 @@ const GalleryContent = () => {
             <option value={24}>24 / page</option>
             <option value={48}>48 / page</option>
           </select>
-          
+
           <div className="flex items-center gap-1">
-            <button 
+            <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
               className={`p-1.5 transition-colors ${currentPage === 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <ChevronLeft size={18} />
             </button>
-            
+
             {getPageNumbers().map((num, idx) => (
               num === '...' ? (
                 <span key={`ellipsis-${idx}`} className="text-slate-400 px-1">...</span>
               ) : (
-                <button 
+                <button
                   key={num}
                   onClick={() => handlePageChange(num)}
-                  className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium transition-colors ${
-                    currentPage === num 
-                      ? 'bg-[#003F87] text-white' 
+                  className={`w-8 h-8 flex items-center justify-center rounded text-sm font-medium transition-colors ${currentPage === num
+                      ? 'bg-[#003F87] text-white'
                       : 'hover:bg-slate-100 text-slate-700'
-                  }`}
+                    }`}
                 >
                   {num}
                 </button>
               )
             ))}
 
-            <button 
+            <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
               className={`p-1.5 transition-colors ${currentPage === totalPages ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-slate-700'}`}
@@ -851,27 +871,25 @@ const GalleryContent = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Confirm Deletion</h3>
-            <p className="text-slate-600 text-sm mb-6">
-              Are you sure you want to delete {selectedIds.size} selected image{selectedIds.size > 1 ? 's' : ''}? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button 
-                onClick={() => setShowDeleteModal(false)}
-                disabled={isDeleting}
-                className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded transition-colors disabled:opacity-50"
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setShowDeleteModal(false)}>
+          <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="p-6 flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 mb-2">Delete Images?</h3>
+              <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                Are you sure you want to delete {selectedIds.size} selected image{selectedIds.size > 1 ? 's' : ''}? This action cannot be undone.
+              </p>
+
+              <div className="flex w-full gap-3">
+                <button onClick={() => setShowDeleteModal(false)} disabled={isDeleting} className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors flex-1">
+                  Cancel
+                </button>
+                <button onClick={handleDelete} disabled={isDeleting} className={`px-6 py-3 bg-rose-600 text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all flex-1 ${isDeleting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-700'}`}>
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -879,14 +897,14 @@ const GalleryContent = () => {
 
       {/* Image Preview Panel */}
       {previewImage && (
-        <div className="fixed bottom-24 right-8 w-80 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 z-40 overflow-hidden flex flex-col transition-all">
+        <div ref={previewRef} className="fixed bottom-24 right-8 w-80 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-200 z-40 overflow-hidden flex flex-col transition-all">
           <div className="relative h-56 bg-slate-100 flex items-center justify-center group">
-            <img 
-              src={previewImage.image_url || previewImage.url || previewImage.cloudinary_url} 
-              alt={previewImage.title || 'Gallery image'} 
+            <img
+              src={previewImage.image_url || previewImage.url || previewImage.cloudinary_url}
+              alt={previewImage.title || 'Gallery image'}
               className="w-full h-full object-contain"
             />
-            <button 
+            <button
               onClick={() => {
                 setEditImage(previewImage);
                 setEditForm({ title: previewImage.title || '', description: previewImage.description || '' });
@@ -896,7 +914,7 @@ const GalleryContent = () => {
             >
               <Pencil size={16} />
             </button>
-            <button 
+            <button
               onClick={() => {
                 setSelectedIds(new Set([previewImage.id]));
                 setShowDeleteModal(true);
@@ -908,13 +926,13 @@ const GalleryContent = () => {
             >
               <Trash2 size={16} />
             </button>
-            <button 
+            <button
               onClick={() => setPreviewImage(null)}
               className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors backdrop-blur-sm"
             >
               <X size={16} />
             </button>
-            <a 
+            <a
               href={previewImage.image_url || previewImage.url || previewImage.cloudinary_url}
               target="_blank"
               rel="noopener noreferrer"
@@ -940,7 +958,7 @@ const GalleryContent = () => {
                 })()}
               </p>
             </div>
-            
+
             <div className="flex flex-col gap-1">
               <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Category</span>
               <span className="text-sm text-slate-700 select-text">
@@ -960,7 +978,7 @@ const GalleryContent = () => {
                 <p className="text-sm text-slate-700 break-words select-text">{previewImage.description}</p>
               </div>
             )}
-            
+
             <div className="flex flex-col gap-1">
               <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">File ID</span>
               <code className="text-[10px] text-slate-500 bg-slate-100 px-2 py-1 rounded break-all select-all">
@@ -976,37 +994,37 @@ const GalleryContent = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-bold text-slate-800 mb-4">Edit Image Details</h3>
-            
+
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={editForm.title}
-                  onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
                   className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#003F87]"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                <textarea 
+                <textarea
                   rows={3}
                   value={editForm.description}
-                  onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                   className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#003F87] resize-none"
                 />
               </div>
             </div>
 
             <div className="flex justify-end gap-3">
-              <button 
+              <button
                 onClick={() => setEditImage(null)}
                 disabled={isEditing}
                 className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={handleSaveEdit}
                 disabled={isEditing}
                 className="px-4 py-2 text-sm font-medium text-white bg-[#003F87] hover:bg-blue-800 rounded transition-colors disabled:opacity-50"
@@ -1026,12 +1044,12 @@ const GalleryContent = () => {
             <p className="text-slate-600 text-sm mb-4">
               Select a new category for the {selectedIds.size} selected image{selectedIds.size > 1 ? 's' : ''}.
             </p>
-            
+
             <div className="flex flex-wrap gap-2 mb-6">
               {categories.map(cat => (
                 <label key={cat.id} className="flex items-center gap-2 bg-slate-50 p-2 rounded border border-slate-200 cursor-pointer">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={newBulkCategories.includes(cat.id)}
                     onChange={(e) => {
                       if (e.target.checked) setNewBulkCategories([...newBulkCategories, cat.id]);
@@ -1044,14 +1062,14 @@ const GalleryContent = () => {
             </div>
 
             <div className="flex justify-end gap-3">
-              <button 
+              <button
                 onClick={() => setShowCategoryModal(false)}
                 disabled={isChangingCategory}
                 className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={handleChangeCategory}
                 disabled={isChangingCategory || newBulkCategories.length === 0}
                 className="px-4 py-2 text-sm font-medium text-white bg-[#003F87] hover:bg-blue-800 rounded transition-colors disabled:opacity-50"
@@ -1068,14 +1086,14 @@ const GalleryContent = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-bold text-slate-800 mb-4">Manage Categories</h3>
-            
+
             <div className="mb-6 max-h-40 overflow-y-auto border border-slate-200 rounded p-2">
               {categories.length > 0 ? categories.map(cat => (
                 <div key={cat.id} className="text-sm text-slate-700 py-1 px-2 border-b last:border-b-0 border-slate-100 flex items-center justify-between group">
                   <div>
                     {cat.name} <span className="text-slate-400 text-xs ml-2">({cat.slug})</span>
                   </div>
-                  <button 
+                  <button
                     onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id); }}
                     className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 rounded-md hover:bg-red-50"
                     title="Delete Category"
@@ -1091,8 +1109,8 @@ const GalleryContent = () => {
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">New Category Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
                   placeholder="e.g. Annual Day"
@@ -1102,14 +1120,14 @@ const GalleryContent = () => {
             </div>
 
             <div className="flex justify-end gap-3">
-              <button 
+              <button
                 onClick={() => setShowCategoryManageModal(false)}
                 disabled={isCreatingCategory}
                 className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors"
               >
                 Close
               </button>
-              <button 
+              <button
                 onClick={handleCreateCategory}
                 disabled={isCreatingCategory || !newCategoryName.trim()}
                 className="px-4 py-2 text-sm font-medium text-white bg-[#003F87] hover:bg-blue-800 rounded transition-colors disabled:opacity-50"
@@ -1127,15 +1145,15 @@ const GalleryContent = () => {
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-slate-800">Upload Images</h3>
-              <button 
-                onClick={() => !isUploading && setShowUploadModal(false)} 
+              <button
+                onClick={() => !isUploading && setShowUploadModal(false)}
                 disabled={isUploading}
                 className="text-slate-400 hover:text-slate-600"
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               {/* Category Selector */}
               <div>
@@ -1145,8 +1163,8 @@ const GalleryContent = () => {
                 <div className="flex flex-wrap gap-2 mb-2">
                   {categories.map(cat => (
                     <label key={cat.id} className="flex items-center gap-2 bg-slate-50 p-2 rounded border border-slate-200 cursor-pointer">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={uploadCategories.includes(cat.id)}
                         disabled={isUploading}
                         onChange={(e) => {
@@ -1162,17 +1180,16 @@ const GalleryContent = () => {
               </div>
 
               {/* File input / drag drop area */}
-              <div 
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  uploadFiles.length > 0 ? 'border-[#003F87] bg-blue-50/50' : 'border-slate-300 hover:border-[#003F87]'
-                }`}
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${uploadFiles.length > 0 ? 'border-[#003F87] bg-blue-50/50' : 'border-slate-300 hover:border-[#003F87]'
+                  }`}
                 onClick={() => !isUploading && fileInputRef.current?.click()}
               >
-                <input 
-                  type="file" 
-                  multiple 
-                  accept="image/*" 
-                  className="hidden" 
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileSelect}
                   disabled={isUploading}
@@ -1209,8 +1226,8 @@ const GalleryContent = () => {
                     <span>{uploadProgress}%</span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-[#003F87] h-2 transition-all duration-300" 
+                    <div
+                      className="bg-[#003F87] h-2 transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
                   </div>
@@ -1220,14 +1237,14 @@ const GalleryContent = () => {
 
             {/* Actions */}
             <div className="flex justify-end gap-3 mt-6">
-              <button 
+              <button
                 onClick={() => setShowUploadModal(false)}
                 disabled={isUploading}
                 className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded transition-colors"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={handleUpload}
                 disabled={isUploading || uploadFiles.length === 0}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#003F87] hover:bg-blue-800 rounded transition-colors disabled:opacity-50"

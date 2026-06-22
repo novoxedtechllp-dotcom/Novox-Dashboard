@@ -541,7 +541,7 @@ const getStudentTasks = asyncHandler(async (req, res) => {
         course_task_subtasks(id, title, sequence_order),
         course_submodules(
           title, scheduled_date, module_id,
-          course_modules(title, course_id, courses(name))
+          course_modules(title, course_id, courses(name, course_instructors(employee_id)))
         )
       ),
       task_submission_resources(id, resource_type, content, label, uploaded_at)

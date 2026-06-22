@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, Calendar, RefreshCcw, MoreVertical, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import EmployeeCalendarModal from './EmployeeCalendarModal';
 import CustomSelect from '../../../components/CustomSelect';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', setSearchQuery = () => {} }) => {
+  const datePickerRef = useRef(null);
   const [students, setStudents] = useState([]);
   
   // Database tables mock state
@@ -21,6 +24,20 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
   const [selectedCalendarEmployee, setSelectedCalendarEmployee] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.action-dropdown-container') && !e.target.closest('.action-dropdown-btn')) {
+        setOpenActionMenuId(null);
+      }
+    };
+    if (openActionMenuId) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openActionMenuId]);
 
   // Fetch data from backend
   useEffect(() => {
@@ -71,6 +88,18 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
     }
     setCourseFilter(activeTab === 'Employees' ? 'All Departments' : 'All Categories');
   }, [activeTab, setSearchQuery]);
+
+  // Lock body scroll when any modal is open
+  useEffect(() => {
+    if (selectedCalendarEmployee || editRecord) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [selectedCalendarEmployee, editRecord]);
 
   const handleRefresh = () => {
     if (typeof setSearchQuery === 'function') {
@@ -229,12 +258,17 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
   const filteredData = joinedData.filter(item => {
     if (searchQuery) {
       const term = searchQuery.toLowerCase();
-      if (!item.name.toLowerCase().includes(term) && !item.identifier.toLowerCase().includes(term)) {
+      const nameWords = item.name.toLowerCase().split(/\s+/);
+      const matchesName = nameWords.some(word => word.startsWith(term));
+      const matchesIdentifier = item.identifier.toLowerCase().startsWith(term);
+      if (!matchesName && !matchesIdentifier) {
         return false;
       }
     }
-    if (courseFilter !== 'All Categories' && courseFilter !== 'All Departments' && item.course !== courseFilter) {
-      return false;
+    if (courseFilter !== 'All Categories' && courseFilter !== 'All Departments') {
+      if (item.course?.toLowerCase() !== courseFilter.toLowerCase()) {
+        return false;
+      }
     }
     return true; // We map using dateFilter globally, so no need to filter date here
   });
@@ -258,8 +292,8 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
       {/* Header Section */}
       <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 min-h-[52px]">
         <div>
-          <h2 className="text-[20px] font-bold text-[#003F87] leading-tight">Attendance Management</h2>
-          <p className="text-[13px] text-[#555F6B] mt-1">Real-time tracking for {activeTab.toLowerCase()}.</p>
+          <h1 className="text-2xl font-bold text-slate-800">Attendance Management</h1>
+          <p className="text-slate-500 mt-1">Track and monitor attendance records across all departments.</p>
         </div>
         <div className="flex bg-[#F8FAFC] rounded-[4px] p-[4px] border border-[#C2C6D4]">
           <button 
@@ -278,7 +312,7 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
       </div>
 
       {/* Filter Section */}
-      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between w-full">
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between w-full relative z-[60]">
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
           {/* Category/Course/Dept Select */}
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
@@ -299,12 +333,34 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
           {/* Date Filter */}
           <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Date</span>
-            <input 
-              type="date" 
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
-            />
+            <div className="relative flex items-center">
+              <DatePicker
+                ref={datePickerRef}
+                selected={dateFilter ? new Date(dateFilter) : null}
+                onChange={(date) => {
+                  if (date) {
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    setDateFilter(`${yyyy}-${mm}-${dd}`);
+                  } else {
+                    setDateFilter('');
+                  }
+                }}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="dd/mm/yyyy"
+                showMonthDropdown
+                showYearDropdown
+                scrollableYearDropdown
+                dropdownMode="scroll"
+                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer w-[140px] pr-8"
+              />
+              <Calendar 
+                size={16} 
+                className="text-slate-400 absolute right-0 cursor-pointer" 
+                onClick={() => datePickerRef.current?.setFocus()} 
+              />
+            </div>
           </div>
         </div>
 
@@ -320,12 +376,24 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
       </div>
 
       {/* Table Section */}
-      <div className="w-full bg-white border border-[#C2C6D4] rounded-[8px] flex flex-col overflow-hidden">
-        <div className="w-full overflow-x-auto">
+      <div className="bg-white border border-[#C2C6D4] rounded-[8px] shadow-sm overflow-hidden">
+        <div 
+          className="w-full overflow-x-auto relative z-10 transition-all duration-200 ease-in-out"
+          style={{ 
+            minHeight: (() => {
+              if (!openActionMenuId) return 'auto';
+              const openIndex = sortedData.findIndex(item => item.userId === openActionMenuId);
+              if (openIndex === -1) return 'auto';
+              const rendersUpwards = openIndex >= 3 && openIndex >= sortedData.length - 3;
+              if (rendersUpwards) return 'auto'; 
+              return `${50 + (openIndex + 1) * 55 + 215}px`;
+            })()
+          }}
+        >
           <table className="w-full text-left border-collapse min-w-[800px] table-fixed">
             <thead>
               <tr className="border-b border-[#C2C6D4] bg-white">
-                <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[12%]">ID</th>
+                <th className="py-4 pl-6 pr-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[12%]">ID</th>
                 <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[22%]">Name</th>
                 <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[18%]">Course / Dept</th>
                 <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider w-[14%]">Status</th>
@@ -338,7 +406,7 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
             <tbody>
               {sortedData.length > 0 ? sortedData.map((item, index) => (
                 <tr key={item.userId} className={index !== sortedData.length - 1 ? "border-b border-slate-100" : ""}>
-                  <td className="py-[16px] px-2">
+                  <td className="py-[16px] pl-6 pr-2">
                     <div className="text-[13px] font-bold text-[#003F87] leading-tight break-words max-w-[80px]">{item.identifier}</div>
                   </td>
                   <td className="py-[16px] px-2">
@@ -382,12 +450,12 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
                   <td className="py-[16px] px-[24px] text-right relative">
                     <button 
                       onClick={() => setOpenActionMenuId(openActionMenuId === item.userId ? null : item.userId)}
-                      className="text-[#555F6B] hover:text-[#003F87] p-1 rounded hover:bg-slate-100 transition-colors"
+                      className="text-[#555F6B] hover:text-[#003F87] p-1 rounded hover:bg-slate-100 transition-colors action-dropdown-btn"
                     >
                       <MoreVertical size={18} />
                     </button>
                     {openActionMenuId === item.userId && (
-                      <div className={`absolute right-[24px] ${index >= sortedData.length - 2 && sortedData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} w-[140px] bg-white border border-[#C2C6D4] shadow-lg rounded-[8px] z-50 overflow-hidden text-left flex flex-col`}>
+                      <div className={`action-dropdown-container absolute right-[24px] ${index >= 3 && index >= sortedData.length - 3 ? 'bottom-[40px]' : 'top-[40px]'} w-[140px] bg-white border border-[#C2C6D4] shadow-lg rounded-[8px] z-50 overflow-hidden text-left flex flex-col`}>
                         <button onClick={() => { setSelectedCalendarEmployee(item); setOpenActionMenuId(null); }} className="px-4 py-2 text-[12px] font-semibold text-[#003F87] hover:bg-slate-50 text-left border-b border-slate-100 transition-colors flex items-center gap-2"><Calendar size={14}/> View Calendar</button>
                         <button onClick={() => handleUpdateStatus(item.userId, item.type, 'PRESENT')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#008A2E] text-left border-b border-slate-100 transition-colors">Mark Present</button>
                         <button onClick={() => handleUpdateStatus(item.userId, item.type, 'LATE')} className="px-4 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 hover:text-[#B26E00] text-left border-b border-slate-100 transition-colors">Mark Late</button>
@@ -412,7 +480,7 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
 
 
       {editRecord && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-800">Edit Attendance Record</h2>

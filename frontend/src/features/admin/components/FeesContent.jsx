@@ -4,7 +4,7 @@ import LoadingSpinner from '../../../components/LoadingSpinner';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const FeesContent = () => {
+const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
   const [toast, setToast] = useState(null);
   const alert = (message) => {
     const isError = typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error'));
@@ -12,7 +12,6 @@ const FeesContent = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const [searchQuery, setSearchQuery] = useState('');
   const [feesList, setFeesList] = useState([]);
   const [studentBalancesList, setStudentBalancesList] = useState([]);
   const [studentsList, setStudentsList] = useState([]);
@@ -64,7 +63,7 @@ const FeesContent = () => {
 
       // 3. Fetch Summary Stats
       try {
-        const summaryRes = await fetch('/api/v1/fees/summary', { headers });
+        const summaryRes = await fetch(`/api/v1/fees/summary?month=${filterMonth + 1}&year=${filterYear}`, { headers });
         if (summaryRes.ok) {
           const d = await summaryRes.json();
           if (d.success && d.data) {
@@ -78,7 +77,39 @@ const FeesContent = () => {
         }
       } catch (e) { console.warn(e); }
 
-      // 4. Fetch Month Transactions
+      // 4. Fetch Student Balances FIRST so we can merge it
+      let balancesMap = {};
+      try {
+        const balRes = await fetch(`/api/v1/fees/balances?month=${filterMonth + 1}&year=${filterYear}`, { headers });
+        if (balRes.ok) {
+          const d = await balRes.json();
+          if (d.success && d.data) {
+            const mappedBalances = (d.data || []).map(b => ({
+              id: `bal-${b.id}`,
+              feePlanId: b.feePlanId || (String(b.id).startsWith('virtual') ? null : b.id),
+              studentId: b.studentId,
+              studentCode: b.studentCode,
+              name: b.name,
+              initials: b.initials,
+              course: b.course,
+              totalCourseFee: b.totalCourseFee,
+              totalPaidOverall: b.totalPaidOverall,
+              remainingBalance: b.remainingBalance,
+              currentMonthDue: b.currentMonthDue,
+              paidThisMonth: b.paidThisMonth,
+              status: b.status,
+              courseId: b.courseId
+            }));
+            setStudentBalancesList(mappedBalances);
+            balancesMap = mappedBalances.reduce((acc, b) => {
+              acc[`${b.studentId}-${b.courseId}`] = b;
+              return acc;
+            }, {});
+          }
+        }
+      } catch(e) { console.warn(e); }
+
+      // 5. Fetch Month Transactions
       try {
         const payRes = await fetch(`/api/v1/fees/payments?month=${filterMonth + 1}&year=${filterYear}&limit=1000`, { headers });
         if (payRes.ok) {
@@ -90,6 +121,7 @@ const FeesContent = () => {
               const courseName = plan.courses?.name || 'Unknown Course';
               const amount = parseFloat(p.amount) || 0;
               const totalCourseFee = parseFloat(plan.total_fee) || parseFloat(plan.admission_fee || 0) + parseFloat(plan.monthly_installment || 0); 
+              const bal = balancesMap[`${p.student_id}-${plan.course_id}`];
               
               return {
                 id: p.id,
@@ -102,6 +134,7 @@ const FeesContent = () => {
                 type: p.payment_type || 'Installment',
                 paymentMethod: p.payment_method || 'Cash',
                 totalAmount: totalCourseFee,
+                dueThisMonth: bal ? bal.currentMonthDue : null,
                 paidAmount: amount,
                 remainingBalance: Math.max(0, totalCourseFee - amount),
                 amount: `₹${amount.toLocaleString()}`,
@@ -112,31 +145,6 @@ const FeesContent = () => {
               };
             });
             setFeesList(mappedFees);
-          }
-        }
-      } catch(e) { console.warn(e); }
-
-      // 5. Fetch Student Balances
-      try {
-        const balRes = await fetch(`/api/v1/fees/balances?month=${filterMonth + 1}&year=${filterYear}`, { headers });
-        if (balRes.ok) {
-          const d = await balRes.json();
-          if (d.success && d.data) {
-            const mappedBalances = (d.data || []).map(b => ({
-              id: `bal-${b.id}`,
-              feePlanId: b.id,
-              studentId: b.studentId,
-              studentCode: b.studentCode,
-              name: b.name,
-              initials: b.initials,
-              course: b.course,
-              totalCourseFee: b.totalCourseFee,
-              totalPaidOverall: b.totalPaidOverall,
-              remainingBalance: b.remainingBalance,
-              status: b.status,
-              courseId: b.courseId
-            }));
-            setStudentBalancesList(mappedBalances);
           }
         }
       } catch(e) { console.warn(e); }
@@ -167,6 +175,20 @@ const FeesContent = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.action-dropdown-container') && !e.target.closest('.action-dropdown-btn')) {
+        setActiveDropdown(null);
+      }
+    };
+    if (activeDropdown !== null) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [activeDropdown]);
   const [viewItem, setViewItem] = useState(null);
   const [editItem, setEditItem] = useState(null);
 
@@ -174,6 +196,11 @@ const FeesContent = () => {
   const selectedStudent = useMemo(() => {
     return studentsList.find(s => s.id === selectedStudentId);
   }, [selectedStudentId, studentsList]);
+
+  // Find their balance for the selected course
+  const selectedStudentBalance = useMemo(() => {
+    return studentBalancesList.find(b => String(b.studentId) === String(selectedStudentId) && String(b.courseId) === String(selectedCourseId));
+  }, [selectedStudentId, selectedCourseId, studentBalancesList]);
 
   // Find their enrolled courses
   const studentCourses = useMemo(() => {
@@ -257,9 +284,10 @@ const FeesContent = () => {
       let filteredList = feesList;
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
-        filteredList = filteredList.filter(item => 
-          item.name.toLowerCase().includes(q)
-        );
+        filteredList = filteredList.filter(item => {
+          const nameWords = item.name ? item.name.toLowerCase().split(/\s+/) : [];
+          return nameWords.some(word => word.startsWith(q));
+        });
       }
       // Note: filterStatus not very useful here since we just record payments, but we'll apply it if not 'All'
       // We'll leave it as is.
@@ -268,10 +296,12 @@ const FeesContent = () => {
       let filteredList = studentBalancesList;
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
-        filteredList = filteredList.filter(item => 
-          item.name.toLowerCase().includes(q) || 
-          (item.studentCode && item.studentCode.toLowerCase().includes(q))
-        );
+        filteredList = filteredList.filter(item => {
+          const nameWords = item.name ? item.name.toLowerCase().split(/\s+/) : [];
+          const matchesName = nameWords.some(word => word.startsWith(q));
+          const matchesCode = item.studentCode && item.studentCode.toLowerCase().startsWith(q);
+          return matchesName || matchesCode;
+        });
       }
       if (filterStatus !== 'All') {
         filteredList = filteredList.filter(item => item.status === filterStatus);
@@ -284,6 +314,10 @@ const FeesContent = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -305,8 +339,8 @@ const FeesContent = () => {
       
       // We need a fee_plan_id. Try finding it from studentBalancesList
       let planId = null;
-      const existingBal = studentBalancesList.find(b => b.studentId === selectedStudentId && b.courseId === selectedCourseId);
-      if (existingBal && existingBal.feePlanId) {
+      const existingBal = studentBalancesList.find(b => String(b.studentId) === String(selectedStudentId) && String(b.courseId) === String(selectedCourseId));
+      if (existingBal && existingBal.feePlanId && !String(existingBal.feePlanId).startsWith('virtual')) {
         planId = existingBal.feePlanId;
       }
 
@@ -413,7 +447,55 @@ const FeesContent = () => {
     }
   };
 
-const handleExportPDF = () => {
+  const handleDownloadInvoice = (fee) => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(0, 63, 135);
+    doc.text('Novox EdTech', 14, 22);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('Payment Receipt', 14, 30);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(50);
+    doc.text(`Date: ${fee.date}`, 140, 22);
+    doc.text(`Receipt ID: ${fee.id}`, 140, 30);
+
+    // Student Info
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text('Student Details', 14, 45);
+    doc.setFontSize(10);
+    doc.text(`Name: ${fee.name || 'Student'}`, 14, 52);
+    doc.text(`Course: ${fee.course || 'N/A'}`, 14, 58);
+    
+    // Payment Details
+    doc.setFontSize(14);
+    doc.text('Payment Details', 14, 75);
+    
+    autoTable(doc, {
+      startY: 82,
+      head: [['Description', 'Payment Method', 'Amount Paid']],
+      body: [
+        [`Fee Payment - ${fee.type}`, fee.paymentMethod || 'Cash', `Rs. ${(fee.paid || fee.paidAmount || 0).toLocaleString()}`]
+      ],
+      headStyles: { fillColor: [0, 63, 135] }
+    });
+    
+    // Footer
+    const finalY = doc.lastAutoTable.finalY || 100;
+    doc.setFontSize(10);
+    doc.text('Thank you for your payment.', 14, finalY + 20);
+    doc.text('This is a computer-generated receipt and requires no signature.', 14, finalY + 26);
+    
+    doc.save(`Receipt_${fee.name ? fee.name.replace(/\s+/g, '_') : 'Student'}_${fee.id}.pdf`);
+    setActiveDropdown(null);
+  };
+
+  const handleExportPDF = () => {
     const doc = new jsPDF();
     
     doc.setFontSize(20);
@@ -471,9 +553,10 @@ const handleExportPDF = () => {
         </div>
       )}
       {/* Header Container */}
-      <div className="w-full flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+      <div className="w-full flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
         <div>
-          <h2 className="text-[24px] font-bold text-[#003F87] leading-tight">Fee Management System</h2>
+          <h1 className="text-2xl font-bold text-slate-800">Fee Management</h1>
+          <p className="text-slate-500 mt-1">Track student payments, dues, and financial records.</p>
         </div>
         <div className="flex items-center gap-[12px]">
           <button onClick={handleExportPDF} className="bg-white border border-[#C2C6D4] shadow-sm text-[#555F6B] px-[16px] py-[8px] rounded-[6px] text-[13px] font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors">
@@ -485,98 +568,42 @@ const handleExportPDF = () => {
         </div>
       </div>
 
-      {/* Main Container */}
-      <div className="w-full bg-white border border-[#C2C6D4] rounded-[16px] flex flex-col overflow-hidden shadow-sm">
-        
-        {/* Tabs */}
-        <div className="flex items-center h-[61px] border-b border-[#C2C6D4] px-[24px]">
-          <button 
-            onClick={() => setActiveTab('MONTH_TRANSACTIONS')}
-            className={`h-full flex items-center gap-2 font-bold text-[14px] px-[8px] mr-[32px] transition-colors ${activeTab === 'MONTH_TRANSACTIONS' ? 'text-[#003F87] border-b-[3px] border-[#003F87]' : 'text-[#555F6B] hover:text-[#003F87]'}`}
-          >
-            <Calendar size={18} /> Month Transactions
-          </button>
-          <button 
-            onClick={() => setActiveTab('DUE_THIS_MONTH')}
-            className={`h-full flex items-center gap-2 font-bold text-[14px] px-[8px] transition-colors ${activeTab === 'DUE_THIS_MONTH' ? 'text-[#003F87] border-b-[3px] border-[#003F87]' : 'text-[#555F6B] hover:text-[#003F87]'}`}
-          >
-            <User size={18} /> Student Balances
-          </button>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 border-b border-[#C2C6D4] h-auto xl:h-[136px]">
-          <div className="p-[24px] flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#C2C6D4]">
-            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">THIS MONTH COLLECTIONS</p>
-            <h3 className="text-[32px] font-bold text-[#008A2E] leading-none mb-2">₹{stats.totalCollectionsMonth.toLocaleString()}</h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-[#555F6B]">
-              <Calendar size={12} /> {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][new Date().getMonth()]} {new Date().getFullYear()}
-            </div>
+      {/* Filters */}
+      <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row items-start xl:items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Status Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
+            <select 
+              value={filterStatus}
+              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+              className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative py-0.5"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Full Paid">Fully Paid</option>
+              <option value="Partially Paid">Partially Paid</option>
+              <option value="Pending">Pending / Not Paid</option>
+            </select>
           </div>
-          <div className="p-[24px] flex flex-col justify-center border-b xl:border-b-0 xl:border-r border-[#C2C6D4]">
-            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">OUTSTANDING FEES</p>
-            <h3 className="text-[32px] font-bold text-[#D80000] leading-none mb-2">₹{stats.outstandingFees.toLocaleString()}</h3>
-            <div className="flex items-center gap-1 text-[11px] text-[#555F6B]">
-              From {stats.outstandingCount} student{stats.outstandingCount !== 1 && 's'}
-            </div>
-          </div>
-          <div className="p-[24px] flex flex-col justify-center">
-            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">TOTAL YEARLY COLLECTIONS</p>
-            <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">₹{stats.totalCollectionsYear.toLocaleString()}</h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-[#003F87]">
-              <TrendingUp size={12} /> FY {new Date().getFullYear()}
-            </div>
-          </div>
-        </div>
 
-        {/* Filters */}
-        <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex flex-col xl:flex-row items-start xl:items-center gap-4 bg-slate-50">
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-            {/* Search Input */}
-            <div className="relative w-full sm:w-[240px] md:w-[280px] shrink-0">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search student by name or ID..." 
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                className="w-full bg-white border border-[#C2C6D4] pl-10 pr-4 py-2 rounded-lg text-[13px] font-medium outline-none focus:border-[#003F87] transition-all placeholder:text-slate-400 text-slate-700"
-              />
-            </div>
-
-            {/* Status Filter */}
-            <div className="flex items-center bg-white border border-[#C2C6D4] rounded-lg px-4 py-1.5 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Status</span>
-              <select 
-                value={filterStatus}
-                onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative py-0.5"
+          {/* Month Filter */}
+          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-blue-300 transition-colors w-full sm:w-auto">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Month</span>
+            <div className="relative">
+              <button 
+                type="button"
+                onClick={() => {
+                  setPickerYear(filterYear);
+                  setIsDatePickerOpen(!isDatePickerOpen);
+                }}
+                className="flex items-center bg-transparent outline-none text-[13px] font-bold text-slate-700 justify-between gap-2 transition-all"
               >
-                <option value="All">All Statuses</option>
-                <option value="Full Paid">Fully Paid</option>
-                <option value="Partially Paid">Partially Paid</option>
-                <option value="Pending">Pending / Not Paid</option>
-              </select>
-            </div>
-
-            {/* Month Filter */}
-            <div className="flex items-center bg-white border border-[#C2C6D4] rounded-lg px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Month</span>
-              <div className="relative">
-                <button 
-                  type="button"
-                  onClick={() => {
-                    setPickerYear(filterYear);
-                    setIsDatePickerOpen(!isDatePickerOpen);
-                  }}
-                  className="flex items-center bg-transparent outline-none text-[13px] font-bold text-slate-700 justify-between gap-2 transition-all"
-                >
-                  <div className="flex items-center gap-2">
-                    <Calendar size={14} className="text-slate-400 shrink-0" />
-                    <span>{formatMonthDisplay(filterMonth, filterYear)}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400">▼</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <Calendar size={14} className="text-slate-400 shrink-0" />
+                  <span>{formatMonthDisplay(filterMonth, filterYear)}</span>
+                </div>
+                <span className="text-[10px] text-slate-400">▼</span>
+              </button>
 
               {isDatePickerOpen && (
                 <>
@@ -617,6 +644,50 @@ const handleExportPDF = () => {
         </div>
       </div>
 
+      {/* Main Container */}
+      <div className="w-full bg-white border border-[#C2C6D4] rounded-[16px] flex flex-col overflow-hidden shadow-sm">
+        
+        {/* Tabs */}
+        <div className="flex items-center h-[61px] border-b border-[#C2C6D4] px-[24px]">
+          <button 
+            onClick={() => setActiveTab('MONTH_TRANSACTIONS')}
+            className={`h-full flex items-center gap-2 font-bold text-[14px] px-[8px] mr-[32px] transition-colors ${activeTab === 'MONTH_TRANSACTIONS' ? 'text-[#003F87] border-b-[3px] border-[#003F87]' : 'text-[#555F6B] hover:text-[#003F87]'}`}
+          >
+            <Calendar size={18} /> Month Transactions
+          </button>
+          <button 
+            onClick={() => setActiveTab('DUE_THIS_MONTH')}
+            className={`h-full flex items-center gap-2 font-bold text-[14px] px-[8px] transition-colors ${activeTab === 'DUE_THIS_MONTH' ? 'text-[#003F87] border-b-[3px] border-[#003F87]' : 'text-[#555F6B] hover:text-[#003F87]'}`}
+          >
+            <User size={18} /> Student Balances
+          </button>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 border-b border-[#C2C6D4] h-auto xl:h-[136px]">
+          <div className="p-[24px] flex flex-col justify-center border-b md:border-b-0 md:border-r border-[#C2C6D4]">
+            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">THIS MONTH COLLECTIONS</p>
+            <h3 className="text-[32px] font-bold text-[#008A2E] leading-none mb-2">₹{stats.totalCollectionsMonth.toLocaleString()}</h3>
+            <div className="flex items-center gap-1 text-[11px] font-bold text-[#555F6B]">
+              <Calendar size={12} /> {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][filterMonth]} {filterYear}
+            </div>
+          </div>
+          <div className="p-[24px] flex flex-col justify-center border-b xl:border-b-0 xl:border-r border-[#C2C6D4]">
+            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">OUTSTANDING FEES</p>
+            <h3 className="text-[32px] font-bold text-[#D80000] leading-none mb-2">₹{stats.outstandingFees.toLocaleString()}</h3>
+            <div className="flex items-center gap-1 text-[11px] text-[#555F6B]">
+              From {stats.outstandingCount} student{stats.outstandingCount !== 1 && 's'}
+            </div>
+          </div>
+          <div className="p-[24px] flex flex-col justify-center">
+            <p className="text-[11px] font-bold text-[#555F6B] uppercase tracking-wider mb-2">TOTAL YEARLY COLLECTIONS</p>
+            <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">₹{stats.totalCollectionsYear.toLocaleString()}</h3>
+
+          </div>
+        </div>
+
+
+
         {/* Table */}
         <div className="w-full overflow-x-auto min-h-[400px]">
           <table className="w-full text-left border-collapse min-w-[1000px]">
@@ -628,6 +699,7 @@ const handleExportPDF = () => {
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Type</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-center">Payment Method</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
+
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid Amount</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Remaining Balance</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Date</th>
@@ -638,8 +710,10 @@ const handleExportPDF = () => {
                 <tr className="border-b border-[#C2C6D4] bg-white">
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Student Details</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Course</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Due This Month</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid This Month</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
-                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid Amount</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Overall Paid</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Remaining Balance</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Status</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Action</th>
@@ -699,6 +773,7 @@ const handleExportPDF = () => {
                         <td className="py-4 px-4 text-right">
                           <div className="text-[14px] text-slate-600 font-medium">₹{total.toLocaleString()}</div>
                         </td>
+
                         <td className="py-4 px-4 text-right">
                           <div className="text-[14px] font-bold text-[#003F87]">₹{paid.toLocaleString()}</div>
                         </td>
@@ -731,13 +806,14 @@ const handleExportPDF = () => {
                         <td className="py-4 px-4 text-right relative">
                           <button 
                             onClick={() => toggleDropdown(fee.id)} 
-                            className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all ml-auto"
+                            className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all ml-auto action-dropdown-btn"
                           >
                             <MoreVertical size={16} />
                           </button>
                           {activeDropdown === fee.id && (
-                            <div className={`absolute right-[24px] ${index >= paginatedData.length - 2 && paginatedData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-50 flex flex-col overflow-hidden`}>
+                            <div className={`absolute right-[24px] ${index >= paginatedData.length - 2 && paginatedData.length > 2 ? 'bottom-[40px]' : 'top-[40px]'} bg-white border border-[#C2C6D4] shadow-lg rounded-md w-[140px] z-50 flex flex-col overflow-hidden action-dropdown-container`}>
                               <button onClick={() => { setViewItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Eye size={14} /> View Details</button>
+                              <button onClick={() => handleDownloadInvoice(fee)} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Download size={14} /> Download Invoice</button>
                               <button onClick={() => { setEditItem(fee); setActiveDropdown(null); }} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full text-left"><Edit size={14} /> Edit Record</button>
                               <button onClick={() => handleDelete(fee.id)} className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"><Trash2 size={14} /> Delete</button>
                             </div>
@@ -763,6 +839,12 @@ const handleExportPDF = () => {
                           <div className="text-[13px] text-[#555F6B] leading-tight">{due.course}</div>
                         </td>
                         <td className="py-4 px-4 text-right">
+                          <div className="text-[14px] font-bold text-slate-800">₹{(due.currentMonthDue || 0).toLocaleString()}</div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <div className="text-[14px] font-bold text-[#003F87]">₹{(due.paidThisMonth || 0).toLocaleString()}</div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
                           <div className="text-[14px] text-slate-600 font-medium">₹{due.totalCourseFee.toLocaleString()}</div>
                         </td>
                         <td className="py-4 px-4 text-right">
@@ -775,6 +857,10 @@ const handleExportPDF = () => {
                           {due.status === 'Full Paid' ? (
                             <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
                               <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> Fully Paid
+                            </span>
+                          ) : due.status === 'Paid' ? (
+                            <span className="inline-flex items-center gap-2 bg-[#E5F7ED] text-[#008A2E] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
+                              <span className="w-[6px] h-[6px] rounded-full bg-[#008A2E]"></span> Paid
                             </span>
                           ) : due.status === 'Partially Paid' ? (
                             <div className="inline-flex items-center gap-2 bg-[#FFF4E5] text-[#B26E00] px-[12px] py-[4px] rounded-full text-[11px] font-bold">
@@ -938,11 +1024,19 @@ const handleExportPDF = () => {
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-md border border-slate-200 mt-2 flex justify-between items-center">
-                <span className="text-sm font-bold text-slate-700">Remaining Balance:</span>
-                <span className="text-base font-bold text-[#D80000]">
-                  ₹{Math.max(0, (parseFloat(totalAmountInput) || 0) - (parseFloat(paidAmountInput) || 0)).toLocaleString()}
-                </span>
+              <div className="bg-slate-50 p-4 rounded-md border border-slate-200 mt-2 flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-slate-700">Due This Month:</span>
+                  <span className="text-base font-bold text-[#003F87]">
+                    {selectedStudentBalance?.currentMonthDue !== undefined ? `₹${selectedStudentBalance.currentMonthDue.toLocaleString()}` : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-slate-200 pt-2">
+                  <span className="text-sm font-bold text-slate-700">Remaining Balance:</span>
+                  <span className="text-base font-bold text-[#D80000]">
+                    ₹{Math.max(0, (parseFloat(totalAmountInput) || 0) - (parseFloat(paidAmountInput) || 0)).toLocaleString()}
+                  </span>
+                </div>
               </div>
 
               <div className="flex gap-3 justify-end mt-4">

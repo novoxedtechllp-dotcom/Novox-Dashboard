@@ -42,10 +42,8 @@ const CustomSelect = ({
     if (multiple) {
       const currentValues = Array.isArray(value) ? value : [];
       if (currentValues.length === 0) return placeholder;
-      if (currentValues.length === 1) {
-        return options.find(o => o.value === currentValues[0])?.label || placeholder;
-      }
-      return `${currentValues.length} selected`;
+      const labels = currentValues.map(v => options.find(o => o.value === v)?.label).filter(Boolean);
+      return labels.length > 0 ? labels.join(', ') : placeholder;
     }
     const selectedOption = options.find(o => o.value === value);
     return selectedOption ? selectedOption.label : placeholder;

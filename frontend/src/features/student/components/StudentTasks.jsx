@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import CustomSelect from '../../../components/CustomSelect';
 import { 
   Clock, 
   Calendar, 
@@ -83,7 +84,9 @@ const StudentTasks = ({ userInfo }) => {
         return {
           id: course.id,
           name: course.name,
-          modules: (course.course_modules || []).sort((a,b)=>a.sequence_order - b.sequence_order).map(mod => {
+          modules: (course.course_modules || [])
+            .filter(mod => mod.status === 'PUBLISHED')
+            .sort((a,b)=>a.sequence_order - b.sequence_order).map(mod => {
             return {
               id: mod.id,
               title: mod.title,
@@ -144,6 +147,52 @@ const StudentTasks = ({ userInfo }) => {
       });
       
       setCourseStructure(combined);
+
+      // Check for redirect state from Academic Journey
+      if (location.state?.targetTaskId) {
+        const { targetModuleId, targetSubmoduleId, targetTaskId } = location.state;
+        
+        let foundTask = null;
+        combined.forEach(course => {
+          course.modules?.forEach(mod => {
+            mod.submodules?.forEach(sub => {
+              sub.tasks?.forEach(task => {
+                if (task.task_id === targetTaskId) foundTask = task;
+              });
+            });
+          });
+        });
+
+        if (foundTask) {
+          setExpandedSections(prev => ({
+            ...prev,
+            [targetModuleId]: true,
+            [foundTask.id]: true
+          }));
+          
+          setActiveSubmoduleId(targetSubmoduleId);
+          
+          const isStarting = foundTask.status === 'NOT_STARTED';
+          setSelectedTask({ ...foundTask, status: isStarting ? 'IN_PROGRESS' : foundTask.status });
+          setIsDetailsModalOpen(true);
+          
+          if (isStarting) {
+            handleStartTask(null, foundTask);
+            foundTask.status = 'IN_PROGRESS';
+          }
+          
+          setTimeout(() => {
+            const el = document.getElementById(`task-${foundTask.id}`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.classList.add('ring-2', 'ring-[#003F87]', 'ring-offset-2');
+              setTimeout(() => el.classList.remove('ring-2', 'ring-[#003F87]', 'ring-offset-2'), 2000);
+            }
+          }, 300);
+        }
+        
+        window.history.replaceState({}, document.title);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       setCourseStructure([]);
@@ -221,48 +270,6 @@ const StudentTasks = ({ userInfo }) => {
     }
   };
 
-  useEffect(() => {
-    if (courseStructure.length > 0 && location.state?.targetTaskId) {
-      const { targetModuleId, targetSubmoduleId, targetTaskId } = location.state;
-      
-      // Find the specific task using task_id
-      let foundTask = null;
-      courseStructure.forEach(course => {
-        course.modules?.forEach(mod => {
-          mod.submodules?.forEach(sub => {
-            sub.tasks?.forEach(task => {
-              if (task.task_id === targetTaskId) foundTask = task;
-            });
-          });
-        });
-      });
-
-      if (foundTask) {
-        setExpandedSections(prev => ({
-          ...prev,
-          [targetModuleId]: true,
-          [foundTask.id]: true
-        }));
-        
-        setActiveSubmoduleId(targetSubmoduleId);
-        
-        // This properly triggers the NOT_STARTED -> IN_PROGRESS transition and calls the API
-        openDetailsModal(foundTask);
-        
-        setTimeout(() => {
-          const el = document.getElementById(`task-${foundTask.id}`);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.classList.add('ring-2', 'ring-[#003F87]', 'ring-offset-2');
-            setTimeout(() => el.classList.remove('ring-2', 'ring-[#003F87]', 'ring-offset-2'), 2000);
-          }
-        }, 300);
-      }
-      
-      // Clear state so it doesn't run again on normal re-renders
-      window.history.replaceState({}, document.title);
-    }
-  }, [courseStructure, location.state]);
 
   const handleSubmitWork = async (e) => {
     e.preventDefault();
@@ -366,43 +373,16 @@ const StudentTasks = ({ userInfo }) => {
   return (
     <div className="flex flex-col min-h-screen bg-[#FAFBFC] p-4 md:p-6 lg:p-8">
       
-      {/* Header Banner matching Dashboard UI */}
-      <div className="max-w-7xl mx-auto w-full mb-8 bg-[#003F87] rounded-2xl p-8 text-white relative overflow-hidden shadow-sm">
-        {/* Abstract Background Shapes */}
-        <div className="absolute top-[-50%] right-[-10%] w-[400px] h-[400px] rounded-full bg-blue-400/10 blur-3xl mix-blend-overlay"></div>
-        <div className="absolute bottom-[-50%] left-[10%] w-[300px] h-[300px] rounded-full bg-cyan-400/10 blur-3xl mix-blend-overlay"></div>
-        <div className="absolute top-[20%] right-[15%] w-[180px] h-[180px] rounded-full bg-white/5 backdrop-blur-md"></div>
+      <div className="max-w-7xl mx-auto w-full pb-10">
         
-        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        {/* Header Section */}
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-3xl font-bold mb-2">Student Tasks</h2>
-            <p className="text-blue-100 text-sm max-w-xl">
-              Manage your upcoming assignments, track project milestones, and review completed work feedback.
-            </p>
-          </div>
-          
-          {/* Right Aligned Tabs (Pills) */}
-          <div className="flex gap-2 shrink-0">
-            {[
-              { id: 'ALL', label: 'All Tasks' },
-              { id: 'QUIZ', label: 'Quiz' },
-              { id: 'PROJECT', label: 'Project' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveFilter(tab.id)}
-                className={`px-4 py-2 text-sm font-bold rounded-xl transition-all ${
-                  activeFilter === tab.id 
-                    ? 'bg-white text-[#003F87] shadow-sm' 
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            <h1 className="text-2xl font-bold text-slate-800">Student Tasks</h1>
+            <p className="text-slate-500 mt-1">Manage your upcoming assignments, track project milestones, and review completed work feedback.</p>
           </div>
         </div>
-      </div>
+
 
       {/* Board Layout */}
       {loading ? (
@@ -422,8 +402,8 @@ const StudentTasks = ({ userInfo }) => {
         })).filter(course => course.modules.length > 0);
 
         return (
-        <div className="max-w-7xl mx-auto w-full pb-10">
-          {filteredCourseStructure.length === 0 ? (
+          <>
+            {filteredCourseStructure.length === 0 ? (
             <div className="border border-dashed border-slate-200 bg-white/50 rounded-2xl p-8 text-center text-slate-400 font-medium text-sm">
               No tasks match the selected filter.
             </div>
@@ -601,10 +581,11 @@ const StudentTasks = ({ userInfo }) => {
                   </div>
                 ))
               )}
-            </div>
-          );
+          </>
+        );
         })()
       }
+      </div>
       {/* Details Modal */}
       {isDetailsModalOpen && selectedTask && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">

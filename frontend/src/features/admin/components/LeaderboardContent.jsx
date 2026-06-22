@@ -92,8 +92,8 @@ const LeaderboardContent = () => {
       {/* Header Area */}
       <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-[20px] font-bold text-[#003F87] leading-tight mb-1">Student Achievement Leaderboard</h2>
-          <p className="text-[13px] text-[#555F6B]">Recognizing excellence across internal courses and professional platforms.</p>
+          <h1 className="text-2xl font-bold text-slate-800">Student Leaderboard</h1>
+          <p className="text-slate-500 mt-1">Track top performing students and overall achievements.</p>
         </div>
         <div className="flex flex-col items-end gap-[12px]">
           <div className="flex bg-[#F8FAFC] rounded-[8px] p-[4px] border border-[#C2C6D4]">
