@@ -6,7 +6,8 @@ const StatsGrid = () => {
   const [stats, setStats] = useState({
     students: 0,
     employees: 0,
-    courses: 0
+    courses: 0,
+    jobApplications: 247 // Mock data since backend API is pending
   });
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +49,8 @@ const StatsGrid = () => {
         setStats({
           students: studentsCount,
           employees: employeesCount,
-          courses: coursesCount
+          courses: coursesCount,
+          jobApplications: 247 // Keeping mock data until backend is ready
         });
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
@@ -64,7 +66,7 @@ const StatsGrid = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[24px]">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[24px]">
       {/* Total Students */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col justify-between shadow-sm h-[250px]">
         <div className="flex justify-between items-start mb-4">
@@ -107,6 +109,19 @@ const StatsGrid = () => {
         </div>
       </div>
 
+      {/* Total Job Applications */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col justify-between shadow-sm h-[250px]">
+        <div className="flex justify-between items-start mb-4">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-[#003F87]">
+            <TrendingUp size={20} />
+          </div>
+          <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-md">Pending API</span>
+        </div>
+        <div>
+          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Total Job Applications</p>
+          <h3 className="text-3xl font-bold text-slate-800">{stats.jobApplications}</h3>
+        </div>
+      </div>
     </div>
   );
 };

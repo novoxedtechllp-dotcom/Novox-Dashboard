@@ -13,6 +13,12 @@ export default defineConfig({
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         secure: false,
+      },
+      '/scraper-api': {
+        target: 'https://novox-job-scraper.onrender.com',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/scraper-api/, '')
       }
     }
   }

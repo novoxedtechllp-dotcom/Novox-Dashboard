@@ -4,7 +4,7 @@ import {
   ExternalLink, Building2, CheckCircle2, ChevronRight, Loader2, Send
 } from 'lucide-react';
 
-const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => {
+const JobDetailsModal = ({ job, details, isLoading, isApplied = false, onClose, onApplyClick, onMarkApplied }) => {
   if (!job) return null;
 
   return (
@@ -76,23 +76,27 @@ const JobDetailsModal = ({ job, details, isLoading, onClose, onApplyClick }) => 
                 </div>
               </div>
 
-              <div className="flex flex-col items-stretch gap-3 shrink-0 w-full md:w-auto">
+              <div className="flex flex-col md:flex-row items-stretch gap-3 shrink-0 w-full md:w-auto">
+                {isApplied ? (
+                  <div className="flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 px-8 py-3.5 rounded-[8px] font-bold border border-emerald-100 text-center w-full md:w-auto">
+                    Applied
+                  </div>
+                ) : (
+                  <button 
+                    onClick={onMarkApplied}
+                    className="flex items-center justify-center gap-2 bg-white hover:bg-emerald-50 text-emerald-600 px-8 py-3.5 rounded-[8px] font-bold border border-[#C2C6D4] hover:border-emerald-200 shadow-sm transition-all text-center w-full md:w-auto whitespace-nowrap text-sm"
+                  >
+                    <CheckCircle2 size={18} />
+                    Mark as Applied
+                  </button>
+                )}
                 <button 
                   onClick={onApplyClick}
-                  className="flex items-center justify-center gap-2 bg-[#003F87] hover:bg-blue-800 text-white px-8 py-3.5 rounded-[8px] font-bold shadow-lg shadow-blue-900/20 hover:shadow-xl hover:-translate-y-0.5 transition-all w-full"
-                >
-                  <Send size={18} />
-                  Apply Now
-                </button>
-                <a 
-                  href={job.link} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-900 px-8 py-3.5 rounded-[8px] font-bold border border-[#C2C6D4] shadow-sm transition-all text-center"
+                  className="flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white px-8 py-3.5 rounded-[8px] font-bold shadow-sm transition-all w-full md:w-auto text-sm whitespace-nowrap"
                 >
                   <ExternalLink size={18} />
-                  View Original
-                </a>
+                  Apply on Website
+                </button>
               </div>
             </div>
           </div>

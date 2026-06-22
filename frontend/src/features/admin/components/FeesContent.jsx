@@ -283,10 +283,9 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
     if (activeTab === 'MONTH_TRANSACTIONS') {
       let filteredList = feesList;
       if (searchQuery.trim() !== '') {
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
         filteredList = filteredList.filter(item => {
-          const nameWords = item.name ? item.name.toLowerCase().split(/\s+/) : [];
-          return nameWords.some(word => word.startsWith(q));
+          return item.name ? item.name.toLowerCase().includes(q) : false;
         });
       }
       // Note: filterStatus not very useful here since we just record payments, but we'll apply it if not 'All'
@@ -295,11 +294,10 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
     } else {
       let filteredList = studentBalancesList;
       if (searchQuery.trim() !== '') {
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
         filteredList = filteredList.filter(item => {
-          const nameWords = item.name ? item.name.toLowerCase().split(/\s+/) : [];
-          const matchesName = nameWords.some(word => word.startsWith(q));
-          const matchesCode = item.studentCode && item.studentCode.toLowerCase().startsWith(q);
+          const matchesName = item.name ? item.name.toLowerCase().includes(q) : false;
+          const matchesCode = item.studentCode ? item.studentCode.toLowerCase().includes(q) : false;
           return matchesName || matchesCode;
         });
       }

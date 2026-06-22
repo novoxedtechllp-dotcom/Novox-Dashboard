@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import CustomSelect from '../../../components/CustomSelect';
@@ -390,38 +390,16 @@ const StudentTasks = ({ userInfo }) => {
           <LoadingSpinner text="Loading your tasks..." />
         </div>
       ) : (() => {
-        const filteredCourseStructure = courseStructure.map(course => {
-          let prevModuleCompleted = true;
-          const mappedModules = course.modules.map((mod, index) => {
-            const isModuleUnlocked = index === 0 ? true : prevModuleCompleted;
-            
-            let allSubmodulesCompleted = true;
-            if (mod.submodules.length === 0) allSubmodulesCompleted = false;
-            mod.submodules.forEach(sub => {
-              const hasTasks = sub.tasks && sub.tasks.length > 0;
-              if (hasTasks) {
-                if (!sub.tasks.every(t => t.status === 'APPROVED' || t.status === 'PENDING_REVIEW' || t.gradeValue)) {
-                  allSubmodulesCompleted = false;
-                }
-              }
-            });
-            prevModuleCompleted = isModuleUnlocked && allSubmodulesCompleted;
-
-            return {
-              ...mod,
-              isUnlocked: isModuleUnlocked,
-              submodules: mod.submodules.map(sub => ({
-                ...sub,
-                tasks: sub.tasks.filter(t => t.isReal)
-              })).filter(sub => sub.tasks.length > 0)
-            };
-          });
-
-          return {
-            ...course,
-            modules: mappedModules.filter(mod => mod.submodules.length > 0)
-          };
-        }).filter(course => course.modules.length > 0);
+        const filteredCourseStructure = courseStructure.map(course => ({
+          ...course,
+          modules: course.modules.map(mod => ({
+            ...mod,
+            submodules: mod.submodules.map(sub => ({
+              ...sub,
+              tasks: sub.tasks.filter(t => activeFilter === 'ALL' || t.type === activeFilter)
+            })).filter(sub => sub.tasks.length > 0)
+          })).filter(mod => mod.submodules.length > 0)
+        })).filter(course => course.modules.length > 0);
 
         return (
           <>
@@ -450,10 +428,7 @@ const StudentTasks = ({ userInfo }) => {
                           <div className="bg-blue-50 text-[#003F87] p-2 rounded-lg shrink-0">
                             <BookOpen size={18} />
                           </div>
-                          <h2 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                            {mod.title}
-                            {!mod.isUnlocked && <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200">Locked</span>}
-                          </h2>
+                          <h2 className="font-bold text-slate-800 text-lg">{mod.title}</h2>
                         </div>
                         <ChevronRight 
                           className={`text-slate-400 transition-transform duration-300 ${expandedSections[mod.id] ? 'rotate-90' : ''}`} 
@@ -508,8 +483,8 @@ const StudentTasks = ({ userInfo }) => {
                                               <div 
                                                 key={task.id} 
                                                 id={`task-${task.id}`}
-                                                onClick={() => { if (mod.isUnlocked) toggleSection(task.id); }}
-                                                className={`group flex flex-col p-4 rounded-xl border border-slate-100 bg-white ${mod.isUnlocked ? 'hover:border-[#003F87]/30 hover:shadow-sm cursor-pointer' : 'opacity-60 cursor-not-allowed'} transition-all scroll-mt-24`}
+                                                onClick={() => toggleSection(task.id)}
+                                                className="group flex flex-col p-4 rounded-xl border border-slate-100 bg-white hover:border-[#003F87]/30 hover:shadow-sm transition-all cursor-pointer scroll-mt-24"
                                               >
                                                 <div className="flex items-center justify-between gap-4">
                                                   <div className="flex items-center gap-4 flex-1">
@@ -542,26 +517,20 @@ const StudentTasks = ({ userInfo }) => {
                                                   </div>
                                                   
                                                   <div className="flex items-center gap-4 shrink-0">
-                                                    {!mod.isUnlocked ? (
-                                                      <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-md hidden sm:block">Locked</span>
-                                                    ) : (
-                                                      <>
-                                                        {task.status === 'IN_PROGRESS' && (
-                                                          <button 
-                                                            onClick={(e) => { e.stopPropagation(); openSubmitModal(e, task); }}
-                                                            className="bg-[#003F87] hover:bg-[#002b5e] text-white text-[11px] font-extrabold px-4 py-1.5 rounded-lg transition-all shadow-sm active:scale-95 hidden sm:block"
-                                                          >
-                                                            Submit Work
-                                                          </button>
-                                                        )}
-                                                        <button 
-                                                          onClick={(e) => { e.stopPropagation(); openDetailsModal(task); }}
-                                                          className="text-[11px] font-bold text-[#003F87] hover:underline hidden sm:block"
-                                                        >
-                                                          View Details
-                                                        </button>
-                                                      </>
+                                                    {task.status === 'IN_PROGRESS' && (
+                                                      <button 
+                                                        onClick={(e) => { e.stopPropagation(); openSubmitModal(e, task); }}
+                                                        className="bg-[#003F87] hover:bg-[#002b5e] text-white text-[11px] font-extrabold px-4 py-1.5 rounded-lg transition-all shadow-sm active:scale-95 hidden sm:block"
+                                                      >
+                                                        Submit Work
+                                                      </button>
                                                     )}
+                                                    <button 
+                                                      onClick={(e) => { e.stopPropagation(); openDetailsModal(task); }}
+                                                      className="text-[11px] font-bold text-[#003F87] hover:underline hidden sm:block"
+                                                    >
+                                                      View Details
+                                                    </button>
                                                     {isGraded && (
                                                       <div className="flex items-center gap-2 mr-2">
                                                         <span className="text-[10px] font-bold text-slate-400 uppercase">Grade</span>

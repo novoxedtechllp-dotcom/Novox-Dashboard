@@ -9,6 +9,7 @@ const EmployeeDashboard = () => {
   const [monthlyStats, setMonthlyStats] = useState({ present: 0, halfDay: 0, late: 0, absent: 0 });
   const [studentCount, setStudentCount] = useState(0);
   const [courseCount, setCourseCount] = useState(0);
+  const [allocatedCourses, setAllocatedCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -66,6 +67,7 @@ const EmployeeDashboard = () => {
           );
           myCourseIdSet = new Set(myCourses.map(c => c.id || c._id));
           setCourseCount(myCourseIdSet.size);
+          setAllocatedCourses(myCourses);
         }
 
         const stdRes = await fetch('/api/v1/students', { headers });
@@ -150,7 +152,11 @@ const EmployeeDashboard = () => {
           </p>
         </div>
         <button 
-          onClick={() => navigate(window.location.pathname.replace('/dashboard', '/leave'))}
+          onClick={() => {
+            localStorage.setItem('employee_leave_view', 'My Record');
+            localStorage.setItem('employee_leave_tab', 'Request Leave');
+            navigate(window.location.pathname.replace('/dashboard', '/leave'));
+          }}
           className="bg-white border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
         >
           <FileText size={16} /> Request Leave
@@ -286,6 +292,38 @@ const EmployeeDashboard = () => {
             </div>
           </div>
           
+          {/* Allocated Courses Section */}
+          <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm mt-6">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+              <Calendar size={20} className="text-indigo-500" />
+              My Allocated Courses
+            </h3>
+            {allocatedCourses.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {allocatedCourses.map(course => (
+                  <div key={course.id || course._id} className="p-4 border border-slate-100 bg-slate-50 rounded-xl hover:border-indigo-100 hover:shadow-sm transition-all flex items-start gap-3">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center shrink-0">
+                      <span className="font-bold text-indigo-700 text-sm">
+                        {(course.name || course.title || 'C').charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <h4 className="text-slate-800 font-bold truncate text-sm">
+                        {course.name || course.title || 'Untitled Course'}
+                      </h4>
+                      <p className="text-xs text-slate-500 truncate mt-0.5">
+                        {course.duration ? `${course.duration} duration` : 'Self-paced'}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
+                <p className="text-slate-400 font-medium text-sm">No courses allocated yet.</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right Column: Monthly Overview */}

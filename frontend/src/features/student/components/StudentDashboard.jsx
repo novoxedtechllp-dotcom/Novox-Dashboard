@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { UserCheck, CheckCircle2, Database, BookOpen, Clock, MapPin, MessageSquare, ChevronRight, CheckSquare, AlertCircle, X } from 'lucide-react';
 
 const StudentDashboard = ({ userInfo }) => {
@@ -7,6 +8,7 @@ const StudentDashboard = ({ userInfo }) => {
   const [currentModule, setCurrentModule] = useState(null);
   const [todaySessions, setTodaySessions] = useState([]);
   const [pendingTasks, setPendingTasks] = useState([]);
+  const [totalPendingTasks, setTotalPendingTasks] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showNotification, setShowNotification] = useState(false);
 
@@ -41,29 +43,109 @@ const StudentDashboard = ({ userInfo }) => {
           }
         }
 
-        // 2. Fetch Tasks (Placeholder API path, as no dedicated tasks API was visible in grep)
-        // We will default to 0% and empty if it fails
-        const tasksRes = await fetch(`/api/v1/students/${userInfo?.id || userInfo?.student_profile_id}/tasks`, { headers });
-        if (tasksRes.ok) {
-          const tasksData = await tasksRes.json();
-          if (tasksData && tasksData.data) {
-            setPendingTasks(tasksData.data.filter(t => !t.completed));
-            const totalTasks = tasksData.data.length;
-            const completedTasks = tasksData.data.filter(t => t.completed).length;
-            if (totalTasks > 0) {
-              setTasksDonePercent(Math.round((completedTasks / totalTasks) * 100));
+        // 2. Fetch Tasks (Including unstarted tasks from syllabus)
+        const studentProfileId = userInfo?.student_profile_id || userInfo?.id;
+        try {
+          const stuRes = await fetch(`/api/v1/students/${studentProfileId}`, { headers });
+          if (stuRes.ok) {
+            const stuData = await stuRes.json();
+            const courseIds = stuData.data?.student_courses?.map(sc => sc.course_id) || [];
+            
+            // Fetch student tasks for statuses
+            const tasksRes = await fetch(`/api/v1/students/${stuData.data?.id || studentProfileId}/tasks`, { headers });
+            let studentTasksMap = {};
+            if (tasksRes.ok) {
+              const tasksData = await tasksRes.json();
+              (tasksData.data || []).forEach(st => {
+                studentTasksMap[st.task_id] = st;
+              });
+            }
+
+            let allTasks = [];
+            let completedCount = 0;
+            let totalCount = 0;
+
+            // Fetch courses to get all tasks
+            for (const cId of courseIds) {
+              const courseRes = await fetch(`/api/v1/courses/${cId}`, { headers });
+              if (courseRes.ok) {
+                const courseData = await courseRes.json();
+                const course = courseData.data;
+                if (course && course.course_modules) {
+                  course.course_modules.filter(m => m.status === 'PUBLISHED').forEach(mod => {
+                    mod.course_submodules?.forEach(sub => {
+                      sub.course_tasks?.forEach(ct => {
+                        totalCount++;
+                        const st = studentTasksMap[ct.id];
+                        let tStatus = st ? st.status : 'PENDING';
+                        let columnStatus = 'NOT STARTED';
+                        if (tStatus === 'IN_PROGRESS') columnStatus = 'IN PROGRESS';
+                        else if (tStatus === 'PENDING_REVIEW') columnStatus = 'PENDING REVIEW';
+                        else if (tStatus === 'APPROVED') columnStatus = 'APPROVED';
+                        else if (tStatus === 'SUBMITTED') columnStatus = 'SUBMITTED';
+                        
+                        if (columnStatus === 'APPROVED') {
+                          completedCount++;
+                        } else if (columnStatus !== 'SUBMITTED' && columnStatus !== 'PENDING REVIEW') {
+                          let dueText = 'No Date';
+                          let rawDateVal = 8640000000000000;
+                          let diffDays = null;
+                          
+                          if (ct.due_date) {
+                            rawDateVal = new Date(ct.due_date).getTime();
+                            const dueDateObj = new Date(ct.due_date);
+                            const today = new Date();
+                            const diffTime = dueDateObj - today;
+                            diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            
+                            if (diffDays < 0) { dueText = 'Overdue'; }
+                            else if (diffDays === 0) { dueText = 'Due Today'; }
+                            else if (diffDays === 1) { dueText = 'Due Tomorrow'; }
+                            else { dueText = `${diffDays} Days Left`; }
+                          }
+
+                          // Only show if it's currently IN PROGRESS (being worked on) 
+                          // OR if it's urgent (due within 3 days or overdue)
+                          if (columnStatus === 'IN PROGRESS' || (diffDays !== null && diffDays <= 3)) {
+                            allTasks.push({
+                              title: ct.title,
+                              dueTime: columnStatus,
+                              courseName: course.name,
+                              dueDate: dueText,
+                              rawDate: rawDateVal
+                            });
+                          }
+                        }
+                      });
+                    });
+                  });
+                }
+              }
+            }
+            
+            // Sort by due date (closest first)
+            allTasks.sort((a, b) => a.rawDate - b.rawDate);
+            
+            setTotalPendingTasks(allTasks.length);
+            setPendingTasks(allTasks.slice(0, 5)); // Just show top 5 on dashboard
+            if (totalCount > 0) {
+              setTasksDonePercent(Math.round((completedCount / totalCount) * 100));
             }
           }
+        } catch (err) {
+          console.error("Failed to fetch tasks for dashboard", err);
         }
 
         // 3. Fetch Today's Classes/Sessions
         const dateStr = new Date().toISOString().split('T')[0];
-        const studentProfileId = userInfo?.student_profile_id || userInfo?.id;
         const scheduleRes = await fetch(`/api/v1/students/${studentProfileId}/daily-plan?date=${dateStr}`, { headers });
         if (scheduleRes.ok) {
           const scheduleData = await scheduleRes.json();
           if (scheduleData && scheduleData.data) {
             setTodaySessions(scheduleData.data);
+            if (scheduleData.data.length > 0 && scheduleData.data[0].course_modules) {
+              setCurrentModule({ title: scheduleData.data[0].course_modules.title });
+            }
           }
         }
 
@@ -176,8 +258,8 @@ const StudentDashboard = ({ userInfo }) => {
               </div>
               <div>
                 <p className="text-[10px] text-slate-400 font-bold tracking-wider uppercase mb-1">Current Module</p>
-                <h3 className="text-2xl font-black text-slate-800 leading-none truncate">
-                  {currentModule ? currentModule.name : 'N/A'}
+                <h3 className="text-xl font-bold text-slate-800 leading-tight">
+                  {currentModule?.title || 'No Active Module'}
                 </h3>
               </div>
               <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4">
@@ -204,9 +286,8 @@ const StudentDashboard = ({ userInfo }) => {
                 <div className="flex flex-col gap-6">
                   {todaySessions.map((session, idx) => (
                     <div key={idx} className="flex flex-col sm:flex-row gap-6">
-                      <div className="w-full sm:w-[160px] h-[120px] bg-slate-100 rounded-xl overflow-hidden shrink-0">
-                        {/* Placeholder image for class */}
-                        <img src="https://images.unsplash.com/photo-1516321497487-e288fb19713f?w=400&q=80" alt="Class" className="w-full h-full object-cover" />
+                      <div className="w-full sm:w-[160px] h-[120px] bg-blue-50 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border border-blue-100">
+                        <BookOpen size={48} className="text-[#003F87] opacity-20" />
                       </div>
                       <div className="flex-1 flex flex-col justify-center">
                         <div className="flex items-center gap-2 text-[10px] font-bold text-[#003F87] uppercase tracking-wider mb-1">
@@ -216,8 +297,12 @@ const StudentDashboard = ({ userInfo }) => {
                         <h4 className="text-lg font-bold text-slate-800 mb-2">{session.title || 'Untitled Session'}</h4>
                         
                         <div className="flex items-center gap-4 text-slate-500 text-sm font-medium mb-4">
-                          <span className="flex items-center gap-1.5"><Clock size={14} /> Sequence: {session.sequence_order || '1'}</span>
-                          <span className="flex items-center gap-1.5"><BookOpen size={14} /> Module: {session.course_modules?.title || 'General'}</span>
+                          {session.sequence_order && (
+                            <span className="flex items-center gap-1.5"><Clock size={14} /> Sequence: {session.sequence_order}</span>
+                          )}
+                          {session.course_modules?.title && (
+                            <span className="flex items-center gap-1.5"><BookOpen size={14} /> Module: {session.course_modules.title}</span>
+                          )}
                         </div>
                         
 
@@ -244,9 +329,9 @@ const StudentDashboard = ({ userInfo }) => {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col h-fit">
             <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-center">
               <h3 className="font-bold text-slate-800 text-lg">Pending Tasks</h3>
-              {pendingTasks.length > 0 && (
+              {totalPendingTasks > 0 && (
                 <span className="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  {pendingTasks.length} NEW
+                  {totalPendingTasks} NEW
                 </span>
               )}
             </div>
@@ -258,21 +343,37 @@ const StudentDashboard = ({ userInfo }) => {
                  </div>
               ) : pendingTasks.length > 0 ? (
                 <div className="flex flex-col gap-5">
-                  {pendingTasks.map((task, idx) => (
-                    <div key={idx} className="flex gap-4 relative">
-                      {/* Priority Line Indicator */}
-                      <div className="w-1 bg-red-500 rounded-full shrink-0"></div>
-                      <div className="flex flex-col flex-1">
-                        <div className="flex justify-between items-start mb-1">
-                          <h4 className="text-sm font-bold text-slate-800 leading-tight">{task.title || 'Untitled Task'}</h4>
-                          <span className="text-[10px] font-bold text-red-500 shrink-0 ml-2">{task.dueTime || 'Pending'}</span>
+                  {pendingTasks.map((task, idx) => {
+                    let statusColor = 'text-slate-500';
+                    let bgColor = 'bg-slate-400';
+                    
+                    if (task.dueTime === 'NOT STARTED') {
+                      statusColor = 'text-red-500';
+                      bgColor = 'bg-red-500';
+                    } else if (task.dueTime === 'IN PROGRESS') {
+                      statusColor = 'text-blue-500';
+                      bgColor = 'bg-blue-500';
+                    } else if (task.dueTime === 'PENDING REVIEW') {
+                      statusColor = 'text-orange-500';
+                      bgColor = 'bg-orange-500';
+                    }
+
+                    return (
+                      <div key={idx} className="flex gap-4 relative">
+                        {/* Priority Line Indicator */}
+                        <div className={`w-1 rounded-full shrink-0 ${bgColor}`}></div>
+                        <div className="flex flex-col flex-1">
+                          <div className="flex justify-between items-start mb-1">
+                            <h4 className="text-sm font-bold text-slate-800 leading-tight">{task.title || 'Untitled Task'}</h4>
+                            <span className={`text-[10px] font-bold shrink-0 ml-2 uppercase tracking-wide ${statusColor}`}>{task.dueTime || 'Pending'}</span>
+                          </div>
+                          <p className="text-xs text-slate-500 font-medium">
+                            {task.courseName || 'Course'} • {task.dueDate || 'No Date'}
+                          </p>
                         </div>
-                        <p className="text-xs text-slate-500 font-medium">
-                          {task.courseName || 'Course'} • {task.dueDate || 'No Date'}
-                        </p>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center py-8 text-center opacity-60">
@@ -282,9 +383,9 @@ const StudentDashboard = ({ userInfo }) => {
               )}
               
               <div className="mt-auto pt-6">
-                <button className="w-full py-2.5 border border-dashed border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                <Link to="/student/tasks" className="w-full py-2.5 border border-dashed border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors flex justify-center items-center">
                   View All Tasks
-                </button>
+                </Link>
               </div>
             </div>
           </div>

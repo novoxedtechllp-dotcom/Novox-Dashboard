@@ -3,6 +3,7 @@ import { Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, ChevronLeft, Ch
 
 const StudentAttendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [leaveRecords, setLeaveRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -11,13 +12,19 @@ const StudentAttendance = () => {
       try {
         const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
         const token = userInfo?.token || '';
-        const res = await fetch('/api/v1/attendance?type=student', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
         
-        if (res.ok) {
-          const data = await res.json();
+        const [attRes, leaveRes] = await Promise.all([
+          fetch('/api/v1/attendance?type=student', { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/v1/leaves', { headers: { Authorization: `Bearer ${token}` } })
+        ]);
+        
+        if (attRes.ok) {
+          const data = await attRes.json();
           setAttendanceRecords(data.data || []);
+        }
+        if (leaveRes.ok) {
+          const data = await leaveRes.json();
+          setLeaveRecords(data.data || []);
         }
       } catch (err) {
         console.error(err);
@@ -47,12 +54,29 @@ const StudentAttendance = () => {
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      
+      // Check if there is an approved leave for this date
+      const hasApprovedLeave = leaveRecords.some(l => {
+        if (l.status !== 'APPROVED') return false;
+        const start = new Date(l.start_date);
+        const end = new Date(l.end_date);
+        const current = new Date(dateStr);
+        start.setHours(0,0,0,0);
+        end.setHours(0,0,0,0);
+        current.setHours(0,0,0,0);
+        return current >= start && current <= end;
+      });
+
       const record = attendanceRecords.find(a => a.attendance_date === dateStr || a.attendance_date?.startsWith(dateStr));
 
       let bgColor = 'bg-slate-50';
       let textColor = 'text-slate-700';
 
-      if (record) {
+      if (hasApprovedLeave) {
+        bgColor = 'bg-[#E5F0FF] border border-[#003F87]/20';
+        textColor = 'text-[#003F87]';
+        leaveCount++;
+      } else if (record) {
         if (record.status === 'PRESENT') {
           bgColor = 'bg-[#E5F7ED] border border-[#008A2E]/20';
           textColor = 'text-[#008A2E]';

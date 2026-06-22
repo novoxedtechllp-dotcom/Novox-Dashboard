@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Send, FileText, Info, UploadCloud, Trash2, X, MessageSquare } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { apiClient } from '../../../lib/apiClient';
 import CloudinaryPdfViewer from '../../../components/CloudinaryPdfViewer';
 import DatePicker from 'react-datepicker';
@@ -8,8 +9,17 @@ import 'react-datepicker/dist/react-datepicker.css';
 const EmployeeLeave = () => {
   const startDatePickerRef = useRef(null);
   const endDatePickerRef = useRef(null);
-  const [viewMode, setViewMode] = useState('My Record');
-  const [activeTab, setActiveTab] = useState('Request Leave');
+  const location = useLocation();
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('employee_leave_view') || 'My Record');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('employee_leave_tab') || 'Request Leave');
+  
+  useEffect(() => {
+    localStorage.setItem('employee_leave_view', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    localStorage.setItem('employee_leave_tab', activeTab);
+  }, [activeTab]);
   const [formData, setFormData] = useState({
     leaveType: 'Sick Leave',
     startDate: '',
@@ -260,13 +270,17 @@ const EmployeeLeave = () => {
       {/* Top Level Toggle */}
       <div className="flex bg-[#F8FAFC] rounded-[4px] p-[4px] border border-[#C2C6D4] w-fit mb-6 shadow-sm">
         <button
-          onClick={() => setViewMode('My Record')}
+          onClick={() => {
+            setViewMode('My Record');
+          }}
           className={`px-8 py-2 rounded-[4px] text-[14px] font-semibold transition-all ${viewMode === 'My Record' ? 'bg-[#003F87] text-white shadow-md' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
         >
           My Record
         </button>
         <button
-          onClick={() => setViewMode('Manage Leaves')}
+          onClick={() => {
+            setViewMode('Manage Leaves');
+          }}
           className={`px-8 py-2 rounded-[4px] text-[14px] font-semibold transition-all ${viewMode === 'Manage Leaves' ? 'bg-[#003F87] text-white shadow-md' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
         >
           Manage Leaves
@@ -284,7 +298,9 @@ const EmployeeLeave = () => {
         <>
           <div className="flex gap-4 border-b border-[#E2E8F0] mb-6">
             <button
-              onClick={() => setActiveTab('Request Leave')}
+              onClick={() => {
+                setActiveTab('Request Leave');
+              }}
               className={`pb-3 px-1 text-[14px] font-bold transition-all relative ${
                 activeTab === 'Request Leave' 
                   ? 'text-[#003F87]' 
@@ -297,7 +313,9 @@ const EmployeeLeave = () => {
               )}
             </button>
             <button
-              onClick={() => setActiveTab('My Leave History')}
+              onClick={() => {
+                setActiveTab('My Leave History');
+              }}
               className={`pb-3 px-1 text-[14px] font-bold transition-all relative ${
                 activeTab === 'My Leave History' 
                   ? 'text-[#003F87]' 
@@ -358,6 +376,7 @@ const EmployeeLeave = () => {
                      <div className="relative flex items-center">
                        <DatePicker
                          ref={startDatePickerRef}
+                         wrapperClassName="w-full"
                          selected={formData.startDate ? new Date(formData.startDate) : null}
                          onChange={(date) => {
                            if (date) {
@@ -390,6 +409,7 @@ const EmployeeLeave = () => {
                      <div className="relative flex items-center">
                        <DatePicker
                          ref={endDatePickerRef}
+                         wrapperClassName="w-full"
                          selected={formData.endDate ? new Date(formData.endDate) : null}
                          onChange={(date) => {
                            if (date) {
@@ -626,7 +646,7 @@ const EmployeeLeave = () => {
                     <td className="py-4 px-6 text-slate-600 max-w-[200px] truncate" title={leave.reason}>
                       {leave.reason}
                       {leave.document_url && (
-                        <div className="mt-1">
+                        <div className="mt-1 flex items-center gap-3">
                           <button 
                             onClick={() => {
                               setCurrentDocUrl(leave.document_url);
@@ -636,6 +656,15 @@ const EmployeeLeave = () => {
                           >
                             View Doc
                           </button>
+                          <a 
+                            href={leave.document_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            download
+                            className="text-emerald-600 hover:underline text-[11px] flex items-center gap-1 font-bold"
+                          >
+                            Download
+                          </a>
                         </div>
                       )}
                     </td>

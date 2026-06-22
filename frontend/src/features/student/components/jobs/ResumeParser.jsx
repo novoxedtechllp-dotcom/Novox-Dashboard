@@ -43,11 +43,7 @@ const ResumeParser = ({ onParseSuccess }) => {
       return;
     }
     
-    // Validate size (e.g., max 5MB)
-    if (selectedFile.size > 5 * 1024 * 1024) {
-      setError('File size exceeds 5MB limit.');
-      return;
-    }
+
 
     setFile(selectedFile);
     parseResume(selectedFile);
@@ -61,7 +57,7 @@ const ResumeParser = ({ onParseSuccess }) => {
     formData.append('file', fileToParse); // Assuming backend expects 'file' form field
 
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://novox-job-scraper-api.onrender.com';
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/scraper-api';
       const response = await fetch(`${baseUrl}/parse-resume`, {
         method: 'POST',
         body: formData,
@@ -126,7 +122,7 @@ const ResumeParser = ({ onParseSuccess }) => {
             <UploadCloud size={32} />
           </div>
           <h3 className="font-bold text-slate-900 text-lg mb-1">Click or drag file to upload</h3>
-          <p className="text-[#555F6B] text-sm text-center">Supported formats: PDF, TXT (Max 5MB)</p>
+          <p className="text-[#555F6B] text-sm text-center">Supported formats: PDF, TXT</p>
         </div>
       )}
 

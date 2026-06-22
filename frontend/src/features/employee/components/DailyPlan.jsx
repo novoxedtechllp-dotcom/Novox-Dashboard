@@ -273,7 +273,46 @@ const DailyPlan = ({ userType, userId }) => {
     } catch (error) {
       console.error('Error adding note:', error);
       setToast({ type: 'error', message: error.message || 'Failed to add note' });
-      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  const handleAddTopicAndTasks = async (courseId, moduleId, topicTitle, topicDesc, tasksList) => {
+    try {
+      const headers = getAuthHeaders();
+      if (!headers) return;
+
+      const subResponse = await fetch(`/api/v1/courses/${courseId}/modules/${moduleId}/submodules`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          title: topicTitle,
+          description: topicDesc || '',
+          sequence_order: 99
+        })
+      });
+      const subData = await parseApiResponse(subResponse);
+      const newSubmodule = subData.data || subData;
+      
+      if (tasksList && tasksList.length > 0) {
+        await Promise.all(tasksList.map((taskTitle, idx) => {
+          return fetch(`/api/v1/courses/${courseId}/modules/${moduleId}/submodules/${newSubmodule.id}/tasks`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              title: taskTitle,
+              description: '',
+              sequence_order: idx + 1,
+              task_type: 'PRE_PLANNED'
+            })
+          });
+        }));
+      }
+
+      alert('Topic and tasks added successfully!');
+      fetchAvailableTopics();
+    } catch (error) {
+      console.error('Error adding topic/tasks:', error);
+      alert(error.message || 'Failed to add topic');
     }
   };
 
@@ -606,13 +645,14 @@ const DailyPlan = ({ userType, userId }) => {
           onToggleTopic={handleToggleSingleTopic}
           onToggleModule={handleToggleModule}
           topicLoading={topicLoading}
+          onAddTopicAndTasks={handleAddTopicAndTasks}
         />
       )}
     </div>
   );
 };
 
-const CurriculumSelectorModal = ({ isOpen, onClose, selectedDate, topics, onToggleTopic, onToggleModule, topicLoading }) => {
+const CurriculumSelectorModal = ({ isOpen, onClose, selectedDate, topics, onToggleTopic, onToggleModule, topicLoading, onAddTopicAndTasks }) => {
   const [expandedCourses, setExpandedCourses] = useState({});
   const [expandedModules, setExpandedModules] = useState({});
 
@@ -745,6 +785,14 @@ const CurriculumSelectorModal = ({ isOpen, onClose, selectedDate, topics, onTogg
                                       </div>
                                     );
                                   })}
+                                  
+                                  {/* Add Topic Inline Form Button */}
+                                  <AddTopicForm 
+                                    courseId={courseId}
+                                    moduleId={moduleId}
+                                    onAdd={onAddTopicAndTasks}
+                                    topicLoading={topicLoading}
+                                  />
                                 </div>
                               )}
                             </div>
@@ -768,6 +816,104 @@ const CurriculumSelectorModal = ({ isOpen, onClose, selectedDate, topics, onTogg
         </div>
       </div>
     </div>
+  );
+};
+
+const AddTopicForm = ({ courseId, moduleId, onAdd, topicLoading }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [desc, setDesc] = useState('');
+  const [tasksText, setTasksText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setSubmitting(true);
+    const tasksList = tasksText
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+    
+    await onAdd(courseId, moduleId, title.trim(), desc.trim(), tasksList);
+    setSubmitting(false);
+    setTitle('');
+    setDesc('');
+    setTasksText('');
+    setIsOpen(false);
+  };
+
+  if (!isOpen) {
+    return (
+      <div className="py-2 px-6 md:pl-16">
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="text-xs font-bold text-[#003F87] hover:text-[#002B5E] flex items-center gap-1.5 py-1 px-2.5 rounded bg-blue-50 hover:bg-blue-100 transition-colors"
+        >
+          <Plus size={14} /> Add Topic & Tasks
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mx-6 md:ml-16 md:mr-6 p-4 bg-white border border-slate-200 rounded-xl my-2 flex flex-col gap-3 shadow-sm">
+      <div className="text-xs font-black text-slate-800 uppercase tracking-wider">New Topic under Module</div>
+      
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] font-bold text-slate-500 uppercase">Topic Title *</label>
+        <input
+          type="text"
+          placeholder="e.g. React Router basics"
+          required
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          className="p-2 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:border-[#003F87] transition-all"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] font-bold text-slate-500 uppercase">Description</label>
+        <input
+          type="text"
+          placeholder="e.g. Introduction to client-side routing"
+          value={desc}
+          onChange={e => setDesc(e.target.value)}
+          className="p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-[#003F87] transition-all"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] font-bold text-slate-500 uppercase">Tasks / Notes (Optional)</label>
+        <input
+          type="text"
+          placeholder="e.g. Install react-router-dom, Build navbar link (comma separated)"
+          value={tasksText}
+          onChange={e => setTasksText(e.target.value)}
+          className="p-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-[#003F87] transition-all placeholder:text-xs"
+        />
+        <span className="text-[10px] text-slate-400 font-medium">Separate multiple tasks with commas. These tasks will be automatically added to the topic.</span>
+      </div>
+
+      <div className="flex justify-end gap-2 mt-1">
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={() => setIsOpen(false)}
+          className="px-3.5 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs rounded-lg transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={submitting || topicLoading}
+          className="px-4 py-1.5 bg-[#003F87] hover:bg-[#002B5E] text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1"
+        >
+          {submitting ? 'Adding...' : 'Add Topic'}
+        </button>
+      </div>
+    </form>
   );
 };
 
