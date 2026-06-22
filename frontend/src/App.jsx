@@ -87,7 +87,8 @@ const mapEmployeeFromApi = (d) => {
   avatar: d.avatar_url || null,
   email: d.users?.email || '',
   systemRole: d.users?.role || 'EMPLOYEE',
-  courseIds
+  courseIds: d.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || [],
+  custom_permissions: d.custom_permissions || null
   };
 };
 
@@ -177,6 +178,8 @@ function App() {
             if (profile) {
               const updatedUserInfoStr = sessionStorage.getItem('userInfo');
               const currentUserInfo = updatedUserInfoStr ? JSON.parse(updatedUserInfoStr) : userInfo;
+              const mergedPermissions = profile.custom_permissions || profile.employee_roles?.permissions || {};
+
               const updatedSessionUser = {
                 ...currentUserInfo,
                 first_name: profile.first_name || currentUserInfo.first_name,
@@ -184,6 +187,7 @@ function App() {
                 avatar_url: profile.avatar_url || currentUserInfo.avatar_url,
                 name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || currentUserInfo.name,
                 designation: profile.designation || currentUserInfo.designation,
+                permissions: mergedPermissions
               };
               sessionStorage.setItem('userInfo', JSON.stringify(updatedSessionUser));
               setUserInfo(updatedSessionUser);
@@ -224,17 +228,18 @@ function App() {
   const basePath = userRole === 'STUDENT' ? '/student' :
     isHR ? '/hr' : isDesign ? '/design' : isDevelopment ? '/development' : isSales ? '/sales' : isMarketing ? '/marketing' : isAccounts ? '/accounts' : '/admin';
 
-  const canViewEmployees = userRole === 'ADMIN' || isHR;
+  const canViewEmployees = userRole === 'ADMIN' || (userRole === 'EMPLOYEE' && userInfo?.permissions?.employees?.view);
   const canViewPayroll = userRole === 'ADMIN' || isHR || isAccounts;
   const canViewRecruitment = userRole === 'ADMIN' || isHR;
-  const canViewSalesCrm = userRole === 'ADMIN' || isSales;
+  const canViewSalesCrm = userRole === 'ADMIN' || (userRole === 'EMPLOYEE' && userInfo?.permissions?.sales?.view);
   const canViewWhatsapp = userRole === 'ADMIN' || isSales || isMarketing;
-  const canViewBlog = userRole === 'ADMIN' || isMarketing;
+  const canViewBlog = userRole === 'ADMIN' || (userRole === 'EMPLOYEE' && userInfo?.permissions?.['blog-agent']?.view);
   const canViewSeo = userRole === 'ADMIN' || isMarketing;
-  const canViewFees = userRole === 'ADMIN' || isHR || isSales || isAccounts;
-  const canViewCourses = userRole === 'ADMIN' || userRole === 'EMPLOYEE';
+  const canViewFees = userRole === 'ADMIN' || (userRole === 'EMPLOYEE' && userInfo?.permissions?.fees?.view);
+  const canViewCourses = userRole === 'ADMIN' || (userRole === 'EMPLOYEE' && userInfo?.permissions?.courses?.view);
   const canViewJourney = userRole === 'ADMIN' || isDevelopment || isDesign || isHR || isSales || isAccounts; // General
-  const canViewGallery = userRole === 'ADMIN' || isMarketing;
+  const canViewGallery = userRole === 'ADMIN' || (userRole === 'EMPLOYEE' && userInfo?.permissions?.gallery?.view);
+  const canViewStudents = userRole === 'ADMIN' || (userRole === 'EMPLOYEE' && userInfo?.permissions?.students?.view);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -248,6 +253,7 @@ function App() {
       {isAuthenticated && (
         <Sidebar
           userRole={userRole}
+          permissions={userInfo?.permissions || {}}
           isHR={isHR}
           isDesign={isDesign}
           isDevelopment={isDevelopment}
@@ -294,7 +300,6 @@ function App() {
                 <Route path={`${basePath}/schedule`} element={userRole === 'STUDENT' ? <DailySchedule /> : <DailyPlan userType={userRole} userId={userInfo?.employee_profile_id || userInfo?.id} />} />
                 <Route path={`${basePath}/attendance`} element={userRole === 'STUDENT' ? <StudentAttendance searchQuery={searchQuery} setSearchQuery={setSearchQuery} /> : (userRole === 'EMPLOYEE' ? <EmployeeAttendance courses={courses} searchQuery={searchQuery} setSearchQuery={setSearchQuery} /> : <AttendanceContent employees={employees} courses={courses} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />)} />
                 <Route path={`${basePath}/leave`} element={userRole === 'STUDENT' ? <StudentLeave searchQuery={searchQuery} /> : (userRole === 'ADMIN' ? <LeaveManagementContent searchQuery={searchQuery} /> : (userRole === 'EMPLOYEE' ? <EmployeeLeave searchQuery={searchQuery} /> : <Navigate to={`${basePath}/dashboard`} />))} />
-                <Route path={`${basePath}/students`} element={<StudentsContent courses={courses} searchQuery={searchQuery} />} />
                 <Route path={`${basePath}/work-reports`} element={<WorkReportsContent />} />
                 <Route path={`${basePath}/leaderboard`} element={<LeaderboardContent />} />
                 <Route path={`${basePath}/settings`} element={<SettingsContent employees={employees} />} />
@@ -305,6 +310,7 @@ function App() {
                 <Route path={`${basePath}/journey`} element={userRole === 'STUDENT' ? <StudentAcademicJourney userInfo={userInfo} /> : (canViewJourney ? <AcademicJourneyContent /> : <Navigate to={`${basePath}/dashboard`} />)} />
                 <Route path={`${basePath}/support`} element={<SupportContent />} />
 
+                {canViewStudents && <Route path={`${basePath}/students`} element={userRole === 'STUDENT' ? <Navigate to={`${basePath}/dashboard`} /> : <StudentsContent courses={courses} searchQuery={searchQuery} />} />}
                 {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
                 {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
 

@@ -53,29 +53,36 @@ const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, is
    else if (userRole !== 'ADMIN') {
     const hiddenItems = [];
     
-    // Evaluate hidden items based on role
-    if (!isHR) {
-      hiddenItems.push('employees', 'recruitment');
-    }
-    if (!(isHR || isAccounts)) {
-      hiddenItems.push('payroll');
-    }
-    if (!isSales) {
-      hiddenItems.push('sales-crm');
-    }
-    if (!(isHR || isSales || isAccounts)) {
-      hiddenItems.push('fees');
-    }
-    if (!(isSales || isMarketing)) {
-      hiddenItems.push('whatsapp-automation');
-    }
-    if (!isMarketing) {
-      hiddenItems.push('seo', 'blog-agent', 'gallery');
-    }
-    
-    if (userRole === 'STUDENT') {
-      hiddenItems.push('courses', 'students');
-    }
+    // Mapping of navItem id to permissions key in SettingsContent
+    const permKeys = {
+      'students': 'students',
+      'employees': 'employees',
+      'courses': 'courses',
+      'fees': 'fees',
+      'sales-crm': 'sales',
+      'attendance': 'attendance',
+      'gallery': 'gallery',
+      'leave': 'leave',
+      'work-reports': 'work-reports',
+      'blog-agent': 'blog-agent'
+    };
+
+    // Evaluate hidden items based on permissions
+    navItems.forEach(item => {
+      const permKey = permKeys[item.id];
+      if (permKey) {
+        // Hide if the permissions object doesn't grant 'view'
+        if (!permissions[permKey]?.view) {
+          hiddenItems.push(item.id);
+        }
+      }
+    });
+
+    // Handle legacy items that are commented out but might be uncommented later
+    if (!(isHR || isAccounts)) hiddenItems.push('payroll');
+    if (!isHR) hiddenItems.push('recruitment');
+    if (!(isSales || isMarketing)) hiddenItems.push('whatsapp-automation');
+    if (!isMarketing) hiddenItems.push('seo');
     
     visibleNavItems = navItems.filter(item => !hiddenItems.includes(item.id))
       .map(item => {

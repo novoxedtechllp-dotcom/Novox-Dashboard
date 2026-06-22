@@ -36,6 +36,17 @@ const calculateFeeBreakdown = (feePlan, payments, upToMonth, upToYear) => {
   // Calculate months elapsed from start to the target month
   const monthsElapsed = (upToYear - startYear) * 12 + (upToMonth - startMonth);
 
+  if (monthsElapsed < 0) {
+    return {
+      totalDue: 0,
+      totalPaid: 0,
+      remainingBalance: 0,
+      currentMonthDue: 0,
+      carryForward: 0,
+      monthsElapsed
+    };
+  }
+
   // Total due = admission fee + (months elapsed × monthly installment)
   // Months elapsed of 0 means the start month itself (only admission fee is due)
   // Months elapsed of 1+ means installments are due
@@ -50,8 +61,16 @@ const calculateFeeBreakdown = (feePlan, payments, upToMonth, upToYear) => {
     totalDue = totalCourseFee;
   }
 
-  // Sum all payments
-  const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+  // Sum payments made up to the target month/year
+  const totalPaid = payments.reduce((sum, p) => {
+    // If payment has year/month, we only count it if it's <= target
+    if (p.year && p.month) {
+      if (p.year > upToYear || (p.year === upToYear && p.month > upToMonth)) {
+        return sum; // ignore future payments
+      }
+    }
+    return sum + (parseFloat(p.amount) || 0);
+  }, 0);
 
   const remainingBalance = Math.max(0, totalDue - totalPaid);
 
@@ -391,7 +410,8 @@ const getStudentBalances = asyncHandler(async (req, res) => {
   });
 
   // 5. Apply filters
-  let filtered = balances;
+  // Only show students whose fee plans have started (monthsElapsed >= 0)
+  let filtered = balances.filter(b => b.monthsElapsed >= 0);
 
   if (search) {
     const q = search.toLowerCase();
@@ -641,7 +661,7 @@ const getFeeSummary = asyncHandler(async (req, res) => {
     const planPayments = (allPayments || []).filter(p => p.student_id === enrollment.student_id && p.fee_plan_id === plan.id);
     const breakdown = calculateFeeBreakdown(plan, planPayments, currentMonth, currentYear);
 
-    if (breakdown.totalDue > breakdown.totalPaid) {
+    if (breakdown.monthsElapsed >= 0 && breakdown.totalDue > breakdown.totalPaid) {
       outstandingFees += (breakdown.totalDue - breakdown.totalPaid);
       outstandingCount++;
     }

@@ -104,6 +104,22 @@ const SettingsContent = ({ employees = [] }) => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [customPermissions, setCustomPermissions] = useState({});
 
+  // Attendance Settings state
+  const [attendanceSettings, setAttendanceSettings] = useState({ late_time: '10:15:00', half_day_time: '11:00:00' });
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false);
+
+  useEffect(() => {
+    if (employees && employees.length > 0) {
+      const initialCustomPerms = {};
+      employees.forEach(emp => {
+        if (emp.custom_permissions) {
+          initialCustomPerms[emp.id || emp.name] = emp.custom_permissions;
+        }
+      });
+      setCustomPermissions(initialCustomPerms);
+    }
+  }, [employees]);
+
   const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDesc, setNewRoleDesc] = useState('');
@@ -135,38 +151,43 @@ const SettingsContent = ({ employees = [] }) => {
         console.error('Failed to fetch roles', err);
       }
     };
+
+    const fetchAttendanceSettings = async () => {
+      try {
+        const data = await apiClient('/settings');
+        if (data?.success && data.data) {
+          setAttendanceSettings({
+            late_time: data.data.late_time || '10:15:00',
+            half_day_time: data.data.half_day_time || '11:00:00'
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch attendance settings', err);
+      }
+    };
+
     fetchRoles();
+    fetchAttendanceSettings();
   }, []);
 
   const filteredEmployeesList = useMemo(() => {
     if (!employees || employees.length === 0) return [];
-    if (selectedRoleId === 'super-admin') {
-      return employees;
-    }
     
     const activeRole = roles.find(r => r.id === selectedRoleId);
-    const roleName = activeRole ? activeRole.name : '';
+    if (!activeRole) return [];
     
-    // Map role ID to system departments
-    const roleIdToDept = {
-      'design': 'design',
-      'development': 'development',
-      'sales': 'sales',
-      'marketing': 'marketing',
-      'hr': 'hr',
-      'accountant': ['accountant', 'accounts', 'account'],
-      'accounts': ['accountant', 'accounts', 'account']
-    };
-    
-    const targetDept = roleIdToDept[String(selectedRoleId).toLowerCase()] || roleIdToDept[roleName.toLowerCase()];
-    if (!targetDept) return [];
+    if (activeRole.name === 'SUPER-ADMIN') {
+      return employees.filter(emp => {
+        const empDept = (emp.department || '').toLowerCase().trim();
+        return empDept === 'super-admin' || emp.systemRole === 'ADMIN';
+      });
+    }
     
     return employees.filter(emp => {
       const empDept = (emp.department || '').toLowerCase().trim();
-      if (Array.isArray(targetDept)) {
-        return targetDept.includes(empDept);
-      }
-      return empDept === targetDept;
+      const roleName = (activeRole.name || '').toLowerCase().trim();
+      
+      return empDept === roleName;
     });
   }, [employees, selectedRoleId, roles]);
 
@@ -206,10 +227,29 @@ const SettingsContent = ({ employees = [] }) => {
   };
 
   // Role Permissions Handlers
-  const handlePermissionsSave = () => {
-    setToastText('Permissions saved successfully.');
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+  const handlePermissionsSave = async () => {
+    try {
+      const permsToSave = permissions[selectedRoleId] || {};
+      const response = await apiClient(`/roles/${selectedRoleId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ permissions: permsToSave })
+      });
+      
+      if (response && response.success) {
+        setToastText('Permissions saved successfully.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        // Refresh local user info to see their own changes immediately if possible,
+        // but typically handled by reload or user navigating.
+      } else {
+        throw new Error(response?.message || 'Failed to save');
+      }
+    } catch (err) {
+      console.error('Save permissions error:', err);
+      setToastText('Failed to save permissions.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
   };
 
   const handleResetPermissions = () => {
@@ -350,11 +390,55 @@ const SettingsContent = ({ employees = [] }) => {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handleEmployeePermissionsSave = () => {
+  const handleEmployeePermissionsSave = async () => {
     if (selectedEmployee) {
-      setToastText(`Custom permissions for ${selectedEmployee.name} saved successfully.`);
+      try {
+        const empKey = selectedEmployee.id || selectedEmployee.name;
+        const permsToSave = customPermissions[empKey];
+        
+        // Pass null if we are disabling the override
+        const response = await apiClient(`/employees/${selectedEmployee.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ custom_permissions: permsToSave || null })
+        });
+
+        if (response && response.success) {
+          setToastText(`Custom permissions for ${selectedEmployee.name} saved successfully.`);
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+        } else {
+          throw new Error(response?.message || 'Failed to save employee permissions');
+        }
+      } catch (err) {
+        console.error('Save employee permissions error:', err);
+        setToastText(`Failed to save custom permissions for ${selectedEmployee.name}.`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      }
+    }
+  };
+
+  const handleAttendanceSettingsSave = async () => {
+    setIsSavingAttendance(true);
+    try {
+      const response = await apiClient('/settings', {
+        method: 'PUT',
+        body: JSON.stringify(attendanceSettings)
+      });
+      if (response && response.success) {
+        setToastText('Attendance settings saved successfully.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        throw new Error(response?.message || 'Failed to save attendance settings');
+      }
+    } catch (err) {
+      console.error('Save attendance settings error:', err);
+      setToastText('Failed to save attendance settings.');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
+    } finally {
+      setIsSavingAttendance(false);
     }
   };
 
@@ -399,6 +483,16 @@ const SettingsContent = ({ employees = [] }) => {
           }`}
         >
           Individual Overrides
+        </button>
+        <button
+          onClick={() => setSettingsTab('attendance')}
+          className={`pb-3 px-6 text-sm font-bold border-b-2 transition-all ${
+            settingsTab === 'attendance'
+              ? 'border-[#003F87] text-[#003F87]'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Attendance Settings
         </button>
       </div>
 
@@ -489,7 +583,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.view}
-                            onChange={() => togglePermission(mod.key, 'view')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'view')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -498,7 +592,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.create}
-                            onChange={() => togglePermission(mod.key, 'create')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'create')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -507,7 +601,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.edit}
-                            onChange={() => togglePermission(mod.key, 'edit')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'edit')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -516,7 +610,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.delete}
-                            onChange={() => togglePermission(mod.key, 'delete')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'delete')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -525,7 +619,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.export}
-                            onChange={() => togglePermission(mod.key, 'export')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'export')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -909,6 +1003,57 @@ const SettingsContent = ({ employees = [] }) => {
         )}
       </div>
       </div>
+      )}
+
+      {/* Attendance Settings Tab */}
+      {settingsTab === 'attendance' && (
+        <div className="bg-white border border-[#C2C6D4] rounded-xl p-6 shadow-sm flex flex-col gap-6 w-full max-w-2xl">
+          <div className="border-b border-slate-100 pb-4">
+            <h4 className="text-[15px] font-bold text-slate-900 flex items-center gap-2">
+              <Calendar size={18} className="text-[#003F87]" />
+              Attendance Timing Limits
+            </h4>
+            <p className="text-[12px] text-slate-500 mt-1">
+              Configure the cut-off times for Late check-ins and Half-Day check-ins. Times are in 24-hour format (HH:MM).
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-5">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Late Check-In Time</label>
+              <input 
+                type="time" 
+                step="60"
+                value={attendanceSettings.late_time}
+                onChange={(e) => setAttendanceSettings({ ...attendanceSettings, late_time: e.target.value })}
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg outline-none focus:border-[#003F87] text-sm text-slate-800 bg-slate-50 focus:bg-white transition-colors"
+              />
+              <p className="text-[11px] text-slate-400 mt-1.5">Employees checking in after this time will be marked as "Late".</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Half-Day Time Limit</label>
+              <input 
+                type="time" 
+                step="60"
+                value={attendanceSettings.half_day_time}
+                onChange={(e) => setAttendanceSettings({ ...attendanceSettings, half_day_time: e.target.value })}
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg outline-none focus:border-[#003F87] text-sm text-slate-800 bg-slate-50 focus:bg-white transition-colors"
+              />
+              <p className="text-[11px] text-slate-400 mt-1.5">Employees checking in after this time will be marked as "Half-Day".</p>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4 border-t border-slate-100">
+            <button 
+              onClick={handleAttendanceSettingsSave}
+              disabled={isSavingAttendance}
+              className="px-5 py-2.5 bg-[#003F87] hover:bg-[#002B5E] disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg text-[13px] font-bold text-white transition-colors shadow-sm flex items-center gap-2"
+            >
+              {isSavingAttendance ? 'Saving...' : 'Save Settings'}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Bottom Console Info Disclaimer */}

@@ -445,7 +445,7 @@ function DetailsModal({ lead, initialTab = 'overview', onClose, onUpdateStage, s
                 <div className="flex flex-wrap gap-2">
                   {stages.map((s, i) => {
                     const isActive = s === lead.stage;
-                    const isException = s === 'NEGATIVE' || s === 'NOT CONNECTED';
+                    const isException = s === 'LOST';
                     const isDisabled = !isException && i < currentIndex;
                     return (
                       <button
@@ -520,7 +520,7 @@ const SalesCrmContent = () => {
   const [startDate, endDate] = dateRange;
   const datePickerRef = useRef(null);
 
-  const stages = ['NEW', 'CONTACTED', 'INTERESTED', 'ADMISSION', 'NEGATIVE', 'NOT CONNECTED'];
+  const stages = ['NEW', 'CONTACTED', 'FOLLOWUP', 'COUNSELLING', 'ENROLLED', 'LOST'];
 
   const fetchLeads = async () => {
     setLoading(true);
