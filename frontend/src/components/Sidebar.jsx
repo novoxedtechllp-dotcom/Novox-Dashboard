@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, BookOpen, Calendar, 
   CreditCard, Wallet, MessageSquare, Handshake, Trophy, 
   GraduationCap, FileText, Globe, Settings, HelpCircle, Menu, LogOut,
-  CheckSquare, ClipboardList, Bot, Image, User,
+  CheckSquare, ClipboardList, Bot, Image, User, Shield
 } from 'lucide-react';
 
 const navItems = [
@@ -29,6 +29,7 @@ const navItems = [
   // { id: 'journey', label: 'Academic Journey', icon: GraduationCap },
   { id: 'blog-agent', label: 'Blog Agent', icon: Bot },
   { id: 'profile', label: 'My Profile', icon: User },
+  { id: 'admins', label: 'System Admins', icon: Shield },
   // { id: 'seo', label: 'SEO Agent', icon: Globe },
 ];
 
@@ -83,6 +84,7 @@ const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, is
     if (!isHR) hiddenItems.push('recruitment');
     if (!(isSales || isMarketing)) hiddenItems.push('whatsapp-automation');
     if (!isMarketing) hiddenItems.push('seo');
+    if (userRole !== 'ADMIN') hiddenItems.push('admins');
     
     visibleNavItems = navItems.filter(item => !hiddenItems.includes(item.id))
       .map(item => {

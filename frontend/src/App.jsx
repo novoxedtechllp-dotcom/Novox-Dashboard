@@ -7,6 +7,7 @@ import AttendanceContent from './features/admin/components/AttendanceContent';
 import LeaveManagementContent from './features/admin/components/LeaveManagementContent';
 import StudentsContent from './features/student/components/StudentsContent';
 import EmployeesContent from './features/admin/components/EmployeesContent';
+import AdminsContent from './features/admin/components/AdminsContent';
 import StudentDashboard from './features/student/components/StudentDashboard';
 import StudentAttendance from './features/student/components/StudentAttendance';
 import StudentLeave from './features/student/components/StudentLeave';
@@ -312,6 +313,7 @@ function App() {
 
                 {canViewStudents && <Route path={`${basePath}/students`} element={userRole === 'STUDENT' ? <Navigate to={`${basePath}/dashboard`} /> : <StudentsContent courses={courses} searchQuery={searchQuery} />} />}
                 {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
+                {userRole === 'ADMIN' && <Route path={`${basePath}/admins`} element={<AdminsContent />} />}
                 {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
 
                 {canViewPayroll && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
