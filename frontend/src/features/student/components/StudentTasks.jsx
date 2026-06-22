@@ -84,7 +84,9 @@ const StudentTasks = ({ userInfo }) => {
         return {
           id: course.id,
           name: course.name,
-          modules: (course.course_modules || []).sort((a,b)=>a.sequence_order - b.sequence_order).map(mod => {
+          modules: (course.course_modules || [])
+            .filter(mod => mod.status === 'PUBLISHED')
+            .sort((a,b)=>a.sequence_order - b.sequence_order).map(mod => {
             return {
               id: mod.id,
               title: mod.title,

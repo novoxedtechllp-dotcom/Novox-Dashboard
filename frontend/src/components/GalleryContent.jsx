@@ -455,10 +455,13 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
 
   // Filtering
   const filteredImages = images.filter(img => {
-    const titleStr = String(img.title || '').toLowerCase();
-    const descStr = String(img.description || '').toLowerCase();
-    const matchesSearch = titleStr.includes(searchQuery.toLowerCase()) ||
-      descStr.includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    const titleWords = img.title ? String(img.title).toLowerCase().split(/\s+/) : [];
+    const descWords = img.description ? String(img.description).toLowerCase().split(/\s+/) : [];
+    const matchesSearch = !searchQuery ? true : (
+      titleWords.some(word => word.startsWith(q)) ||
+      descWords.some(word => word.startsWith(q))
+    );
 
     const imgCategories = img.categories ? img.categories.map(c => typeof c.category === 'object' ? c.category.name : '').filter(Boolean) : [];
     const matchesCategory = selectedCategory === 'All Categories' || imgCategories.some(cat => String(cat).toUpperCase() === selectedCategory.toUpperCase());
