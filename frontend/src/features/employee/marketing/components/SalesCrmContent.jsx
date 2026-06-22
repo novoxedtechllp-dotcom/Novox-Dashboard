@@ -94,16 +94,19 @@ function InsightsHeader({ isMobile, isTablet, performance, leads = [] }) {
   const courseCounts = {};
 
   leads.forEach(l => {
+    let diffDays = Infinity;
     if (l.raw_created_at) {
       const created = new Date(l.raw_created_at);
-      const diffDays = (now - created) / (1000 * 60 * 60 * 24);
+      diffDays = (now - created) / (1000 * 60 * 60 * 24);
       if (diffDays <= 1) daily++;
       if (diffDays <= 7) weekly++;
       if (diffDays <= 30) monthly++;
     }
 
-    if (l.stage === 'ADMISSION') enrolled++;
-    if (l.stage === 'NEGATIVE') lost++;
+    if (diffDays <= 30) {
+      if (l.stage === 'ENROLLED') enrolled++;
+      if (l.stage === 'LOST') lost++;
+    }
 
     if (l.course) {
       courseCounts[l.course] = (courseCounts[l.course] || 0) + 1;
@@ -440,7 +443,7 @@ function DetailsModal({ lead, initialTab = 'overview', onClose, onUpdateStage, s
                 <div className="flex flex-wrap gap-2">
                   {stages.map((s, i) => {
                     const isActive = s === lead.stage;
-                    const isException = s === 'NEGATIVE' || s === 'NOT CONTACTED';
+                    const isException = s === 'LOST' || s === 'FOLLOWUP';
                     const isDisabled = !isException && i < currentIndex;
                     return (
                       <button
@@ -512,7 +515,7 @@ const SalesCrmContent = () => {
   // ── Filter state ──────────────────────────────────────────────────────────
   const [selectedCourse, setSelectedCourse] = useState('');
 
-  const stages = ['NEW', 'CONTACTED', 'INTERESTED', 'ADMISSION', 'NEGATIVE', 'NOT CONTACTED'];
+  const stages = ['NEW', 'CONTACTED', 'COUNSELLING', 'FOLLOWUP', 'ENROLLED', 'LOST'];
 
   const fetchLeads = async () => {
     setLoading(true);
