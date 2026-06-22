@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, MapPin, Upload, Star, Brain, Atom, Terminal, Gamepad, 
   Palette, Heart, X, Briefcase, AlertCircle, RefreshCw, Globe, 
@@ -28,6 +28,52 @@ const StudentJobs = ({ userInfo }) => {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const locationContainerRef = useRef(null);
+
+  const INDIAN_LOCATIONS = [
+    { name: 'Remote', tag: 'Work From Anywhere', emoji: '🌐' },
+    { name: 'Bangalore', tag: 'Silicon Valley Tech Hub', emoji: '🔥' },
+    { name: 'Bengaluru', tag: 'Silicon Valley Tech Hub', emoji: '🔥' },
+    { name: 'Hyderabad', tag: 'Cyberabad IT Hub', emoji: '🔥' },
+    { name: 'Pune', tag: 'IT & Automotive Zone', emoji: '🔥' },
+    { name: 'Noida', tag: 'Delhi NCR IT Zone', emoji: '🔥' },
+    { name: 'Gurgaon', tag: 'Financial Tech Zone', emoji: '🔥' },
+    { name: 'Mumbai', tag: 'Financial Capital', emoji: '🔥' },
+    { name: 'Chennai', tag: 'SaaS & Tech Hub', emoji: '🔥' },
+    { name: 'Kochi', tag: 'Rising Startup Hub', emoji: '🔥' },
+    { name: 'Cochin', tag: 'Rising Startup Hub', emoji: '🔥' },
+    { name: 'Kerala', tag: 'Fast Growing Dev Hub', emoji: '🌴' },
+    { name: 'Thiruvananthapuram' },
+    { name: 'Trivandrum' },
+    { name: 'Kozhikode' },
+    { name: 'Kolkata' },
+    { name: 'Delhi NCR' },
+    { name: 'Ahmedabad' },
+    { name: 'Coimbatore' },
+    { name: 'Jaipur' },
+    { name: 'Chandigarh' }
+  ];
+
+  const filteredLocations = locationQuery
+    ? INDIAN_LOCATIONS.filter(loc => loc.name.toLowerCase().includes(locationQuery.toLowerCase()))
+    : INDIAN_LOCATIONS;
+
+  const handleLocationSelect = (locName) => {
+    setLocationQuery(locName);
+    setShowLocationDropdown(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (locationContainerRef.current && !locationContainerRef.current.contains(event.target)) {
+        setShowLocationDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const [skillsQuery, setSkillsQuery] = useState('');
   const [isSearchSubmitted, setIsSearchSubmitted] = useState(false);
   
@@ -50,6 +96,15 @@ const StudentJobs = ({ userInfo }) => {
   // Saved & Applied Jobs Local States (Persisted in localStorage per user)
   const [savedJobs, setSavedJobs] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
+  
+  // Job Board filter state
+  const [activeBoards, setActiveBoards] = useState({
+    Internshala: true,
+    WeWorkRemotely: true,
+    Shine: true,
+    Naukri: true,
+    LinkedIn: true
+  });
 
   // Dynamic Date Formatting
   const formattedDate = new Date().toLocaleDateString('en-US', {
@@ -126,7 +181,9 @@ const StudentJobs = ({ userInfo }) => {
       const formData = new FormData();
       formData.append('query', searchQuery || '');
       formData.append('location', locationQuery || '');
-      formData.append('sources', 'Internshala,LinkedIn'); // Added LinkedIn for better coverage
+      
+      const activeSources = Object.keys(activeBoards).filter(key => activeBoards[key]);
+      formData.append('sources', activeSources.length > 0 ? activeSources.join(',') : 'Internshala,LinkedIn');
 
       const response = await fetch('https://novox-job-scraper.onrender.com/jobs', {
         method: 'POST',
@@ -321,8 +378,8 @@ const StudentJobs = ({ userInfo }) => {
               )}
 
               {/* Search Floating Card */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col md:flex-row items-center gap-3 w-full">
-                <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50 border border-slate-100 rounded-xl flex-1 w-full hover:border-blue-300 transition-colors">
+              <div className="bg-white rounded-[15px] border border-slate-200 shadow-sm p-2 flex flex-col md:flex-row items-center w-full gap-2 md:gap-0">
+                <div className="flex items-center gap-2.5 px-3.5 py-2 flex-1 w-full">
                   <Search size={18} className="text-slate-400 shrink-0" />
                   <input
                     type="text"
@@ -334,32 +391,84 @@ const StudentJobs = ({ userInfo }) => {
                   />
                 </div>
 
-                <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50 border border-slate-100 rounded-xl flex-1 w-full hover:border-blue-300 transition-colors">
+                {/* Vertical Divider */}
+                <div className="hidden md:block w-[1px] h-8 bg-slate-200 mx-2"></div>
+
+                <div 
+                  ref={locationContainerRef}
+                  className="flex items-center gap-2.5 px-3.5 py-2 flex-1 w-full relative"
+                >
                   <MapPin size={18} className="text-slate-400 shrink-0" />
                   <input
                     type="text"
                     placeholder="2. Where? (e.g. Remote)"
                     value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
+                    onChange={(e) => {
+                      setLocationQuery(e.target.value);
+                      setShowLocationDropdown(true);
+                    }}
+                    onFocus={() => setShowLocationDropdown(true)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     className="bg-transparent text-sm font-semibold text-slate-800 outline-none w-full placeholder:text-slate-400"
                   />
+                  {showLocationDropdown && (
+                    <div 
+                      className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-72 overflow-y-auto z-[99] flex flex-col"
+                      style={{
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: '#475569 #F1F5F9'
+                      }}
+                    >
+                      {filteredLocations.length > 0 ? (
+                        filteredLocations.map((loc) => (
+                          <button
+                            key={loc.name}
+                            type="button"
+                            onClick={() => handleLocationSelect(loc.name)}
+                            className="w-full text-left px-4 py-3 hover:bg-slate-50 text-slate-700 transition-colors border-b border-slate-100/50 last:border-0 flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-4">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+                                <circle cx="10" cy="10" r="6" stroke="#4F46E5" strokeWidth="2.5" fill="#38BDF8" fillOpacity="0.35" />
+                                <line x1="14.5" y1="14.5" x2="20" y2="20" stroke="#7C3AED" strokeWidth="3" strokeLinecap="round" />
+                              </svg>
+                              <span className="text-[15px] font-semibold text-slate-800">{loc.name}</span>
+                            </div>
+                            {loc.tag && (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-[11px] font-bold bg-[#FFF7ED] text-[#C27803] shrink-0">
+                                <span className="text-xs">{loc.emoji}</span>
+                                <span>{loc.tag}</span>
+                              </span>
+                            )}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-3 text-sm text-slate-500 italic">No locations found</div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex gap-2 w-full md:w-auto">
+                {/* Vertical Divider */}
+                <div className="hidden md:block w-[1px] h-8 bg-slate-200 mx-2"></div>
+
+                <div className="flex gap-2 w-full md:w-auto shrink-0">
                   <button 
                     onClick={() => setShowResumeModal(true)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 border border-blue-200 bg-blue-50/50 hover:bg-blue-50 text-blue-600 rounded-xl font-bold text-xs transition-all w-full md:w-auto shrink-0"
+                    className="flex items-center justify-center gap-2 px-4 py-2 border border-blue-200 bg-blue-50/50 hover:bg-blue-100 text-blue-600 rounded-lg font-semibold text-[13px] transition-all w-full md:w-auto"
                   >
-                    <Upload size={14} />
+                    <Upload size={14} className="stroke-[2.5]" />
                     Upload Resume
                   </button>
 
                   <button 
                     onClick={handleSearch}
-                    className="flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-sm transition-all w-full md:w-auto shrink-0"
+                    className="flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-[13px] shadow-sm transition-all w-full md:w-auto"
                   >
-                    <Search size={14} />
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+                      <circle cx="10" cy="10" r="6" stroke="#FFFFFF" strokeWidth="3" fill="#38BDF8" fillOpacity="0.4" />
+                      <line x1="14.5" y1="14.5" x2="20" y2="20" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
                     Search
                   </button>
                 </div>
@@ -439,49 +548,69 @@ const StudentJobs = ({ userInfo }) => {
               ) : (
                 <>
                   {/* Active Job Boards Widget */}
-                  <div className="w-full mt-8 animate-in fade-in duration-300">
-                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Active Job Boards:</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <div className="w-full mt-8 animate-in fade-in duration-300 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+                    <h4 className="text-sm font-bold text-slate-800 mb-4">Active Job Boards:</h4>
+                    <div className="flex flex-wrap gap-3">
                       {[
-                        { name: 'Internshala' },
-                        { name: 'WeWorkRemotely' },
-                        { name: 'Shine' },
-                        { name: 'Naukri' },
-                        { name: 'LinkedIn' }
-                      ].map((board) => (
-                        <div key={board.name} className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col shadow-sm">
-                          <span className="text-xs font-bold text-slate-800">{board.name}</span>
-                          <div className="flex items-center gap-1.5 mt-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active</span>
+                        { name: 'Internshala', color: 'bg-sky-400' },
+                        { name: 'WeWorkRemotely', color: 'bg-orange-400' },
+                        { name: 'Shine', color: 'bg-pink-400' },
+                        { name: 'Naukri', color: 'bg-purple-400' },
+                        { name: 'LinkedIn', color: 'bg-blue-400' }
+                      ].map((board) => {
+                        const isActive = activeBoards[board.name];
+                        return (
+                          <div 
+                            key={board.name} 
+                            onClick={() => {
+                              setActiveBoards(prev => ({
+                                ...prev,
+                                [board.name]: !prev[board.name]
+                              }));
+                            }}
+                            className={`cursor-pointer rounded-lg px-4 py-3 flex flex-col shadow-sm min-w-[140px] flex-1 transition-all duration-200 select-none ${
+                              isActive 
+                                ? 'bg-white border border-blue-400' 
+                                : 'bg-slate-50/50 border border-slate-200/50 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className={`text-[13px] font-bold flex items-center gap-1.5 transition-colors ${
+                              isActive ? 'text-blue-600' : 'text-slate-700'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${board.color} ${isActive ? 'opacity-100' : 'opacity-40'}`}></span>
+                              {board.name}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider transition-colors">
+                              {isActive ? 'Active' : 'Skip'}
+                            </span>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
                   {/* Popular Job Roles Widget */}
                   <div className="w-full mt-8 mb-12 animate-in fade-in duration-300">
-                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Popular Job Roles:</h4>
+                    <h4 className="text-sm font-bold text-slate-800 mb-4">Popular Job Roles:</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                       {[
-                        { role: 'React Developer', subtitle: 'Remote / Work from home', icon: Atom, color: 'text-[#00D8FF] bg-sky-50 border-sky-100' },
-                        { role: 'Python Engineer', subtitle: 'Remote / Global', icon: Terminal, color: 'text-yellow-600 bg-amber-50 border-amber-100' },
-                        { role: 'Game Developer', subtitle: 'Remote / Hybrid', icon: Gamepad, color: 'text-purple-600 bg-purple-50 border-purple-100' },
-                        { role: 'Web Designer', subtitle: 'Remote / Anywhere', icon: Palette, color: 'text-rose-500 bg-rose-50 border-rose-100' }
+                        { role: 'React Developer', subtitle: 'Remote / Work from home', icon: Atom, color: 'text-[#00D8FF] bg-sky-50 border-sky-100/50' },
+                        { role: 'Python Engineer', subtitle: 'Remote / Global', icon: Terminal, color: 'text-emerald-600 bg-emerald-50 border-emerald-100/50' },
+                        { role: 'Game Developer', subtitle: 'Remote / Hybrid', icon: Gamepad, color: 'text-purple-600 bg-purple-50 border-purple-100/50' },
+                        { role: 'Web Designer', subtitle: 'Remote / Anywhere', icon: Palette, color: 'text-rose-500 bg-rose-50 border-rose-100/50' }
                       ].map((item) => {
                         const Icon = item.icon;
                         return (
                           <div 
                             key={item.role} 
                             onClick={() => handlePopularRoleClick(item.role)}
-                            className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col shadow-sm cursor-pointer hover:border-blue-400 hover:shadow-md transition-all group"
+                            className="bg-white border border-slate-200/80 rounded-xl p-5 flex flex-col shadow-sm cursor-pointer hover:border-blue-400 hover:shadow-lg hover:-translate-y-1.5 transition-all duration-300 ease-out group"
                           >
-                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${item.color.split(' ')[1]} ${item.color.split(' ')[2]}`}>
-                              <Icon size={18} className={`${item.color.split(' ')[0]}`} />
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${item.color.split(' ')[1]} border ${item.color.split(' ')[2]} group-hover:scale-110 transition-transform duration-300 ease-out`}>
+                              <Icon size={20} className={`${item.color.split(' ')[0]}`} />
                             </div>
-                            <span className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{item.role}</span>
-                            <span className="text-[10px] font-semibold text-slate-400 mt-1">{item.subtitle}</span>
+                            <span className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors duration-300">{item.role}</span>
+                            <span className="text-xs text-slate-400 mt-1 font-semibold group-hover:text-slate-500 transition-colors duration-300">{item.subtitle}</span>
                           </div>
                         );
                       })}
