@@ -152,33 +152,22 @@ const SettingsContent = ({ employees = [] }) => {
 
   const filteredEmployeesList = useMemo(() => {
     if (!employees || employees.length === 0) return [];
-    if (selectedRoleId === 'super-admin') {
-      return employees;
-    }
     
     const activeRole = roles.find(r => r.id === selectedRoleId);
-    const roleName = activeRole ? activeRole.name : '';
+    if (!activeRole) return [];
     
-    // Map role ID to system departments
-    const roleIdToDept = {
-      'design': 'design',
-      'development': 'development',
-      'sales': 'sales',
-      'marketing': 'marketing',
-      'hr': 'hr',
-      'accountant': ['accountant', 'accounts', 'account'],
-      'accounts': ['accountant', 'accounts', 'account']
-    };
-    
-    const targetDept = roleIdToDept[String(selectedRoleId).toLowerCase()] || roleIdToDept[roleName.toLowerCase()];
-    if (!targetDept) return [];
+    if (activeRole.name === 'SUPER-ADMIN') {
+      return employees.filter(emp => {
+        const empDept = (emp.department || '').toLowerCase().trim();
+        return empDept === 'super-admin' || emp.systemRole === 'ADMIN';
+      });
+    }
     
     return employees.filter(emp => {
       const empDept = (emp.department || '').toLowerCase().trim();
-      if (Array.isArray(targetDept)) {
-        return targetDept.includes(empDept);
-      }
-      return empDept === targetDept;
+      const roleName = (activeRole.name || '').toLowerCase().trim();
+      
+      return empDept === roleName;
     });
   }, [employees, selectedRoleId, roles]);
 
@@ -540,7 +529,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.view}
-                            onChange={() => togglePermission(mod.key, 'view')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'view')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -549,7 +538,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.create}
-                            onChange={() => togglePermission(mod.key, 'create')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'create')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -558,7 +547,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.edit}
-                            onChange={() => togglePermission(mod.key, 'edit')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'edit')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -567,7 +556,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.delete}
-                            onChange={() => togglePermission(mod.key, 'delete')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'delete')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
@@ -576,7 +565,7 @@ const SettingsContent = ({ employees = [] }) => {
                           <input 
                             type="checkbox"
                             checked={currentPerm.export}
-                            onChange={() => togglePermission(mod.key, 'export')} disabled={selectedRoleId === 'super-admin'}
+                            onChange={() => togglePermission(mod.key, 'export')} disabled={roles.find(r => r.id === selectedRoleId)?.name === 'SUPER-ADMIN'}
                             className="rounded border-slate-300 text-[#003F87] focus:ring-[#003F87] w-4.5 h-4.5 cursor-pointer accent-[#003F87]"
                           />
                         </td>
