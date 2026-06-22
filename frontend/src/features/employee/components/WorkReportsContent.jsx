@@ -96,6 +96,7 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
   const [attachmentFile, setAttachmentFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [fileError, setFileError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFileSelect = (file) => {
     setFileError("");
@@ -155,7 +156,14 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
       const proj = cleaned.projectArea.toLowerCase();
       const work = cleaned.workDone.toLowerCase();
       
-      if (!empName.includes(q) && !proj.includes(q) && !work.includes(q)) {
+      const nameWords = empName.split(/\s+/);
+      const projWords = proj.split(/\s+/);
+      const workWords = work.split(/\s+/);
+      const matchesName = nameWords.some(word => word.startsWith(q));
+      const matchesProj = projWords.some(word => word.startsWith(q));
+      const matchesWork = workWords.some(word => word.startsWith(q));
+      
+      if (!matchesName && !matchesProj && !matchesWork) {
         return false;
       }
     }
@@ -165,8 +173,9 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
 
   const handleSubmitReport = async (e) => {
     e.preventDefault();
-    if (!newReport.work_done) return;
+    if (!newReport.work_done || isSubmitting) return;
 
+    setIsSubmitting(true);
     try {
       const userInfo = JSON.parse(sessionStorage.getItem("userInfo"));
       
@@ -191,6 +200,7 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
           attachmentName = attachmentFile.name;
         } else {
           setFileError("Failed to upload file");
+          setIsSubmitting(false);
           return;
         }
       }
@@ -237,6 +247,8 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -645,16 +657,25 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
               <div className="flex gap-3 justify-end mt-4">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setIsSubmitModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600"
+                  className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  Submit
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit"
+                  )}
                 </button>
               </div>
             </form>

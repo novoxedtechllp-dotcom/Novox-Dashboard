@@ -656,11 +656,14 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
-      normalizedCourses = normalizedCourses.filter(c => 
-        (c.title && c.title.toLowerCase().includes(q)) ||
-        (c.track && c.track.toLowerCase().includes(q)) ||
-        (c.cid && c.cid.toLowerCase().includes(q))
-      );
+      normalizedCourses = normalizedCourses.filter(c => {
+        const titleWords = c.title ? c.title.toLowerCase().split(/\s+/) : [];
+        const trackWords = c.track ? c.track.toLowerCase().split(/\s+/) : [];
+        const matchesTitle = titleWords.some(word => word.startsWith(q));
+        const matchesTrack = trackWords.some(word => word.startsWith(q));
+        const matchesCid = c.cid && c.cid.toLowerCase().startsWith(q);
+        return matchesTitle || matchesTrack || matchesCid;
+      });
     }
     
     return normalizedCourses;

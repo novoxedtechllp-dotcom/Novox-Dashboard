@@ -74,7 +74,9 @@ const StudentAcademicJourney = ({ userInfo }) => {
 
         // 3. Combine into expected structure
         const combined = fetchedCourses.map(course => {
-          const realModules = (course.course_modules || []).sort((a,b)=>a.sequence_order - b.sequence_order).map(mod => {
+          const realModules = (course.course_modules || [])
+            .filter(mod => mod.status === 'PUBLISHED')
+            .sort((a,b)=>a.sequence_order - b.sequence_order).map(mod => {
             return {
               id: mod.id,
               title: mod.title,

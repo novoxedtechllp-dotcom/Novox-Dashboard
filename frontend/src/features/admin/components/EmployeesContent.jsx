@@ -287,11 +287,13 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
     }
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(emp => 
-        (emp.name && emp.name.toLowerCase().includes(q)) ||
-        (emp.eid && emp.eid.toLowerCase().includes(q)) ||
-        (emp.phone && emp.phone.includes(searchQuery))
-      );
+      filtered = filtered.filter(emp => {
+        const nameWords = emp.name ? emp.name.toLowerCase().split(/\s+/) : [];
+        const matchesName = nameWords.some(word => word.startsWith(q));
+        const matchesEid = emp.eid && emp.eid.toLowerCase().startsWith(q);
+        const matchesPhone = emp.phone && emp.phone.includes(searchQuery);
+        return matchesName || matchesEid || matchesPhone;
+      });
     }
     return filtered;
   }, [employees, deptFilter, statusFilter, searchQuery]);

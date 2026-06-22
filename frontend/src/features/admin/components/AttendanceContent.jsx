@@ -258,7 +258,10 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
   const filteredData = joinedData.filter(item => {
     if (searchQuery) {
       const term = searchQuery.toLowerCase();
-      if (!item.name.toLowerCase().includes(term) && !item.identifier.toLowerCase().includes(term)) {
+      const nameWords = item.name.toLowerCase().split(/\s+/);
+      const matchesName = nameWords.some(word => word.startsWith(term));
+      const matchesIdentifier = item.identifier.toLowerCase().startsWith(term);
+      if (!matchesName && !matchesIdentifier) {
         return false;
       }
     }

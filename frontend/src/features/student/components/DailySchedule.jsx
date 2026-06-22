@@ -157,7 +157,7 @@ const DailySchedule = () => {
                 onChange={(date) => setSelectedDate(date)}
                 dateFormat="dd/MM/yyyy"
                 placeholderText="dd/mm/yyyy"
-                className="bg-transparent text-slate-800 text-sm font-bold outline-none cursor-pointer w-[100px] text-center pr-6"
+                className="bg-transparent text-slate-800 text-sm font-bold outline-none cursor-pointer w-[125px] text-center pr-6"
                 showMonthDropdown
                 showYearDropdown
                 scrollableYearDropdown

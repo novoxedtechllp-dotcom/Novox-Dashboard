@@ -104,8 +104,13 @@ const LeaveManagementContent = ({ searchQuery = '' }) => {
   };
 
   const filteredRequests = leaveRequests.filter(req => {
-    const matchesSearch = req.requesterName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          req.type.toLowerCase().includes(searchQuery.toLowerCase());
+    const term = searchQuery.toLowerCase();
+    const nameWords = req.requesterName ? req.requesterName.toLowerCase().split(/\s+/) : [];
+    const typeWords = req.type ? req.type.toLowerCase().split(/\s+/) : [];
+    const matchesSearch = !searchQuery ? true : (
+      nameWords.some(word => word.startsWith(term)) ||
+      typeWords.some(word => word.startsWith(term))
+    );
     const matchesFilter = filterStatus === 'ALL' || req.status === filterStatus;
     
     let matchesDate = true;
