@@ -162,8 +162,32 @@ function App() {
           })
           .catch(err => console.error('Failed to fetch employees:', err));
       }
+
+      // Fetch fresh profile data to sync header
+      fetch('/api/v1/profile/me', { headers })
+        .then(res => res.ok ? res.json() : null)
+        .then(resData => {
+          if (resData?.success) {
+            const profile = resData.data.employeeProfile || resData.data.studentProfile;
+            if (profile) {
+              const updatedUserInfoStr = sessionStorage.getItem('userInfo');
+              const currentUserInfo = updatedUserInfoStr ? JSON.parse(updatedUserInfoStr) : userInfo;
+              const updatedSessionUser = {
+                ...currentUserInfo,
+                first_name: profile.first_name || currentUserInfo.first_name,
+                last_name: profile.last_name || currentUserInfo.last_name,
+                avatar_url: profile.avatar_url || currentUserInfo.avatar_url,
+                name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || currentUserInfo.name,
+                designation: profile.designation || currentUserInfo.designation,
+              };
+              sessionStorage.setItem('userInfo', JSON.stringify(updatedSessionUser));
+              setUserInfo(updatedSessionUser);
+            }
+          }
+        })
+        .catch(err => console.error('Failed to fetch me:', err));
     }
-  }, [isAuthenticated, userInfo]);
+  }, [isAuthenticated, userInfo?.token]);
 
   const handleLogin = (role) => {
     const updatedUserInfoStr = sessionStorage.getItem('userInfo');

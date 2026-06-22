@@ -8,6 +8,17 @@ import JobCard from './JobCard';
 import JobDetailsModal from './JobDetailsModal';
 import JobApplicationModal from './JobApplicationModal';
 import ResumeParser from './ResumeParser';
+import RunnerGame from './RunnerGame';
+import './ScraperLoadingStyles.css';
+
+const LOADING_TRIVIA = [
+  { icon: "💡", category: "Resume Tip", text: "Tailoring your resume to match the job description keywords can increase your recruiter callback rate by over 50%!" },
+  { icon: "💻", category: "Tech Trivia", text: "The first computer bug was a real moth found trapped in a relay of the Harvard Mark II computer in 1947 by Grace Hopper." },
+  { icon: "💡", category: "Interview Tip", text: "When answering behavioral questions, use the STAR method: Situation, Task, Action, and Result to structure your answers." },
+  { icon: "💻", category: "Tech Trivia", text: "Python was named after the British comedy group 'Monty Python', not the snake!" },
+  { icon: "💡", category: "Networking Tip", text: "About 70% to 80% of jobs are not published publicly. Professional networking is key to accessing this hidden job market." },
+  { icon: "💻", category: "Tech Trivia", text: "Git was created by Linus Torvalds in 2005 to manage the development of the Linux kernel after BitKeeper withdrew free access." }
+];
 
 const StudentJobs = ({ userInfo }) => {
   const [jobs, setJobs] = useState([]);
@@ -29,6 +40,12 @@ const StudentJobs = ({ userInfo }) => {
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
+
+  // Scraper Simulation States
+  const [isSimulatingScrape, setIsSimulatingScrape] = useState(false);
+  const [scrapeProgress, setScrapeProgress] = useState(0);
+  const [triviaIndex, setTriviaIndex] = useState(0);
+  const [statusLogs, setStatusLogs] = useState([]);
 
   // Saved & Applied Jobs Local States (Persisted in localStorage per user)
   const [savedJobs, setSavedJobs] = useState([]);
@@ -71,8 +88,76 @@ const StudentJobs = ({ userInfo }) => {
     if (localApplied) setAppliedJobs(JSON.parse(localApplied));
   }, [userInfo]);
 
-  const handleSearch = () => {
+  const simulateScraping = async () => {
+    setIsSimulatingScrape(true);
+    setScrapeProgress(0);
+    setStatusLogs(['Initializing headless browsers...', 'Connecting to job boards...']);
     setIsSearchSubmitted(true);
+    setError(null);
+    
+    let currentProgress = 0;
+    const interval = setInterval(() => {
+      currentProgress += Math.floor(Math.random() * 5) + 1;
+      if (currentProgress > 85) currentProgress = 85;
+      setScrapeProgress(currentProgress);
+      
+      const newLogs = [
+        'Bypassing captchas...', 
+        'Scraping LinkedIn...', 
+        'Parsing Indeed results...', 
+        'Filtering Internshala...', 
+        'Analyzing required skills...', 
+        'Matching with your profile...',
+        'Finalizing results...'
+      ];
+      if (currentProgress > 15) {
+        setStatusLogs(prev => {
+          const newLog = newLogs[Math.floor(currentProgress / 10) % newLogs.length];
+          return prev.includes(newLog) ? prev : [...prev, newLog].slice(-4);
+        });
+      }
+    }, 500);
+
+    const triviaInterval = setInterval(() => {
+      setTriviaIndex(prev => (prev + 1) % LOADING_TRIVIA.length);
+    }, 3000);
+
+    try {
+      const formData = new FormData();
+      formData.append('query', searchQuery || '');
+      formData.append('location', locationQuery || '');
+      formData.append('sources', 'Internshala,LinkedIn'); // Added LinkedIn for better coverage
+
+      const response = await fetch('https://novox-job-scraper.onrender.com/jobs', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (Array.isArray(data) && !data[0]?.error) {
+        setJobs(data);
+      } else if (data[0]?.error) {
+        if (data[0].error === 'NO_RELEVANT_JOBS_FOUND' || data[0].error === 'NO_JOBS_FOUND') {
+          setJobs([]);
+        } else {
+          throw new Error(data[0].error);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to scrape jobs:', err);
+      setError('🚦 Server is busy right now. Please try again later.');
+    } finally {
+      clearInterval(interval);
+      clearInterval(triviaInterval);
+      setScrapeProgress(100);
+      setStatusLogs(prev => [...prev, 'Done!']);
+      setTimeout(() => setIsSimulatingScrape(false), 800);
+    }
+  };
+
+  const handleSearch = () => {
+    simulateScraping();
   };
 
   const handleClearSearch = () => {
@@ -83,7 +168,7 @@ const StudentJobs = ({ userInfo }) => {
 
   const handlePopularRoleClick = (role) => {
     setSearchQuery(role);
-    setIsSearchSubmitted(true);
+    simulateScraping();
   };
 
   // Toggle Save Job
@@ -314,10 +399,10 @@ const StudentJobs = ({ userInfo }) => {
                     </button>
                   </div>
 
-                  {isLoading ? (
+                  {isLoading || isSimulatingScrape ? (
                     <div className="h-64 flex flex-col items-center justify-center space-y-4">
                       <RefreshCw size={28} className="animate-spin text-[#003F87]/60" />
-                      <p className="text-slate-500 text-xs font-bold">Scraping the latest opportunities...</p>
+                      <p className="text-slate-500 text-xs font-bold">Processing your job matches...</p>
                     </div>
                   ) : error ? (
                     <div className="h-64 bg-red-50 rounded-2xl border border-red-100 flex flex-col items-center justify-center p-6 text-center">
@@ -509,6 +594,60 @@ const StudentJobs = ({ userInfo }) => {
             </button>
             <div className="flex-1 overflow-y-auto pr-2 mt-4">
               <ResumeParser onParseSuccess={handleResumeParseSuccess} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Scraper Loading Simulation Overlay */}
+      {isSimulatingScrape && (
+        <div className="console-progress-card-overlay animate-fade-in" style={{ zIndex: 9999, position: 'fixed' }}>
+          <div className="premium-progress-card animate-slide-up">
+            {/* Progress Bar Container */}
+            <div className="loading-progress-bar-container">
+              <div className="loading-progress-bar" style={{ width: `${scrapeProgress}%` }}></div>
+            </div>
+            
+            {/* Radar Scanner Area */}
+            <div className="loading-scanner-container">
+              <div className="radar-scanner">
+                <div className="radar-sweep"></div>
+                <div className="radar-circle ring-1"></div>
+                <div className="radar-circle ring-2"></div>
+                <div className="radar-circle ring-3"></div>
+                <div className="radar-pulse"></div>
+              </div>
+              <h3>Searching Job Boards...</h3>
+              <p className="loading-subtitle">Scraping and analyzing job boards in real-time</p>
+            </div>
+
+            {/* Interactive Mini Game */}
+            <RunnerGame />
+            
+            {/* Trivia Slideshow (Distraction & Value Addition) */}
+            <div className="trivia-card">
+              <div className="trivia-header">
+                <span className="trivia-icon">{LOADING_TRIVIA[triviaIndex]?.icon}</span>
+                <span className="trivia-category">{LOADING_TRIVIA[triviaIndex]?.category}</span>
+              </div>
+              <p className="trivia-text">"{LOADING_TRIVIA[triviaIndex]?.text}"</p>
+            </div>
+            
+            {/* Terminal Logs console */}
+            <div className="console-logs-header">
+              <span>SYSTEM LOGS</span>
+              <span className="console-percentage">{Math.round(scrapeProgress)}%</span>
+            </div>
+            <div className="console-logs-list">
+              {statusLogs.map((log, index) => (
+                <div key={index} className="log-line">
+                  <span className="log-arrow">›</span> {log}
+                </div>
+              ))}
+              <div className="log-cursor-line">
+                <span className="log-arrow">›</span>
+                <span className="terminal-cursor">█</span>
+              </div>
             </div>
           </div>
         </div>

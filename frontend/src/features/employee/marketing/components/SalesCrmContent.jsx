@@ -19,31 +19,6 @@ function useBreakpoint() {
   };
 }
 
-// ─── Mock / fallback data (replace with real API calls) ───────────────────────
-const MOCK_LEADS = [
-  { id: 'l1', name: 'Sarah Jenkins', phone: '+91 98001 11111', email: 'sarah@example.com', source_id: 'src-3', stage: 'NEW', course: 'UI/UX Design Masterclass', note: 'Interested in weekend batch...', assignee: 'AJ', assigneeName: 'Alex J.', foundBy: 'AJ', foundByName: 'Alex J.', owner: '', created_at: '2h ago', hot: false },
-  { id: 'l2', name: 'Michael Chen',  phone: '+91 98001 22222', email: 'michael@example.com', source_id: 'src-1', stage: 'NEW', course: 'Full-Stack Development', note: 'Requested syllabus via email', assignee: 'MS', assigneeName: 'Maria S.', foundBy: 'MS', foundByName: 'Maria S.', owner: '', created_at: '5h ago', hot: false },
-  { id: 'l3', name: 'David Miller',  phone: '+91 98001 33333', email: 'david@example.com', source_id: 'src-3', stage: 'CONTACTED', course: 'Digital Marketing Pro', note: 'Follow-up sent', assignee: 'AJ', assigneeName: 'Alex J.', foundBy: 'RK', foundByName: 'Raj K.', owner: '', created_at: '2d ago', hot: false },
-  { id: 'l4', name: 'Aisha Khan',    phone: '+91 98001 44444', email: 'aisha@example.com', source_id: 'src-2', stage: 'CONTACTED', course: 'Corporate Leadership', note: '', assignee: 'AJ', assigneeName: 'Alex J.', foundBy: 'PN', foundByName: 'Priya N.', owner: '', created_at: '3d ago', hot: false },
-  { id: 'l5', name: 'Robert Wilson', phone: '+91 98001 55555', email: 'robert@example.com', source_id: 'src-1', stage: 'INTERESTED', course: 'Cloud Computing Arch.', note: '', assignee: 'MS', assigneeName: 'Maria S.', foundBy: 'MS', foundByName: 'Maria S.', owner: '', created_at: '1w ago', hot: true },
-  { id: 'l6', name: 'Sophie Martin', phone: '+91 98001 66666', email: 'sophie@example.com', source_id: 'src-4', stage: 'INTERESTED', course: 'Python for Beginners', note: '', assignee: 'MS', assigneeName: 'Maria S.', foundBy: 'AJ', foundByName: 'Alex J.', owner: '', created_at: '5d ago', hot: false },
-];
-
-const MOCK_SOURCES = [
-  { id: 'src-1', source_name: 'WhatsApp' },
-  { id: 'src-2', source_name: 'Instagram' },
-  { id: 'src-3', source_name: 'Website' },
-  { id: 'src-4', source_name: 'Referral' },
-];
-
-// Team members available to be selected as "Sales Lead"
-const TEAM_MEMBERS = [
-  { id: 'AJ', name: 'Alex J.' },
-  { id: 'MS', name: 'Maria S.' },
-  { id: 'RK', name: 'Raj K.' },
-  { id: 'PN', name: 'Priya N.' },
-];
-
 const getUniqueCourses = (leads) => {
   const courses = leads.map(l => l.course).filter(Boolean);
   return [...new Set(courses)];
@@ -88,7 +63,7 @@ function StatBadge({ label, value, delta }) {
 }
 
 function BarRow({ label, value, max, color = '#003F87' }) {
-  const pct = Math.round((value / max) * 100);
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
       <span style={{ fontSize: 11, fontWeight: 700, color: '#555', width: 52, flexShrink: 0 }}>{label}</span>
@@ -112,16 +87,49 @@ function SalespersonChip({ initials, name, count }) {
   );
 }
 
-function InsightsHeader({ isMobile, isTablet }) {
+function InsightsHeader({ isMobile, isTablet, performance, leads = [] }) {
+  const now = new Date();
+  let daily = 0, weekly = 0, monthly = 0;
+  let enrolled = 0, lost = 0;
+  const courseCounts = {};
+
+  leads.forEach(l => {
+    let diffDays = Infinity;
+    if (l.raw_created_at) {
+      const created = new Date(l.raw_created_at);
+      diffDays = (now - created) / (1000 * 60 * 60 * 24);
+      if (diffDays <= 1) daily++;
+      if (diffDays <= 7) weekly++;
+      if (diffDays <= 30) monthly++;
+    }
+
+    if (diffDays <= 30) {
+      if (l.stage === 'ENROLLED') enrolled++;
+      if (l.stage === 'LOST') lost++;
+    }
+
+    if (l.course) {
+      courseCounts[l.course] = (courseCounts[l.course] || 0) + 1;
+    }
+  });
+
+  const totalClosed = Math.max(enrolled + lost, 1);
+  const enrolledPct = enrolled > 0 ? Math.round((enrolled / totalClosed) * 100) : 0;
+  const lostPct = lost > 0 ? Math.round((lost / totalClosed) * 100) : 0;
+
+  const sortedCourses = Object.entries(courseCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const maxCourseCount = Math.max(...sortedCourses.map(c => c[1]), 1);
+  const courseColors = ['#003F87', '#1976D2', '#0288D1'];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Row 1: 3 stat cards */}
       <div style={{ display: 'flex', gap: 12, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <InsightCard title="New Lead Inflow" icon={<Users size={15} />}>
           <div className="flex justify-around">
-            <StatBadge label="Daily" value="0" />
-            <StatBadge label="Weekly" value="0" />
-            <StatBadge label="Monthly" value="0" />
+            <StatBadge label="Daily" value={daily} />
+            <StatBadge label="Weekly" value={weekly} />
+            <StatBadge label="Monthly" value={monthly} />
           </div>
         </InsightCard>
 
@@ -129,23 +137,31 @@ function InsightsHeader({ isMobile, isTablet }) {
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#003F87] shrink-0" />
-              <div className="flex-1 h-2 rounded-full bg-[#003F87] w-0" />
-              <span className="text-[18px] font-extrabold text-[#003F87] min-w-[28px]">0</span>
+              <div className={`flex-1 h-2 rounded-full bg-[#EEF2F8] overflow-hidden`}>
+                <div style={{ width: `${enrolledPct}%`, height: '100%', background: '#003F87', borderRadius: 4 }} />
+              </div>
+              <span className="text-[18px] font-extrabold text-[#003F87] min-w-[28px]">{enrolled}</span>
               <span className="text-xs text-slate-500">Enrolled</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#E53935', flexShrink: 0 }} />
-              <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#E53935', width: '33%', maxWidth: 70 }} />
-              <span style={{ fontSize: 18, fontWeight: 800, color: '#E53935', minWidth: 28 }}>14</span>
+              <div className={`flex-1 h-2 rounded-full bg-[#EEF2F8] overflow-hidden`}>
+                <div style={{ width: `${lostPct}%`, height: '100%', background: '#E53935', borderRadius: 4 }} />
+              </div>
+              <span style={{ fontSize: 18, fontWeight: 800, color: '#E53935', minWidth: 28 }}>{lost}</span>
               <span style={{ fontSize: 12, color: '#555' }}>Lost</span>
             </div>
           </div>
         </InsightCard>
 
         <InsightCard title="Top Course Interest" icon={<BookOpen size={15} />}>
-          <BarRow label="UI/UX" value={0} max={40} />
-          <BarRow label="Full-Stk" value={0} max={40} color="#1976D2" />
-          <BarRow label="Data Sci" value={0} max={40} color="#0288D1" />
+          {sortedCourses.length > 0 ? (
+            sortedCourses.map(([course, count], idx) => (
+              <BarRow key={course} label={course.length > 8 ? course.substring(0,8)+'..' : course} value={count} max={maxCourseCount} color={courseColors[idx]} />
+            ))
+          ) : (
+            <div className="text-xs text-slate-400 italic text-center mt-4">No course data</div>
+          )}
         </InsightCard>
       </div>
 
@@ -156,7 +172,13 @@ function InsightsHeader({ isMobile, isTablet }) {
           <span style={{ fontSize: 13, fontWeight: 700, color: '#555F6B' }}>Performance by Salesperson</span>
         </div>
         <div className="flex gap-2.5 flex-wrap">
-          <div className="text-xs text-slate-400 italic">No lead data available to show salesperson performance.</div>
+          {performance && performance.length > 0 ? (
+            performance.map(p => (
+              <SalespersonChip key={p.name} initials={p.initials} name={p.name} count={p.count} />
+            ))
+          ) : (
+            <div className="text-xs text-slate-400 italic">No lead data available to show salesperson performance.</div>
+          )}
         </div>
       </div>
     </div>
@@ -195,16 +217,10 @@ function LeadCard({ lead, onOpenDetails }) {
         </div>
       ) : null}
 
-      {lead.note === 'Follow-up sent' && (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#E3F2FD', color: '#1565C0', fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '2px 8px', width: 'fit-content', marginTop: -4 }}>
-          {lead.note}
-        </div>
-      )}
-
       {/* Footer */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #F0F4FA', paddingTop: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Avatar initials={lead.assignee} size={24} />
+          <Avatar initials={lead.assigneeName ? lead.assigneeName.charAt(0) : 'U'} size={24} />
           <span style={{ fontSize: 11, color: '#666' }}>{lead.assigneeName}</span>
         </div>
         <div className="flex gap-1.5">
@@ -256,46 +272,35 @@ function KanbanColumn({ stage, leads, getSourceName, onOpenDetails }) {
 const labelStyle = { display: 'block', fontSize: 11, fontWeight: 700, color: '#555', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 };
 const fieldStyle = { width: '100%', padding: '9px 12px', border: '1px solid #D8E0EC', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
 
-function AddLeadModal({ isOpen, onClose, onSave, sources, stages }) {
+function AddLeadModal({ isOpen, onClose, onSave, sources, stages, teamMembers, coursesList }) {
   const { isMobile } = useBreakpoint();
   const [form, setForm] = useState({
     name: '',
     phone: '',
     email: '',
-    source_id: sources[0]?.id || 'src-1',
+    source_name: '',
     stage: stages[0],
-    course: '',
+    course_id: '',
     note: '',
-    foundBy: TEAM_MEMBERS[0].id,
-    owner: '',
-    assignee: 'AJ',
-    assigneeName: 'Alex J.',
+    assigned_sales_id: '',
+    owner: ''
   });
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const foundByMember = TEAM_MEMBERS.find(m => m.id === form.foundBy) || TEAM_MEMBERS[0];
-    onSave({
-      ...form,
-      foundByName: foundByMember.name,
-      id: `lead-${Date.now()}`,
-      created_at: 'Just now',
-      hot: false,
-    });
+    onSave(form);
     setForm({
       name: '',
       phone: '',
       email: '',
-      source_id: sources[0]?.id || 'src-1',
+      source_name: '',
       stage: stages[0],
-      course: '',
+      course_id: '',
       note: '',
-      foundBy: TEAM_MEMBERS[0].id,
-      owner: '',
-      assignee: 'AJ',
-      assigneeName: 'Alex J.',
+      assigned_sales_id: '',
+      owner: ''
     });
   };
 
@@ -307,7 +312,7 @@ function AddLeadModal({ isOpen, onClose, onSave, sources, stages }) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: '#999', cursor: 'pointer' }}>×</button>
         </div>
         <form onSubmit={handleSubmit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '75vh', overflowY: 'auto' }}>
-          {[['Name', 'name', 'text', 'John Doe'], ['Phone', 'phone', 'text', '+91 98765 43210'], ['Email', 'email', 'email', 'john@example.com'], ['Course', 'course', 'text', 'UI/UX Design Masterclass']].map(([label, key, type, ph]) => (
+          {[['Name', 'name', 'text', 'John Doe'], ['Phone', 'phone', 'text', '+91 98765 43210'], ['Email', 'email', 'email', 'john@example.com']].map(([label, key, type, ph]) => (
             <div key={key}>
               <label style={labelStyle}>{label}</label>
               <input type={type} required={key !== 'course'} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} placeholder={ph} style={fieldStyle} />
@@ -316,9 +321,7 @@ function AddLeadModal({ isOpen, onClose, onSave, sources, stages }) {
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1 }}>
               <label style={labelStyle}>Source</label>
-              <select value={form.source_id} onChange={e => setForm({ ...form, source_id: e.target.value })} style={{ ...fieldStyle, background: '#fff' }}>
-                {sources.map(s => <option key={s.id} value={s.id}>{s.source_name}</option>)}
-              </select>
+              <input type="text" value={form.source_name} onChange={e => setForm({ ...form, source_name: e.target.value })} placeholder="e.g. Meta Ads" style={fieldStyle} required />
             </div>
             <div style={{ flex: 1 }}>
               <label style={labelStyle}>Stage</label>
@@ -327,11 +330,19 @@ function AddLeadModal({ isOpen, onClose, onSave, sources, stages }) {
               </select>
             </div>
           </div>
+          <div>
+            <label style={labelStyle}>Course</label>
+            <select value={form.course_id} onChange={e => setForm({ ...form, course_id: e.target.value })} style={{ ...fieldStyle, background: '#fff' }}>
+              <option value="">Select Course</option>
+              {coursesList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1 }}>
               <label style={labelStyle}>Sales Lead</label>
-              <select value={form.foundBy} onChange={e => setForm({ ...form, foundBy: e.target.value })} style={{ ...fieldStyle, background: '#fff' }}>
-                {TEAM_MEMBERS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              <select value={form.assigned_sales_id} onChange={e => setForm({ ...form, assigned_sales_id: e.target.value })} style={{ ...fieldStyle, background: '#fff' }}>
+                <option value="">Select Employee</option>
+                {teamMembers.map(m => <option key={m.id} value={m.id}>{m.first_name} {m.last_name}</option>)}
               </select>
             </div>
             <div style={{ flex: 1 }}>
@@ -432,7 +443,7 @@ function DetailsModal({ lead, initialTab = 'overview', onClose, onUpdateStage, s
                 <div className="flex flex-wrap gap-2">
                   {stages.map((s, i) => {
                     const isActive = s === lead.stage;
-                    const isException = s === 'NEGATIVE' || s === 'NOT CONTACTED';
+                    const isException = s === 'LOST' || s === 'FOLLOWUP';
                     const isDisabled = !isException && i < currentIndex;
                     return (
                       <button
@@ -491,17 +502,20 @@ const SalesCrmContent = () => {
 
   const [leads, setLeads] = useState([]);
   const [sources, setSources] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [coursesList, setCoursesList] = useState([]);
+  const [performance, setPerformance] = useState([]);
+  
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [activeLead, setActiveLead] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [messages, setMessages] = useState({});
-  const [mobileStage, setMobileStage] = useState('NEW');
 
   // ── Filter state ──────────────────────────────────────────────────────────
   const [selectedCourse, setSelectedCourse] = useState('');
 
-  const stages = ['NEW', 'CONTACTED', 'INTERESTED', 'ADMISSION', 'NEGATIVE', 'NOT CONTACTED'];
+  const stages = ['NEW', 'CONTACTED', 'COUNSELLING', 'FOLLOWUP', 'ENROLLED', 'LOST'];
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -509,19 +523,27 @@ const SalesCrmContent = () => {
       const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
       const headers = userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {};
 
-      const [leadsRes, sourcesRes] = await Promise.all([
+      const [leadsRes, sourcesRes, empRes, coursesRes, perfRes] = await Promise.all([
         fetch('/api/v1/leads', { headers }).catch(() => null),
-        fetch('/api/v1/lead-sources', { headers }).catch(() => null),
+        fetch('/api/v1/leads/sources', { headers }).catch(() => null),
+        fetch('/api/v1/employees', { headers }).catch(() => null),
+        fetch('/api/v1/courses', { headers }).catch(() => null),
+        fetch('/api/v1/leads/performance', { headers }).catch(() => null),
       ]);
 
       const lData = leadsRes?.ok ? await leadsRes.json() : null;
       const sData = sourcesRes?.ok ? await sourcesRes.json() : null;
+      const eData = empRes?.ok ? await empRes.json() : null;
+      const cData = coursesRes?.ok ? await coursesRes.json() : null;
+      const pData = perfRes?.ok ? await perfRes.json() : null;
 
-      setLeads(lData?.data?.leads || lData?.data || MOCK_LEADS);
-      setSources(sData?.data?.sources || sData?.data || MOCK_SOURCES);
+      setLeads(lData?.data || []);
+      setSources(sData?.data || []);
+      setEmployees(eData?.data || []);
+      setCoursesList(cData?.data || []);
+      setPerformance(pData?.data || []);
     } catch {
-      setLeads(MOCK_LEADS);
-      setSources(MOCK_SOURCES);
+      console.error("Failed to fetch CRM data");
     } finally {
       setLoading(false);
     }
@@ -538,21 +560,87 @@ const SalesCrmContent = () => {
     return matchesCourse;
   });
 
-  const handleAddLead = (lead) => { setLeads(prev => [...prev, lead]); setIsAddOpen(false); };
-
-  const handleUpdateStage = (id, newStage) => {
-    setLeads(prev => prev.map(l => l.id === id ? { ...l, stage: newStage } : l));
-    setActiveLead(prev => prev?.id === id ? { ...prev, stage: newStage } : prev);
+  const handleAddLead = async (form) => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
+      const res = await fetch('/api/v1/leads', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {})
+        },
+        body: JSON.stringify(form)
+      });
+      if (res.ok) {
+        await fetchLeads(); // refresh all to get correct relationships and counts
+        setIsAddOpen(false);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleSendMessage = (leadId, text) => {
-    const msg = { id: Date.now(), text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), sender: 'me' };
-    setMessages(prev => ({ ...prev, [leadId]: [...(prev[leadId] || []), msg] }));
+  const handleUpdateStage = async (id, newStage) => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
+      const res = await fetch(`/api/v1/leads/${id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {})
+        },
+        body: JSON.stringify({ stage: newStage })
+      });
+      if (res.ok) {
+        setLeads(prev => prev.map(l => l.id === id ? { ...l, stage: newStage } : l));
+        setActiveLead(prev => prev?.id === id ? { ...prev, stage: newStage } : prev);
+        // refresh performance if stage changes count (if performance filters by stage in future)
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchMessagesForLead = async (leadId) => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
+      const res = await fetch(`/api/v1/leads/${leadId}/activities`, {
+        headers: userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(prev => ({ ...prev, [leadId]: data.data || [] }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSendMessage = async (leadId, text) => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
+      const res = await fetch(`/api/v1/leads/${leadId}/activities`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {})
+        },
+        body: JSON.stringify({ text })
+      });
+      if (res.ok) {
+        await fetchMessagesForLead(leadId);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleOpenDetails = (lead, tab) => {
     setActiveLead(lead);
     setActiveTab(tab);
+    if (tab === 'messages') {
+      fetchMessagesForLead(lead.id);
+    }
   };
 
   const uniqueCourses = getUniqueCourses(leads);
@@ -615,7 +703,7 @@ const SalesCrmContent = () => {
         </div>
 
         {/* Insights */}
-        <InsightsHeader isMobile={isMobile} isTablet={isTablet} />
+        <InsightsHeader isMobile={isMobile} isTablet={isTablet} performance={performance} leads={leads} />
 
         {/* Active filter indicator */}
         {selectedCourse && (
@@ -651,7 +739,7 @@ const SalesCrmContent = () => {
         <Plus size={22} />
       </button>
 
-      <AddLeadModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onSave={handleAddLead} sources={sources} stages={stages} />
+      <AddLeadModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onSave={handleAddLead} sources={sources} stages={stages} teamMembers={employees} coursesList={coursesList} />
       <DetailsModal
         lead={activeLead}
         initialTab={activeTab}
