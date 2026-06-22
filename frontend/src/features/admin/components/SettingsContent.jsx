@@ -104,6 +104,10 @@ const SettingsContent = ({ employees = [] }) => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [customPermissions, setCustomPermissions] = useState({});
 
+  // Attendance Settings state
+  const [attendanceSettings, setAttendanceSettings] = useState({ late_time: '10:15:00', half_day_time: '11:00:00' });
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false);
+
   useEffect(() => {
     if (employees && employees.length > 0) {
       const initialCustomPerms = {};
@@ -147,7 +151,23 @@ const SettingsContent = ({ employees = [] }) => {
         console.error('Failed to fetch roles', err);
       }
     };
+
+    const fetchAttendanceSettings = async () => {
+      try {
+        const data = await apiClient('/settings');
+        if (data?.success && data.data) {
+          setAttendanceSettings({
+            late_time: data.data.late_time || '10:15:00',
+            half_day_time: data.data.half_day_time || '11:00:00'
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch attendance settings', err);
+      }
+    };
+
     fetchRoles();
+    fetchAttendanceSettings();
   }, []);
 
   const filteredEmployeesList = useMemo(() => {
@@ -398,6 +418,30 @@ const SettingsContent = ({ employees = [] }) => {
     }
   };
 
+  const handleAttendanceSettingsSave = async () => {
+    setIsSavingAttendance(true);
+    try {
+      const response = await apiClient('/settings', {
+        method: 'PUT',
+        body: JSON.stringify(attendanceSettings)
+      });
+      if (response && response.success) {
+        setToastText('Attendance settings saved successfully.');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        throw new Error(response?.message || 'Failed to save attendance settings');
+      }
+    } catch (err) {
+      console.error('Save attendance settings error:', err);
+      setToastText('Failed to save attendance settings.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } finally {
+      setIsSavingAttendance(false);
+    }
+  };
+
   return (
     <div className="p-[24px] flex flex-col gap-[24px] w-full relative pb-[100px] bg-[#F8FAFC]">
       
@@ -439,6 +483,16 @@ const SettingsContent = ({ employees = [] }) => {
           }`}
         >
           Individual Overrides
+        </button>
+        <button
+          onClick={() => setSettingsTab('attendance')}
+          className={`pb-3 px-6 text-sm font-bold border-b-2 transition-all ${
+            settingsTab === 'attendance'
+              ? 'border-[#003F87] text-[#003F87]'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Attendance Settings
         </button>
       </div>
 
@@ -949,6 +1003,57 @@ const SettingsContent = ({ employees = [] }) => {
         )}
       </div>
       </div>
+      )}
+
+      {/* Attendance Settings Tab */}
+      {settingsTab === 'attendance' && (
+        <div className="bg-white border border-[#C2C6D4] rounded-xl p-6 shadow-sm flex flex-col gap-6 w-full max-w-2xl">
+          <div className="border-b border-slate-100 pb-4">
+            <h4 className="text-[15px] font-bold text-slate-900 flex items-center gap-2">
+              <Calendar size={18} className="text-[#003F87]" />
+              Attendance Timing Limits
+            </h4>
+            <p className="text-[12px] text-slate-500 mt-1">
+              Configure the cut-off times for Late check-ins and Half-Day check-ins. Times are in 24-hour format (HH:MM).
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-5">
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Late Check-In Time</label>
+              <input 
+                type="time" 
+                step="60"
+                value={attendanceSettings.late_time}
+                onChange={(e) => setAttendanceSettings({ ...attendanceSettings, late_time: e.target.value })}
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg outline-none focus:border-[#003F87] text-sm text-slate-800 bg-slate-50 focus:bg-white transition-colors"
+              />
+              <p className="text-[11px] text-slate-400 mt-1.5">Employees checking in after this time will be marked as "Late".</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Half-Day Time Limit</label>
+              <input 
+                type="time" 
+                step="60"
+                value={attendanceSettings.half_day_time}
+                onChange={(e) => setAttendanceSettings({ ...attendanceSettings, half_day_time: e.target.value })}
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg outline-none focus:border-[#003F87] text-sm text-slate-800 bg-slate-50 focus:bg-white transition-colors"
+              />
+              <p className="text-[11px] text-slate-400 mt-1.5">Employees checking in after this time will be marked as "Half-Day".</p>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4 border-t border-slate-100">
+            <button 
+              onClick={handleAttendanceSettingsSave}
+              disabled={isSavingAttendance}
+              className="px-5 py-2.5 bg-[#003F87] hover:bg-[#002B5E] disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg text-[13px] font-bold text-white transition-colors shadow-sm flex items-center gap-2"
+            >
+              {isSavingAttendance ? 'Saving...' : 'Save Settings'}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Bottom Console Info Disclaimer */}

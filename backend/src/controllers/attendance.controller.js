@@ -206,14 +206,26 @@ export const checkInEmployee = asyncHandler(async (req, res) => {
   const istTimeStr = `${getPart('hour')}:${getPart('minute')}:${getPart('second')}`;
   const istTimestampStr = `${istDateStr}T${istTimeStr}+05:30`;
   
-  // Logic for LATE (10:15 AM) and HALF_DAY (11:00 AM)
+  // Fetch settings dynamically
+  const { data: settings } = await supabase.from('company_settings').select('*').maybeSingle();
+  
+  const lateTimeStr = settings?.late_time || '10:15:00';
+  const halfDayTimeStr = settings?.half_day_time || '11:00:00';
+  
+  const [lateHour, lateMinute] = lateTimeStr.split(':').map(Number);
+  const [halfDayHour, halfDayMinute] = halfDayTimeStr.split(':').map(Number);
+
   const hour = parseInt(getPart('hour'), 10);
   const minute = parseInt(getPart('minute'), 10);
   let status = 'PRESENT';
   
-  if (hour >= 11) {
+  const currentTotalMinutes = hour * 60 + minute;
+  const lateTotalMinutes = lateHour * 60 + lateMinute;
+  const halfDayTotalMinutes = halfDayHour * 60 + halfDayMinute;
+
+  if (currentTotalMinutes >= halfDayTotalMinutes) {
     status = 'HALF_DAY';
-  } else if (hour === 10 && minute > 15) {
+  } else if (currentTotalMinutes > lateTotalMinutes) {
     status = 'LATE';
   }
 
