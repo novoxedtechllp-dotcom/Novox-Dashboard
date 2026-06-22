@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { UserCheck, CheckCircle2, Database, BookOpen, Clock, MapPin, MessageSquare, ChevronRight, CheckSquare, AlertCircle, X } from 'lucide-react';
 
 const StudentDashboard = ({ userInfo }) => {
@@ -41,15 +42,14 @@ const StudentDashboard = ({ userInfo }) => {
           }
         }
 
-        // 2. Fetch Tasks (Placeholder API path, as no dedicated tasks API was visible in grep)
-        // We will default to 0% and empty if it fails
+        // 2. Fetch Tasks
         const tasksRes = await fetch(`/api/v1/students/${userInfo?.id || userInfo?.student_profile_id}/tasks`, { headers });
         if (tasksRes.ok) {
           const tasksData = await tasksRes.json();
           if (tasksData && tasksData.data) {
-            setPendingTasks(tasksData.data.filter(t => !t.completed));
+            setPendingTasks(tasksData.data.filter(t => t.status !== 'APPROVED'));
             const totalTasks = tasksData.data.length;
-            const completedTasks = tasksData.data.filter(t => t.completed).length;
+            const completedTasks = tasksData.data.filter(t => t.status === 'APPROVED').length;
             if (totalTasks > 0) {
               setTasksDonePercent(Math.round((completedTasks / totalTasks) * 100));
             }
@@ -64,6 +64,9 @@ const StudentDashboard = ({ userInfo }) => {
           const scheduleData = await scheduleRes.json();
           if (scheduleData && scheduleData.data) {
             setTodaySessions(scheduleData.data);
+            if (scheduleData.data.length > 0 && scheduleData.data[0].course_modules) {
+              setCurrentModule({ name: `Mod ${scheduleData.data[0].course_modules.title}` });
+            }
           }
         }
 
@@ -282,9 +285,9 @@ const StudentDashboard = ({ userInfo }) => {
               )}
               
               <div className="mt-auto pt-6">
-                <button className="w-full py-2.5 border border-dashed border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                <Link to="/student/tasks" className="w-full py-2.5 border border-dashed border-slate-300 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors flex justify-center items-center">
                   View All Tasks
-                </button>
+                </Link>
               </div>
             </div>
           </div>

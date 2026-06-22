@@ -145,6 +145,24 @@ const DailySchedule = () => {
         <div className="bg-white p-4 px-6 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-start gap-8 mb-8 w-full">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+              <BookOpen size={18} className="text-[#003F87]" /> Course
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 flex items-center">
+              <CustomSelect 
+                value={selectedCourse}
+                onChange={setSelectedCourse}
+                options={[
+                  { value: 'ALL', label: 'All Courses' },
+                  ...Array.from(new Set(dailyPlan.map(sm => sm.course_modules?.courses?.name).filter(Boolean))).map(c => ({ value: c, label: c }))
+                ]}
+                className="w-[200px]"
+                selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
               <CalendarDays size={18} className="text-[#003F87]" /> Date
             </div>
             
@@ -176,24 +194,6 @@ const DailySchedule = () => {
               <button onClick={handleNextDay} className="w-9 h-9 flex items-center justify-center rounded-lg bg-white text-slate-600 hover:text-[#003F87] hover:shadow-sm border border-slate-200 transition-all active:scale-95">
                 <ChevronRight size={18} />
               </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-              <BookOpen size={18} className="text-[#003F87]" /> Course
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 flex items-center">
-              <CustomSelect 
-                value={selectedCourse}
-                onChange={setSelectedCourse}
-                options={[
-                  { value: 'ALL', label: 'All Courses' },
-                  ...Array.from(new Set(dailyPlan.map(sm => sm.course_modules?.courses?.name).filter(Boolean))).map(c => ({ value: c, label: c }))
-                ]}
-                className="w-[200px]"
-                selectClassName="w-full bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer relative"
-              />
             </div>
           </div>
         </div>

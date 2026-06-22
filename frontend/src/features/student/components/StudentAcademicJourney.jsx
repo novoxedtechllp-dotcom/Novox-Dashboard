@@ -197,10 +197,12 @@ const StudentAcademicJourney = ({ userInfo }) => {
   if (loading) return <LoadingSpinner text="Loading your academic journey..." />;
 
   const toggleCourse = (courseId) => {
-    setExpandedCourses(prev => ({
-      ...prev,
-      [courseId]: !prev[courseId]
-    }));
+    setExpandedCourses(prev => {
+      // If it's already expanded, close it
+      if (prev[courseId]) return {};
+      // Otherwise, open ONLY this course
+      return { [courseId]: true };
+    });
   };
 
   return (
