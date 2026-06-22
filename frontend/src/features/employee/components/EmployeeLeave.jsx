@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Send, FileText, Info, UploadCloud, Trash2, X, MessageSquare } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { apiClient } from '../../../lib/apiClient';
 import CloudinaryPdfViewer from '../../../components/CloudinaryPdfViewer';
 import DatePicker from 'react-datepicker';
@@ -9,7 +10,18 @@ const EmployeeLeave = () => {
   const startDatePickerRef = useRef(null);
   const endDatePickerRef = useRef(null);
   const [viewMode, setViewMode] = useState('My Record');
-  const [activeTab, setActiveTab] = useState('Request Leave');
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.hash === '#request' ? 'Request Leave' : 'Student Leaves');
+  
+  // Listen for hash changes
+  useEffect(() => {
+    if (location.hash === '#request') {
+      setActiveTab('Request Leave');
+    } else if (location.hash === '#management' || !location.hash) {
+      // Default to Student Leaves if accessed from sidebar (which doesn't have a hash)
+      setActiveTab('Student Leaves');
+    }
+  }, [location.hash]);
   const [formData, setFormData] = useState({
     leaveType: 'Sick Leave',
     startDate: '',
@@ -626,7 +638,7 @@ const EmployeeLeave = () => {
                     <td className="py-4 px-6 text-slate-600 max-w-[200px] truncate" title={leave.reason}>
                       {leave.reason}
                       {leave.document_url && (
-                        <div className="mt-1">
+                        <div className="mt-1 flex items-center gap-3">
                           <button 
                             onClick={() => {
                               setCurrentDocUrl(leave.document_url);
@@ -636,6 +648,15 @@ const EmployeeLeave = () => {
                           >
                             View Doc
                           </button>
+                          <a 
+                            href={leave.document_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            download
+                            className="text-emerald-600 hover:underline text-[11px] flex items-center gap-1 font-bold"
+                          >
+                            Download
+                          </a>
                         </div>
                       )}
                     </td>

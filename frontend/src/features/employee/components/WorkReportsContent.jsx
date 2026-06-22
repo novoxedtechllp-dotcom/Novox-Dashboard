@@ -683,6 +683,17 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
         </div>
       )}
 
+      {/* Submitting Overlay */}
+      {isSubmitting && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex flex-col items-center justify-center">
+          <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center animate-in zoom-in-95 duration-200">
+            <div className="w-10 h-10 border-4 border-[#003F87]/20 border-t-[#003F87] rounded-full animate-spin mb-4"></div>
+            <h3 className="text-lg font-bold text-slate-800">Submitting Report</h3>
+            <p className="text-sm text-slate-500 mt-1">Please wait while your report is being uploaded...</p>
+          </div>
+        </div>
+      )}
+
       {/* Document View Modal */}
       {isDocModalOpen && currentDocAttachment && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
