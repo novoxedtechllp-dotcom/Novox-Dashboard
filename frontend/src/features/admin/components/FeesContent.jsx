@@ -284,9 +284,10 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
       let filteredList = feesList;
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
-        filteredList = filteredList.filter(item => 
-          item.name.toLowerCase().includes(q)
-        );
+        filteredList = filteredList.filter(item => {
+          const nameWords = item.name ? item.name.toLowerCase().split(/\s+/) : [];
+          return nameWords.some(word => word.startsWith(q));
+        });
       }
       // Note: filterStatus not very useful here since we just record payments, but we'll apply it if not 'All'
       // We'll leave it as is.
@@ -295,10 +296,12 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
       let filteredList = studentBalancesList;
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
-        filteredList = filteredList.filter(item => 
-          item.name.toLowerCase().includes(q) || 
-          (item.studentCode && item.studentCode.toLowerCase().includes(q))
-        );
+        filteredList = filteredList.filter(item => {
+          const nameWords = item.name ? item.name.toLowerCase().split(/\s+/) : [];
+          const matchesName = nameWords.some(word => word.startsWith(q));
+          const matchesCode = item.studentCode && item.studentCode.toLowerCase().startsWith(q);
+          return matchesName || matchesCode;
+        });
       }
       if (filterStatus !== 'All') {
         filteredList = filteredList.filter(item => item.status === filterStatus);

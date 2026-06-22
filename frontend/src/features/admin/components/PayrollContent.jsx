@@ -84,11 +84,15 @@ const PayrollContent = () => {
 
   // Filtered employees
   const filteredEmployees = useMemo(() => {
-    return currentEmployees.filter(emp => 
-      emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.role.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    if (!searchQuery) return currentEmployees;
+    const q = searchQuery.toLowerCase();
+    return currentEmployees.filter(emp => {
+      const nameWords = emp.name ? emp.name.toLowerCase().split(/\s+/) : [];
+      const matchesName = nameWords.some(word => word.startsWith(q));
+      const matchesId = emp.id && emp.id.toLowerCase().startsWith(q);
+      const matchesRole = emp.role && emp.role.toLowerCase().startsWith(q);
+      return matchesName || matchesId || matchesRole;
+    });
   }, [currentEmployees, searchQuery]);
 
   // Paginated employees

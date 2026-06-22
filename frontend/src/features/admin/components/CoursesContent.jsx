@@ -656,11 +656,14 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
-      normalizedCourses = normalizedCourses.filter(c => 
-        (c.title && c.title.toLowerCase().includes(q)) ||
-        (c.track && c.track.toLowerCase().includes(q)) ||
-        (c.cid && c.cid.toLowerCase().includes(q))
-      );
+      normalizedCourses = normalizedCourses.filter(c => {
+        const titleWords = c.title ? c.title.toLowerCase().split(/\s+/) : [];
+        const trackWords = c.track ? c.track.toLowerCase().split(/\s+/) : [];
+        const matchesTitle = titleWords.some(word => word.startsWith(q));
+        const matchesTrack = trackWords.some(word => word.startsWith(q));
+        const matchesCid = c.cid && c.cid.toLowerCase().startsWith(q);
+        return matchesTitle || matchesTrack || matchesCid;
+      });
     }
     
     return normalizedCourses;
@@ -1319,7 +1322,6 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                                     <div className="py-2.5 px-4 flex flex-wrap sm:flex-nowrap gap-3 items-center cursor-pointer hover:bg-slate-50" onClick={() => setExpandedTaskId(expandedTaskId === t.id ? null : t.id)}>
                                                       <div className="w-5 h-5 rounded bg-slate-100 text-slate-500 text-[10px] font-black flex items-center justify-center shrink-0">{t.sequence_order}</div>
                                                       <div className="flex-1 text-base font-bold text-slate-800 min-w-[150px]">{t.title}</div>
-                                                      <div className={`text-[9px] font-black uppercase px-2 py-1 rounded-md tracking-wider ml-auto sm:ml-0 ${t.task_type === 'EXTRA' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-[#003F87]'}`}>{t.task_type === 'EXTRA' ? 'Bonus' : 'Required'}</div>
                                                       <button
                                                         onClick={(e) => { e.stopPropagation(); setItemToDelete({ type: 'Task', moduleId: m.id, submoduleId: sm.id, taskId: t.id, title: t.title }); }}
                                                         className="w-6 h-6 rounded flex items-center justify-center text-red-300 hover:bg-red-50 hover:text-red-500 transition-colors ml-1"
@@ -1371,16 +1373,6 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
                                             
                                             <form onSubmit={(e) => handleAddTask(e, m.id, sm.id)} className="flex flex-wrap sm:flex-nowrap gap-2 items-center bg-white p-2 rounded-lg border border-slate-200 w-full">
                                               <input type="text" placeholder="Add a new task..." required value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="flex-1 text-sm p-2 outline-none font-medium placeholder-slate-400 w-full" />
-                                              <div className="h-4 w-px bg-slate-200"></div>
-                                              <CustomSelect
-                                                options={[{value: 'PRE_PLANNED', label: 'Required'}, {value: 'EXTRA', label: 'Bonus'}]}
-                                                value={newTask.task_type}
-                                                onChange={(val) => setNewTask({...newTask, task_type: val})}
-                                                placeholder="Type"
-                                                className="w-[120px]"
-                                                selectClassName="w-full bg-transparent text-xs font-bold text-[#003F87] outline-none cursor-pointer relative"
-                                                openUpwards={true}
-                                              />
                                               <div className="h-4 w-px bg-slate-200"></div>
                                               <input type="number" placeholder="Seq" required value={newTask.sequence_order} onChange={e => setNewTask({...newTask, sequence_order: e.target.value})} className="w-[50px] text-xs p-2 outline-none text-center font-bold text-[#003F87]" />
                                               <button type="submit" disabled={isAddingModule} className={`py-2 px-4 bg-[#008A2E] text-white text-[10px] uppercase tracking-widest font-black rounded-md transition-colors shadow-sm ${isAddingModule ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#006E24]'}`}>

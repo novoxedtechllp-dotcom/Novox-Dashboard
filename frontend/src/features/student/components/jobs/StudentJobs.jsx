@@ -242,9 +242,11 @@ const StudentJobs = ({ userInfo }) => {
     const q = searchQuery.toLowerCase();
     const loc = locationQuery.toLowerCase();
     
-    const matchesSearch = !q || 
-      (job.title?.toLowerCase().includes(q) || 
-       job.company?.toLowerCase().includes(q));
+    const matchesSearch = !q || (() => {
+      const titleWords = job.title?.toLowerCase().split(/\s+/) || [];
+      const companyWords = job.company?.toLowerCase().split(/\s+/) || [];
+      return titleWords.some(word => word.startsWith(q)) || companyWords.some(word => word.startsWith(q));
+    })();
        
     const matchesLocation = !loc || 
       job.location?.toLowerCase().includes(loc);

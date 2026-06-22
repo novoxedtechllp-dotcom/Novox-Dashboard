@@ -84,7 +84,9 @@ const StudentTasks = ({ userInfo }) => {
         return {
           id: course.id,
           name: course.name,
-          modules: (course.course_modules || []).sort((a,b)=>a.sequence_order - b.sequence_order).map(mod => {
+          modules: (course.course_modules || [])
+            .filter(mod => mod.status === 'PUBLISHED')
+            .sort((a,b)=>a.sequence_order - b.sequence_order).map(mod => {
             return {
               id: mod.id,
               title: mod.title,
@@ -381,26 +383,6 @@ const StudentTasks = ({ userInfo }) => {
           </div>
         </div>
 
-        {/* Filter Section */}
-        <div className="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 items-center justify-between w-full mb-6 relative z-10">
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-            <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 hover:border-[#003F87]/30 transition-colors w-full sm:w-auto">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-3 shrink-0">Type</span>
-              <div>
-                <CustomSelect 
-                  value={activeFilter}
-                  onChange={setActiveFilter}
-                  options={[
-                    { value: 'ALL', label: 'All Tasks' },
-                    { value: 'QUIZ', label: 'Quiz' },
-                    { value: 'PROJECT', label: 'Project' }
-                  ]}
-                  className="w-[140px]"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
 
       {/* Board Layout */}
       {loading ? (

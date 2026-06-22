@@ -500,7 +500,14 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
       const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
-      const matchSearch = searchQuery.trim() === '' ? true : (fullName.includes(searchQuery.toLowerCase()) || student.student_code.toLowerCase().includes(searchQuery.toLowerCase()) || (student.phone && student.phone.includes(searchQuery)));
+      const matchSearch = searchQuery.trim() === '' ? true : (() => {
+        const term = searchQuery.toLowerCase();
+        const nameWords = fullName.split(/\s+/);
+        const matchesName = nameWords.some(word => word.startsWith(term));
+        const matchesCode = student.student_code.toLowerCase().startsWith(term);
+        const matchesPhone = student.phone && student.phone.includes(searchQuery);
+        return matchesName || matchesCode || matchesPhone;
+      })();
       
       if (searchQuery.trim() !== '') {
         return matchSearch; // Ignore other filters when searching
