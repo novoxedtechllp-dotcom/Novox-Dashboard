@@ -57,6 +57,7 @@ const mapEmployeeFromApi = (employee, avatar = null) => {
     avatar: avatar || employee.avatar_url || null,
     email: employee.users?.email || '',
     systemRole: employee.users?.role || 'EMPLOYEE',
+    salary: employee.salary || 0,
     courseIds
   };
 };
@@ -109,6 +110,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
     position: '',
     phone: '',
     joinDate: 'January 2024',
+    salary: '',
     avatarUrl: null,
     courseIds: []
   });
@@ -186,6 +188,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
           phone: newEmployee.phone,
           employee_role: departmentToApi(newEmployee.department),
           designation: newEmployee.position || newEmployee.department,
+          salary: Number(newEmployee.salary) || 0,
           avatar_url: (newEmployee.avatarUrl && !newEmployee.avatarUrl.startsWith('blob:')) ? newEmployee.avatarUrl : null,
           course_ids: newEmployee.courseIds
         };
@@ -203,7 +206,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
 
       setEmployees([addedEmployee, ...employees]);
       setIsModalOpen(false);
-      setNewEmployee({ name: '', email: '', password: '', department: 'Development', position: '', phone: '', joinDate: 'January 2024', avatarUrl: null, courseIds: [] });
+      setNewEmployee({ name: '', email: '', password: '', department: 'Development', position: '', phone: '', joinDate: 'January 2024', salary: '', avatarUrl: null, courseIds: [] });
       alert('Employee added successfully!');
     } catch (error) {
       console.error('Error adding employee:', error);
@@ -267,6 +270,7 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
         email: employeeToEdit.email,
         employee_role: departmentToApi(employeeToEdit.department),
         designation: employeeToEdit.position || employeeToEdit.department,
+        salary: Number(employeeToEdit.salary) || 0,
         course_ids: employeeToEdit.courseIds
       };
 
@@ -539,6 +543,15 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
                   />
                 </div>
                 <div className="flex flex-col justify-end">
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Base Salary (₹)</label>
+                  <input 
+                    type="number" value={newEmployee.salary}
+                    onChange={(e) => setNewEmployee({...newEmployee, salary: e.target.value})}
+                    placeholder="e.g. 50000"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
+                  />
+                </div>
+                <div className="flex flex-col justify-end">
                   <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Mentoring Courses</label>
                   <CustomSelect
                     value={newEmployee.courseIds}
@@ -618,6 +631,14 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
                   <input 
                     type="text" value={employeeToEdit.position}
                     onChange={(e) => setEmployeeToEdit({...employeeToEdit, position: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
+                  />
+                </div>
+                <div className="flex flex-col justify-end">
+                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Base Salary (₹)</label>
+                  <input 
+                    type="number" value={employeeToEdit.salary || ''}
+                    onChange={(e) => setEmployeeToEdit({...employeeToEdit, salary: e.target.value})}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all"
                   />
                 </div>

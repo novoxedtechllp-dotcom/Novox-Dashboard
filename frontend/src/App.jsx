@@ -47,6 +47,7 @@ import EmployeeTasks from './features/employee/components/EmployeeTasks';
 import EmployeeLeave from './features/employee/components/EmployeeLeave';
 import EmployeeAttendance from './features/employee/components/EmployeeAttendance';
 import EmployeeLeaves from './features/employee/components/EmployeeLeaves';
+import EmployeePayroll from './features/employee/components/EmployeePayroll';
 import DailySchedule from './features/student/components/DailySchedule';
 
 // Mock data removed
@@ -317,6 +318,7 @@ function App() {
                 {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
 
                 {canViewPayroll && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
+                {(userRole === 'EMPLOYEE' || userRole === 'ADMIN') && <Route path={`${basePath}/my-payroll`} element={<EmployeePayroll />} />}
                 {canViewSalesCrm && <Route path={`${basePath}/sales-crm`} element={<SalesCrmContent courses={courses} searchQuery={searchQuery} />} />}
                 {canViewRecruitment && <Route path={`${basePath}/recruitment`} element={<RecruitmentContent />} />}
                 {canViewWhatsapp && <Route path={`${basePath}/whatsapp-automation`} element={<WhatsappContent />} />}
