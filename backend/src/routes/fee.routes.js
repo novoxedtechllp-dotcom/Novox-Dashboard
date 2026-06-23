@@ -8,7 +8,9 @@ import {
   getStudentFeeDetails,
   deletePayment,
   updatePayment,
-  getFeeSummary
+  getFeeSummary,
+  updateFeePlan,
+  updateDueDateOverride
 } from "../controllers/fee.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -25,6 +27,12 @@ const allRolesAuth = authorize({ roles: [ROLES.ADMIN, ROLES.EMPLOYEE, ROLES.STUD
 router.route("/plans")
   .get(adminEmployeeAuth, getFeePlans)
   .post(adminEmployeeAuth, createFeePlan);
+
+router.route("/plans/:planId")
+  .put(adminEmployeeAuth, updateFeePlan);
+
+router.route("/plans/:planId/due-date")
+  .put(adminEmployeeAuth, updateDueDateOverride);
 
 // Payments
 router.route("/payments")

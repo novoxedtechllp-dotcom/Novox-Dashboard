@@ -98,7 +98,8 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
               currentMonthDue: b.currentMonthDue,
               paidThisMonth: b.paidThisMonth,
               status: b.status,
-              courseId: b.courseId
+              courseId: b.courseId,
+              dueDate: b.dueDate
             }));
             setStudentBalancesList(mappedBalances);
             balancesMap = mappedBalances.reduce((acc, b) => {
@@ -191,6 +192,10 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
   }, [activeDropdown]);
   const [viewItem, setViewItem] = useState(null);
   const [editItem, setEditItem] = useState(null);
+  const [editBillingDateItem, setEditBillingDateItem] = useState(null);
+  const [newBillingDate, setNewBillingDate] = useState('');
+  const [editDueDateItem, setEditDueDateItem] = useState(null);
+  const [newOverrideDate, setNewOverrideDate] = useState('');
 
   // Find selected student details to see their courses
   const selectedStudent = useMemo(() => {
@@ -442,6 +447,98 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
       }
     } catch (err) {
        alert("Error updating payment");
+    }
+  };
+
+  const handleEditBillingDateSubmit = async (e) => {
+    e.preventDefault();
+    if (!editBillingDateItem) return;
+    
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+      
+      let targetPlanId = editBillingDateItem.feePlanId;
+      
+      // Auto-create plan if missing
+      if (!targetPlanId) {
+        const createPayload = {
+          student_id: editBillingDateItem.studentId,
+          course_id: editBillingDateItem.courseId,
+          total_fee: editBillingDateItem.totalCourseFee || 0,
+          admission_fee: 5000,
+          monthly_installment: 10000
+        };
+        const createRes = await fetch(`/api/v1/fees/plans`, { method: 'POST', headers, body: JSON.stringify(createPayload) });
+        if (createRes.ok) {
+          const resData = await createRes.json();
+          targetPlanId = resData.data.id;
+        } else {
+          alert("Failed to initialize fee plan for this student.");
+          return;
+        }
+      }
+      
+      const payload = { start_date: newBillingDate };
+      const res = await fetch(`/api/v1/fees/plans/${targetPlanId}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
+      if (res.ok) {
+        alert("Billing date updated successfully!");
+        setEditBillingDateItem(null);
+        setNewBillingDate('');
+        fetchBackendData();
+      } else {
+        alert("Failed to update billing date");
+      }
+    } catch (err) {
+      alert("Error updating billing date");
+    }
+  };
+
+  const handleEditDueDateOverrideSubmit = async (e) => {
+    e.preventDefault();
+    if (!editDueDateItem) return;
+    
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
+      
+      let targetPlanId = editDueDateItem.feePlanId;
+      
+      // Auto-create plan if missing
+      if (!targetPlanId) {
+        const createPayload = {
+          student_id: editDueDateItem.studentId,
+          course_id: editDueDateItem.courseId,
+          total_fee: editDueDateItem.totalCourseFee || 0,
+          admission_fee: 5000,
+          monthly_installment: 10000
+        };
+        const createRes = await fetch(`/api/v1/fees/plans`, { method: 'POST', headers, body: JSON.stringify(createPayload) });
+        if (createRes.ok) {
+          const resData = await createRes.json();
+          targetPlanId = resData.data.id;
+        } else {
+          alert("Failed to initialize fee plan for this student.");
+          return;
+        }
+      }
+      
+      const payload = { 
+        month: filterMonth + 1, 
+        year: filterYear, 
+        due_date: newOverrideDate 
+      };
+      const res = await fetch(`/api/v1/fees/plans/${targetPlanId}/due-date`, { method: 'PUT', headers, body: JSON.stringify(payload) });
+      if (res.ok) {
+        alert("Due date updated successfully!");
+        setEditDueDateItem(null);
+        setNewOverrideDate('');
+        fetchBackendData();
+      } else {
+        alert("Failed to update due date");
+      }
+    } catch (err) {
+      alert("Error updating due date");
     }
   };
 
@@ -709,6 +806,7 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Student Details</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-left">Course</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Due This Month</th>
+                  <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Due Date</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Paid This Month</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Total Fee</th>
                   <th className="py-4 px-4 text-[11px] font-bold text-[#555F6B] uppercase tracking-wider whitespace-nowrap text-right">Overall Paid</th>
@@ -840,6 +938,23 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
                           <div className="text-[14px] font-bold text-slate-800">₹{(due.currentMonthDue || 0).toLocaleString()}</div>
                         </td>
                         <td className="py-4 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-[14px] text-[#555F6B] font-medium">
+                              {due.dueDate ? new Date(due.dueDate).toLocaleDateString() : 'N/A'}
+                            </span>
+                            <button 
+                              onClick={() => {
+                                setEditDueDateItem(due);
+                                setNewOverrideDate(due.dueDate ? due.dueDate.split('T')[0] : '');
+                              }}
+                              className="w-[24px] h-[24px] flex items-center justify-center rounded-full text-slate-400 hover:text-[#003F87] hover:bg-blue-50 transition-all"
+                              title="Edit Due Date"
+                            >
+                              <Edit size={12} />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
                           <div className="text-[14px] font-bold text-[#003F87]">₹{(due.paidThisMonth || 0).toLocaleString()}</div>
                         </td>
                         <td className="py-4 px-4 text-right">
@@ -872,19 +987,27 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
                           )}
                         </td>
                         <td className="py-4 px-4 text-right relative">
-                          <button 
-                            onClick={() => {
-                              setSelectedStudentId(due.studentId || due.id); // depending on how due is structured
-                              // Fallbacks in case courseId is not direct
-                              const cId = due.courseId || (due.student_courses && due.student_courses[0]?.course_id);
-                              setSelectedCourseId(cId);
-                              setIsModalOpen(true);
-                            }}
-                            className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all ml-auto"
-                            title="Record Payment"
-                          >
-                            <Plus size={14} />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => {
+                                setSelectedStudentId(due.studentId || due.id);
+                                const cId = due.courseId || (due.student_courses && due.student_courses[0]?.course_id);
+                                setSelectedCourseId(cId);
+                                setIsModalOpen(true);
+                              }}
+                              className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all"
+                              title="Record Payment"
+                            >
+                              <Plus size={14} />
+                            </button>
+                            <button 
+                              onClick={() => setEditBillingDateItem(due)}
+                              className="w-[32px] h-[32px] flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-[#003F87] hover:border-[#003F87] hover:bg-blue-50 transition-all"
+                              title="Edit Billing Date"
+                            >
+                              <Calendar size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1189,6 +1312,71 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
 
               <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200">
                 <button type="button" onClick={() => setEditItem(null)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E]">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Billing Date Modal */}
+      {editBillingDateItem && (
+        <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <h2 className="text-lg font-bold text-slate-800">Edit Billing Date</h2>
+              <button onClick={() => setEditBillingDateItem(null)} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none">&times;</button>
+            </div>
+            <form onSubmit={handleEditBillingDateSubmit} className="p-6 flex flex-col gap-4">
+              <p className="text-sm text-slate-600">
+                Change the billing start date for <strong>{editBillingDateItem.name}</strong>. The 28-day billing cycle will be calculated from this new date.
+              </p>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">New Start Date</label>
+                <input 
+                  type="date" 
+                  required 
+                  value={newBillingDate} 
+                  onChange={(e) => setNewBillingDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-850" 
+                />
+              </div>
+              <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200">
+                <button type="button" onClick={() => setEditBillingDateItem(null)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E]">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Due Date Override Modal */}
+      {editDueDateItem && (
+        <div className="fixed inset-0 bg-slate-900/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <h2 className="text-lg font-bold text-slate-800">Edit Due Date</h2>
+              <button onClick={() => setEditDueDateItem(null)} className="text-slate-400 hover:text-slate-600 transition-colors text-2xl leading-none">&times;</button>
+            </div>
+            <form onSubmit={handleEditDueDateOverrideSubmit} className="p-6 flex flex-col gap-4">
+              <p className="text-sm text-slate-600">
+                Change the due date for <strong>{editDueDateItem.name}</strong> for the month of <strong>{['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][filterMonth]} {filterYear}</strong>.
+              </p>
+              <p className="text-xs text-amber-600 font-medium">
+                Note: This change applies ONLY to this selected month. Next month will revert to the original due date.
+              </p>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">New Due Date</label>
+                <input 
+                  type="date" 
+                  required 
+                  value={newOverrideDate} 
+                  onChange={(e) => setNewOverrideDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none focus:border-[#003F87] text-sm text-slate-850" 
+                />
+              </div>
+              <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-slate-200">
+                <button type="button" onClick={() => setEditDueDateItem(null)} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-[#003F87] rounded-md text-sm font-semibold text-white hover:bg-[#002B5E]">Save Changes</button>
               </div>
             </form>

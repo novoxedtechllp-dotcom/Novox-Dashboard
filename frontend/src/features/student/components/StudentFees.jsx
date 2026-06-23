@@ -5,8 +5,8 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const StudentFees = ({ userInfo }) => {
-  const [studentFees, setStudentFees] = useState([]);
-  const [feeTotals, setFeeTotals] = useState({ total: 0, paid: 0, balance: 0, currentDue: 0, planStatus: 'Pending' });
+  const [allPlans, setAllPlans] = useState([]);
+  const [activePlanIdx, setActivePlanIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [transactionPage, setTransactionPage] = useState(1);
   const transactionsPerPage = 5;
@@ -77,33 +77,7 @@ const StudentFees = ({ userInfo }) => {
         if (res.ok) {
           const feesData = await res.json();
           const plans = feesData.data?.plans || [];
-          if (plans.length > 0) {
-            const plan = plans[0];
-            const payments = plan.payments || [];
-            
-            // Format payments for the transaction table
-            const formattedPayments = payments.map(p => ({
-              id: p.id,
-              course: plan.courses?.name || 'Enrolled Course',
-              date: new Date(p.paid_at).toLocaleDateString(),
-              type: p.payment_method || 'CASH',
-              amount: p.amount,
-              paidAmount: p.amount,
-              status: 'Paid'
-            }));
-            
-            setStudentFees(formattedPayments);
-            
-            const total = parseFloat(plan.total_fee) || 0;
-            const paid = plan.breakdown?.totalPaid || 0;
-            setFeeTotals({
-              total: total,
-              paid: paid,
-              balance: Math.max(0, total - paid),
-              currentDue: plan.breakdown?.currentMonthDue || 0,
-              planStatus: plan.status || 'Pending'
-            });
-          }
+          setAllPlans(plans);
         }
       } catch (err) {
         console.error("Error fetching fees:", err);
@@ -115,9 +89,76 @@ const StudentFees = ({ userInfo }) => {
     fetchFees();
   }, [studentId, token]);
 
+  const activePlan = allPlans[activePlanIdx] || null;
+
+  const studentFees = activePlan?.payments 
+    ? activePlan.payments.map(p => ({
+        id: p.id,
+        course: activePlan.courses?.name || 'Enrolled Course',
+        date: new Date(p.paid_at).toLocaleDateString(),
+        type: p.payment_method || 'CASH',
+        amount: p.amount,
+        paidAmount: p.amount,
+        status: 'Paid'
+      })) 
+    : [];
+
+  const feeTotals = activePlan 
+    ? {
+        total: parseFloat(activePlan.total_fee) || 0,
+        paid: activePlan.breakdown?.totalPaid || 0,
+        balance: Math.max(0, (parseFloat(activePlan.total_fee) || 0) - (activePlan.breakdown?.totalPaid || 0)),
+        currentDue: activePlan.breakdown?.currentMonthDue || 0,
+        nextDueDate: activePlan.dueDate || null,
+        planStatus: activePlan.status || 'Pending'
+      }
+    : { total: 0, paid: 0, balance: 0, currentDue: 0, planStatus: 'Pending' };
+
+  let upcomingSchedule = [];
+  if (activePlan) {
+    const instAmt = parseFloat(activePlan.monthly_installment) || 10000;
+    let tempRem = feeTotals.balance;
+    let currentDueAmt = activePlan.breakdown?.currentMonthDue || 0;
+    let firstDate = activePlan.dueDate ? new Date(activePlan.dueDate) : new Date();
+
+    if (currentDueAmt > 0) {
+      upcomingSchedule.push({
+        date: firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        amount: Math.min(tempRem, currentDueAmt),
+        status: 'Due Now'
+      });
+      tempRem -= currentDueAmt;
+    } else if (tempRem > 0 && activePlan.upcomingInstallment?.dueDate) {
+      firstDate = new Date(activePlan.upcomingInstallment.dueDate);
+      const amt = Math.min(tempRem, instAmt);
+      upcomingSchedule.push({
+        date: firstDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        amount: amt,
+        status: 'Upcoming'
+      });
+      tempRem -= amt;
+    }
+
+    let baseCycleDate = activePlan.breakdown?.nextDueDate ? new Date(activePlan.breakdown.nextDueDate) : firstDate;
+    let step = currentDueAmt > 0 ? 0 : 1;
+    
+    while (tempRem > 0 && upcomingSchedule.length < 5) {
+      const nextDate = new Date(baseCycleDate.getTime() + (step * 28 * 24 * 60 * 60 * 1000));
+      const amt = Math.min(tempRem, instAmt);
+      upcomingSchedule.push({
+        date: nextDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        amount: amt,
+        status: 'Upcoming'
+      });
+      tempRem -= amt;
+      step++;
+    }
+  }
+
   const currentMonthFee = { 
     amount: feeTotals.currentDue || 0, 
-    status: feeTotals.planStatus || 'Not Paid' 
+    status: feeTotals.planStatus || 'Not Paid',
+    nextDate: feeTotals.nextDueDate ? new Date(feeTotals.nextDueDate).toLocaleDateString() : null
   };
 
   return (
@@ -131,6 +172,24 @@ const StudentFees = ({ userInfo }) => {
             <p className="text-slate-500 mt-1">View your course fees, tracking remaining balances, and recent payments.</p>
           </div>
         </div>
+
+        {!loading && allPlans.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar">
+            {allPlans.map((plan, idx) => (
+              <button
+                key={plan.id}
+                onClick={() => { setActivePlanIdx(idx); setTransactionPage(1); }}
+                className={`px-4 py-2 rounded-full whitespace-nowrap font-bold text-sm transition-all ${
+                  activePlanIdx === idx 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {plan.courses?.name || 'Enrolled Course'}
+              </button>
+            ))}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex-1 min-h-[300px] flex flex-col relative rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
@@ -185,12 +244,17 @@ const StudentFees = ({ userInfo }) => {
                     <div>
                       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">This Month's Fee</p>
                       <h4 className="text-lg font-black text-slate-800">₹{currentMonthFee.amount.toLocaleString()}</h4>
+                      {currentMonthFee.nextDate && (
+                        <p className="text-xs text-slate-500 mt-1 font-medium">Due: {currentMonthFee.nextDate}</p>
+                      )}
                     </div>
                   </div>
                   <div>
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${
-                      currentMonthFee.status === 'Paid' 
+                      currentMonthFee.status === 'Paid' || currentMonthFee.status === 'Full Paid'
                         ? 'bg-[#E5F7ED] text-[#008A2E] border-[#008A2E]/20' 
+                        : currentMonthFee.status === 'Partially Paid'
+                        ? 'bg-[#FFF4E5] text-[#B26E00] border-[#B26E00]/20'
                         : 'bg-[#FDE2E2] text-[#D80000] border-[#D80000]/20'
                     }`}>
                       {currentMonthFee.status}
@@ -198,6 +262,26 @@ const StudentFees = ({ userInfo }) => {
                   </div>
                 </div>
               </div>
+
+              {/* Upcoming Dues Schedule */}
+              {upcomingSchedule.length > 0 && (
+                <div className="bg-white rounded-xl border border-slate-100 p-5 shadow-sm flex flex-col mt-2">
+                  <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider mb-4">Upcoming Schedule</h4>
+                  <div className="flex flex-col gap-3">
+                    {upcomingSchedule.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                        <div>
+                          <p className="text-sm font-bold text-slate-800">{item.date}</p>
+                          <p className={`text-[10px] font-black uppercase tracking-wider mt-0.5 ${item.status === 'Due Now' ? 'text-[#D80000]' : 'text-slate-400'}`}>
+                            {item.status}
+                          </p>
+                        </div>
+                        <span className="text-sm font-black text-slate-800">₹{item.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right Column: Transaction History */}

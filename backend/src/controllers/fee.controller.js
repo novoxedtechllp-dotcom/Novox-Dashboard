@@ -16,25 +16,32 @@ import { ApiResponse } from "../utils/ApiResponse.js";
  * - Monthly installment: ₹10,000 due every month after admission
  * - If a student pays less than the installment, the shortfall carries forward
  */
-const calculateFeeBreakdown = (feePlan, payments, upToMonth, upToYear) => {
+const calculateFeeBreakdown = (feePlan, payments, targetDateStr = null) => {
   const admissionFee = parseFloat(feePlan.admission_fee) || 5000;
   const monthlyInstallment = parseFloat(feePlan.monthly_installment) || 10000;
-  const startMonth = feePlan.start_month;
-  const startYear = feePlan.start_year;
-
-  if (!startMonth || !startYear) {
+  
+  const startDateStr = feePlan.start_date || feePlan.created_at;
+  if (!startDateStr) {
     return {
       totalDue: 0,
       totalPaid: 0,
       remainingBalance: 0,
       currentMonthDue: 0,
       carryForward: 0,
-      monthsElapsed: 0
+      monthsElapsed: 0,
+      nextDueDate: null
     };
   }
 
-  // Calculate months elapsed from start to the target month
-  const monthsElapsed = (upToYear - startYear) * 12 + (upToMonth - startMonth);
+  const startDate = new Date(startDateStr);
+  const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
+
+  // Calculate days elapsed from start date
+  const msElapsed = targetDate.getTime() - startDate.getTime();
+  const daysElapsed = Math.floor(msElapsed / (1000 * 60 * 60 * 24));
+  
+  // Every 28 days is exactly one month cycle
+  const monthsElapsed = daysElapsed >= 0 ? Math.floor(daysElapsed / 28) : -1;
 
   if (monthsElapsed < 0) {
     return {
@@ -43,7 +50,8 @@ const calculateFeeBreakdown = (feePlan, payments, upToMonth, upToYear) => {
       remainingBalance: 0,
       currentMonthDue: 0,
       carryForward: 0,
-      monthsElapsed
+      monthsElapsed,
+      nextDueDate: new Date(startDate.getTime()).toISOString()
     };
   }
 
@@ -61,21 +69,12 @@ const calculateFeeBreakdown = (feePlan, payments, upToMonth, upToYear) => {
     totalDue = totalCourseFee;
   }
 
-  // Sum payments made up to the target month/year
-  const totalPaid = payments.reduce((sum, p) => {
-    // If payment has year/month, we only count it if it's <= target
-    if (p.year && p.month) {
-      if (p.year > upToYear || (p.year === upToYear && p.month > upToMonth)) {
-        return sum; // ignore future payments
-      }
-    }
-    return sum + (parseFloat(p.amount) || 0);
-  }, 0);
+  // Sum payments made up to the target date
+  // For simplicity, we just count all payments. If we want point-in-time, we'd filter by p.paid_at <= targetDate.
+  const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
   const remainingBalance = Math.max(0, totalDue - totalPaid);
 
-  // Current month's due = monthly installment + any carry-forward
-  // carry-forward = total due up to previous month - total paid (if negative, that's overpayment)
   let dueUpToPreviousMonth = admissionFee;
   if (monthsElapsed > 1) {
     dueUpToPreviousMonth += (monthsElapsed - 1) * monthlyInstallment;
@@ -87,9 +86,22 @@ const calculateFeeBreakdown = (feePlan, payments, upToMonth, upToYear) => {
   const carryForward = Math.max(0, dueUpToPreviousMonth - totalPaid);
   const overPayment = Math.max(0, totalPaid - dueUpToPreviousMonth);
   
-  const currentMonthDue = monthsElapsed > 0
+  let currentMonthDue = monthsElapsed > 0
     ? monthlyInstallment + carryForward - overPayment
     : admissionFee - totalPaid; // first month: just the admission fee minus what's paid
+
+  // Cap the current month due by the overall remaining balance of the course!
+  const overallRemainingBalance = totalCourseFee > 0 ? Math.max(0, totalCourseFee - totalPaid) : Infinity;
+  if (currentMonthDue > overallRemainingBalance) {
+    currentMonthDue = overallRemainingBalance;
+  }
+
+  // Next due date logic: exactly (monthsElapsed + 1) * 28 days from start_date
+  // But wait, if monthsElapsed is 0, the next installment is at (1 * 28) days.
+  // Actually, the next due date for the *upcoming* installment.
+  // If they are fully paid for the whole course, nextDueDate might not matter.
+  const nextDueMs = startDate.getTime() + ((monthsElapsed + 1) * 28 * 24 * 60 * 60 * 1000);
+  const nextDueDate = new Date(nextDueMs).toISOString();
 
   return {
     totalDue,
@@ -97,7 +109,8 @@ const calculateFeeBreakdown = (feePlan, payments, upToMonth, upToYear) => {
     remainingBalance,
     currentMonthDue: Math.max(0, currentMonthDue),
     carryForward,
-    monthsElapsed
+    monthsElapsed,
+    nextDueDate
   };
 };
 
@@ -120,14 +133,14 @@ const resolveFeePlan = (feePlans, enrollment) => {
       monthly_installment: 10000,
       start_month: enrollDate.getMonth() + 1,
       start_year: enrollDate.getFullYear(),
+      start_date: enrollDate.toISOString().split('T')[0],
       created_at: enrollment.enrolled_at || new Date().toISOString()
     };
   } else {
     if (!plan.total_fee) plan.total_fee = defaultTotalFee;
-    if (!plan.start_month || !plan.start_year) {
+    if (!plan.start_date) {
       const planDate = plan.created_at ? new Date(plan.created_at) : new Date();
-      if (!plan.start_month) plan.start_month = planDate.getMonth() + 1;
-      if (!plan.start_year) plan.start_year = planDate.getFullYear();
+      plan.start_date = planDate.toISOString().split('T')[0];
     }
   }
 
@@ -178,8 +191,9 @@ const createFeePlan = asyncHandler(async (req, res) => {
       total_fee: total_fee || 0,
       discount,
       final_fee: Math.max(0, finalFee),
-      start_month: now.getMonth() + 1, // 1-indexed
+      start_month: now.getMonth() + 1,
       start_year: now.getFullYear(),
+      start_date: now.toISOString().split('T')[0],
     }])
     .select(`
       *,
@@ -361,12 +375,15 @@ const getStudentBalances = asyncHandler(async (req, res) => {
 
   if (payError) throw new ApiError(500, payError.message || "Failed to fetch payments");
 
+  // Create a target date at the end of the month to project balances correctly for that month
+  const targetDateForBreakdown = new Date(Date.UTC(targetYear, targetMonth, 0, 23, 59, 59)).toISOString();
+
   // 4. Calculate balances for each enrollment
   const balances = enrollments.map(enrollment => {
     const plan = resolveFeePlan(feePlans, enrollment);
 
     const studentPayments = (allPayments || []).filter(p => p.student_id === enrollment.student_id && p.fee_plan_id === plan.id);
-    const breakdown = calculateFeeBreakdown(plan, studentPayments, targetMonth, targetYear);
+    const breakdown = calculateFeeBreakdown(plan, studentPayments, targetDateForBreakdown);
 
     const totalCourseFeeVal = parseFloat(plan.total_fee) || 0;
     const remainingCourseFee = Math.max(0, totalCourseFeeVal - breakdown.totalPaid);
@@ -383,6 +400,21 @@ const getStudentBalances = asyncHandler(async (req, res) => {
       paymentStatus = 'Paid';
     } else if (paidThisMonth > 0) {
       paymentStatus = 'Partially Paid';
+    }
+
+    const overrideKey = `${targetYear}-${targetMonth}`;
+    let finalDueDate;
+    if (plan.due_date_overrides && plan.due_date_overrides[overrideKey]) {
+      finalDueDate = plan.due_date_overrides[overrideKey];
+    } else {
+      // Calculate the original due date that falls inside the target month
+      const startOfTargetMonth = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
+      const startDate = new Date(plan.start_date || plan.created_at || now);
+      const msElapsedStart = startOfTargetMonth.getTime() - startDate.getTime();
+      const daysElapsedStart = Math.floor(msElapsedStart / (1000 * 60 * 60 * 24));
+      const monthsElapsedStart = daysElapsedStart >= 0 ? Math.floor(daysElapsedStart / 28) : -1;
+      const nextDueMs = startDate.getTime() + ((monthsElapsedStart + 1) * 28 * 24 * 60 * 60 * 1000);
+      finalDueDate = new Date(nextDueMs).toISOString();
     }
 
     return {
@@ -404,6 +436,8 @@ const getStudentBalances = asyncHandler(async (req, res) => {
       currentMonthDue: breakdown.currentMonthDue,
       carryForward: breakdown.carryForward,
       monthsElapsed: breakdown.monthsElapsed,
+      nextDueDate: breakdown.nextDueDate,
+      dueDate: finalDueDate,
       status: paymentStatus,
       feePlanId: plan.id.startsWith('virtual') ? null : plan.id
     };
@@ -476,6 +510,7 @@ const getStudentFeeDetails = asyncHandler(async (req, res) => {
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
+  const targetDateForBreakdown = new Date(Date.UTC(currentYear, currentMonth, 0, 23, 59, 59)).toISOString();
 
   // Calculate breakdowns for each enrollment
   const plans = (enrollments || []).map(enrollment => {
@@ -485,7 +520,7 @@ const getStudentFeeDetails = asyncHandler(async (req, res) => {
     plan.courses = enrollment.courses;
 
     const planPayments = (payments || []).filter(p => p.fee_plan_id === plan.id);
-    const breakdown = calculateFeeBreakdown(plan, planPayments, currentMonth, currentYear);
+    const breakdown = calculateFeeBreakdown(plan, planPayments, targetDateForBreakdown);
 
     const totalCourseFeeVal = parseFloat(plan.total_fee) || 0;
     const remainingCourseFee = Math.max(0, totalCourseFeeVal - breakdown.totalPaid);
@@ -505,31 +540,43 @@ const getStudentFeeDetails = asyncHandler(async (req, res) => {
     }
 
     // Upcoming installment logic
+    const overrideKey = `${currentYear}-${currentMonth}`;
+    let finalDueDate;
+    if (plan.due_date_overrides && plan.due_date_overrides[overrideKey]) {
+      finalDueDate = plan.due_date_overrides[overrideKey];
+    } else {
+      // Calculate the original due date that falls inside the target month
+      const startOfTargetMonth = new Date(Date.UTC(currentYear, currentMonth - 1, 1));
+      const startDate = new Date(plan.start_date || plan.created_at || now);
+      const msElapsedStart = startOfTargetMonth.getTime() - startDate.getTime();
+      const daysElapsedStart = Math.floor(msElapsedStart / (1000 * 60 * 60 * 24));
+      const monthsElapsedStart = daysElapsedStart >= 0 ? Math.floor(daysElapsedStart / 28) : -1;
+      const nextDueMs = startDate.getTime() + ((monthsElapsedStart + 1) * 28 * 24 * 60 * 60 * 1000);
+      finalDueDate = new Date(nextDueMs).toISOString();
+    }
+
     let upcomingInstallment = null;
-    const enrollmentDateStr = plan.created_at;
-    
-    if (enrollmentDateStr) {
-      const enrollmentDate = new Date(enrollmentDateStr);
-      const dueDay = enrollmentDate.getDate();
-      const currentDay = now.getDate();
-      const monthsSinceEnrollment = (currentYear - enrollmentDate.getFullYear()) * 12 + (currentMonth - (enrollmentDate.getMonth() + 1));
+    const remainingTotal = (parseFloat(plan.total_fee) || 0) - breakdown.totalPaid;
+    if (remainingTotal > 0 && breakdown.nextDueDate) {
+      let actualNextDueDate = breakdown.nextDueDate;
+      const nextDueObj = new Date(breakdown.nextDueDate);
+      const nextOverrideKey = `${nextDueObj.getFullYear()}-${nextDueObj.getMonth() + 1}`;
       
-      if (monthsSinceEnrollment >= 1 || (monthsSinceEnrollment === 0 && currentDay >= dueDay - 5)) {
-        const daysUntilDue = dueDay - currentDay;
-        if (daysUntilDue >= 0 && daysUntilDue <= 5) {
-          const remainingTotal = (parseFloat(plan.total_fee) || 0) - breakdown.totalPaid;
-          const monthlyAmount = parseFloat(plan.monthly_installment) || 10000;
-          if (remainingTotal > 0 && remainingTotal > breakdown.totalDue - breakdown.totalPaid) {
-            const amountDue = Math.min(monthlyAmount, remainingTotal);
-            const dueDate = new Date(currentYear, currentMonth - 1, dueDay);
-            upcomingInstallment = {
-              amount: amountDue,
-              dueDate: dueDate.toISOString(),
-              daysRemaining: daysUntilDue
-            };
-          }
-        }
+      if (plan.due_date_overrides && plan.due_date_overrides[nextOverrideKey]) {
+        actualNextDueDate = plan.due_date_overrides[nextOverrideKey];
       }
+
+      const nextDue = new Date(actualNextDueDate);
+      const daysUntilDue = Math.ceil((nextDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const monthlyAmount = parseFloat(plan.monthly_installment) || 10000;
+      const amountDue = Math.min(monthlyAmount, remainingTotal);
+      
+      upcomingInstallment = {
+        amount: amountDue,
+        dueDate: actualNextDueDate,
+        daysRemaining: daysUntilDue
+      };
     }
 
     return {
@@ -537,7 +584,8 @@ const getStudentFeeDetails = asyncHandler(async (req, res) => {
       payments: planPayments,
       breakdown,
       status: paymentStatus,
-      upcomingInstallment
+      upcomingInstallment,
+      dueDate: finalDueDate
     };
   });
 
@@ -659,7 +707,7 @@ const getFeeSummary = asyncHandler(async (req, res) => {
     const plan = resolveFeePlan(feePlans, enrollment);
 
     const planPayments = (allPayments || []).filter(p => p.student_id === enrollment.student_id && p.fee_plan_id === plan.id);
-    const breakdown = calculateFeeBreakdown(plan, planPayments, currentMonth, currentYear);
+    const breakdown = calculateFeeBreakdown(plan, planPayments, now.toISOString());
 
     if (breakdown.monthsElapsed >= 0 && breakdown.totalDue > breakdown.totalPaid) {
       outstandingFees += (breakdown.totalDue - breakdown.totalPaid);
@@ -675,6 +723,68 @@ const getFeeSummary = asyncHandler(async (req, res) => {
   }, "Fee summary fetched successfully"));
 });
 
+// ==========================================
+// 10. UPDATE FEE PLAN (Change Billing Date)
+// ==========================================
+
+// @desc    Update a fee plan (e.g. to delay billing start date)
+// @route   PUT /api/v1/fees/plans/:planId
+const updateFeePlan = asyncHandler(async (req, res) => {
+  const { planId } = req.params;
+  const { start_date } = req.body;
+
+  const updates = {};
+  if (start_date !== undefined) updates.start_date = start_date;
+
+  const { data, error } = await supabase
+    .from("student_fee_plans")
+    .update(updates)
+    .eq("id", planId)
+    .select();
+
+  if (error) throw new ApiError(500, error.message || "Failed to update fee plan");
+  if (!data || data.length === 0) throw new ApiError(404, "Fee plan not found");
+
+  return res.status(200).json(new ApiResponse(200, data[0], "Fee plan updated successfully"));
+});
+
+// ==========================================
+// 11. UPDATE DUE DATE OVERRIDE
+// ==========================================
+
+// @desc    Update a custom due date for a specific month
+// @route   PUT /api/v1/fees/plans/:planId/due-date
+const updateDueDateOverride = asyncHandler(async (req, res) => {
+  const { planId } = req.params;
+  const { month, year, due_date } = req.body;
+
+  if (!month || !year || !due_date) {
+    throw new ApiError(400, "Please provide month, year, and due_date");
+  }
+
+  // Fetch current plan
+  const { data: plan, error: fetchError } = await supabase
+    .from("student_fee_plans")
+    .select("id, due_date_overrides")
+    .eq("id", planId)
+    .single();
+
+  if (fetchError || !plan) throw new ApiError(404, "Fee plan not found");
+
+  const overrides = plan.due_date_overrides || {};
+  overrides[`${year}-${month}`] = due_date;
+
+  const { data, error } = await supabase
+    .from("student_fee_plans")
+    .update({ due_date_overrides: overrides })
+    .eq("id", planId)
+    .select();
+
+  if (error) throw new ApiError(500, error.message || "Failed to update due date");
+
+  return res.status(200).json(new ApiResponse(200, data[0], "Due date updated successfully"));
+});
+
 export {
   calculateFeeBreakdown,
   createFeePlan,
@@ -685,5 +795,7 @@ export {
   getStudentFeeDetails,
   deletePayment,
   updatePayment,
-  getFeeSummary
+  getFeeSummary,
+  updateFeePlan,
+  updateDueDateOverride
 };
