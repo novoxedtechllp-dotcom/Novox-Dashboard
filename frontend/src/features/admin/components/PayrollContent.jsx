@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Landmark, 
   CheckCircle, 
@@ -12,13 +12,15 @@ import {
   Info,
   ChevronLeft,
   ChevronRight,
-  Briefcase
+  Briefcase,
+  Users,
+  Edit3
 } from 'lucide-react';
 
-const initialEmployees = [];
-
 const PayrollContent = () => {
-  const [employees, setEmployees] = useState(initialEmployees);
+  const [employees, setEmployees] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('history');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
@@ -29,35 +31,10 @@ const PayrollContent = () => {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(() => new Date().getFullYear());
   const [currentPage, setCurrentPage] = useState(1);
-  const [payrollStatusMap, setPayrollStatusMap] = useState({});
 
-  const currentEmployees = useMemo(() => {
-    return initialEmployees.map(emp => {
-      const d = new Date();
-      const currentYearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      
-      let defaultStatus = emp.status;
-      if (selectedMonth < currentYearMonth) {
-        defaultStatus = 'PAID';
-      } else if (selectedMonth > currentYearMonth) {
-        defaultStatus = 'PENDING';
-      }
-      
-      const statusOverride = payrollStatusMap[selectedMonth]?.[emp.id];
-      return {
-        ...emp,
-        status: statusOverride || defaultStatus
-      };
-    });
-  }, [selectedMonth, payrollStatusMap]);
-
-  const formatMonthDisplay = (monthStr) => {
-    if (!monthStr) return '';
-    const [year, month] = monthStr.split('-');
-    const date = new Date(year, parseInt(month) - 1, 1);
-    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  };
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [editingSalaryEmp, setEditingSalaryEmp] = useState(null);
+  const [newSalaryVal, setNewSalaryVal] = useState('');
   const [toastMessage, setToastMessage] = useState(null);
   
   const itemsPerPage = 5;
@@ -69,31 +46,61 @@ const PayrollContent = () => {
     }, 3000);
   };
 
+  useEffect(() => {
+    const fetchPayroll = async () => {
+      setIsLoading(true);
+      try {
+        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+        const response = await fetch(`/api/v1/payroll?month=${selectedMonth}`, {
+          headers: { 'Authorization': `Bearer ${userInfo?.token}` }
+        });
+        const resData = await response.json();
+        if (response.ok) {
+          setEmployees(resData.data || []);
+        } else {
+          showToast(`Error: ${resData.message}`);
+        }
+      } catch (err) {
+        showToast("Failed to fetch payroll data.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPayroll();
+  }, [selectedMonth]);
+
+  const formatMonthDisplay = (monthStr) => {
+    if (!monthStr) return '';
+    const [year, month] = monthStr.split('-');
+    const date = new Date(year, parseInt(month) - 1, 1);
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
   // Stats Calculations
   const stats = useMemo(() => {
-    const total = currentEmployees.reduce((sum, emp) => sum + emp.netPayable, 0);
-    const paid = currentEmployees
+    const total = employees.reduce((sum, emp) => sum + (emp.netPayable || 0), 0);
+    const paid = employees
       .filter(emp => emp.status === 'PAID')
-      .reduce((sum, emp) => sum + emp.netPayable, 0);
-    const pending = currentEmployees
+      .reduce((sum, emp) => sum + (emp.netPayable || 0), 0);
+    const pending = employees
       .filter(emp => emp.status === 'PENDING')
-      .reduce((sum, emp) => sum + emp.netPayable, 0);
+      .reduce((sum, emp) => sum + (emp.netPayable || 0), 0);
 
     return { total, paid, pending };
-  }, [currentEmployees]);
+  }, [employees]);
 
   // Filtered employees
   const filteredEmployees = useMemo(() => {
-    if (!searchQuery) return currentEmployees;
+    if (!searchQuery) return employees;
     const q = searchQuery.toLowerCase();
-    return currentEmployees.filter(emp => {
+    return employees.filter(emp => {
       const nameWords = emp.name ? emp.name.toLowerCase().split(/\s+/) : [];
       const matchesName = nameWords.some(word => word.startsWith(q));
-      const matchesId = emp.id && emp.id.toLowerCase().startsWith(q);
+      const matchesId = emp.code && emp.code.toLowerCase().startsWith(q);
       const matchesRole = emp.role && emp.role.toLowerCase().startsWith(q);
       return matchesName || matchesId || matchesRole;
     });
-  }, [currentEmployees, searchQuery]);
+  }, [employees, searchQuery]);
 
   // Paginated employees
   const paginatedEmployees = useMemo(() => {
@@ -103,48 +110,67 @@ const PayrollContent = () => {
 
   const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
 
-  const handlePayIndividual = (id, name) => {
-    setPayrollStatusMap(prev => ({
-      ...prev,
-      [selectedMonth]: {
-        ...(prev[selectedMonth] || {}),
-        [id]: 'PAID'
+  const handlePayIndividual = async (id, name) => {
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const response = await fetch('/api/v1/payroll/process', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userInfo?.token}` 
+        },
+        body: JSON.stringify({ month: selectedMonth, employeeIds: [id] })
+      });
+      const resData = await response.json();
+      if (response.ok) {
+        setEmployees(employees.map(emp => emp.id === id ? { ...emp, status: 'PAID' } : emp));
+        showToast(`Salary successfully disbursed to ${name}!`);
+      } else {
+        showToast(`Error: ${resData.message}`);
       }
-    }));
-    showToast(`Salary successfully disbursed to ${name}!`);
+    } catch(err) {
+      showToast("Failed to disburse salary.");
+    }
   };
 
-  const handleRunPayroll = () => {
-    const pendingCount = currentEmployees.filter(emp => emp.status === 'PENDING').length;
-    if (pendingCount === 0) {
+  const handleRunPayroll = async () => {
+    const pendingEmps = employees.filter(emp => emp.status === 'PENDING');
+    if (pendingEmps.length === 0) {
       showToast("All payrolls are already processed!");
       return;
     }
     
-    const newMonthStatus = {};
-    currentEmployees.forEach(emp => {
-      newMonthStatus[emp.id] = 'PAID';
-    });
-
-    setPayrollStatusMap(prev => ({
-      ...prev,
-      [selectedMonth]: {
-        ...(prev[selectedMonth] || {}),
-        ...newMonthStatus
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const response = await fetch('/api/v1/payroll/process', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userInfo?.token}` 
+        },
+        body: JSON.stringify({ month: selectedMonth, employeeIds: pendingEmps.map(e => e.id) })
+      });
+      const resData = await response.json();
+      if (response.ok) {
+        setEmployees(employees.map(emp => ({ ...emp, status: 'PAID' })));
+        showToast(`Successfully processed payroll for ${pendingEmps.length} employees!`);
+      } else {
+        showToast(`Error: ${resData.message}`);
       }
-    }));
-    showToast(`Successfully processed payroll for ${pendingCount} employees!`);
+    } catch(err) {
+      showToast("Failed to process payroll.");
+    }
   };
 
   const handleExportCSV = () => {
-    const headers = ['Employee ID', 'Name', 'Role', 'Base Salary (₹)', 'Leaves', 'Late Days', 'Net Payable (₹)', 'Status'];
-    const rows = currentEmployees.map(emp => [
-      emp.id,
+    const headers = ['Employee ID', 'Name', 'Role', 'Base Salary (₹)', 'Absent Days', 'Half Days', 'Net Payable (₹)', 'Status'];
+    const rows = employees.map(emp => [
+      emp.code,
       emp.name,
       emp.role,
       emp.baseSalary,
       emp.leaves,
-      emp.lateDays,
+      emp.halfDays,
       emp.netPayable,
       emp.status
     ]);
@@ -162,8 +188,34 @@ const PayrollContent = () => {
     showToast("CSV Exported successfully!");
   };
 
+  const handleUpdateSalary = async () => {
+    if (!editingSalaryEmp || !newSalaryVal) return;
+    try {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
+      const response = await fetch(`/api/v1/employees/${editingSalaryEmp.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userInfo?.token}` 
+        },
+        body: JSON.stringify({ salary: Number(newSalaryVal) })
+      });
+      const resData = await response.json();
+      if (response.ok) {
+        setEmployees(employees.map(emp => emp.id === editingSalaryEmp.id ? { ...emp, baseSalary: Number(newSalaryVal) } : emp));
+        showToast(`Salary updated successfully for ${editingSalaryEmp.name}!`);
+        setEditingSalaryEmp(null);
+        setNewSalaryVal('');
+      } else {
+        showToast(`Error: ${resData.message}`);
+      }
+    } catch(err) {
+      showToast("Failed to update salary.");
+    }
+  };
+
   const getInitials = (name) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+    return name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : '?';
   };
 
   return (
@@ -212,13 +264,28 @@ const PayrollContent = () => {
       <div className="w-full bg-white border border-[#C2C6D4] rounded-[16px] flex flex-col overflow-hidden shadow-sm">
         
         {/* Tabs Row */}
-        <div className="flex items-center h-[61px] border-b border-[#C2C6D4] px-[24px]">
-          <button className="h-full flex items-center gap-2 text-[#003F87] font-bold text-[14px] border-b-[3px] border-[#003F87] px-[8px]">
+        <div className="flex items-center h-[61px] border-b border-[#C2C6D4] px-[24px] gap-6">
+          <button 
+            onClick={() => setActiveTab('history')}
+            className={`h-full flex items-center gap-2 text-[14px] font-bold border-b-[3px] px-[8px] transition-colors ${
+              activeTab === 'history' ? 'text-[#003F87] border-[#003F87]' : 'text-slate-500 border-transparent hover:text-slate-800'
+            }`}
+          >
             <Briefcase size={18} /> Payroll History
+          </button>
+          <button 
+            onClick={() => setActiveTab('salary')}
+            className={`h-full flex items-center gap-2 text-[14px] font-bold border-b-[3px] px-[8px] transition-colors ${
+              activeTab === 'salary' ? 'text-[#003F87] border-[#003F87]' : 'text-slate-500 border-transparent hover:text-slate-800'
+            }`}
+          >
+            <Users size={18} /> Salary Management
           </button>
         </div>
 
-        {/* Stats Grid inside Container */}
+        {activeTab === 'history' ? (
+          <>
+            {/* Stats Grid inside Container */}
         <div className="grid grid-cols-1 md:grid-cols-3 border-b border-[#C2C6D4] h-auto md:h-[136px]">
           
           {/* Total Payroll */}
@@ -227,9 +294,6 @@ const PayrollContent = () => {
             <h3 className="text-[32px] font-bold text-slate-900 leading-none mb-2">
               ₹{stats.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-[#003F87] bg-blue-50/50 px-2 py-0.5 rounded-full w-max">
-              +4.2% vs last mo
-            </div>
           </div>
 
           {/* Total Paid */}
@@ -253,9 +317,6 @@ const PayrollContent = () => {
             <h3 className="text-[32px] font-bold text-[#D80000] leading-none mb-2">
               ₹{stats.pending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </h3>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full w-max">
-              Due in 5 Days
-            </div>
           </div>
 
         </div>
@@ -372,33 +433,45 @@ const PayrollContent = () => {
               <tr className="border-b border-[#C2C6D4] bg-white text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">
                 <th className="py-[16px] px-[24px]">Employee ID & Name</th>
                 <th className="py-[16px] px-[24px]">Base Salary</th>
-                <th className="py-[16px] px-[24px]">Leaves</th>
-                <th className="py-[16px] px-[24px]">Late Days</th>
+                <th className="py-[16px] px-[24px]">Absent Days</th>
+                <th className="py-[16px] px-[24px]">Half Days</th>
                 <th className="py-[16px] px-[24px]">Net Payable</th>
                 <th className="py-[16px] px-[24px]">Status</th>
                 <th className="py-[16px] px-[24px] text-center w-[120px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {paginatedEmployees.map((emp) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan="7" className="py-12 text-center text-[13px] font-medium text-slate-400">
+                    Loading payroll data...
+                  </td>
+                </tr>
+              ) : paginatedEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="py-12 text-center text-[13px] font-medium text-slate-400">
+                    No employee records found matching your search.
+                  </td>
+                </tr>
+              ) : paginatedEmployees.map((emp) => (
                 <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
                   
                   {/* ID & Name */}
                   <td className="py-[16px] px-[24px]">
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 shadow-sm ${emp.avatarBg}`}>
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center font-bold text-[11px] text-blue-700 shrink-0 shadow-sm">
                         {getInitials(emp.name)}
                       </div>
                       <div>
                         <div className="text-[13px] font-bold text-slate-900 leading-tight">{emp.name}</div>
-                        <div className="text-[11px] font-semibold text-slate-400 mt-0.5">{emp.id} • {emp.role}</div>
+                        <div className="text-[11px] font-semibold text-slate-400 mt-0.5">{emp.code} • {emp.role}</div>
                       </div>
                     </div>
                   </td>
 
                   {/* Base Salary */}
                   <td className="py-[16px] px-[24px] text-[13px] font-semibold text-slate-600">
-                    ₹{emp.baseSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    ₹{(emp.baseSalary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
 
                   {/* Leaves */}
@@ -406,14 +479,14 @@ const PayrollContent = () => {
                     {emp.leaves} {emp.leaves === 1 ? 'day' : 'days'}
                   </td>
 
-                  {/* Late Days */}
+                  {/* Half Days */}
                   <td className="py-[16px] px-[24px] text-[13px] font-semibold text-slate-600">
-                    {emp.lateDays} {emp.lateDays === 1 ? 'day' : 'days'}
+                    {emp.halfDays} {emp.halfDays === 1 ? 'day' : 'days'}
                   </td>
 
                   {/* Net Payable */}
                   <td className="py-[16px] px-[24px] text-[13px] font-bold text-slate-900">
-                    ₹{emp.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    ₹{(emp.netPayable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
 
                   {/* Status */}
@@ -454,14 +527,6 @@ const PayrollContent = () => {
 
                 </tr>
               ))}
-
-              {filteredEmployees.length === 0 && (
-                <tr>
-                  <td colSpan="7" className="py-12 text-center text-[13px] font-medium text-slate-400">
-                    No employee records found matching your search.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -510,6 +575,122 @@ const PayrollContent = () => {
             </div>
           </div>
         )}
+          </>
+        ) : (
+          <div className="w-full overflow-x-auto min-h-[350px]">
+            <div className="px-[24px] py-[16px] border-b border-[#C2C6D4] flex items-center gap-2 bg-slate-50">
+              <span className="text-[12px] font-bold text-[#555F6B] uppercase">Search:</span>
+              <div className="flex items-center bg-white border border-[#C2C6D4] rounded-md px-3.5 py-1.5 h-[36px] w-full sm:w-[260px] shadow-sm transition-all focus-within:border-[#003F87]">
+                <Search size={14} className="text-slate-400 mr-2 shrink-0" />
+                <input 
+                  type="text" 
+                  placeholder="Search employee..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-transparent border-none outline-none text-[13px] w-full text-slate-700 placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+
+            <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr className="border-b border-[#C2C6D4] bg-white text-[11px] font-bold text-[#555F6B] uppercase tracking-wider">
+                  <th className="py-[16px] px-[24px]">Employee ID & Name</th>
+                  <th className="py-[16px] px-[24px]">Role / Dept</th>
+                  <th className="py-[16px] px-[24px]">Current Base Salary</th>
+                  <th className="py-[16px] px-[24px] text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedEmployees.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="py-12 text-center text-[13px] font-medium text-slate-400">
+                      No employee records found matching your search.
+                    </td>
+                  </tr>
+                ) : paginatedEmployees.map((emp) => (
+                  <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-[16px] px-[24px]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center font-bold text-[11px] text-blue-700 shrink-0 shadow-sm">
+                          {getInitials(emp.name)}
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-bold text-slate-900 leading-tight">{emp.name}</div>
+                          <div className="text-[11px] font-semibold text-slate-400 mt-0.5">{emp.code}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-[16px] px-[24px] text-[13px] font-semibold text-slate-600">
+                      {emp.role}
+                    </td>
+                    <td className="py-[16px] px-[24px] text-[13px] font-bold text-slate-900">
+                      ₹{(emp.baseSalary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="py-[16px] px-[24px] text-right">
+                      <button 
+                        onClick={() => {
+                          setEditingSalaryEmp(emp);
+                          setNewSalaryVal(emp.baseSalary || '');
+                        }}
+                        className="px-4 py-1.5 border border-[#003F87] text-[#003F87] hover:bg-[#003F87] hover:text-white rounded-lg text-[12px] font-bold transition-all shadow-sm flex items-center gap-1.5 ml-auto"
+                      >
+                        <Edit3 size={14} /> Edit Salary
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {filteredEmployees.length > 0 && (
+              <div className="p-[16px] px-[24px] bg-white flex justify-between items-center border-t border-[#C2C6D4]">
+                <span className="text-[13px] text-[#555F6B] font-medium">
+                  Showing {Math.min(filteredEmployees.length, (currentPage - 1) * itemsPerPage + 1)} to {Math.min(filteredEmployees.length, currentPage * itemsPerPage)} of {filteredEmployees.length} employees
+                </span>
+                
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] transition-colors ${
+                      currentPage === 1 ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-[#555F6B] bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button 
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] font-semibold transition-colors ${
+                        currentPage === page 
+                          ? 'bg-[#003F87] text-white font-bold' 
+                          : 'text-[#555F6B] hover:bg-slate-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className={`w-[28px] h-[28px] flex items-center justify-center rounded-[4px] border border-[#C2C6D4] transition-colors ${
+                      currentPage === totalPages ? 'text-slate-300 bg-slate-50 cursor-not-allowed' : 'text-[#555F6B] bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
 
@@ -548,12 +729,12 @@ const PayrollContent = () => {
             
             <div className="p-6 flex flex-col gap-4">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-[13px] shrink-0 shadow-sm ${selectedEmployee.avatarBg}`}>
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-[13px] shrink-0 shadow-sm">
                   {getInitials(selectedEmployee.name)}
                 </div>
                 <div>
                   <h3 className="text-[14px] font-bold text-slate-900">{selectedEmployee.name}</h3>
-                  <p className="text-[11px] font-semibold text-slate-400">{selectedEmployee.id} • {selectedEmployee.role}</p>
+                  <p className="text-[11px] font-semibold text-slate-400">{selectedEmployee.code} • {selectedEmployee.role}</p>
                 </div>
               </div>
 
@@ -565,7 +746,7 @@ const PayrollContent = () => {
                 <div>
                   <span className="block text-slate-400 font-medium">Status</span>
                   <span className="inline-flex items-center gap-1 bg-[#E5F7ED] text-[#008A2E] px-2 py-0.5 rounded-full text-[10px] font-bold mt-0.5">
-                    PAID
+                    {selectedEmployee.status}
                   </span>
                 </div>
               </div>
@@ -573,23 +754,28 @@ const PayrollContent = () => {
               <div className="bg-slate-50 rounded-xl p-4.5 border border-slate-100 space-y-3 mt-1">
                 <div className="flex justify-between items-center text-[12px] font-medium">
                   <span className="text-slate-500">Base Salary</span>
-                  <span className="text-slate-800 font-semibold">₹{selectedEmployee.baseSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span className="text-slate-800 font-semibold">₹{(selectedEmployee.baseSalary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
                 
                 <div className="flex justify-between items-center text-[12px] font-medium">
-                  <span className="text-slate-500">Leaves ({selectedEmployee.leaves} days)</span>
-                  <span className="text-amber-600 font-semibold">- ₹{((selectedEmployee.baseSalary / 30) * selectedEmployee.leaves).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="text-slate-500">Absent Days ({selectedEmployee.leaves} days)</span>
+                  <span className="text-amber-600 font-semibold">- ₹{(((selectedEmployee.baseSalary || 0) / 30) * Math.max(0, selectedEmployee.leaves - 1)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
 
                 <div className="flex justify-between items-center text-[12px] font-medium">
-                  <span className="text-slate-500">Late Days ({selectedEmployee.lateDays} days)</span>
-                  <span className="text-amber-600 font-semibold">- ₹{((selectedEmployee.baseSalary / 60) * selectedEmployee.lateDays).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="text-slate-500">Half Days ({selectedEmployee.halfDays} days)</span>
+                  <span className="text-amber-600 font-semibold">- ₹{(((selectedEmployee.baseSalary || 0) / 30) * (selectedEmployee.halfDays * 0.5)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+
+                <div className="flex justify-between items-center text-[12px] font-medium pt-2 border-t border-slate-200">
+                  <span className="text-slate-500">Total Deductions</span>
+                  <span className="text-red-600 font-semibold">- ₹{(selectedEmployee.deductions || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
 
                 <div className="pt-3.5 border-t border-slate-200 flex justify-between items-center">
                   <span className="text-[13px] font-bold text-slate-950">Net Paid Amount</span>
                   <span className="text-[16px] font-black text-[#003F87]">
-                    ₹{selectedEmployee.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    ₹{(selectedEmployee.netPayable || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
@@ -600,6 +786,68 @@ const PayrollContent = () => {
                   className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-[12px] font-bold text-slate-600 transition-colors"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Salary Edit Modal */}
+      {editingSalaryEmp && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col animate-in scale-in-95 duration-200 border border-slate-100">
+            <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <h2 className="text-[15px] font-bold text-slate-950">Update Base Salary</h2>
+              <button 
+                onClick={() => setEditingSalaryEmp(null)} 
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors font-bold text-lg"
+              >
+                &times;
+              </button>
+            </div>
+            
+            <div className="p-6 flex flex-col gap-4">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-[13px] shrink-0 shadow-sm">
+                  {getInitials(editingSalaryEmp.name)}
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-bold text-slate-900">{editingSalaryEmp.name}</h3>
+                  <p className="text-[11px] font-semibold text-slate-400">{editingSalaryEmp.code}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[12px] font-bold text-slate-700 mb-1.5 uppercase tracking-wide">New Base Salary (₹)</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[14px]">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={newSalaryVal}
+                    onChange={(e) => setNewSalaryVal(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl pl-8 pr-4 py-2.5 outline-none focus:border-[#003F87] focus:ring-2 focus:ring-[#003F87]/20 transition-all font-semibold text-[14px] text-slate-800"
+                    placeholder="Enter salary amount..."
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-2 font-medium">This will permanently update the base salary for this employee.</p>
+              </div>
+
+              <div className="flex justify-end gap-2.5 mt-2 pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => setEditingSalaryEmp(null)} 
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-[12px] font-bold text-slate-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleUpdateSalary}
+                  disabled={!newSalaryVal}
+                  className="px-5 py-2 bg-[#003F87] hover:bg-[#002F66] text-white rounded-xl text-[12px] font-bold transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Save Changes
                 </button>
               </div>
             </div>
