@@ -10,6 +10,7 @@ import {
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'daily-plan', label: 'Action Plan', icon: BookOpen },
+  { id: 'my-students', label: 'My Students', icon: GraduationCap },
   { id: 'students', label: 'Students', icon: Users },
   { id: 'employees', label: 'Employees', icon: Briefcase },
   { id: 'courses', label: 'Courses', icon: BookOpen },
@@ -104,6 +105,9 @@ const Sidebar = ({ userRole, permissions = {}, isHR, isDesign, isDevelopment, is
         }
         if (item.id === 'daily-plan') {
           return { ...item, label: 'Class Feedback' };
+        }
+        if (item.id === 'my-students') {
+          return { ...item, label: "Students' Progress" };
         }
         return item;
     });

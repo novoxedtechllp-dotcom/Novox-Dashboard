@@ -6,6 +6,7 @@ import MainContent from './features/admin/components/MainContent';
 import AttendanceContent from './features/admin/components/AttendanceContent';
 import LeaveManagementContent from './features/admin/components/LeaveManagementContent';
 import StudentsContent from './features/student/components/StudentsContent';
+import MyStudentsJourney from './features/employee/components/MyStudentsJourney';
 import EmployeesContent from './features/admin/components/EmployeesContent';
 import AdminsContent from './features/admin/components/AdminsContent';
 import StudentDashboard from './features/student/components/StudentDashboard';
@@ -311,6 +312,7 @@ function App() {
                 <Route path={`${basePath}/journey`} element={userRole === 'STUDENT' ? <StudentAcademicJourney userInfo={userInfo} /> : (canViewJourney ? <AcademicJourneyContent /> : <Navigate to={`${basePath}/dashboard`} />)} />
                 <Route path={`${basePath}/support`} element={<SupportContent />} />
 
+                <Route path={`${basePath}/my-students`} element={userRole === 'EMPLOYEE' || userRole === 'ADMIN' ? <MyStudentsJourney /> : <Navigate to={`${basePath}/dashboard`} />} />
                 {canViewStudents && <Route path={`${basePath}/students`} element={userRole === 'STUDENT' ? <Navigate to={`${basePath}/dashboard`} /> : <StudentsContent courses={courses} searchQuery={searchQuery} />} />}
                 {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
                 {userRole === 'ADMIN' && <Route path={`${basePath}/admins`} element={<AdminsContent />} />}
