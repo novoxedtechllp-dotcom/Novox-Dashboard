@@ -8,6 +8,7 @@ ALTER TABLE student_fee_plans
   ADD COLUMN IF NOT EXISTS monthly_installment NUMERIC(12,2) DEFAULT 10000.00,
   ADD COLUMN IF NOT EXISTS start_month INTEGER,
   ADD COLUMN IF NOT EXISTS start_year INTEGER,
+  ADD COLUMN IF NOT EXISTS start_date DATE,
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
 
 -- Add unique constraint on student_id + course_id to prevent duplicate fee plans

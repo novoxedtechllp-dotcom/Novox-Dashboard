@@ -332,7 +332,8 @@ CREATE TABLE student_fee_plans (
     student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     total_fee NUMERIC(12,2) NOT NULL,
     discount NUMERIC(12,2) DEFAULT 0.00,
-    final_fee NUMERIC(12,2) NOT NULL
+    final_fee NUMERIC(12,2) NOT NULL,
+    start_date DATE
 );
 
 CREATE TABLE fee_payments (
