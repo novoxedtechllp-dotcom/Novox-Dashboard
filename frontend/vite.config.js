@@ -13,7 +13,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://novox-dashboard.onrender.com',
+        target: 'https://novox-dashboard-w7d5.onrender.com',
         changeOrigin: true,
         secure: false,
       },
