@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { UserCheck, CheckCircle2, Database, BookOpen, Clock, MapPin, MessageSquare, ChevronRight, CheckSquare, AlertCircle, X } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchStudentDashboardData } from '../studentSlice';
 
 const StudentDashboard = ({ userInfo }) => {
-  const [attendancePercent, setAttendancePercent] = useState(0);
-  const [tasksDonePercent, setTasksDonePercent] = useState(0);
-  const [currentModule, setCurrentModule] = useState(null);
-  const [todaySessions, setTodaySessions] = useState([]);
-  const [pendingTasks, setPendingTasks] = useState([]);
-  const [totalPendingTasks, setTotalPendingTasks] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const { dashboard, loading } = useSelector((state) => state.student);
+  const {
+    attendancePercent,
+    tasksDonePercent,
+    currentModule,
+    todaySessions,
+    pendingTasks,
+    totalPendingTasks,
+  } = dashboard;
+  
   const [showNotification, setShowNotification] = useState(false);
 
   useEffect(() => {
@@ -21,147 +27,10 @@ const StudentDashboard = ({ userInfo }) => {
       }
     }
 
-    const fetchDashboardData = async () => {
-      try {
-        const token = userInfo?.token || sessionStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
-
-        // 1. Fetch Attendance
-        // Using existing attendance API
-        const attRes = await fetch(`/api/v1/attendance?type=student`, { headers });
-        if (attRes.ok) {
-          const attData = await attRes.json();
-          // Assuming attData is an array of records. If no records, 0%.
-          // This is a naive calculation for demonstration. Real calculation depends on total classes.
-          if (attData && attData.data && attData.data.length > 0) {
-            // For now, if there is ANY data, let's just count present / total
-            const total = attData.data.length;
-            const present = attData.data.filter(r => r.status === 'PRESENT').length;
-            setAttendancePercent(Math.round((present / total) * 100));
-          } else {
-            setAttendancePercent(0);
-          }
-        }
-
-        // 2. Fetch Tasks (Including unstarted tasks from syllabus)
-        const studentProfileId = userInfo?.student_profile_id || userInfo?.id;
-        try {
-          const stuRes = await fetch(`/api/v1/students/${studentProfileId}`, { headers });
-          if (stuRes.ok) {
-            const stuData = await stuRes.json();
-            const courseIds = stuData.data?.student_courses?.map(sc => sc.course_id) || [];
-            
-            // Fetch student tasks for statuses
-            const tasksRes = await fetch(`/api/v1/students/${stuData.data?.id || studentProfileId}/tasks`, { headers });
-            let studentTasksMap = {};
-            if (tasksRes.ok) {
-              const tasksData = await tasksRes.json();
-              (tasksData.data || []).forEach(st => {
-                studentTasksMap[st.task_id] = st;
-              });
-            }
-
-            let allTasks = [];
-            let completedCount = 0;
-            let totalCount = 0;
-
-            // Fetch courses to get all tasks
-            for (const cId of courseIds) {
-              const courseRes = await fetch(`/api/v1/courses/${cId}`, { headers });
-              if (courseRes.ok) {
-                const courseData = await courseRes.json();
-                const course = courseData.data;
-                if (course && course.course_modules) {
-                  course.course_modules.filter(m => m.status === 'PUBLISHED').forEach(mod => {
-                    mod.course_submodules?.forEach(sub => {
-                      sub.course_tasks?.forEach(ct => {
-                        totalCount++;
-                        const st = studentTasksMap[ct.id];
-                        let tStatus = st ? st.status : 'PENDING';
-                        let columnStatus = 'NOT STARTED';
-                        if (tStatus === 'IN_PROGRESS') columnStatus = 'IN PROGRESS';
-                        else if (tStatus === 'PENDING_REVIEW') columnStatus = 'PENDING REVIEW';
-                        else if (tStatus === 'APPROVED') columnStatus = 'APPROVED';
-                        else if (tStatus === 'SUBMITTED') columnStatus = 'SUBMITTED';
-                        
-                        if (columnStatus === 'APPROVED') {
-                          completedCount++;
-                        } else if (columnStatus !== 'SUBMITTED' && columnStatus !== 'PENDING REVIEW') {
-                          let dueText = 'No Date';
-                          let rawDateVal = 8640000000000000;
-                          let diffDays = null;
-                          
-                          if (ct.due_date) {
-                            rawDateVal = new Date(ct.due_date).getTime();
-                            const dueDateObj = new Date(ct.due_date);
-                            const today = new Date();
-                            const diffTime = dueDateObj - today;
-                            diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                            
-                            if (diffDays < 0) { dueText = 'Overdue'; }
-                            else if (diffDays === 0) { dueText = 'Due Today'; }
-                            else if (diffDays === 1) { dueText = 'Due Tomorrow'; }
-                            else { dueText = `${diffDays} Days Left`; }
-                          }
-
-                          // Only show if it's currently IN PROGRESS (being worked on) 
-                          // OR if it's urgent (due within 3 days or overdue)
-                          if (columnStatus === 'IN PROGRESS' || (diffDays !== null && diffDays <= 3)) {
-                            allTasks.push({
-                              title: ct.title,
-                              dueTime: columnStatus,
-                              courseName: course.name,
-                              dueDate: dueText,
-                              rawDate: rawDateVal
-                            });
-                          }
-                        }
-                      });
-                    });
-                  });
-                }
-              }
-            }
-            
-            // Sort by due date (closest first)
-            allTasks.sort((a, b) => a.rawDate - b.rawDate);
-            
-            setTotalPendingTasks(allTasks.length);
-            setPendingTasks(allTasks.slice(0, 5)); // Just show top 5 on dashboard
-            if (totalCount > 0) {
-              setTasksDonePercent(Math.round((completedCount / totalCount) * 100));
-            }
-          }
-        } catch (err) {
-          console.error("Failed to fetch tasks for dashboard", err);
-        }
-
-        // 3. Fetch Today's Classes/Sessions
-        const dateStr = new Date().toISOString().split('T')[0];
-        const scheduleRes = await fetch(`/api/v1/students/${studentProfileId}/daily-plan?date=${dateStr}`, { headers });
-        if (scheduleRes.ok) {
-          const scheduleData = await scheduleRes.json();
-          if (scheduleData && scheduleData.data) {
-            setTodaySessions(scheduleData.data);
-            if (scheduleData.data.length > 0 && scheduleData.data[0].course_modules) {
-              setCurrentModule({ title: scheduleData.data[0].course_modules.title });
-            }
-          }
-        }
-
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (userInfo) {
-      fetchDashboardData();
-    } else {
-      setLoading(false);
+      dispatch(fetchStudentDashboardData(userInfo));
     }
-  }, [userInfo]);
+  }, [userInfo, dispatch]);
 
   const firstName = userInfo?.first_name || 'Student';
 

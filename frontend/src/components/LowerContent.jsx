@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Zap } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { getStudents, getAttendanceRecords } from '../features/employee/api/employeeApi';
 
 const LowerContent = ({ employees = [], students }) => {
   const [viewAllBtn, setViewAllBtn] = useState(true);
@@ -17,17 +18,8 @@ const LowerContent = ({ employees = [], students }) => {
       const fetchStudents = async () => {
         setLoading(true);
         try {
-          const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-          if (!userInfo || !userInfo.token) return;
-          const response = await fetch('/api/v1/students', {
-            headers: { 'Authorization': `Bearer ${userInfo.token}` }
-          });
-          if (!response.ok) throw new Error(`Students API error: ${response.status}`);
-          const resData = await response.json();
-          if (response.ok) {
-            const studs = resData.data?.students || resData.data || [];
-            setDashboardStudents(studs);
-          }
+          const studs = await getStudents().catch(() => []);
+          setDashboardStudents(studs);
         } catch (error) {
           console.error('Error fetching students for dashboard:', error);
         } finally {
@@ -43,26 +35,16 @@ const LowerContent = ({ employees = [], students }) => {
   useEffect(() => {
     const fetchAttendance = async () => {
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
-        
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
         const today = new Date().toLocaleDateString('en-CA');
         
         const [studentRes, employeeRes] = await Promise.all([
-          fetch(`/api/v1/attendance?type=student&from=${today}&to=${today}`, { headers }),
-          fetch(`/api/v1/attendance?type=employee&from=${today}&to=${today}`, { headers })
+          getAttendanceRecords('student', today, today).catch(() => []),
+          getAttendanceRecords('employee', today, today).catch(() => [])
         ]);
 
         let allRecords = [];
-        if (studentRes.ok) {
-          const sData = await studentRes.json();
-          if (sData.data) allRecords = [...allRecords, ...sData.data];
-        }
-        if (employeeRes.ok) {
-          const eData = await employeeRes.json();
-          if (eData.data) allRecords = [...allRecords, ...eData.data];
-        }
+        if (studentRes) allRecords = [...allRecords, ...studentRes];
+        if (employeeRes) allRecords = [...allRecords, ...employeeRes];
         
         setAttendanceRecords(allRecords);
       } catch (error) {

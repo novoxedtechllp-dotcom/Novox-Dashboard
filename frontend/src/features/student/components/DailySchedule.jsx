@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { ChevronDown, MessageSquare, BookOpen, Send, Layers, CheckSquare, List, CalendarDays, ChevronLeft, ChevronRight, LayoutList, X, CheckCircle } from "lucide-react";
 import CustomSelect from "../../../components/CustomSelect";
+import { getDailyPlan, submitSubmoduleReview } from '../api/studentApi';
 
 const getLocalDateString = (d) => {
   const date = new Date(d);
@@ -42,19 +42,13 @@ const DailySchedule = () => {
     setLoading(true);
     try {
       const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const studentId = userInfo?.student_profile_id;
-      const token = userInfo?.token;
+      const studentId = userInfo?.student_profile_id || userInfo?.id;
       
-      if (!studentId || !token) return;
+      if (!studentId) return;
 
       const dateStr = getLocalDateString(selectedDate);
-      const headers = { Authorization: `Bearer ${token}` };
       
-      const res = await fetch(`/api/v1/students/${studentId}/daily-plan?date=${dateStr}`, { headers });
-      if (!res.ok) throw new Error('Failed to fetch daily plan');
-      const data = await res.json();
-      
-      const submodules = data.data || [];
+      const submodules = await getDailyPlan(studentId, dateStr).catch(() => []);
       
       submodules.sort((a, b) => {
          const aSeq = a.course_modules?.sequence_order || 0;
@@ -94,24 +88,13 @@ const DailySchedule = () => {
     
     setSubmittingReview(true);
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const headers = { 
-        Authorization: `Bearer ${userInfo?.token}`,
-        'Content-Type': 'application/json'
-      };
-
       const payload = {
         review_text: reviewInput.review_text,
         suggestion_text: `RATING:${reviewInput.rating}`
       };
 
-      const res = await fetch(`/api/v1/courses/${courseId}/modules/${moduleId}/submodules/${submoduleId}/reviews`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-      });
-      
-      if (!res.ok) throw new Error("Failed to submit review");
+      const res = await submitSubmoduleReview(courseId, moduleId, submoduleId, payload);
+      if (!res) throw new Error("Failed to submit review");
       
       showToast("Review submitted successfully!");
       setReviewModals({ ...reviewModals, [submoduleId]: false });

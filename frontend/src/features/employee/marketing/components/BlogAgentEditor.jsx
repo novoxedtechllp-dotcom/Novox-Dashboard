@@ -6,6 +6,10 @@ import {
   Download, Image as ImageIcon, Loader2, Trash2, Cpu, AlertCircle, RefreshCw,
   Terminal, X, ExternalLink, AlertTriangle
 } from 'lucide-react';
+import {
+  getBlogConfig, getBlogs, getBlogDetails, deleteBlog,
+  generateBlogImageOnly, generateBlog, publishBlog
+} from '../../api/employeeApi';
 
 const getSiteConfig = (site) => {
   switch(site) {
@@ -71,28 +75,18 @@ const BlogAgentEditor = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        const token = userInfo?.token;
-        const headers = { 'Authorization': `Bearer ${token}` };
-
-        const cfgRes = await fetch('/api/v1/blogs/config', { headers });
-        if (cfgRes.ok) {
-          const cfgData = await cfgRes.json();
-          if (cfgData[config.id]) {
-            const activeConfig = cfgData[config.id];
-            setConfigData(activeConfig);
-            if (activeConfig.categories && activeConfig.categories.length > 0) {
-              setCategory(activeConfig.categories[0].name);
-              setLandingUrl(activeConfig.defaultLandingUrl || 'services.html');
-            }
+        const cfgData = await getBlogConfig();
+        if (cfgData && cfgData[config.id]) {
+          const activeConfig = cfgData[config.id];
+          setConfigData(activeConfig);
+          if (activeConfig.categories && activeConfig.categories.length > 0) {
+            setCategory(activeConfig.categories[0].name);
+            setLandingUrl(activeConfig.defaultLandingUrl || 'services.html');
           }
         }
 
-        const listRes = await fetch(`/api/v1/blogs?siteId=${config.id}`, { headers });
-        if (listRes.ok) {
-          const listData = await listRes.json();
-          if (Array.isArray(listData)) setBlogList(listData);
-        }
+        const listData = await getBlogs(config.id);
+        if (Array.isArray(listData)) setBlogList(listData);
       } catch (err) {
         console.error(err);
       }
@@ -119,11 +113,7 @@ const BlogAgentEditor = () => {
     if (!selectedBlog || selectedBlog === 'new') return;
     try {
       setIsLoading(true);
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const headers = { 'Authorization': `Bearer ${userInfo?.token}` };
-      
-      const res = await fetch(`/api/v1/blogs/${selectedBlog}?siteId=${config.id}`, { headers });
-      const data = await res.json();
+      const data = await getBlogDetails(selectedBlog, config.id);
       
       setSeoTitle(data.title || '');
       setMetaDescription(data.description || '');
@@ -178,17 +168,7 @@ const BlogAgentEditor = () => {
   const executeDelete = async () => {
     try {
       setDeleteStatus('deleting');
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const headers = { 
-        'Authorization': `Bearer ${userInfo?.token}`,
-        'x-site-id': config.id
-      };
-      
-      const res = await fetch(`/api/v1/blogs/${selectedBlog}/delete`, { 
-        method: 'POST',
-        headers 
-      });
-      const data = await res.json();
+      const data = await deleteBlog(selectedBlog, config.id);
       
       if (data.success) {
         setDeleteStatus('success');
@@ -196,11 +176,8 @@ const BlogAgentEditor = () => {
         setSelectedBlog('new');
         
         // Refresh the blog list
-        const listRes = await fetch(`/api/v1/blogs?siteId=${config.id}`, { headers });
-        if (listRes.ok) {
-          const listData = await listRes.json();
-          if (Array.isArray(listData)) setBlogList(listData);
-        }
+        const listData = await getBlogs(config.id);
+        if (Array.isArray(listData)) setBlogList(listData);
       } else {
         setDeleteStatus('error');
         setDeleteMessage(data.message || data.error || 'Failed to delete blog.');
@@ -219,8 +196,6 @@ const BlogAgentEditor = () => {
     }
     try {
       setIsGenerating(true);
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-
       const bodyPayload = {
         title: seoTitle || topic,
         topic: topic || seoTitle,
@@ -228,16 +203,7 @@ const BlogAgentEditor = () => {
         category: category || configData.categories[0]?.name,
       };
 
-      const res = await fetch('/api/v1/blogs/generate-image-only', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userInfo?.token}`,
-          'x-site-id': config.id
-        },
-        body: JSON.stringify(bodyPayload)
-      });
-      const data = await res.json();
+      const data = await generateBlogImageOnly(bodyPayload, config.id);
       
       if (data.image_base64) {
         setBase64Image(data.image_base64);
@@ -272,8 +238,6 @@ const BlogAgentEditor = () => {
 
     try {
       setIsGenerating(true);
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-
       const bodyPayload = {
         topic,
         keywords,
@@ -284,16 +248,7 @@ const BlogAgentEditor = () => {
         generate_image: generateImage
       };
 
-      const res = await fetch('/api/v1/blogs/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userInfo?.token}`,
-          'x-site-id': config.id
-        },
-        body: JSON.stringify(bodyPayload)
-      });
-      const data = await res.json();
+      const data = await generateBlog(bodyPayload, config.id);
       
       if (data.title) setSeoTitle(data.title);
       if (data.description) setMetaDescription(data.description);
@@ -373,16 +328,7 @@ const BlogAgentEditor = () => {
         payload.original_filename = originalFilename;
       }
 
-      const res = await fetch('/api/v1/blogs/publish', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userInfo?.token}`,
-          'x-site-id': config.id
-        },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
+      const data = await publishBlog(payload, config.id);
       
       if (data.success) {
         addLog(`API: Injected listing card into "blogs.html" container.`);

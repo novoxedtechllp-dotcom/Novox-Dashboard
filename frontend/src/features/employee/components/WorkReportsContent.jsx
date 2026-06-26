@@ -3,6 +3,8 @@ import { Plus, Briefcase, UploadCloud, FileText, Trash2, Clock, X, ExternalLink,
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import LoadingSpinner from "../../../components/LoadingSpinner";
+import { useSelector } from 'react-redux';
+import { getWorkReports, submitWorkReport, uploadFile } from '../api/employeeApi';
 
 // Backward-compatible parser for legacy reports that stored metadata in work_done text
 const cleanLegacyReport = (report) => {
@@ -40,8 +42,8 @@ const cleanLegacyReport = (report) => {
 const WorkReportsContent = ({ searchQuery = "" }) => {
   const datePickerRef = useRef(null);
   const [reports, setReports] = useState([]);
-  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { employees } = useSelector((state) => state.admin);
 
   const userInfo = JSON.parse(sessionStorage.getItem("userInfo"));
   const userRole = userInfo?.role;
@@ -51,25 +53,8 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem("userInfo"));
-        if (!userInfo || !userInfo.token) return;
-
-        const headers = { Authorization: `Bearer ${userInfo.token}` };
-
-        const [repRes, empRes] = await Promise.all([
-          fetch("/api/v1/work-reports", { headers }),
-          fetch("/api/v1/employees", { headers }),
-        ]);
-
-        if (repRes.ok) {
-          const resData = await repRes.json();
-          const fetched = resData.data?.reports || resData.data || [];
-          setReports(fetched);
-        }
-        if (empRes.ok) {
-          const eData = await empRes.json();
-          setEmployees(eData.data || []);
-        }
+        const fetched = await getWorkReports();
+        setReports(fetched);
       } catch (error) {
         console.error("Error fetching work reports data:", error);
       } finally {
@@ -183,47 +168,30 @@ const WorkReportsContent = ({ searchQuery = "" }) => {
       let attachmentName = null;
 
       if (attachmentFile) {
-        const formData = new FormData();
-        formData.append("file", attachmentFile);
-        
-        const uploadRes = await fetch("/api/v1/upload", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${userInfo?.token}`
-          },
-          body: formData
-        });
-
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          attachmentUrl = uploadData.data?.url || uploadData.url;
+        try {
+          attachmentUrl = await uploadFile(attachmentFile);
           attachmentName = attachmentFile.name;
-        } else {
+        } catch (e) {
           setFileError("Failed to upload file");
           setIsSubmitting(false);
           return;
         }
       }
 
-      const response = await fetch("/api/v1/work-reports", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userInfo?.token}`,
-        },
-        body: JSON.stringify({
-          report_type: newReport.report_type,
-          work_done: newReport.work_done,
-          blockers: newReport.blockers,
-          project_area: newReport.project_id,
-          attachment_url: attachmentUrl,
-          attachment_name: attachmentName,
-        }),
-      });
-      const resData = await response.json();
-      if (response.ok && resData.data) {
+      const payload = {
+        report_type: newReport.report_type,
+        work_done: newReport.work_done,
+        blockers: newReport.blockers,
+        project_area: newReport.project_id,
+        attachment_url: attachmentUrl,
+        attachment_name: attachmentName,
+      };
+
+      const resData = await submitWorkReport(payload);
+      if (resData) {
         const createdReport = {
           ...resData.data,
+          ...resData,
           employee_id: userInfo.id,
           submitted_at: new Date().toISOString(),
           employee: {

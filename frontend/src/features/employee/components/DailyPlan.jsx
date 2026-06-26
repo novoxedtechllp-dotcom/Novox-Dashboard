@@ -1,21 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, BookOpen, CheckCircle, Plus, LayoutList, X, ChevronDown, ChevronRight, ChevronLeft, CalendarDays, Clock, User, MessageSquare, Search, Star } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
-
-const getAuthHeaders = () => {
-  const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-  if (!userInfo?.token) return null;
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${userInfo.token}`
-  };
-};
-
-const parseApiResponse = async (response) => {
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message || 'Request failed');
-  return data;
-};
+import { getEmployees, getStudents, getMentoringSessions, submitStudentReview, logMentoringSession, getAvailableTopics } from '../api/employeeApi';
 
 const formatDateDDMMYYYY = (value) => {
   if (!value) return '';
@@ -124,11 +110,7 @@ const DailyPlan = ({ userType, userId }) => {
     if (userType === 'ADMIN') {
       const fetchEmployees = async () => {
         try {
-          const headers = getAuthHeaders();
-          if (!headers) return;
-          const response = await fetch('/api/v1/employees', { headers });
-          const resData = await parseApiResponse(response);
-          let emps = resData.data?.employees || resData.data || [];
+          let emps = await getEmployees();
           emps = emps.filter(emp => emp.course_instructors && emp.course_instructors.length > 0);
           setEmployeesList(emps);
           if (emps.length > 0) setSelectedAdminEmployeeId(emps[0].id);
@@ -148,26 +130,21 @@ const DailyPlan = ({ userType, userId }) => {
     if (!userId && userType !== 'ADMIN') return;
     setLoading(true);
     try {
-      const headers = getAuthHeaders();
-      if (!headers) return;
-      
-      let endpoint = '';
+      let sessionsData = [];
       if (userType === 'STUDENT') {
-        endpoint = `/api/v1/students/${userId}/mentoring-sessions?date=${selectedDate}`;
+        sessionsData = await getMentoringSessions(userId, selectedDate, 'STUDENT');
       } else if (userType === 'ADMIN') {
         if (!selectedAdminEmployeeId) {
           setSessions([]);
           setLoading(false);
           return;
         }
-        endpoint = `/api/v1/employees/${selectedAdminEmployeeId}/mentoring-sessions?date=${selectedDate}`;
+        sessionsData = await getMentoringSessions(selectedAdminEmployeeId, selectedDate, 'EMPLOYEE');
       } else {
-        endpoint = `/api/v1/employees/${userId}/mentoring-sessions?date=${selectedDate}`;
+        sessionsData = await getMentoringSessions(userId, selectedDate, 'EMPLOYEE');
       }
 
-      const response = await fetch(endpoint, { headers });
-      const resData = await parseApiResponse(response);
-      setSessions(resData.data || []);
+      setSessions(sessionsData || []);
     } catch (error) {
       console.error('Error fetching sessions:', error);
     } finally {
@@ -177,13 +154,7 @@ const DailyPlan = ({ userType, userId }) => {
 
   const handleStudentReview = async (sessionId, reviewText, rating) => {
     try {
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/students/${userId}/mentoring-sessions/${sessionId}/review`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ student_review: reviewText, student_rating: rating })
-      });
-      await parseApiResponse(response);
+      await submitStudentReview(userId, sessionId, { student_review: reviewText, student_rating: rating });
       alert('Review submitted successfully!');
       fetchSessions();
     } catch (error) {
@@ -518,16 +489,12 @@ const LogSessionModal = ({ isOpen, onClose, selectedDate, userId, onSuccess }) =
     const fetchData = async () => {
       setLoading(true);
       try {
-        const headers = getAuthHeaders();
-        // Fetch students for this instructor
-        const stuRes = await fetch(`/api/v1/students?instructorId=${userId}&limit=1000`, { headers });
-        const stuData = await parseApiResponse(stuRes);
-        setStudents(stuData.data?.students || stuData.data || []);
-
-        // Fetch topics
-        const topRes = await fetch(`/api/v1/employees/${userId}/available-topics?date=${selectedDate}`, { headers });
-        const topData = await parseApiResponse(topRes);
-        setTopics(topData.data || []);
+        const [stuData, topData] = await Promise.all([
+          getStudents(userId).catch(() => []),
+          getAvailableTopics(userId, selectedDate).catch(() => [])
+        ]);
+        setStudents(stuData || []);
+        setTopics(topData || []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -542,19 +509,13 @@ const LogSessionModal = ({ isOpen, onClose, selectedDate, userId, onSuccess }) =
     if (!selectedStudent || !selectedTopic || !timeTaken || !note.trim()) return;
     setSubmitting(true);
     try {
-      const headers = getAuthHeaders();
-      const res = await fetch(`/api/v1/employees/${userId}/mentoring-sessions`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          student_id: selectedStudent,
-          submodule_id: selectedTopic,
-          session_date: selectedDate,
-          time_taken_minutes: parseInt(timeTaken),
-          note: note.trim()
-        })
+      await logMentoringSession(userId, {
+        student_id: selectedStudent,
+        submodule_id: selectedTopic,
+        session_date: selectedDate,
+        time_taken_minutes: parseInt(timeTaken),
+        note: note.trim()
       });
-      await parseApiResponse(res);
       onSuccess();
       onClose();
     } catch (err) {

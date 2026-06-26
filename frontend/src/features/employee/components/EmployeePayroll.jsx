@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Landmark, Download, FileText, CheckCircle, Calendar, IndianRupee } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getEmployeePayslips } from '../api/employeeApi';
 
 const EmployeePayroll = () => {
   const [payslips, setPayslips] = useState([]);
@@ -25,16 +26,8 @@ const EmployeePayroll = () => {
           return;
         }
 
-        const response = await fetch(`/api/v1/payroll/employee/${empId}`, {
-          headers: { 'Authorization': `Bearer ${userInfo?.token}` }
-        });
-        const resData = await response.json();
-        
-        if (response.ok) {
-          setPayslips(resData.data || []);
-        } else {
-          showToast(`Error: ${resData.message}`);
-        }
+        const data = await getEmployeePayslips(empId);
+        setPayslips(data || []);
       } catch (err) {
         showToast("Failed to fetch payslips.");
       } finally {

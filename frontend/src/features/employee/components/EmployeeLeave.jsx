@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Send, FileText, Info, UploadCloud, Trash2, X, MessageSquare } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { apiClient } from '../../../lib/apiClient';
+import { getLeaves, createLeave, updateLeaveStatus, deleteLeave, uploadFile } from '../api/employeeApi';
 import CloudinaryPdfViewer from '../../../components/CloudinaryPdfViewer';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -57,8 +57,7 @@ const EmployeeLeave = () => {
   const fetchLeaves = async () => {
     try {
       setIsLoading(true);
-      const res = await apiClient('/leaves');
-      const allLeaves = res.data || [];
+      const allLeaves = await getLeaves();
       
       const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
       const profileId = userInfo?.employee_profile_id;
@@ -78,10 +77,7 @@ const EmployeeLeave = () => {
 
   const handleApproveStudentLeave = async (id) => {
     try {
-      await apiClient(`/leaves/${id}/status`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'APPROVED' })
-      });
+      await updateLeaveStatus(id, 'APPROVED');
       setStudentLeaves(prev => prev.map(leave => 
         leave.id === id ? { ...leave, status: 'APPROVED' } : leave
       ));
@@ -99,10 +95,7 @@ const EmployeeLeave = () => {
   const handleConfirmReject = async () => {
     if (!rejectLeaveId) return;
     try {
-      await apiClient(`/leaves/${rejectLeaveId}/status`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'REJECTED', adminMessage: rejectionMessage })
-      });
+      await updateLeaveStatus(rejectLeaveId, 'REJECTED', rejectionMessage);
       setStudentLeaves(prev => prev.map(leave => 
         leave.id === rejectLeaveId ? { ...leave, status: 'REJECTED', admin_message: rejectionMessage } : leave
       ));
@@ -168,31 +161,18 @@ const EmployeeLeave = () => {
     setError(null);
 
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
       let documentUrl = null;
 
       if (selectedFile) {
-        const fileFormData = new FormData();
-        fileFormData.append('file', selectedFile);
-
-        const uploadRes = await fetch('/api/v1/upload', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${userInfo?.token}` },
-          body: fileFormData
-        });
-
-        const uploadData = await uploadRes.json();
-        if (uploadRes.ok && uploadData.data?.url) {
-          documentUrl = uploadData.data.url;
+        const uploadData = await uploadFile(selectedFile);
+        if (uploadData?.url) {
+          documentUrl = uploadData.url;
         } else {
-          throw new Error(uploadData.message || "File upload failed");
+          throw new Error("File upload failed");
         }
       }
 
-      await apiClient('/leaves', {
-        method: 'POST',
-        body: JSON.stringify({ ...formData, documentUrl })
-      });
+      await createLeave({ ...formData, documentUrl });
       
       setSubmitSuccess(true);
       
@@ -223,20 +203,12 @@ const EmployeeLeave = () => {
     if (!leaveToDelete) return;
     try {
       setIsDeleting(true);
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const res = await fetch(`/api/v1/leaves/${leaveToDelete}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${userInfo?.token}` }
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to delete leave request");
-      }
+      await deleteLeave(leaveToDelete);
       fetchLeaves();
       setIsDeleteModalOpen(false);
       setLeaveToDelete(null);
     } catch (err) {
-      alert(err.message);
+      alert(err.message || "Failed to delete leave request");
     } finally {
       setIsDeleting(false);
     }

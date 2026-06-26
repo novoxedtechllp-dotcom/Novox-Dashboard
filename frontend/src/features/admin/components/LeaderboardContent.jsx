@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronRight, Star, GitMerge, Users, Code, Layers, MoreHorizontal, Filter, Share2, X, Award, ExternalLink, User, Loader2 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { getLeaderboard } from '../api/adminApi';
 
 const platforms = [
   { id: 'Internal', label: 'Internal', sub: 'Coursework', Icon: Star, color: '#003F87' },
@@ -26,17 +27,8 @@ const LeaderboardContent = () => {
     const fetchLeaderboard = async () => {
       setLoading(true);
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
-        
-        const response = await fetch('/api/v1/leaderboard', {
-          headers: { 'Authorization': `Bearer ${userInfo.token}` }
-        });
-        const resData = await response.json();
-        if (response.ok) {
-          const lbArray = resData.data?.leaderboard || resData.data || [];
-          setLeaderboardData(lbArray);
-        }
+        const lbArray = await getLeaderboard().catch(() => []);
+        setLeaderboardData(lbArray);
       } catch (error) {
         console.error('Error fetching leaderboard:', error);
       } finally {

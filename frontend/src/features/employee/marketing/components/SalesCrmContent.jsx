@@ -4,6 +4,11 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import LoadingSpinner from '../../../../components/LoadingSpinner';
 import CustomSelect from '../../../../components/CustomSelect';
+import { 
+  getLeads, getLeadSources, getLeadPerformance, createLead, 
+  updateLead, getLeadActivities, addLeadActivity, 
+  getEmployees, getCourses 
+} from '../../api/employeeApi';
 
 // ─── Responsive breakpoint hook ────────────────────────────────────────────────
 function useBreakpoint() {
@@ -525,28 +530,19 @@ const SalesCrmContent = () => {
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
-      const headers = userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {};
-
-      const [leadsRes, sourcesRes, empRes, coursesRes, perfRes] = await Promise.all([
-        fetch('/api/v1/leads', { headers }).catch(() => null),
-        fetch('/api/v1/leads/sources', { headers }).catch(() => null),
-        fetch('/api/v1/employees', { headers }).catch(() => null),
-        fetch('/api/v1/courses', { headers }).catch(() => null),
-        fetch('/api/v1/leads/performance', { headers }).catch(() => null),
+      const [lData, sData, eData, cData, pData] = await Promise.all([
+        getLeads().catch(() => []),
+        getLeadSources().catch(() => []),
+        getEmployees().catch(() => []),
+        getCourses().catch(() => []),
+        getLeadPerformance().catch(() => [])
       ]);
 
-      const lData = leadsRes?.ok ? await leadsRes.json() : null;
-      const sData = sourcesRes?.ok ? await sourcesRes.json() : null;
-      const eData = empRes?.ok ? await empRes.json() : null;
-      const cData = coursesRes?.ok ? await coursesRes.json() : null;
-      const pData = perfRes?.ok ? await perfRes.json() : null;
-
-      setLeads(lData?.data || []);
-      setSources(sData?.data || []);
-      setEmployees(eData?.data || []);
-      setCoursesList(cData?.data || []);
-      setPerformance(pData?.data || []);
+      setLeads(lData || []);
+      setSources(sData || []);
+      setEmployees(eData || []);
+      setCoursesList(cData || []);
+      setPerformance(pData || []);
     } catch {
       console.error("Failed to fetch CRM data");
     } finally {
@@ -585,16 +581,8 @@ const SalesCrmContent = () => {
 
   const handleAddLead = async (form) => {
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
-      const res = await fetch('/api/v1/leads', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {})
-        },
-        body: JSON.stringify(form)
-      });
-      if (res.ok) {
+      const res = await createLead(form);
+      if (res) {
         await fetchLeads(); // refresh all to get correct relationships and counts
         setIsAddOpen(false);
       }
@@ -605,16 +593,8 @@ const SalesCrmContent = () => {
 
   const handleUpdateStage = async (id, newStage) => {
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
-      const res = await fetch(`/api/v1/leads/${id}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {})
-        },
-        body: JSON.stringify({ stage: newStage })
-      });
-      if (res.ok) {
+      const res = await updateLead(id, { stage: newStage });
+      if (res) {
         setLeads(prev => prev.map(l => l.id === id ? { ...l, stage: newStage } : l));
         setActiveLead(prev => prev?.id === id ? { ...prev, stage: newStage } : prev);
         // refresh performance if stage changes count (if performance filters by stage in future)
@@ -626,13 +606,9 @@ const SalesCrmContent = () => {
 
   const fetchMessagesForLead = async (leadId) => {
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
-      const res = await fetch(`/api/v1/leads/${leadId}/activities`, {
-        headers: userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {}
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(prev => ({ ...prev, [leadId]: data.data || [] }));
+      const data = await getLeadActivities(leadId);
+      if (data) {
+        setMessages(prev => ({ ...prev, [leadId]: data || [] }));
       }
     } catch (e) {
       console.error(e);
@@ -641,16 +617,8 @@ const SalesCrmContent = () => {
 
   const handleSendMessage = async (leadId, text) => {
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '{}');
-      const res = await fetch(`/api/v1/leads/${leadId}/activities`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {})
-        },
-        body: JSON.stringify({ text })
-      });
-      if (res.ok) {
+      const res = await addLeadActivity(leadId, { text });
+      if (res) {
         await fetchMessagesForLead(leadId);
       }
     } catch (e) {

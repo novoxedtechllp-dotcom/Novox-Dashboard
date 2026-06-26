@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Lock, Unlock, CheckCircle2, PlayCircle, Map, Milestone, LockKeyhole, X, CheckCircle, ChevronDown } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { getStudentProfile, getStudentSubmoduleProgress, getStudentTasks, getCourseDetails, updateSubmoduleProgress } from '../api/studentApi';
 
 const StudentAcademicJourney = ({ userInfo }) => {
   const [courses, setCourses] = useState([]);
@@ -29,33 +30,31 @@ const StudentAcademicJourney = ({ userInfo }) => {
           return;
         }
 
-        const headers = { 'Authorization': `Bearer ${token}` };
-
         // 1. Fetch Student Details to get their courses
-        const studentRes = await fetch(`/api/v1/students/${studentId}`, { headers });
-        if (!studentRes.ok) throw new Error('Failed to fetch student details');
-        const studentData = await studentRes.json();
+        const studentDataRes = await getStudentProfile(studentId).catch(() => null);
+        if (!studentDataRes) throw new Error('Failed to fetch student details');
+        const studentData = studentDataRes.data || studentDataRes;
         
-        const coursesData = studentData.data?.student_courses?.map(sc => sc.course) || [];
+        const coursesData = studentData?.student_courses?.map(sc => sc.course) || [];
         
         // 1.5 Fetch Progress
-        const actualStudentId = studentData.data.id;
-        const progressRes = await fetch(`/api/v1/students/${actualStudentId}/progress/submodules`, { headers });
+        const actualStudentId = studentData.id;
+        const pDataRes = await getStudentSubmoduleProgress(actualStudentId).catch(() => null);
         let pData = {};
-        if (progressRes.ok) {
-           const progJson = await progressRes.json();
-           (progJson.data || []).forEach(p => {
+        if (pDataRes) {
+           const progData = pDataRes.data || pDataRes || [];
+           (progData).forEach(p => {
              pData[p.submodule_id] = p.is_completed;
            });
         }
         setProgressData(pData);
 
         // 1.6 Fetch Completed Tasks
-        const tasksRes = await fetch(`/api/v1/students/${actualStudentId}/tasks`, { headers });
+        const tasksDataRes = await getStudentTasks(actualStudentId).catch(() => null);
         let cTasks = new Set();
-        if (tasksRes.ok) {
-           const tJson = await tasksRes.json();
-           (tJson.data || []).forEach(t => {
+        if (tasksDataRes) {
+           const tJson = tasksDataRes.data || tasksDataRes || [];
+           (tJson).forEach(t => {
              if (t.status === 'APPROVED' || t.status === 'SUBMITTED' || t.status === 'PENDING_REVIEW') {
                cTasks.add(t.task_id);
              }
@@ -63,14 +62,14 @@ const StudentAcademicJourney = ({ userInfo }) => {
         }
         setCompletedTasks(cTasks);
 
-        const courseIds = studentData.data?.student_courses?.map(sc => sc.course_id) || [];
+        const courseIds = studentData?.student_courses?.map(sc => sc.course_id) || [];
 
         // 2. Fetch all courses
         const syllabusPromises = courseIds.map(cId => 
-          fetch(`/api/v1/courses/${cId}`, { headers }).then(r => r.json())
+          getCourseDetails(cId).catch(() => null)
         );
         const syllabusResponses = await Promise.all(syllabusPromises);
-        const fetchedCourses = syllabusResponses.map(res => res.data).filter(Boolean);
+        const fetchedCourses = syllabusResponses.map(res => res?.data || res).filter(Boolean);
 
         // 3. Combine into expected structure
         const combined = fetchedCourses.map(course => {
@@ -123,15 +122,9 @@ const StudentAcademicJourney = ({ userInfo }) => {
     setToggling(true);
     try {
       const studentId = userInfo?.student_profile_id || userInfo?.id;
-      const token = userInfo?.token || sessionStorage.getItem('token');
-      const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
       
-      const res = await fetch(`/api/v1/students/${studentId}/progress/submodules/${sub.id}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ is_completed: !currentStatus })
-      });
-      if (res.ok) {
+      const res = await updateSubmoduleProgress(studentId, sub.id, { is_completed: !currentStatus });
+      if (res) {
         setProgressData(prev => ({ ...prev, [sub.id]: !currentStatus }));
       }
     } catch (error) {
@@ -167,17 +160,11 @@ const StudentAcademicJourney = ({ userInfo }) => {
     setToggling(true);
     try {
       const studentId = userInfo?.student_profile_id || userInfo?.id;
-      const token = userInfo?.token || sessionStorage.getItem('token');
-      const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
       
       const targetStatus = !isCurrentlyCompleted;
       const realSubmodules = submodules.filter(sub => !String(sub.id).startsWith('dummy-'));
       const promises = realSubmodules.map(sub => 
-        fetch(`/api/v1/students/${studentId}/progress/submodules/${sub.id}`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ is_completed: targetStatus })
-        })
+        updateSubmoduleProgress(studentId, sub.id, { is_completed: targetStatus })
       );
       
       await Promise.all(promises);

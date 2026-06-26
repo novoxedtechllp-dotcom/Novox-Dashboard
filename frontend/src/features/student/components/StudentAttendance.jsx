@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Filter, Download } from 'lucide-react';
+import { getStudentAttendance, getLeaves } from '../api/studentApi';
 
 const StudentAttendance = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
@@ -10,22 +11,13 @@ const StudentAttendance = () => {
   useEffect(() => {
     const fetchAttendance = async () => {
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        const token = userInfo?.token || '';
-        
-        const [attRes, leaveRes] = await Promise.all([
-          fetch('/api/v1/attendance?type=student', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('/api/v1/leaves', { headers: { Authorization: `Bearer ${token}` } })
+        const [attData, leaveData] = await Promise.all([
+          getStudentAttendance().catch(() => []),
+          getLeaves().catch(() => [])
         ]);
         
-        if (attRes.ok) {
-          const data = await attRes.json();
-          setAttendanceRecords(data.data || []);
-        }
-        if (leaveRes.ok) {
-          const data = await leaveRes.json();
-          setLeaveRecords(data.data || []);
-        }
+        setAttendanceRecords(attData);
+        setLeaveRecords(leaveData);
       } catch (err) {
         console.error(err);
       } finally {

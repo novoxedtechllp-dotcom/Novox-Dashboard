@@ -8,6 +8,12 @@ import LoadingSpinner from './LoadingSpinner';
 import { useClickOutside } from '../hooks/useClickOutside';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import {
+  getGalleryWebsites, getGalleryCategories, deleteGalleryCategory,
+  createGalleryWebsite, deleteGalleryWebsite, createGalleryCategory,
+  getGalleryImages, getGalleryStorageUsage, bulkDeleteGalleryImages,
+  updateGalleryImage, uploadGalleryImage
+} from '../features/admin/api/adminApi';
 
 const CATEGORY_STYLES = {
   EVENTS: { bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
@@ -104,17 +110,15 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
   }, [selectedIds, previewImage]);
 
   const getAuthHeaders = () => {
-    const userInfoStr = sessionStorage.getItem('userInfo');
-    const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
-    return userInfo?.token ? { 'Authorization': `Bearer ${userInfo.token}` } : {};
+    // Deprecated: apiClient handles this
+    return {};
   };
 
   const fetchWebsites = async () => {
     try {
-      const res = await fetch('/api/gallery/websites', { headers: getAuthHeaders(), cache: 'no-store' });
-      if (res.ok) {
-        const result = await res.json();
-        const data = result.data || [];
+      const result = await getGalleryWebsites().catch(() => null);
+      if (result) {
+        const data = result.data || result || [];
         setWebsites(data);
         const saved = localStorage.getItem('gallerySelectedWebsite');
         if (saved && data.find(w => w.id === saved)) {
@@ -129,13 +133,12 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
   const fetchCategories = async () => {
     try {
       console.log('Fetching categories for website_id:', selectedWebsite);
-      const response = await fetch(`/api/gallery/categories?website_id=${selectedWebsite}`, { headers: getAuthHeaders(), cache: 'no-store' });
-      if (response.ok) {
-        const result = await response.json();
+      const result = await getGalleryCategories(selectedWebsite).catch(() => null);
+      if (result) {
         console.log('Categories fetched:', result);
-        setCategories(result.data || []);
+        setCategories(result.data || result || []);
       } else {
-        console.error('Failed to fetch categories:', response.statusText);
+        console.error('Failed to fetch categories');
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -145,8 +148,8 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
   const handleDeleteCategory = async (id) => {
     if (!window.confirm("Are you sure you want to delete this category?")) return;
     try {
-      const res = await fetch(`/api/gallery/categories/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (res.ok) fetchCategories();
+      const res = await deleteGalleryCategory(id).catch(() => null);
+      if (res) fetchCategories();
       else alert("Failed to delete category");
     } catch (e) { console.error(e); }
   };
@@ -155,8 +158,8 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
     if (!newWebsiteName.trim()) return;
     try {
       const slug = newWebsiteName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const res = await fetch('/api/gallery/websites', { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ name: newWebsiteName.trim(), slug }) });
-      if (res.ok) {
+      const res = await createGalleryWebsite({ name: newWebsiteName.trim(), slug }).catch(() => null);
+      if (res) {
         setNewWebsiteName('');
         setShowWebsiteModal(false);
         fetchWebsites();
@@ -168,18 +171,14 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
     if (!window.confirm(`Are you absolutely sure you want to completely delete "${siteName}" and all its categories and images? This action cannot be undone.`)) return;
 
     try {
-      const res = await fetch(`/api/gallery/websites/${siteId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
+      const res = await deleteGalleryWebsite(siteId).catch(() => null);
+      if (res) {
         if (selectedWebsite === siteId) {
           setSelectedWebsite('');
         }
         fetchWebsites();
       } else {
-        const err = await res.json();
-        alert(`Failed to delete website: ${err.message}`);
+        alert(`Failed to delete website`);
       }
     } catch (e) {
       console.error(e);
@@ -192,21 +191,13 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
     setIsCreatingCategory(true);
     try {
       const slug = newCategoryName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const response = await fetch('/api/gallery/categories', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify({ name: newCategoryName.trim(), slug, website_id: selectedWebsite })
-      });
-      if (response.ok) {
+      const result = await createGalleryCategory({ name: newCategoryName.trim(), slug, website_id: selectedWebsite }).catch(() => null);
+      if (result) {
         setNewCategoryName('');
         setShowCategoryManageModal(false);
         fetchCategories();
       } else {
-        const err = await response.json();
-        alert(`Failed to create category: ${err.message || response.statusText}`);
+        alert(`Failed to create category`);
       }
     } catch (error) {
       console.error('Error creating category:', error);
@@ -219,14 +210,12 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
   const fetchGalleryData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/gallery?t=${Date.now()}&website_id=${selectedWebsite}`, { headers: getAuthHeaders() });
-      if (response.ok) {
-        const result = await response.json();
-        const fetchedImages = Array.isArray(result?.data) ? result.data : [];
+      const result = await getGalleryImages(selectedWebsite).catch(() => null);
+      if (result) {
+        const fetchedImages = Array.isArray(result?.data || result) ? (result.data || result) : [];
         setImages(fetchedImages);
       } else {
-        const err = await response.json();
-        console.error('Failed to fetch gallery images:', err);
+        console.error('Failed to fetch gallery images');
       }
     } catch (error) {
       console.error('Error fetching gallery data:', error);
@@ -237,12 +226,12 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
 
   const fetchCloudinaryUsage = async () => {
     try {
-      const res = await fetch('/api/gallery/storage-usage', { headers: getAuthHeaders(), cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data?.storage) {
-          const usageBytes = data.data.storage.usage || 0;
-          const limitBytes = data.data.storage.limit || (5 * 1024 * 1024 * 1024); // fallback 5GB
+      const data = await getGalleryStorageUsage().catch(() => null);
+      if (data) {
+        const storageInfo = data.data?.storage || data.storage || null;
+        if (storageInfo) {
+          const usageBytes = storageInfo.usage || 0;
+          const limitBytes = storageInfo.limit || (5 * 1024 * 1024 * 1024); // fallback 5GB
 
           const gb = 1024 * 1024 * 1024;
           const usedGB = (usageBytes / gb).toFixed(2);
@@ -268,22 +257,14 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      const response = await fetch('/api/gallery/bulk-delete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify({ ids: Array.from(selectedIds) })
-      });
+      const result = await bulkDeleteGalleryImages(Array.from(selectedIds)).catch(() => null);
 
-      if (response.ok) {
+      if (result) {
         setSelectedIds(new Set());
         fetchGalleryData();
         fetchCloudinaryUsage();
       } else {
-        const errorData = await response.json();
-        alert(`Failed to delete: ${errorData.message || response.statusText || 'Unknown error'}`);
+        alert(`Failed to delete images`);
       }
     } catch (error) {
       console.error('Error deleting images:', error);
@@ -301,17 +282,9 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
     let completed = 0;
     for (const id of selectedIds) {
       try {
-        const response = await fetch(`/api/gallery/${id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getAuthHeaders()
-          },
-          body: JSON.stringify({ category_ids: newBulkCategories })
-        });
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.message || 'Failed to update category');
+        const response = await updateGalleryImage(id, { category_ids: newBulkCategories });
+        if (!response) {
+          throw new Error('Failed to update category');
         }
       } catch (err) {
         console.error('Failed to update category for', id, err);
@@ -337,22 +310,14 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
     if (!editImage) return;
     setIsEditing(true);
     try {
-      const response = await fetch(`/api/gallery/${editImage.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify(editForm)
-      });
-      if (response.ok) {
+      const response = await updateGalleryImage(editImage.id, editForm).catch(() => null);
+      if (response) {
         fetchGalleryData();
         if (previewImage && previewImage.id === editImage.id) {
           setPreviewImage({ ...previewImage, ...editForm });
         }
       } else {
-        const errData = await response.json();
-        alert(`Failed to save edit: ${errData.message || response.statusText}`);
+        alert(`Failed to save edit`);
       }
     } catch (err) {
       console.error(err);
@@ -385,27 +350,9 @@ const GalleryContent = ({ searchQuery = '', setSearchQuery = () => { } }) => {
       formData.append('website_id', selectedWebsite);
 
       try {
-        const response = await fetch('/api/gallery/upload', {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: formData
-        });
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
-            alert('Your session has expired or you do not have permission. Please log in again.');
-            sessionStorage.removeItem('userInfo');
-            window.location.href = '/';
-            throw new Error('Unauthorized');
-          }
-
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const errData = await response.json();
-            throw new Error(errData.message || 'Upload failed');
-          } else {
-            const textData = await response.text();
-            throw new Error(textData ? textData.substring(0, 100) : `Server responded with status ${response.status} but no error message.`);
-          }
+        const response = await uploadGalleryImage(formData).catch(() => null);
+        if (!response) {
+            throw new Error('Upload failed');
         }
       } catch (err) {
         console.error('Upload failed for', file.name, err);

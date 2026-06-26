@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Lock, Unlock, CheckCircle2, PlayCircle, Map, Milestone, LockKeyhole, X, CheckCircle, ChevronDown, User, Search } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { getMyProfile, getCourses, getCourseDetails, getStudents, getStudentSubmoduleProgress, getStudentTasksProgress } from '../api/employeeApi';
 
 const MyStudentsJourney = () => {
   const [students, setStudents] = useState([]);
@@ -22,63 +23,53 @@ const MyStudentsJourney = () => {
     const fetchInitialData = async () => {
       try {
         if (!userInfo || !userInfo.token) return;
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
 
         // 1. Get Employee Profile ID
-        const profRes = await fetch('/api/v1/profile/me', { headers });
-        const profData = await profRes.json();
+        const profData = await getMyProfile().catch(() => null);
         const empId = profData?.data?.employeeProfile?.id || userInfo.employee_profile_id;
 
         // 2. Fetch my courses and their full syllabus
-        const crsRes = await fetch('/api/v1/courses', { headers });
+        const allCourses = await getCourses().catch(() => []);
         let myFullCourses = [];
-        if (crsRes.ok) {
-          const crsData = await crsRes.json();
-          const allCourses = crsData.data || [];
-          const employeeCourses = allCourses.filter(c => 
-            c.instructor_id === userInfo.id || 
-            c.employee_id === empId || 
-            c.employee_profile_id === empId || 
-            (c.instructors && c.instructors.includes(userInfo.id)) ||
-            (c.course_instructors && c.course_instructors.some(ci => ci.employee_profiles?.id === empId || ci.employee_id === empId))
-          );
-          
-          // Fetch full details (modules) for each of my courses
-          const coursePromises = employeeCourses.map(c => 
-            fetch(`/api/v1/courses/${c.id || c._id}`, { headers }).then(r => r.json())
-          );
-          const courseResponses = await Promise.all(coursePromises);
-          
-          myFullCourses = courseResponses.map(res => {
-            const course = res.data;
-            if (!course) return null;
-            const realModules = (course.course_modules || [])
-              .filter(mod => mod.status === 'PUBLISHED')
-              .sort((a,b)=>a.sequence_order - b.sequence_order).map(mod => {
-              return {
-                id: mod.id,
-                title: mod.title,
-                submodules: (mod.course_submodules || []).sort((a,b)=>a.sequence_order - b.sequence_order)
-              };
-            });
+        
+        const employeeCourses = allCourses.filter(c => 
+          c.instructor_id === userInfo.id || 
+          c.employee_id === empId || 
+          c.employee_profile_id === empId || 
+          (c.instructors && c.instructors.includes(userInfo.id)) ||
+          (c.course_instructors && c.course_instructors.some(ci => ci.employee_profiles?.id === empId || ci.employee_id === empId))
+        );
+        
+        // Fetch full details (modules) for each of my courses
+        const coursePromises = employeeCourses.map(c => 
+          getCourseDetails(c.id || c._id).catch(() => null)
+        );
+        const courseResponses = await Promise.all(coursePromises);
+        
+        myFullCourses = courseResponses.map(course => {
+          if (!course) return null;
+          const realModules = (course.course_modules || [])
+            .filter(mod => mod.status === 'PUBLISHED')
+            .sort((a,b)=>a.sequence_order - b.sequence_order).map(mod => {
             return {
-              id: course.id || course._id,
-              name: course.name || course.title,
-              modules: realModules
+              id: mod.id,
+              title: mod.title,
+              submodules: (mod.course_submodules || []).sort((a,b)=>a.sequence_order - b.sequence_order)
             };
-          }).filter(Boolean);
-          
-          setMyCourses(myFullCourses);
-        }
+          });
+          return {
+            id: course.id || course._id,
+            name: course.name || course.title,
+            modules: realModules
+          };
+        }).filter(Boolean);
+        
+        setMyCourses(myFullCourses);
 
         // 3. Fetch My Students
-        let url = '/api/v1/students?limit=1000';
-        const stdRes = await fetch(url, { headers });
-        if (stdRes.ok) {
-          const stdData = await stdRes.json();
-          const studentsList = stdData.data?.students || stdData.data || [];
-          
-          // Further filter to ensure they are enrolled in at least one of my courses
+        const studentsList = await getStudents().catch(() => []);
+        
+        // Further filter to ensure they are enrolled in at least one of my courses
           const myCourseIds = new Set(myFullCourses.map(c => c.id));
           
           const relevantStudents = studentsList.filter(s => {
@@ -117,7 +108,6 @@ const MyStudentsJourney = () => {
           });
           
           setStudents(relevantStudents);
-        }
 
       } catch (err) {
         console.error("Error fetching my students:", err);
@@ -140,29 +130,21 @@ const MyStudentsJourney = () => {
     if (!progressDataCache[student.id]) {
       setLoadingStudentDetails(prev => ({ ...prev, [student.id]: true }));
       try {
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
-        
         // Fetch Submodules progress
-        const progressRes = await fetch(`/api/v1/students/${student.id}/progress/submodules`, { headers });
+        const progData = await getStudentSubmoduleProgress(student.id).catch(() => []);
         let pData = {};
-        if (progressRes.ok) {
-           const progJson = await progressRes.json();
-           (progJson.data || []).forEach(p => {
-             pData[p.submodule_id] = p.is_completed;
-           });
-        }
+        progData.forEach(p => {
+          pData[p.submodule_id] = p.is_completed;
+        });
 
         // Fetch Tasks progress
-        const tasksRes = await fetch(`/api/v1/students/${student.id}/tasks`, { headers });
+        const tasksData = await getStudentTasksProgress(student.id).catch(() => []);
         let cTasks = new Set();
-        if (tasksRes.ok) {
-           const tJson = await tasksRes.json();
-           (tJson.data || []).forEach(t => {
-             if (t.status === 'APPROVED' || t.status === 'SUBMITTED' || t.status === 'PENDING_REVIEW') {
-               cTasks.add(t.task_id);
-             }
-           });
-        }
+        tasksData.forEach(t => {
+          if (t.status === 'APPROVED' || t.status === 'SUBMITTED' || t.status === 'PENDING_REVIEW') {
+            cTasks.add(t.task_id);
+          }
+        });
 
         setProgressDataCache(prev => ({ ...prev, [student.id]: pData }));
         setCompletedTasksCache(prev => ({ ...prev, [student.id]: cTasks }));

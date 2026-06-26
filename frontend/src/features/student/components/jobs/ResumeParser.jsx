@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2, Sparkles, Trophy, Cpu } from 'lucide-react';
+import { parseResume as apiParseResume } from '../../api/studentApi';
 
 const ResumeParser = ({ onParseSuccess }) => {
   const [file, setFile] = useState(null);
@@ -53,30 +54,15 @@ const ResumeParser = ({ onParseSuccess }) => {
     setIsParsing(true);
     setParsedData(null);
     
-    const formData = new FormData();
-    formData.append('file', fileToParse); // Assuming backend expects 'file' form field
-
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/scraper-api';
-      const response = await fetch(`${baseUrl}/parse-resume`, {
-        method: 'POST',
-        body: formData,
-        // Don't set Content-Type header, let browser set it with boundary for FormData
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setParsedData(data);
-        if (onParseSuccess) {
-          onParseSuccess(data);
-        }
-      } else {
-        setError(data.detail || 'Failed to parse resume.');
+      const data = await parseResume(fileToParse);
+      setParsedData(data);
+      if (onParseSuccess) {
+        onParseSuccess(data);
       }
     } catch (err) {
       console.error('Parse error:', err);
-      setError('Network error. Failed to reach the parsing service.');
+      setError(err.message || 'Network error. Failed to reach the parsing service.');
     } finally {
       setIsParsing(false);
     }

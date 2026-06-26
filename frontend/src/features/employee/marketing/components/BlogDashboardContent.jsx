@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Eye, MousePointerClick, Share2, Plus, ArrowUpRight, TrendingUp } from 'lucide-react';
 import LoadingSpinner from '../../../../components/LoadingSpinner';
+import { getBlogs } from '../../api/employeeApi';
 
 const BlogDashboardContent = () => {
   const navigate = useNavigate();
@@ -12,25 +13,8 @@ const BlogDashboardContent = () => {
     const fetchBlogs = async () => {
       setLoading(true);
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
-        
-        const response = await fetch('/api/v1/blogs', {
-          headers: { 'Authorization': `Bearer ${userInfo.token}` }
-        });
-        const textData = await response.text();
-        let resData;
-        try {
-          resData = JSON.parse(textData);
-        } catch (e) {
-          console.error('Failed to parse JSON, received:', textData.substring(0, 100));
-          return;
-        }
-
-        if (response.ok) {
-          const bArray = Array.isArray(resData) ? resData : (resData.data?.blogs || resData.data || []);
-          setBlogs(bArray);
-        }
+        const bArray = await getBlogs();
+        setBlogs(bArray);
       } catch (error) {
         console.error('Error fetching blogs:', error);
       } finally {

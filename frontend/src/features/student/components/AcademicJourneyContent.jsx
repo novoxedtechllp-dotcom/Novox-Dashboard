@@ -6,6 +6,7 @@ import {
   Users, Award, TrendingDown, Gauge, Search, Filter, X, Plus, Trash2 
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { getCurriculum } from '../../admin/api/adminApi';
 
 const AcademicJourneyContent = () => {
   const [courseFilter, setCourseFilter] = useState('All Courses');
@@ -28,15 +29,9 @@ const AcademicJourneyContent = () => {
     const fetchCurriculum = async () => {
       setLoading(true);
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
-        
-        const response = await fetch('/api/v1/curriculum', {
-          headers: { 'Authorization': `Bearer ${userInfo.token}` }
-        });
-        const resData = await response.json();
-        if (response.ok && resData.data && resData.data.curriculum) {
-          setCurriculumData(resData.data.curriculum);
+        const data = await getCurriculum().catch(() => null);
+        if (data && Object.keys(data).length > 0) {
+          setCurriculumData(data);
         }
       } catch (error) {
         console.error('Error fetching curriculum data:', error);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Phone, Briefcase, Calendar, Edit3, Save, X, Camera, Zap, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { getMyProfile, updateMyProfile, changePassword } from '../api/employeeApi';
 
 const EmployeeProfile = () => {
   const [profile, setProfile] = useState(null);
@@ -36,10 +37,7 @@ const EmployeeProfile = () => {
       const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
       if (!userInfo?.token) return;
 
-      const res = await fetch('/api/v1/profile/me', {
-        headers: { Authorization: `Bearer ${userInfo.token}` }
-      });
-      const resData = await res.json();
+      const resData = await getMyProfile();
       
       if (resData.success) {
         setProfile(resData.data.employeeProfile);
@@ -124,21 +122,13 @@ const EmployeeProfile = () => {
           return;
         }
 
-        const pwdRes = await fetch('/api/v1/auth/change-password', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${sessionUser.token}`
-          },
-          body: JSON.stringify({
+        try {
+          await changePassword({
             oldPassword: formData.oldPassword,
             newPassword: formData.newPassword
-          })
-        });
-
-        const pwdData = await pwdRes.json();
-        if (!pwdRes.ok) {
-          alert(pwdData.message || "Failed to update password", true);
+          });
+        } catch (err) {
+          alert(err.message || "Failed to update password", true);
           setSaving(false);
           return;
         }
@@ -150,15 +140,8 @@ const EmployeeProfile = () => {
       if (formData.phone) data.append('phone', formData.phone);
       if (avatarFile) data.append('avatar', avatarFile);
 
-      const res = await fetch('/api/v1/profile/me', {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${sessionUser.token}`
-        },
-        body: data
-      });
+      const resData = await updateMyProfile(data);
       
-      const resData = await res.json();
       if (resData.success) {
         const updatedProfile = resData.data.employeeProfile;
         setProfile(updatedProfile);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Filter, CheckCircle, XCircle, Clock, MessageSquare, X, Send, AlertCircle, ExternalLink, FileText, RefreshCcw, Calendar } from 'lucide-react';
-import { apiClient } from '../../../lib/apiClient';
+import { getLeaves, updateLeaveStatus } from '../api/adminApi';
 import CloudinaryPdfViewer from '../../../components/CloudinaryPdfViewer';
 import CustomSelect from '../../../components/CustomSelect';
 import DatePicker from 'react-datepicker';
@@ -29,8 +29,8 @@ const LeaveManagementContent = ({ searchQuery = '' }) => {
   const fetchLeaves = async () => {
     try {
       setIsLoading(true);
-      const res = await apiClient('/leaves');
-      const formattedData = (res.data || []).map(req => {
+      const data = await getLeaves();
+      const formattedData = (data || []).map(req => {
         let requesterName = 'Unknown User';
         let role = 'N/A';
         let avatar = '??';
@@ -64,10 +64,7 @@ const LeaveManagementContent = ({ searchQuery = '' }) => {
 
   const handleApprove = async (id) => {
     try {
-      await apiClient(`/leaves/${id}/status`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'APPROVED' })
-      });
+      await updateLeaveStatus(id, 'APPROVED');
       // Update local state without refetching for speed
       setLeaveRequests(prev => prev.map(req => 
         req.id === id ? { ...req, status: 'APPROVED' } : req
@@ -87,10 +84,7 @@ const LeaveManagementContent = ({ searchQuery = '' }) => {
     if (!selectedRequestId) return;
     
     try {
-      await apiClient(`/leaves/${selectedRequestId}/status`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'REJECTED', adminMessage: rejectionMessage })
-      });
+      await updateLeaveStatus(selectedRequestId, 'REJECTED', rejectionMessage);
       
       setLeaveRequests(prev => prev.map(req => 
         req.id === selectedRequestId ? { ...req, status: 'REJECTED', admin_message: rejectionMessage } : req

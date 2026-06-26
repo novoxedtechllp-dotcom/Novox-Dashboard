@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Send, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { submitJobApplication } from '../../api/studentApi';
 
 const JobApplicationModal = ({ job, userInfo, onClose, onApplySuccess }) => {
   const [personName, setPersonName] = useState(userInfo?.name || '');
@@ -23,25 +24,13 @@ const JobApplicationModal = ({ job, userInfo, onClose, onApplySuccess }) => {
     };
 
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/scraper-api';
-      const response = await fetch(`${baseUrl}/applications`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const data = await submitJobApplication(payload);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setStatus('success');
-        setTimeout(() => {
-          onApplySuccess(data);
-          onClose();
-        }, 2000);
-      } else {
-        setStatus('error');
-        setErrorMsg(data.detail || 'Failed to submit application.');
-      }
+      setStatus('success');
+      setTimeout(() => {
+        onApplySuccess(data);
+        onClose();
+      }, 2000);
     } catch (error) {
       console.error('Application error:', error);
       setStatus('error');

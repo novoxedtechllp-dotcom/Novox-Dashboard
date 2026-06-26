@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, FileText, Phone } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { getRecruitmentCandidates } from '../api/adminApi';
 
 const RecruitmentContent = () => {
   const [candidates, setCandidates] = useState([]);
@@ -10,17 +11,8 @@ const RecruitmentContent = () => {
     const fetchCandidates = async () => {
       setLoading(true);
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
-        
-        const response = await fetch('/api/v1/recruitment', {
-          headers: { 'Authorization': `Bearer ${userInfo.token}` }
-        });
-        const resData = await response.json();
-        if (response.ok) {
-          const cArray = resData.data?.candidates || resData.data || [];
-          setCandidates(cArray);
-        }
+        const cArray = await getRecruitmentCandidates().catch(() => []);
+        setCandidates(cArray);
       } catch (error) {
         console.error('Error fetching recruitment candidates:', error);
       } finally {

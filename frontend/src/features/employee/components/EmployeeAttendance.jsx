@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Calendar as CalendarIcon, CheckCircle2, XCircle, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { getEmployeeAttendance, getStudents, getStudentAttendance } from '../api/employeeApi';
 
 const EmployeeAttendance = ({ courses = [] }) => {
   const [activeTab, setActiveTab] = useState('My Record');
@@ -18,31 +19,16 @@ const EmployeeAttendance = ({ courses = [] }) => {
       const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
       if (!userInfo || !userInfo.token) return;
 
-      const headers = { 'Authorization': `Bearer ${userInfo.token}` };
+      const [myAttendanceData, studs, stuAttData] = await Promise.all([
+        getEmployeeAttendance().catch(() => []),
+        getStudents().catch(() => []),
+        getStudentAttendance().catch(() => [])
+      ]);
 
-      // Fetch employee attendance
-      const attRes = await fetch('/api/v1/attendance?type=employee', { headers });
-      if (attRes.ok) {
-        const data = await attRes.json();
-        // Filter by the employee's ID
-        const myAttendance = (data.data || []).filter(a => a.employee_id === userInfo.id || a.employee_id === userInfo.employee_profile_id);
-        setAttendance(myAttendance);
-      }
-
-      // Fetch students
-      const stdRes = await fetch('/api/v1/students', { headers });
-      if (stdRes.ok) {
-        const resData = await stdRes.json();
-        const studs = resData.data?.students || resData.data || (Array.isArray(resData) ? resData : []);
-        setStudents(studs);
-      }
-
-      // Fetch student attendance
-      const stuAttRes = await fetch('/api/v1/attendance?type=student', { headers });
-      if (stuAttRes.ok) {
-        const sData = await stuAttRes.json();
-        setStudentAttendance(sData.data || []);
-      }
+      const myAttendance = myAttendanceData.filter(a => a.employee_id === userInfo.id || a.employee_id === userInfo.employee_profile_id);
+      setAttendance(myAttendance);
+      setStudents(studs);
+      setStudentAttendance(stuAttData);
     } catch (error) {
       console.error('Error fetching attendance:', error);
     } finally {

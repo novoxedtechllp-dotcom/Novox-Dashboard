@@ -16,6 +16,7 @@ import {
   Users,
   Edit3
 } from 'lucide-react';
+import { getPayroll, processPayroll, updateEmployeeSalary } from '../api/adminApi';
 
 const PayrollContent = () => {
   const [employees, setEmployees] = useState([]);
@@ -50,15 +51,11 @@ const PayrollContent = () => {
     const fetchPayroll = async () => {
       setIsLoading(true);
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        const response = await fetch(`/api/v1/payroll?month=${selectedMonth}`, {
-          headers: { 'Authorization': `Bearer ${userInfo?.token}` }
-        });
-        const resData = await response.json();
-        if (response.ok) {
-          setEmployees(resData.data || []);
+        const res = await getPayroll(selectedMonth);
+        if (res && res.success) {
+          setEmployees(res.data || []);
         } else {
-          showToast(`Error: ${resData.message}`);
+          showToast(`Error: ${res?.message || 'Failed'}`);
         }
       } catch (err) {
         showToast("Failed to fetch payroll data.");
@@ -112,21 +109,13 @@ const PayrollContent = () => {
 
   const handlePayIndividual = async (id, name) => {
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const response = await fetch('/api/v1/payroll/process', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userInfo?.token}` 
-        },
-        body: JSON.stringify({ month: selectedMonth, employeeIds: [id] })
-      });
-      const resData = await response.json();
-      if (response.ok) {
+      const res = await processPayroll({ month: selectedMonth, employeeIds: [id] });
+      
+      if (res && res.success) {
         setEmployees(employees.map(emp => emp.id === id ? { ...emp, status: 'PAID' } : emp));
         showToast(`Salary successfully disbursed to ${name}!`);
       } else {
-        showToast(`Error: ${resData.message}`);
+        showToast(`Error: ${res?.message || 'Failed'}`);
       }
     } catch(err) {
       showToast("Failed to disburse salary.");
@@ -141,21 +130,13 @@ const PayrollContent = () => {
     }
     
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const response = await fetch('/api/v1/payroll/process', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userInfo?.token}` 
-        },
-        body: JSON.stringify({ month: selectedMonth, employeeIds: pendingEmps.map(e => e.id) })
-      });
-      const resData = await response.json();
-      if (response.ok) {
+      const res = await processPayroll({ month: selectedMonth, employeeIds: pendingEmps.map(e => e.id) });
+      
+      if (res && res.success) {
         setEmployees(employees.map(emp => ({ ...emp, status: 'PAID' })));
         showToast(`Successfully processed payroll for ${pendingEmps.length} employees!`);
       } else {
-        showToast(`Error: ${resData.message}`);
+        showToast(`Error: ${res?.message || 'Failed'}`);
       }
     } catch(err) {
       showToast("Failed to process payroll.");
@@ -191,23 +172,15 @@ const PayrollContent = () => {
   const handleUpdateSalary = async () => {
     if (!editingSalaryEmp || newSalaryVal === '') return;
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const response = await fetch(`/api/v1/employees/${editingSalaryEmp.id}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userInfo?.token}` 
-        },
-        body: JSON.stringify({ salary: Number(newSalaryVal) })
-      });
-      const resData = await response.json();
-      if (response.ok) {
+      const res = await updateEmployeeSalary(editingSalaryEmp.id, Number(newSalaryVal));
+      
+      if (res && res.success) {
         setEmployees(employees.map(emp => emp.id === editingSalaryEmp.id ? { ...emp, baseSalary: Number(newSalaryVal) } : emp));
         showToast(`Salary updated successfully for ${editingSalaryEmp.name}!`);
         setEditingSalaryEmp(null);
         setNewSalaryVal('');
       } else {
-        showToast(`Error: ${resData.message}`);
+        showToast(`Error: ${res?.message || 'Failed'}`);
       }
     } catch(err) {
       showToast("Failed to update salary.");

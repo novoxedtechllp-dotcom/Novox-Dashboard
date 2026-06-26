@@ -1,12 +1,16 @@
+import { store } from '../app/store';
+
 export const apiClient = async (endpoint, options = {}) => {
-  const userInfoStr = sessionStorage.getItem('userInfo');
-  const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
-  
+  const state = store.getState();
+  const token = state.auth.token;
   const headers = {
-    'Content-Type': 'application/json',
-    ...(userInfo?.token ? { Authorization: `Bearer ${userInfo.token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
+
+  if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   const response = await fetch(`/api/v1${endpoint}`, {
     ...options,

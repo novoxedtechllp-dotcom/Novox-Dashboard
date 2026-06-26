@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
+import { getMonthlyAttendance } from '../api/adminApi';
 
 const EmployeeCalendarModal = ({ employee, onClose }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -22,14 +23,8 @@ const EmployeeCalendarModal = ({ employee, onClose }) => {
         const to = `${year}-${month}-${lastDay}`;
 
         const type = employee.type === 'Student' ? 'student' : 'employee';
-        const res = await fetch(`/api/v1/attendance?userId=${employee.userId}&type=${type}&from=${from}&to=${to}`, {
-          headers: { 'Authorization': `Bearer ${userInfo.token}` }
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setAttendance(data.data || []);
-        }
+        const data = await getMonthlyAttendance(employee.userId, type, from, to).catch(() => []);
+        setAttendance(data);
       } catch (err) {
         console.error('Error fetching calendar data:', err);
       } finally {

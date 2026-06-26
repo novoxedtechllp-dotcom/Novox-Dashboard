@@ -13,10 +13,13 @@ import {
   ShieldCheck,
   Loader2
 } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { setCredentials } from '../authSlice';
 import { login } from '../api/authApi';
 
-export default function StudentLogin({ onLogin }) {
+export default function StudentLogin() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -41,11 +44,9 @@ export default function StudentLogin({ onLogin }) {
           return;
         }
 
-        // Save to session storage for persistence across reloads
-        sessionStorage.setItem('userInfo', JSON.stringify(userInfoToSave));
+        // Dispatch Redux action
+        dispatch(setCredentials({ user: userInfoToSave, token: data.data.accessToken }));
 
-        // Pass to parent
-        onLogin(userInfoToSave.role);
         navigate('/student/dashboard'); // Redirect directly to student dashboard
       } else {
         setError("Invalid email or password!");
@@ -64,8 +65,8 @@ export default function StudentLogin({ onLogin }) {
           last_name: 'Student',
           token: 'mock-jwt-token'
         };
-        sessionStorage.setItem('userInfo', JSON.stringify(mockStudentUser));
-        if (onLogin) onLogin('STUDENT');
+        // Dispatch Redux action
+        dispatch(setCredentials({ user: mockStudentUser, token: mockStudentUser.token }));
         navigate('/student/dashboard');
         return;
       }

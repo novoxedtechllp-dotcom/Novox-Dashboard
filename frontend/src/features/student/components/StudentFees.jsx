@@ -3,6 +3,7 @@ import { CreditCard, Receipt, IndianRupee, Download } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getStudentFees } from '../api/studentApi';
 
 const StudentFees = ({ userInfo }) => {
   const [allPlans, setAllPlans] = useState([]);
@@ -71,14 +72,9 @@ const StudentFees = ({ userInfo }) => {
         return;
       }
       try {
-        const res = await fetch(`/api/v1/fees/students/${studentId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const feesData = await res.json();
-          const plans = feesData.data?.plans || [];
-          setAllPlans(plans);
-        }
+        const feesData = await getStudentFees(studentId);
+        const plans = feesData.data?.plans || feesData.plans || [];
+        setAllPlans(plans);
       } catch (err) {
         console.error("Error fetching fees:", err);
       } finally {

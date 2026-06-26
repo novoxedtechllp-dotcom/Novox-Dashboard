@@ -2,23 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Briefcase, Phone, Plus, X, Upload, User, Trash2, Pencil, CheckCircle, Search, Shield, Eye, EyeOff, BookOpen } from 'lucide-react';
 import CustomSelect from '../../../components/CustomSelect';
 
-const getAuthHeaders = () => {
-  const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-  if (!userInfo?.token) return null;
-
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${userInfo.token}`
-  };
-};
-
-const parseApiResponse = async (response) => {
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message || 'Employee request failed');
-  return data;
-};
-
-
+import { getCourses, addEmployee, updateEmployee, deleteEmployee, uploadFile } from '../api/adminApi';
 
 const departmentToApi = (department) => {
   if (department === 'Development') return 'DEVELOPMENT';
@@ -68,12 +52,8 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const headers = getAuthHeaders();
-        const response = await fetch('/api/v1/courses', { headers });
-        const resData = await response.json();
-        if (response.ok) {
-          setCourses(resData.data?.courses || resData.data || []);
-        }
+        const coursesData = await getCourses();
+        setCourses(coursesData);
       } catch (error) {
         console.error('Failed to fetch courses:', error);
       }
@@ -134,22 +114,9 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
       setNewEmployee({ ...newEmployee, avatarUrl: previewUrl });
       setIsUploading(true);
       try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const headers = getAuthHeaders();
-        delete headers['Content-Type']; // Let browser set boundary
-        
-        const response = await fetch('/api/v1/upload', {
-          method: 'POST',
-          headers,
-          body: formData
-        });
-        const resData = await response.json();
-        if (!response.ok) {
-          throw new Error(resData.message || 'Upload failed');
-        }
-        if (resData.data?.url) {
-          setNewEmployee(prev => ({ ...prev, avatarUrl: resData.data.url }));
+        const resData = await uploadFile(file);
+        if (resData?.url) {
+          setNewEmployee(prev => ({ ...prev, avatarUrl: resData.url }));
         }
       } catch (err) {
         console.error('Upload failed', err);
@@ -178,8 +145,6 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
 
     try {
       setIsSubmitting(true);
-      const headers = getAuthHeaders();
-      if (!headers) return;
       const { first_name, last_name } = splitName(newEmployee.name);
 
       const payload = {
@@ -195,14 +160,9 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
         if (newEmployee.email) payload.email = newEmployee.email;
         if (newEmployee.password) payload.password = newEmployee.password;
 
-        const response = await fetch('/api/v1/employees', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload)
-        });
-      const resData = await parseApiResponse(response);
-      localStorage.setItem(`employee_courses_${resData.data.id}`, JSON.stringify(newEmployee.courseIds));
-      const addedEmployee = mapEmployeeFromApi(resData.data, resData.data?.avatar_url || resData.data?.avatar || newEmployee.avatarUrl || null);
+      const resData = await addEmployee(payload);
+      localStorage.setItem(`employee_courses_${resData.id}`, JSON.stringify(newEmployee.courseIds));
+      const addedEmployee = mapEmployeeFromApi(resData, resData?.avatar_url || resData?.avatar || newEmployee.avatarUrl || null);
 
       setEmployees([addedEmployee, ...employees]);
       setIsModalOpen(false);
@@ -219,19 +179,9 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
   const handleDeleteEmployee = async (id) => {
     setIsDeleting(true);
     try {
-      const headers = getAuthHeaders();
-      if (!headers) {
-        setIsDeleting(false);
-        return;
-      }
+      const resData = await deleteEmployee(id);
 
-      const response = await fetch(`/api/v1/employees/${id}`, {
-        method: 'DELETE',
-        headers
-      });
-      const resData = await parseApiResponse(response);
-
-      if (resData.message && resData.message.includes('permanently')) {
+      if (resData?.message && resData.message.includes('permanently')) {
         setEmployees(employees.filter(emp => emp.id !== id));
         localStorage.removeItem(`employee_courses_${id}`);
         alert('Employee deleted permanently!');
@@ -256,11 +206,6 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
     }
     setIsUpdating(true);
     try {
-      const headers = getAuthHeaders();
-      if (!headers) {
-        setIsUpdating(false);
-        return;
-      }
       const { first_name, last_name } = splitName(employeeToEdit.name);
 
       const payload = {
@@ -274,15 +219,10 @@ const EmployeesContent = ({ employees = [], setEmployees, searchQuery = '', setS
         course_ids: employeeToEdit.courseIds
       };
 
-      const response = await fetch(`/api/v1/employees/${employeeToEdit.id}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(payload)
-      });
+      const resData = await updateEmployee(employeeToEdit.id, payload);
       
-      const resData = await parseApiResponse(response);
       localStorage.setItem(`employee_courses_${employeeToEdit.id}`, JSON.stringify(employeeToEdit.courseIds));
-      const updatedEmp = mapEmployeeFromApi(resData.data, employeeToEdit.avatar);
+      const updatedEmp = mapEmployeeFromApi(resData, employeeToEdit.avatar);
 
       setEmployees(employees.map(emp => emp.id === updatedEmp.id ? updatedEmp : emp));
       setEmployeeToEdit(null);

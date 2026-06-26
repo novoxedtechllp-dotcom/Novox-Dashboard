@@ -2,6 +2,18 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Download, Plus, DollarSign, Briefcase, MoreVertical, TrendingUp, CheckCircle, Eye, Edit, Trash2, Filter, Calendar, CreditCard, User, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import { jsPDF } from 'jspdf';
+import { useSelector } from 'react-redux';
+import { 
+  getFeesSummary, 
+  getFeesBalances, 
+  getFeesPayments, 
+  createFeePlan, 
+  recordFeePayment, 
+  deleteFeePayment, 
+  updateFeePayment, 
+  updateFeePlanBillingDate, 
+  updateFeePlanDueDate 
+} from '../api/adminApi';
 import autoTable from 'jspdf-autotable';
 
 const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
@@ -12,10 +24,10 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const { students: studentsList, courses: coursesList } = useSelector((state) => state.admin);
+
   const [feesList, setFeesList] = useState([]);
   const [studentBalancesList, setStudentBalancesList] = useState([]);
-  const [studentsList, setStudentsList] = useState([]);
-  const [coursesList, setCoursesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalCollectionsMonth: 0,
@@ -39,114 +51,87 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
       if (!userInfo || !userInfo.token) return;
       const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
 
-      // 1. Fetch Students
-      let fetchedStudents = [];
-      try {
-        const studentsRes = await fetch('/api/v1/students?limit=1000', { headers });
-        if (studentsRes.ok) {
-          const studentsData = await studentsRes.json();
-          fetchedStudents = studentsData.data?.students || studentsData.data || [];
-        }
-      } catch (e) { console.warn(e); }
-      setStudentsList(fetchedStudents);
-
-      // 2. Fetch Courses
-      let fetchedCourses = [];
-      try {
-        const coursesRes = await fetch('/api/v1/courses', { headers });
-        if (coursesRes.ok) {
-          const coursesData = await coursesRes.json();
-          fetchedCourses = coursesData.data || [];
-        }
-      } catch (e) { console.warn(e); }
-      setCoursesList(fetchedCourses);
+      // 1 & 2. Students and Courses are now loaded via Redux in App.jsx.
 
       // 3. Fetch Summary Stats
       try {
-        const summaryRes = await fetch(`/api/v1/fees/summary?month=${filterMonth + 1}&year=${filterYear}`, { headers });
-        if (summaryRes.ok) {
-          const d = await summaryRes.json();
-          if (d.success && d.data) {
-            setStats({
-              totalCollectionsMonth: d.data.thisMonthCollections || 0,
-              totalCollectionsYear: d.data.totalYearlyCollections || 0,
-              outstandingFees: d.data.outstandingFees || 0,
-              outstandingCount: d.data.outstandingCount || 0
-            });
-          }
+        const d = await getFeesSummary(filterMonth + 1, filterYear);
+        if (d && d.success && d.data) {
+          setStats({
+            totalCollectionsMonth: d.data.thisMonthCollections || 0,
+            totalCollectionsYear: d.data.totalYearlyCollections || 0,
+            outstandingFees: d.data.outstandingFees || 0,
+            outstandingCount: d.data.outstandingCount || 0
+          });
         }
       } catch (e) { console.warn(e); }
 
       // 4. Fetch Student Balances FIRST so we can merge it
       let balancesMap = {};
       try {
-        const balRes = await fetch(`/api/v1/fees/balances?month=${filterMonth + 1}&year=${filterYear}`, { headers });
-        if (balRes.ok) {
-          const d = await balRes.json();
-          if (d.success && d.data) {
-            const mappedBalances = (d.data || []).map(b => ({
-              id: `bal-${b.id}`,
-              feePlanId: b.feePlanId || (String(b.id).startsWith('virtual') ? null : b.id),
-              studentId: b.studentId,
-              studentCode: b.studentCode,
-              name: b.name,
-              initials: b.initials,
-              course: b.course,
-              totalCourseFee: b.totalCourseFee,
-              totalPaidOverall: b.totalPaidOverall,
-              remainingBalance: b.remainingBalance,
-              currentMonthDue: b.currentMonthDue,
-              paidThisMonth: b.paidThisMonth,
-              status: b.status,
-              courseId: b.courseId,
-              dueDate: b.dueDate
-            }));
-            setStudentBalancesList(mappedBalances);
-            balancesMap = mappedBalances.reduce((acc, b) => {
-              acc[`${b.studentId}-${b.courseId}`] = b;
-              return acc;
-            }, {});
-          }
+        const d = await getFeesBalances(filterMonth + 1, filterYear);
+        if (d) {
+          // getFeesBalances already unwraps data via response.data in api file, but if it returns full object we need to check:
+          const balancesArray = d.success && d.data ? d.data : Array.isArray(d) ? d : [];
+          const mappedBalances = balancesArray.map(b => ({
+            id: `bal-${b.id}`,
+            feePlanId: b.feePlanId || (String(b.id).startsWith('virtual') ? null : b.id),
+            studentId: b.studentId,
+            studentCode: b.studentCode,
+            name: b.name,
+            initials: b.initials,
+            course: b.course,
+            totalCourseFee: b.totalCourseFee,
+            totalPaidOverall: b.totalPaidOverall,
+            remainingBalance: b.remainingBalance,
+            currentMonthDue: b.currentMonthDue,
+            paidThisMonth: b.paidThisMonth,
+            status: b.status,
+            courseId: b.courseId,
+            dueDate: b.dueDate
+          }));
+          setStudentBalancesList(mappedBalances);
+          balancesMap = mappedBalances.reduce((acc, b) => {
+            acc[`${b.studentId}-${b.courseId}`] = b;
+            return acc;
+          }, {});
         }
       } catch(e) { console.warn(e); }
 
       // 5. Fetch Month Transactions
       try {
-        const payRes = await fetch(`/api/v1/fees/payments?month=${filterMonth + 1}&year=${filterYear}&limit=1000`, { headers });
-        if (payRes.ok) {
-          const d = await payRes.json();
-          if (d.success && d.data) {
-            const mappedFees = (d.data.payments || []).map(p => {
-              const student = p.students || {};
-              const plan = p.student_fee_plans || {};
-              const courseName = plan.courses?.name || 'Unknown Course';
-              const amount = parseFloat(p.amount) || 0;
-              const totalCourseFee = parseFloat(plan.total_fee) || parseFloat(plan.admission_fee || 0) + parseFloat(plan.monthly_installment || 0); 
-              const bal = balancesMap[`${p.student_id}-${plan.course_id}`];
-              
-              return {
-                id: p.id,
-                feePlanId: p.fee_plan_id,
-                studentId: p.student_id,
-                name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
-                initials: `${student.first_name?.[0] || ''}${student.last_name?.[0] || ''}`.toUpperCase() || 'ST',
-                course: courseName,
-                courseId: plan.course_id,
-                type: p.payment_type || 'Installment',
-                paymentMethod: p.payment_method || 'Cash',
-                totalAmount: totalCourseFee,
-                dueThisMonth: bal ? bal.currentMonthDue : null,
-                paidAmount: amount,
-                remainingBalance: Math.max(0, totalCourseFee - amount),
-                amount: `₹${amount.toLocaleString()}`,
-                date: new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                status: (amount > 0 && amount < 10000) ? 'Partially Paid' : 'Paid', 
-                statusColor: (amount > 0 && amount < 10000) ? 'yellow' : 'green',
-                numericAmount: amount
-              };
-            });
-            setFeesList(mappedFees);
-          }
+        const d = await getFeesPayments(filterMonth + 1, filterYear, 1000);
+        if (d && d.success && d.data) {
+          const mappedFees = (d.data.payments || []).map(p => {
+            const student = p.students || {};
+            const plan = p.student_fee_plans || {};
+            const courseName = plan.courses?.name || 'Unknown Course';
+            const amount = parseFloat(p.amount) || 0;
+            const totalCourseFee = parseFloat(plan.total_fee) || parseFloat(plan.admission_fee || 0) + parseFloat(plan.monthly_installment || 0); 
+            const bal = balancesMap[`${p.student_id}-${plan.course_id}`];
+            
+            return {
+              id: p.id,
+              feePlanId: p.fee_plan_id,
+              studentId: p.student_id,
+              name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+              initials: `${student.first_name?.[0] || ''}${student.last_name?.[0] || ''}`.toUpperCase() || 'ST',
+              course: courseName,
+              courseId: plan.course_id,
+              type: p.payment_type || 'Installment',
+              paymentMethod: p.payment_method || 'Cash',
+              totalAmount: totalCourseFee,
+              dueThisMonth: bal ? bal.currentMonthDue : null,
+              paidAmount: amount,
+              remainingBalance: Math.max(0, totalCourseFee - amount),
+              amount: `₹${amount.toLocaleString()}`,
+              date: new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              status: (amount > 0 && amount < 10000) ? 'Partially Paid' : 'Paid', 
+              statusColor: (amount > 0 && amount < 10000) ? 'yellow' : 'green',
+              numericAmount: amount
+            };
+          });
+          setFeesList(mappedFees);
         }
       } catch(e) { console.warn(e); }
 
@@ -354,13 +339,13 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
           course_id: selectedCourseId,
           total_fee: parseFloat(totalAmountInput) || 0
         };
-        const planRes = await fetch('/api/v1/fees/plans', { method: 'POST', headers, body: JSON.stringify(planPayload) });
-        if (!planRes.ok) {
-           alert("Failed to create fee plan for student");
-           return;
+        try {
+          const planData = await createFeePlan(planPayload);
+          planId = planData.data?.id || planData.id;
+        } catch (e) {
+          alert("Failed to create fee plan for student");
+          return;
         }
-        const planData = await planRes.json();
-        planId = planData.data.id;
       }
 
       // Now record payment
@@ -374,8 +359,8 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
         year: filterYear
       };
 
-      const payRes = await fetch('/api/v1/fees/payments', { method: 'POST', headers, body: JSON.stringify(paymentPayload) });
-      if (payRes.ok) {
+      const payRes = await recordFeePayment(paymentPayload);
+      if (payRes) {
         alert("Fees recorded successfully!");
         setIsModalOpen(false);
         setSelectedStudentId('');
@@ -384,13 +369,10 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
         setPaymentType('Installment');
         setPaymentMethod('Cash');
         fetchBackendData(); // refresh all data
-      } else {
-        const err = await payRes.json();
-        alert(err.message || "Failed to record payment");
       }
     } catch (err) {
       console.error(err);
-      alert("Error processing payment");
+      alert(err.message || "Error processing payment");
     }
   };
 
@@ -404,17 +386,10 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
 
   const handleDelete = async (id) => {
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const headers = { 'Authorization': `Bearer ${userInfo.token}` };
-      
-      const res = await fetch(`/api/v1/fees/payments/${id}`, { method: 'DELETE', headers });
-      if (res.ok) {
-         alert("Record deleted successfully!");
-         setActiveDropdown(null);
-         fetchBackendData();
-      } else {
-         alert("Failed to delete payment");
-      }
+      await deleteFeePayment(id);
+      alert("Record deleted successfully!");
+      setActiveDropdown(null);
+      fetchBackendData();
     } catch(err) {
       alert("Error deleting record");
     }
@@ -423,9 +398,6 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
-      
       const paidAmt = parseFloat(editItem.paidAmount) || 0;
       if (paidAmt <= 0) {
          alert("Amount must be positive");
@@ -437,14 +409,10 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
         payment_type: editItem.type,
       };
 
-      const res = await fetch(`/api/v1/fees/payments/${editItem.id}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
-      if (res.ok) {
-         alert("Record updated successfully!");
-         setEditItem(null);
-         fetchBackendData();
-      } else {
-         alert("Failed to update payment");
-      }
+      await updateFeePayment(editItem.id, payload);
+      alert("Record updated successfully!");
+      setEditItem(null);
+      fetchBackendData();
     } catch (err) {
        alert("Error updating payment");
     }
@@ -455,9 +423,6 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
     if (!editBillingDateItem) return;
     
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
-      
       let targetPlanId = editBillingDateItem.feePlanId;
       
       // Auto-create plan if missing
@@ -469,26 +434,22 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
           admission_fee: 5000,
           monthly_installment: 10000
         };
-        const createRes = await fetch(`/api/v1/fees/plans`, { method: 'POST', headers, body: JSON.stringify(createPayload) });
-        if (createRes.ok) {
-          const resData = await createRes.json();
-          targetPlanId = resData.data.id;
-        } else {
+        try {
+          const createRes = await createFeePlan(createPayload);
+          targetPlanId = createRes.data?.id || createRes.id;
+        } catch(err) {
           alert("Failed to initialize fee plan for this student.");
           return;
         }
       }
       
       const payload = { start_date: newBillingDate };
-      const res = await fetch(`/api/v1/fees/plans/${targetPlanId}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
-      if (res.ok) {
-        alert("Billing date updated successfully!");
-        setEditBillingDateItem(null);
-        setNewBillingDate('');
-        fetchBackendData();
-      } else {
-        alert("Failed to update billing date");
-      }
+      await updateFeePlanBillingDate(targetPlanId, payload);
+      
+      alert("Billing date updated successfully!");
+      setEditBillingDateItem(null);
+      setNewBillingDate('');
+      fetchBackendData();
     } catch (err) {
       alert("Error updating billing date");
     }
@@ -499,9 +460,6 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
     if (!editDueDateItem) return;
     
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
-      
       let targetPlanId = editDueDateItem.feePlanId;
       
       // Auto-create plan if missing
@@ -513,11 +471,10 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
           admission_fee: 5000,
           monthly_installment: 10000
         };
-        const createRes = await fetch(`/api/v1/fees/plans`, { method: 'POST', headers, body: JSON.stringify(createPayload) });
-        if (createRes.ok) {
-          const resData = await createRes.json();
-          targetPlanId = resData.data.id;
-        } else {
+        try {
+          const createRes = await createFeePlan(createPayload);
+          targetPlanId = createRes.data?.id || createRes.id;
+        } catch(err) {
           alert("Failed to initialize fee plan for this student.");
           return;
         }
@@ -528,15 +485,12 @@ const FeesContent = ({ searchQuery = '', setSearchQuery }) => {
         year: filterYear, 
         due_date: newOverrideDate 
       };
-      const res = await fetch(`/api/v1/fees/plans/${targetPlanId}/due-date`, { method: 'PUT', headers, body: JSON.stringify(payload) });
-      if (res.ok) {
-        alert("Due date updated successfully!");
-        setEditDueDateItem(null);
-        setNewOverrideDate('');
-        fetchBackendData();
-      } else {
-        alert("Failed to update due date");
-      }
+      await updateFeePlanDueDate(targetPlanId, payload);
+      
+      alert("Due date updated successfully!");
+      setEditDueDateItem(null);
+      setNewOverrideDate('');
+      fetchBackendData();
     } catch (err) {
       alert("Error updating due date");
     }

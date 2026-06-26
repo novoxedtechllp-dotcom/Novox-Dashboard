@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Briefcase, BookOpen, CreditCard, TrendingUp } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { getStudents, getEmployees, getCourses } from '../features/employee/api/employeeApi';
 
 const StatsGrid = () => {
   const [stats, setStats] = useState({
@@ -15,36 +16,15 @@ const StatsGrid = () => {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) return;
-
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
-
-        // Fetch all independently
         const [studRes, empRes, courseRes] = await Promise.all([
-          fetch('/api/v1/students?limit=1', { headers }),
-          fetch('/api/v1/employees', { headers }),
-          fetch('/api/v1/courses', { headers })
+          getStudents().catch(() => []),
+          getEmployees().catch(() => []),
+          getCourses().catch(() => [])
         ]);
 
-        let studentsCount = 0;
-        let employeesCount = 0;
-        let coursesCount = 0;
-
-        if (studRes.ok) {
-          const sData = await studRes.json();
-          studentsCount = sData.data?.total || sData.data?.students?.length || 0;
-        }
-
-        if (empRes.ok) {
-          const eData = await empRes.json();
-          employeesCount = (eData.data || []).length;
-        }
-
-        if (courseRes.ok) {
-          const cData = await courseRes.json();
-          coursesCount = (cData.data || []).length;
-        }
+        let studentsCount = Array.isArray(studRes) ? studRes.length : 0;
+        let employeesCount = Array.isArray(empRes) ? empRes.length : 0;
+        let coursesCount = Array.isArray(courseRes) ? courseRes.length : 0;
 
         setStats({
           students: studentsCount,

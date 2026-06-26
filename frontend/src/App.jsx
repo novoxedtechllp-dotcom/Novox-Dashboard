@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchEmployees, fetchCourses } from './features/admin/adminSlice';
+import { logout } from './features/auth/authSlice';
+import { getMyProfile } from './features/employee/api/employeeApi';
 import MainContent from './features/admin/components/MainContent';
 import AttendanceContent from './features/admin/components/AttendanceContent';
 import LeaveManagementContent from './features/admin/components/LeaveManagementContent';
@@ -12,7 +16,6 @@ import EmployeesContent from './features/admin/components/EmployeesContent';
 import StudentDashboard from './features/student/components/StudentDashboard';
 import StudentAttendance from './features/student/components/StudentAttendance';
 import StudentLeave from './features/student/components/StudentLeave';
-import CoursesContent from './features/admin/components/CoursesContent';
 import FeesContent from './features/admin/components/FeesContent';
 import SalesCrmContent from './features/employee/marketing/components/SalesCrmContent';
 import WhatsappContent from './features/employee/marketing/components/WhatsappContent';
@@ -51,81 +54,16 @@ import EmployeeLeaves from './features/employee/components/EmployeeLeaves';
 import EmployeePayroll from './features/employee/components/EmployeePayroll';
 import DailySchedule from './features/student/components/DailySchedule';
 
-// Mock data removed
-
-const employeeStatusFromApi = (status) => {
-  if (status === 'ON_LEAVE') return 'On Leave';
-  if (status === 'TERMINATED') return 'Terminated';
-  return 'Active';
-};
-
-const employeeDepartmentFromApi = (department) => {
-  if (department === 'DEVELOPMENT') return 'Development';
-  if (department === 'HR') return 'HR';
-  return department ? department.charAt(0) + department.slice(1).toLowerCase() : 'Staff';
-};
-
-const getInitials = (name) => {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return 'U';
-  return words.length > 1 ? `${words[0][0]}${words[1][0]}`.toUpperCase() : words[0][0].toUpperCase();
-};
-
-const mapEmployeeFromApi = (d) => {
-  const id = d.id || d._id;
-  const localCourseIds = localStorage.getItem(`employee_courses_${id}`);
-  const courseIds = localCourseIds 
-    ? JSON.parse(localCourseIds) 
-    : (d.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || []);
-
-  return {
-    id,
-    eid: d.employee_code || `EMP-${String(id).slice(0, 4)}`,
-    name: `${d.first_name || ''} ${d.last_name || ''}`.trim(),
-    department: employeeDepartmentFromApi(d.employee_roles?.role_name),
-  designation: d.designation || '',
-  phone: d.phone,
-  status: employeeStatusFromApi(d.status),
-  joinDate: d.joining_date ? new Date(d.joining_date).toLocaleDateString() : '',
-  avatar: d.avatar_url || null,
-  email: d.users?.email || '',
-  systemRole: d.users?.role || 'EMPLOYEE',
-  courseIds: d.course_instructors?.map(ci => ci.course_id || ci.courses?.id) || [],
-  custom_permissions: d.custom_permissions || null
-  };
-};
-
-const mapCourseFromApi = (d) => {
-  const instructorProfile = d.course_instructors?.[0]?.employee_profiles;
-  const mentorName = instructorProfile
-    ? `${instructorProfile.first_name || ''} ${instructorProfile.last_name || ''}`.trim()
-    : 'Unassigned';
-
-  return {
-    ...d,
-    title: d.name || d.title || '',
-    category: d.track || d.category || 'DEVELOPMENT',
-    mentorId: instructorProfile?.id || '',
-    mentorName,
-    mentorInitials: getInitials(mentorName),
-    price: d.total_fee ? `₹${d.total_fee}` : (d.price || '₹0.00'),
-    imgUrl: d.imgUrl || null
-  };
-};
+// Mappers moved to src/utils/mappers.js
 
 function App() {
-  const userInfoStr = sessionStorage.getItem('userInfo');
-  const initialUserInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
-
   const navigate = useNavigate();
   const location = useLocation();
-  const [isAuthenticated, setIsAuthenticated] = useState(!!initialUserInfo);
-  const [logoutPath, setLogoutPath] = useState('/login');
-  const [userRole, setUserRole] = useState(initialUserInfo ? initialUserInfo.role : null);
-  const [userInfo, setUserInfo] = useState(initialUserInfo);
+  const dispatch = useDispatch();
+  const { isAuthenticated, user: userInfo } = useSelector((state) => state.auth);
+  const userRole = userInfo?.role;
   const [searchQuery, setSearchQuery] = useState('');
-  const [courses, setCourses] = useState([]);
-  const [employees, setEmployees] = useState([]);
+  const { courses, employees } = useSelector(state => state.admin);
 
   useEffect(() => {
     setSearchQuery('');
@@ -146,35 +84,16 @@ function App() {
     if (isAuthenticated && userInfo?.token) {
       const headers = { Authorization: `Bearer ${userInfo.token}` };
 
-      // Fetch courses
-      fetch('/api/v1/courses', { headers })
-        .then(res => {
-          if (!res.ok) throw new Error(`Courses API error: ${res.status}`);
-          return res.json();
-        })
-        .then(resData => {
-          if (resData?.data) setCourses(resData.data.map(mapCourseFromApi));
-        })
-        .catch(err => console.error('Failed to fetch courses:', err));
+      // Fetch courses via Redux
+      dispatch(fetchCourses());
 
-      // Fetch employees (Only if not STUDENT)
+      // Fetch employees via Redux (Only if not STUDENT)
       if (userInfo.role !== 'STUDENT') {
-        fetch('/api/v1/employees', { headers })
-          .then(res => {
-            if (!res.ok) throw new Error(`Employees API error: ${res.status}`);
-            return res.json();
-          })
-          .then(resData => {
-            if (resData?.data) {
-              setEmployees(resData.data.map(mapEmployeeFromApi));
-            }
-          })
-          .catch(err => console.error('Failed to fetch employees:', err));
+        dispatch(fetchEmployees());
       }
 
       // Fetch fresh profile data to sync header
-      fetch('/api/v1/profile/me', { headers })
-        .then(res => res.ok ? res.json() : null)
+      getMyProfile()
         .then(resData => {
           if (resData?.success) {
             const profile = resData.data.employeeProfile || resData.data.studentProfile;
@@ -201,22 +120,8 @@ function App() {
     }
   }, [isAuthenticated, userInfo?.token]);
 
-  const handleLogin = (role) => {
-    const updatedUserInfoStr = sessionStorage.getItem('userInfo');
-    if (updatedUserInfoStr) {
-      setUserInfo(JSON.parse(updatedUserInfoStr));
-    }
-    setIsAuthenticated(true);
-    setUserRole(role);
-  };
-
   const handleLogout = () => {
-    setLogoutPath(userRole === 'STUDENT' ? '/student-login' : '/login');
-    setIsAuthenticated(false);
-    setUserRole(null);
-    setUserInfo(null);
-    sessionStorage.removeItem('userInfo');
-    localStorage.removeItem('userInfo');
+    dispatch(logout());
   };
 
 
@@ -288,10 +193,10 @@ function App() {
           <Routes>
             {!isAuthenticated ? (
               <>
-                <Route path="/login" element={<Login onLogin={handleLogin} />} />
-                <Route path="/student-login" element={<StudentLogin onLogin={handleLogin} />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/student-login" element={<StudentLogin />} />
                 <Route path="/signup" element={<Signup />} />
-                <Route path="*" element={<Navigate to={logoutPath} replace />} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
               </>
             ) : (
               <>
@@ -315,9 +220,9 @@ function App() {
 
                 <Route path={`${basePath}/my-students`} element={userRole === 'EMPLOYEE' || userRole === 'ADMIN' ? <MyStudentsJourney /> : <Navigate to={`${basePath}/dashboard`} />} />
                 {canViewStudents && <Route path={`${basePath}/students`} element={userRole === 'STUDENT' ? <Navigate to={`${basePath}/dashboard`} /> : <StudentsContent courses={courses} searchQuery={searchQuery} />} />}
-                {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} setEmployees={setEmployees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
+                {canViewEmployees && <Route path={`${basePath}/employees`} element={<EmployeesContent employees={employees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
 
-                {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} setCourses={setCourses} employees={employees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
+                {canViewCourses && <Route path={`${basePath}/courses`} element={<CoursesContent courses={courses} employees={employees} searchQuery={searchQuery} setSearchQuery={setSearchQuery} />} />}
 
                 {canViewPayroll && <Route path={`${basePath}/payroll`} element={<PayrollContent />} />}
                 {(userRole === 'EMPLOYEE' || userRole === 'ADMIN') && <Route path={`${basePath}/my-payroll`} element={<EmployeePayroll />} />}

@@ -20,6 +20,7 @@ import {
   CheckSquare,
   ChevronRight
 } from 'lucide-react';
+import { getStudentProfile, getCourseDetails, getStudentTasks, updateStudentTask, uploadFile, submitStudentTask } from '../api/studentApi';
 
 const StudentTasks = ({ userInfo }) => {
   const location = useLocation();
@@ -53,25 +54,24 @@ const StudentTasks = ({ userInfo }) => {
       const headers = { Authorization: `Bearer ${token}` };
 
       // 1. Fetch Student Details to get their courses
-      const studentRes = await fetch(`/api/v1/students/${studentId}`, { headers });
-      if (!studentRes.ok) throw new Error('Failed to fetch student details');
-      const studentData = await studentRes.json();
-      const courseIds = studentData.data?.student_courses?.map(sc => sc.course_id) || [];
+      const studentDataRes = await getStudentProfile(studentId).catch(() => null);
+      if (!studentDataRes) throw new Error('Failed to fetch student details');
+      const studentData = studentDataRes.data || studentDataRes;
+      const courseIds = studentData?.student_courses?.map(sc => sc.course_id) || [];
 
       // 2. Fetch all courses
       const syllabusPromises = courseIds.map(cId => 
-        fetch(`/api/v1/courses/${cId}`, { headers }).then(r => r.json())
+        getCourseDetails(cId).catch(() => null)
       );
       const syllabusResponses = await Promise.all(syllabusPromises);
-      const courses = syllabusResponses.map(res => res.data).filter(Boolean);
+      const courses = syllabusResponses.map(res => res?.data || res).filter(Boolean);
 
       // 3. Fetch Student Tasks for statuses using the resolved actual student ID
-      const actualStudentId = studentData.data.id;
-      const tasksRes = await fetch(`/api/v1/students/${actualStudentId}/tasks`, { headers });
+      const actualStudentId = studentData.id;
+      const tasksDataRes = await getStudentTasks(actualStudentId).catch(() => null);
       let studentTasksList = [];
-      if (tasksRes.ok) {
-        const tasksData = await tasksRes.json();
-        studentTasksList = tasksData.data || [];
+      if (tasksDataRes) {
+        studentTasksList = tasksDataRes.data || tasksDataRes || [];
       }
 
       const tasksMap = {};
@@ -214,19 +214,8 @@ const StudentTasks = ({ userInfo }) => {
     if (e) e.stopPropagation();
     if (task.isReal) {
       try {
-        const headers = { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        };
-        const res = await fetch(`/api/v1/students/${studentId}/tasks/${task.id}`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify({ status: 'IN_PROGRESS' })
-        });
-        
-        if (res.ok) {
-          fetchTasks();
-        }
+        await updateStudentTask(studentId, task.id, { status: 'IN_PROGRESS' });
+        fetchTasks();
       } catch (error) {
         console.error('Failed to start task:', error);
       }
@@ -289,18 +278,12 @@ const StudentTasks = ({ userInfo }) => {
 
     if (resourceType === 'FILE' && resourceFile) {
       try {
-        const formData = new FormData();
-        formData.append('file', resourceFile);
-        
-        const uploadRes = await fetch('/api/v1/upload', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData
-        });
-
-        if (!uploadRes.ok) throw new Error('File upload failed');
-        const uploadData = await uploadRes.json();
-        finalContent = uploadData.data.url;
+        const uploadData = await uploadFile(resourceFile);
+        if (uploadData?.url) {
+          finalContent = uploadData.url;
+        } else {
+          throw new Error('File upload failed');
+        }
       } catch (err) {
         console.error(err);
         setErrorMsg('File upload failed. Please try again.');
@@ -321,39 +304,26 @@ const StudentTasks = ({ userInfo }) => {
 
     if (selectedTask.isReal) {
       try {
-        const headers = { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        };
-        const res = await fetch(`/api/v1/students/${studentId}/tasks/${selectedTask.id}/submit`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload)
-        });
+        await submitStudentTask(studentId, selectedTask.id, payload);
 
-        if (res.ok) {
-          // Optimistically update outer box to Submitted (PENDING_REVIEW)
-          setCourseStructure(prev => prev.map(course => ({
-            ...course,
-            modules: course.modules.map(mod => ({
-              ...mod,
-              submodules: mod.submodules.map(sub => ({
-                ...sub,
-                tasks: sub.tasks.map(t => t.id === selectedTask.id ? { ...t, status: 'PENDING_REVIEW' } : t)
-              }))
+        // Optimistically update outer box to Submitted (PENDING_REVIEW)
+        setCourseStructure(prev => prev.map(course => ({
+          ...course,
+          modules: course.modules.map(mod => ({
+            ...mod,
+            submodules: mod.submodules.map(sub => ({
+              ...sub,
+              tasks: sub.tasks.map(t => t.id === selectedTask.id ? { ...t, status: 'PENDING_REVIEW' } : t)
             }))
-          })));
+          }))
+        })));
 
-          setIsSubmitModalOpen(false);
-          setIsDetailsModalOpen(false);
-          fetchTasks();
-        } else {
-          const errData = await res.json();
-          setErrorMsg(errData.message || 'Submission failed.');
-        }
+        setIsSubmitModalOpen(false);
+        setIsDetailsModalOpen(false);
+        fetchTasks();
       } catch (err) {
         console.error(err);
-        setErrorMsg('Network error occurred.');
+        setErrorMsg(err.message || 'Submission failed.');
       } finally {
         setSubmitting(false);
       }

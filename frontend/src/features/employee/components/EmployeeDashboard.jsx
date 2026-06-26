@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, AlertCircle, Users, BarChart2, LogIn, LogOut, FileText, CheckCircle2 } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchMyAttendance, punchIn, punchOut } from '../employeeSlice';
+import { fetchStudents, fetchCourses } from '../../admin/adminSlice';
 import { useNavigate } from 'react-router-dom';
 
 const EmployeeDashboard = () => {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [attendanceRecord, setAttendanceRecord] = useState(null);
-  const [monthlyStats, setMonthlyStats] = useState({ present: 0, halfDay: 0, late: 0, absent: 0 });
   const [studentCount, setStudentCount] = useState(0);
   const [courseCount, setCourseCount] = useState(0);
   const [allocatedCourses, setAllocatedCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  
+  const dispatch = useDispatch();
+  const { currentRecord: attendanceRecord, monthlyStats, loading, error: reduxError } = useSelector(state => state.employee);
+  const { courses, students } = useSelector(state => state.admin);
+  const [localError, setLocalError] = useState(null);
+  const [dataCalculated, setDataCalculated] = useState(false);
   
   const userInfoStr = sessionStorage.getItem('userInfo');
   const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
@@ -22,106 +27,55 @@ const EmployeeDashboard = () => {
   }, []);
 
   useEffect(() => {
-    const fetchAttendance = async () => {
-      if (!userInfo || !userInfo.token) return;
-      try {
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
-        const res = await fetch('/api/v1/attendance?type=employee', { headers });
-        if (res.ok) {
-          const data = await res.json();
-          const allAttendance = (data.data || []).filter(a => a.employee_id === userInfo.id || a.employee_id === userInfo.employee_profile_id);
-          
-          const now = new Date();
-          const today = now.toLocaleDateString('en-CA');
-          const currentMonth = now.getMonth();
-          const currentYear = now.getFullYear();
+    if (userInfo) {
+      dispatch(fetchMyAttendance(userInfo));
+      if (courses.length === 0) dispatch(fetchCourses());
+      if (students.length === 0) dispatch(fetchStudents());
+    }
+  }, [userInfo?.id, dispatch]);
 
-          const record = allAttendance.find(a => a.attendance_date === today || a.attendance_date?.startsWith(today));
-          setAttendanceRecord(record || null);
+  useEffect(() => {
+    if (courses.length > 0 && userInfo) {
+      const myCourses = courses.filter(c => 
+        c.instructor_id === userInfo.id || 
+        c.employee_id === userInfo.employee_profile_id || 
+        c.employee_profile_id === userInfo.employee_profile_id || 
+        (c.instructors && c.instructors.includes(userInfo.id)) ||
+        (c.course_instructors && c.course_instructors.some(ci => ci.employee_profiles?.id === userInfo.employee_profile_id || ci.employee_id === userInfo.employee_profile_id))
+      );
+      const myCourseIdSet = new Set(myCourses.map(c => c.id || c._id));
+      setCourseCount(myCourseIdSet.size);
+      setAllocatedCourses(myCourses);
 
-          let present = 0, halfDay = 0, late = 0, absent = 0;
-          allAttendance.forEach(a => {
-            if (!a.attendance_date) return;
-            const d = new Date(a.attendance_date);
-            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-              if (a.status === 'PRESENT') present++;
-              else if (a.status === 'HALF_DAY') halfDay++;
-              else if (a.status === 'LATE') late++;
-              else if (a.status === 'ABSENT') absent++;
+      if (students.length > 0) {
+        let assignedCount = 0;
+        if (myCourseIdSet.size > 0) {
+          assignedCount = students.filter(s => {
+            if (s.student_courses && Array.isArray(s.student_courses)) {
+              return s.student_courses.some(sc => myCourseIdSet.has(sc.course_id));
             }
-          });
-          setMonthlyStats({ present, halfDay, late, absent });
+            if (s.course_ids && Array.isArray(s.course_ids)) return s.course_ids.some(id => myCourseIdSet.has(id));
+            if (s.course && (s.course.id || s.course._id)) return myCourseIdSet.has(s.course.id || s.course._id);
+            if (s.course_id) return myCourseIdSet.has(s.course_id);
+            return false;
+          }).length;
         }
-
-        let myCourseIdSet = new Set();
-        const crsRes = await fetch('/api/v1/courses', { headers });
-        if (crsRes.ok) {
-          const crsData = await crsRes.json();
-          const allCourses = crsData.data || [];
-          const myCourses = allCourses.filter(c => 
-            c.instructor_id === userInfo.id || 
-            c.employee_id === userInfo.employee_profile_id || 
-            c.employee_profile_id === userInfo.employee_profile_id || 
-            (c.instructors && c.instructors.includes(userInfo.id)) ||
-            (c.course_instructors && c.course_instructors.some(ci => ci.employee_profiles?.id === userInfo.employee_profile_id || ci.employee_id === userInfo.employee_profile_id))
-          );
-          myCourseIdSet = new Set(myCourses.map(c => c.id || c._id));
-          setCourseCount(myCourseIdSet.size);
-          setAllocatedCourses(myCourses);
-        }
-
-        const stdRes = await fetch('/api/v1/students', { headers });
-        if (stdRes.ok) {
-          const stdData = await stdRes.json();
-          const allStudents = stdData.data?.students || stdData.data || (Array.isArray(stdData) ? stdData : []);
-          
-          let assignedCount = 0;
-          if (myCourseIdSet.size > 0) {
-            assignedCount = allStudents.filter(s => {
-              if (s.student_courses && Array.isArray(s.student_courses)) {
-                return s.student_courses.some(sc => myCourseIdSet.has(sc.course_id));
-              }
-              if (s.course_ids && Array.isArray(s.course_ids)) return s.course_ids.some(id => myCourseIdSet.has(id));
-              if (s.course && (s.course.id || s.course._id)) return myCourseIdSet.has(s.course.id || s.course._id);
-              if (s.course_id) return myCourseIdSet.has(s.course_id);
-              return false;
-            }).length;
-          }
-          setStudentCount(assignedCount);
-        }
-      } catch (err) {
-        console.error("Error fetching dashboard data:", err);
-      } finally {
-        setLoading(false);
+        setStudentCount(assignedCount);
       }
-    };
-    fetchAttendance();
-  }, [userInfo?.id]);
+    }
+  }, [courses, students, userInfo]);
 
   const handlePunch = async (type) => {
-    if (!userInfo || !userInfo.token) return;
-    setError(null);
+    setLocalError(null);
     try {
-      const headers = { 'Authorization': `Bearer ${userInfo.token}` };
-      const endpoint = type === 'in' ? '/api/v1/attendance/check-in' : '/api/v1/attendance/check-out';
-      
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers
-      });
-
-      if (res.ok) {
-        const resData = await res.json();
-        setAttendanceRecord(resData.data);
+      if (type === 'in') {
+        await dispatch(punchIn()).unwrap();
       } else {
-        const errData = await res.json();
-        setError(errData.message || 'Failed to record punch');
-        setTimeout(() => setError(null), 5000);
+        await dispatch(punchOut()).unwrap();
       }
     } catch (err) {
-      console.error('Error recording punch:', err);
-      setError('An unexpected error occurred. Please try again.');
-      setTimeout(() => setError(null), 5000);
+      setLocalError(err || 'Failed to record punch');
+      setTimeout(() => setLocalError(null), 5000);
     }
   };
 
@@ -163,10 +117,10 @@ const EmployeeDashboard = () => {
         </button>
       </div>
 
-      {error && (
+      {localError && (
         <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-sm font-medium flex items-center gap-3 shadow-sm animate-in slide-in-from-top-2">
           <AlertCircle size={18} />
-          <p>{error}</p>
+          <p>{localError}</p>
         </div>
       )}
 

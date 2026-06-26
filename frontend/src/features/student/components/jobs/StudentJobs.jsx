@@ -10,6 +10,7 @@ import JobApplicationModal from './JobApplicationModal';
 import ResumeParser from './ResumeParser';
 import RunnerGame from './RunnerGame';
 import './ScraperLoadingStyles.css';
+import { getJobs, scrapeJobs, getJobDetails } from '../../api/studentApi';
 
 const LOADING_TRIVIA = [
   { icon: "💡", category: "Resume Tip", text: "Tailoring your resume to match the job description keywords can increase your recruiter callback rate by over 50%!" },
@@ -118,10 +119,7 @@ const StudentJobs = ({ userInfo }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/scraper-api';
-      const response = await fetch(`${baseUrl}/jobs`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
+      const data = await getJobs();
       setJobs(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch jobs:', err);
@@ -202,18 +200,7 @@ const StudentJobs = ({ userInfo }) => {
       const activeSources = Object.keys(activeBoards).filter(key => activeBoards[key]);
       formData.append('sources', activeSources.length > 0 ? activeSources.join(',') : 'Internshala,LinkedIn');
 
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/scraper-api';
-      const response = await fetch(`${baseUrl}/jobs`, {
-        method: 'POST',
-        body: formData,
-        signal
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
+      const data = await scrapeJobs(formData, signal);
       
       if (Array.isArray(data) && !data[0]?.error) {
         setJobs(data);
@@ -302,12 +289,8 @@ const StudentJobs = ({ userInfo }) => {
     setIsDetailsLoading(true);
     
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || '/scraper-api';
-      const urlParam = encodeURIComponent(job.link);
-      const sourceParam = encodeURIComponent(job.source || 'Direct');
-      const response = await fetch(`${baseUrl}/job-details?url=${urlParam}&source=${sourceParam}`);
-      if (response.ok) {
-        const data = await response.json();
+      const data = await getJobDetails(job.link, job.source || 'Direct');
+      if (data) {
         setJobDetails(data);
       } else {
         console.warn('Failed to fetch job details, using basic info.');

@@ -7,21 +7,14 @@ const formatPrice = (price) => {
   return numStr ? `₹${numStr}/-` : 'Free';
 };
 
-const getAuthHeaders = () => {
-  const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-  if (!userInfo?.token) return null;
-
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${userInfo.token}`
-  };
-};
-
-const parseApiResponse = async (response) => {
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message || 'Course request failed');
-  return data;
-};
+import { 
+  createCourse, updateCourse, deleteCourse, getCourseDetails, 
+  reorderModules, reorderSubmodules, reorderTasks, reorderSubtasks,
+  addCourseModule, addCourseSubmodule, addCourseTask, addCourseSubtask,
+  updateModuleStatus, deleteCourseItem, previewCourseSchedule, 
+  autoScheduleCourse, addCourseHoliday, moveCourseTopic, batchAssignStudents,
+  uploadFile
+} from '../api/adminApi';
 
 const getInstructorProfile = (course) => {
   const instructor = course.course_instructors?.[0];
@@ -180,12 +173,18 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
 
     setItems(reordered);
     try {
-      const headers = getAuthHeaders();
-      await fetch(endpoint, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ order: reordered.map(i => ({ id: i.id, sequence_order: i.sequence_order })) })
-      });
+      const payload = { order: reordered.map(i => ({ id: i.id, sequence_order: i.sequence_order })) };
+      if (type === 'Module') await reorderModules(selectedCourse.id, payload);
+      else if (type === 'Submodule') await reorderSubmodules(selectedCourse.id, parentId, payload);
+      else if (type === 'Task') {
+        const sm = submodules.find(s => s.id === parentId);
+        await reorderTasks(selectedCourse.id, sm?.module_id, parentId, payload);
+      }
+      else if (type === 'Subtask') {
+        const t = tasks.find(x => x.id === parentId);
+        const sm = submodules.find(x => x.id === t?.submodule_id);
+        await reorderSubtasks(selectedCourse.id, sm?.module_id, sm?.id, parentId, payload);
+      }
     } catch (err) {
       alert('Failed to save reorder');
     }
@@ -208,22 +207,12 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
       
       try {
         setIsUploading(true);
-        const formData = new FormData();
-        formData.append('file', file);
-        const headers = getAuthHeaders();
-        delete headers['Content-Type'];
-        
-        const response = await fetch('/api/v1/upload', {
-          method: 'POST',
-          headers,
-          body: formData
-        });
-        const resData = await response.json();
-        if (response.ok && resData.data?.url) {
+        const resData = await uploadFile(file);
+        if (resData?.url) {
           if (isEdit) {
-            setCourseToEdit(prev => ({ ...prev, imgUrl: resData.data.url }));
+            setCourseToEdit(prev => ({ ...prev, imgUrl: resData.url }));
           } else {
-            setNewCourse(prev => ({ ...prev, imgUrl: resData.data.url }));
+            setNewCourse(prev => ({ ...prev, imgUrl: resData.url }));
           }
         }
       } catch (err) {
@@ -242,21 +231,14 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
 
     try {
       setIsSubmitting(true);
-      const headers = getAuthHeaders();
-      if (!headers) return;
-
-      const response = await fetch('/api/v1/courses', {
-        method: 'POST', headers,
-        body: JSON.stringify({
-          name: newCourse.title, description: newCourse.description, track: newCourse.category,
-          duration_months: Number(newCourse.duration_months), capacity: Number(newCourse.capacity),
-          status: newCourse.status, instructor_id: newCourse.mentorId,
-          thumbnail_url: newCourse.imgUrl?.startsWith('http') ? newCourse.imgUrl : null
-        })
+      const resData = await createCourse({
+        name: newCourse.title, description: newCourse.description, track: newCourse.category,
+        duration_months: Number(newCourse.duration_months), capacity: Number(newCourse.capacity),
+        status: newCourse.status, instructor_id: newCourse.mentorId,
+        thumbnail_url: newCourse.imgUrl?.startsWith('http') ? newCourse.imgUrl : null
       });
-      const resData = await parseApiResponse(response);
       const mentorName = getMentorName(newCourse.mentorId);
-      const addedCourse = mapCourseFromApi(resData.data, {
+      const addedCourse = mapCourseFromApi(resData, {
         price: newCourse.price || '₹0.00', mentorId: newCourse.mentorId, mentorName, imgUrl: newCourse.imgUrl || null
       });
 
@@ -273,10 +255,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const handleDeleteCourse = async (id) => {
     try {
       setIsDeleting(true);
-      const headers = getAuthHeaders();
-      if (!headers) return;
-      const response = await fetch(`/api/v1/courses/${id}`, { method: 'DELETE', headers });
-      await parseApiResponse(response);
+      await deleteCourse(id);
       setCourses(courses.filter(c => c.id !== id));
       setSelectedCourse(null);
       setCourseToDelete(null);
@@ -292,20 +271,14 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     if (!courseToEdit.mentorId) return alert("Please select an instructor/mentor for this course.");
     try {
       setIsSubmitting(true);
-      const headers = getAuthHeaders();
-      if (!headers) return;
-      const response = await fetch(`/api/v1/courses/${courseToEdit.id}`, {
-        method: 'PUT', headers,
-        body: JSON.stringify({
-          name: courseToEdit.title, description: courseToEdit.description, track: courseToEdit.category,
-          duration_months: Number(courseToEdit.duration_months), capacity: Number(courseToEdit.capacity),
-          status: courseToEdit.status, instructor_id: courseToEdit.mentorId,
-          thumbnail_url: courseToEdit.imgUrl?.startsWith('http') ? courseToEdit.imgUrl : null
-        })
+      const resData = await updateCourse(courseToEdit.id, {
+        name: courseToEdit.title, description: courseToEdit.description, track: courseToEdit.category,
+        duration_months: Number(courseToEdit.duration_months), capacity: Number(courseToEdit.capacity),
+        status: courseToEdit.status, instructor_id: courseToEdit.mentorId,
+        thumbnail_url: courseToEdit.imgUrl?.startsWith('http') ? courseToEdit.imgUrl : null
       });
-      const resData = await parseApiResponse(response);
       const mentorName = getMentorName(courseToEdit.mentorId);
-      const updatedCourse = mapCourseFromApi(resData.data, { ...courseToEdit, mentorName, mentorId: courseToEdit.mentorId });
+      const updatedCourse = mapCourseFromApi(resData, { ...courseToEdit, mentorName, mentorId: courseToEdit.mentorId });
       setCourses(courses.map(c => c.id === courseToEdit.id ? updatedCourse : c));
       if (selectedCourse?.id === courseToEdit.id) setSelectedCourse(updatedCourse);
       setCourseToEdit(null);
@@ -321,13 +294,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     if (!newModule.title) return;
     try {
       setIsAddingModule(true);
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ title: newModule.title, description: newModule.description, sequence_order: Number(newModule.sequence_order) })
-      });
-      const resData = await parseApiResponse(response);
-      setModules([...modules, resData.data].sort((a, b) => a.sequence_order - b.sequence_order));
+      const resData = await addCourseModule(selectedCourse.id, { title: newModule.title, description: newModule.description, sequence_order: Number(newModule.sequence_order) });
+      setModules([...modules, resData].sort((a, b) => a.sequence_order - b.sequence_order));
       setNewModule({ title: '', description: '', sequence_order: modules.filter(m => m.course_id === selectedCourse.id).length + 1 });
     } catch (error) {
       alert(error.message || 'Failed to add module');
@@ -345,20 +313,17 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     loadStudentsForAssignment(course.id);
     try {
       setIsFetchingDetails(true);
-      const headers = getAuthHeaders();
-      if (!headers) return;
-      const response = await fetch(`/api/v1/courses/${course.id}`, { headers });
-      const resData = await parseApiResponse(response);
-      const detailedCourse = mapCourseFromApi(resData.data, course);
+      const resData = await getCourseDetails(course.id);
+      const detailedCourse = mapCourseFromApi(resData, course);
       setSelectedCourse(detailedCourse);
       
       if (setCourses) {
         setCourses(prev => prev.map(c => c.id === detailedCourse.id ? detailedCourse : c));
       }
       
-      const fetchedModules = resData.data.course_modules || [];
+      const fetchedModules = resData.course_modules || [];
       setModules(prev => [...prev.filter(m => m.course_id !== course.id), ...fetchedModules]);
-      setSchedules(prev => [...prev.filter(s => s.course_id !== course.id), ...(resData.data.course_schedules || [])]);
+      setSchedules(prev => [...prev.filter(s => s.course_id !== course.id), ...(resData.course_schedules || [])]);
       
       const allSubmodules = [];
       const allTasks = [];
@@ -400,13 +365,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     if (!newSubmodule.title) return;
     try {
       setIsAddingModule(true);
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules/${moduleId}/submodules`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ title: newSubmodule.title, sequence_order: Number(newSubmodule.sequence_order) })
-      });
-      const resData = await parseApiResponse(response);
-      setSubmodules([...submodules, resData.data]);
+      const resData = await addCourseSubmodule(selectedCourse.id, moduleId, { title: newSubmodule.title, sequence_order: Number(newSubmodule.sequence_order) });
+      setSubmodules([...submodules, resData]);
       setNewSubmodule({ title: '', sequence_order: submodules.filter(s => s.module_id === moduleId).length + 1 });
     } catch (error) {
       alert(error.message || 'Failed to add submodule');
@@ -420,18 +380,13 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     if (!newTask.title) return;
     try {
       setIsAddingModule(true);
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules/${moduleId}/submodules/${submoduleId}/tasks`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ 
-          title: newTask.title, 
-          sequence_order: Number(newTask.sequence_order), 
-          task_type: newTask.task_type,
-          due_date: newTask.due_date ? new Date(newTask.due_date).toISOString() : null
-        })
+      const resData = await addCourseTask(selectedCourse.id, moduleId, submoduleId, { 
+        title: newTask.title, 
+        sequence_order: Number(newTask.sequence_order), 
+        task_type: newTask.task_type,
+        due_date: newTask.due_date ? new Date(newTask.due_date).toISOString() : null
       });
-      const resData = await parseApiResponse(response);
-      setTasks([...tasks, resData.data]);
+      setTasks([...tasks, resData]);
       setNewTask({ title: '', sequence_order: tasks.filter(t => t.submodule_id === submoduleId).length + 1, task_type: 'PRE_PLANNED', due_date: '' });
     } catch (error) {
       alert(error.message || 'Failed to add task');
@@ -445,13 +400,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     if (!newSubtask.title) return;
     try {
       setIsAddingModule(true);
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules/${moduleId}/submodules/${submoduleId}/tasks/${taskId}/subtasks`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ title: newSubtask.title, description: newSubtask.description, sequence_order: Number(newSubtask.sequence_order) })
-      });
-      const resData = await parseApiResponse(response);
-      setSubtasks([...subtasks, resData.data]);
+      const resData = await addCourseSubtask(selectedCourse.id, moduleId, submoduleId, taskId, { title: newSubtask.title, description: newSubtask.description, sequence_order: Number(newSubtask.sequence_order) });
+      setSubtasks([...subtasks, resData]);
       setNewSubtask({ title: '', description: '', sequence_order: subtasks.filter(st => st.task_id === taskId).length + 1 });
     } catch (error) {
       alert(error.message || 'Failed to add subtask');
@@ -462,13 +412,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
 
   const handleToggleModuleStatus = async (moduleId, currentStatus) => {
     try {
-      const headers = getAuthHeaders();
       const newStatus = currentStatus === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED';
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules/${moduleId}/status`, {
-        method: 'PATCH', headers,
-        body: JSON.stringify({ status: newStatus })
-      });
-      await parseApiResponse(response);
+      await updateModuleStatus(selectedCourse.id, moduleId, newStatus);
       setModules(modules.map(m => m.id === moduleId ? { ...m, status: newStatus } : m));
     } catch (error) {
       alert(error.message || 'Failed to update module status');
@@ -480,14 +425,12 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     const { type, moduleId, submoduleId, taskId, subtaskId } = itemToDelete;
     setIsDeleting(true);
     try {
-      const headers = getAuthHeaders();
-      let url = `/api/v1/courses/${selectedCourse.id}/modules/${moduleId}`;
+      let url = `/courses/${selectedCourse.id}/modules/${moduleId}`;
       if (type === 'Submodule') url += `/submodules/${submoduleId}`;
       if (type === 'Task') url += `/submodules/${submoduleId}/tasks/${taskId}`;
       if (type === 'Subtask') url += `/submodules/${submoduleId}/tasks/${taskId}/subtasks/${subtaskId}`;
 
-      const response = await fetch(url, { method: 'DELETE', headers });
-      await parseApiResponse(response);
+      await deleteCourseItem(url);
 
       if (type === 'Module') setModules(modules.filter(m => m.id !== moduleId));
       if (type === 'Submodule') setSubmodules(submodules.filter(s => s.id !== submoduleId));
@@ -506,13 +449,8 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     setPreviewLoading(true);
     setSchedulePreview(null);
     try {
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/schedule-plan/preview`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ topics_per_day: Number(topicsPerDay) })
-      });
-      const resData = await parseApiResponse(response);
-      setSchedulePreview(resData.data);
+      const resData = await previewCourseSchedule(selectedCourse.id, Number(topicsPerDay));
+      setSchedulePreview(resData);
     } catch (error) {
       alert(error.message || 'Failed to preview schedule');
     } finally {
@@ -523,12 +461,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const handleAutoSchedule = async () => {
     setApplyingSchedule(true);
     try {
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/schedule-plan`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ topics_per_day: Number(topicsPerDay) })
-      });
-      await parseApiResponse(response);
+      await autoScheduleCourse(selectedCourse.id, Number(topicsPerDay));
       alert('Schedule generated successfully');
       setSchedulePreview(null);
       openCourseDetails(selectedCourse);
@@ -542,12 +475,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const handleAddHoliday = async () => {
     if (!holidayDate) return;
     try {
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/reschedule`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ holiday_date: holidayDate })
-      });
-      await parseApiResponse(response);
+      await addCourseHoliday(selectedCourse.id, holidayDate);
       alert('Plan rescheduled successfully');
       openCourseDetails(selectedCourse); 
     } catch (error) {
@@ -558,14 +486,9 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
   const handleMoveTopic = async () => {
     if (!moveTopic.submoduleId || !moveTopic.targetDate) return;
     try {
-      const headers = getAuthHeaders();
       const sub = submodules.find(s => String(s.id) === moveTopic.submoduleId);
       if (!sub) return;
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/modules/${sub.module_id}/submodules/${sub.id}`, {
-        method: 'PUT', headers,
-        body: JSON.stringify({ scheduled_date: moveTopic.targetDate })
-      });
-      await parseApiResponse(response);
+      await moveCourseTopic(selectedCourse.id, sub.module_id, sub.id, moveTopic.targetDate);
       alert('Topic moved successfully');
       openCourseDetails(selectedCourse); 
       setMoveTopic({ submoduleId: '', targetDate: '' });
@@ -578,10 +501,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     setIsStudentsLoading(true);
     const targetCourseId = courseIdOverride || selectedCourse?.id;
     try {
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/students?limit=1000`, { headers });
-      const resData = await parseApiResponse(response);
-      const students = resData.data?.students || resData.data || [];
+      const students = await getStudents();
       
       const unassignedStudents = [];
       const enrolled = [];
@@ -634,13 +554,7 @@ const CoursesContent = ({ courses = [], setCourses, employees = [], searchQuery 
     if (selectedStudentIds.length === 0) return;
     setAssigningStudents(true);
     try {
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/courses/${selectedCourse.id}/students/batch-assign`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ studentIds: selectedStudentIds })
-      });
-      await parseApiResponse(response);
+      await batchAssignStudents(selectedCourse.id, selectedStudentIds);
       alert('Students assigned successfully!');
       setSelectedStudentIds([]);
       setStudentsViewMode('enrolled');

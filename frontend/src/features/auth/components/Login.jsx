@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { setCredentials } from '../authSlice';
 import { Mail, Lock, Eye, EyeOff, LayoutDashboard, ShieldCheck, ArrowRight, CheckSquare, Loader2 } from 'lucide-react';
 import { login } from '../api/authApi';
 import '../styles/Login.css';
+import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [role, setRole] = useState('Admin');
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -64,7 +69,7 @@ export default function Login({ onLogin }) {
           return;
         }
 
-        sessionStorage.setItem('userInfo', JSON.stringify(userInfoToSave));
+        dispatch(setCredentials({ user: userInfoToSave, token: userInfoToSave.token }));
         if (onLogin) onLogin(userInfoToSave.role);
       } else {
         setError(data.message || 'Login failed');
@@ -81,7 +86,7 @@ export default function Login({ onLogin }) {
           last_name: 'Admin',
           token: 'mock-jwt-token'
         };
-        sessionStorage.setItem('userInfo', JSON.stringify(mockAdminUser));
+        dispatch(setCredentials({ user: mockAdminUser, token: mockAdminUser.token }));
         if (onLogin) onLogin('ADMIN');
         return;
       }
@@ -258,20 +263,15 @@ export default function Login({ onLogin }) {
               </>
             ) : (
               <>
-                <div>
-                  <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Email or Username</label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input 
-                      type="email" 
-                      placeholder="name@novox-edtech.com" 
-                      value={email} 
-                      onChange={(e) => setEmail(e.target.value)} 
-                      required 
-                      className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-[#003F87] focus:ring-4 focus:ring-blue-500/10 text-sm font-bold text-slate-800 transition-all placeholder:font-medium placeholder:text-slate-400"
-                    />
-                  </div>
-                </div>
+                <Input 
+                  label="Email or Username"
+                  type="email" 
+                  placeholder="name@novox-edtech.com" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  required 
+                  icon={<Mail size={18} />}
+                />
 
                 <div>
                   <div className="flex justify-between items-center mb-2 px-1">
@@ -315,19 +315,19 @@ export default function Login({ onLogin }) {
               </div>
             )}
 
-            <button 
+            <Button 
               type="submit" 
               disabled={loading}
-              className="w-full bg-[#003F87] text-white py-4 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#002B5E] shadow-md shadow-blue-900/10 transition-all active:scale-95 disabled:opacity-70 mt-6"
+              className="w-full py-4 mt-6 text-sm font-bold"
             >
               {loading ? (
                 <span>Please wait...</span>
               ) : isForgotPassword ? (
                 otpSent ? 'Reset Password' : 'Send OTP'
               ) : (
-                <>Sign In <ArrowRight size={18} /></>
+                <>Sign In <ArrowRight size={18} className="ml-2" /></>
               )}
-            </button>
+            </Button>
 
             {isForgotPassword && (
               <div className="text-center mt-6">

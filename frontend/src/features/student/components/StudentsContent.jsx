@@ -4,23 +4,13 @@ import { GraduationCap, Phone, Plus, X, Upload, User, Trash2, MapPin, FileText, 
 import CustomSelect from '../../../components/CustomSelect';
 import CloudinaryPdfViewer from '../../../components/CloudinaryPdfViewer';
 
-const getAuthHeaders = () => {
-  const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-  if (!userInfo?.token) return null;
-
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${userInfo.token}`
-  };
-};
-
-const parseApiResponse = async (response) => {
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.message || 'Student request failed');
-  }
-  return data;
-};
+import { 
+  getProfileMe, getAllStudents, getFeesBalances, uploadFile, 
+  createStudent, updateStudent, deleteStudent, getStudentProgress, 
+  getStudentDocumentsList, getStudentTasksList, enrollStudentCourse, 
+  unenrollStudentCourse, uploadStudentDocument, deleteStudentDocument, 
+  updateStudentTask 
+} from '../api/studentApi';
 
 const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses = [] }) => {
   const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
@@ -95,47 +85,29 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
   const fetchStudents = useCallback(async (currentOwnershipFilter, currentDepartmentFilter) => {
     setLoading(true);
     try {
-      const headers = getAuthHeaders();
-      if (!headers) {
-        setLoading(false);
-        return;
-      }
-
-      let url = '/api/v1/students?limit=1000';
+      let empId = null;
       if (currentOwnershipFilter === 'My Students') {
-        const profRes = await fetch('/api/v1/profile/me', { headers });
-        const profData = await profRes.json();
-        const empId = profData?.data?.employeeProfile?.id;
-        if (empId) {
-          url += `&instructorId=${empId}`;
-        }
+        const profData = await getProfileMe();
+        empId = profData?.employeeProfile?.id;
       }
       
-      if (currentDepartmentFilter && currentDepartmentFilter !== 'All Departments') {
-        url += (url.includes('?') ? '&' : '?') + `department=${currentDepartmentFilter}`;
-      }
-
-      const response = await fetch(url, { headers });
-      if (!response.ok) throw new Error(`Students API error: ${response.status}`);
-      const resData = await response.json();
-      if (response.ok) {
-        const studentsList = resData.data?.students || resData.data || [];
-        const mappedData = studentsList.map(d => ({
-          id: d.id || d._id,
-          student_code: d.student_code || d.sid || `STD-${Math.floor(Math.random()*1000)}`,
-          first_name: d.first_name || (d.name ? d.name.split(' ')[0] : 'Unknown'),
-          last_name: d.last_name || (d.name ? d.name.split(' ')[1] || '' : ''),
-          phone: d.phone || '',
-          parent_phone: d.parent_phone || '',
-          address: d.address || 'N/A',
-          joining_date: d.joining_date || new Date().toISOString().split('T')[0],
-          status: d.status || 'ACTIVE',
-          avatar: d.avatar_url || null,
-          email: d.users?.email || '',
-          courses_count: d.student_courses ? d.student_courses.length : 0
-        }));
-        setStudents(mappedData);
-      }
+      const resData = await getAllStudents(empId, currentDepartmentFilter);
+      const studentsList = resData?.students || resData || [];
+      const mappedData = studentsList.map(d => ({
+        id: d.id || d._id,
+        student_code: d.student_code || d.sid || `STD-${Math.floor(Math.random()*1000)}`,
+        first_name: d.first_name || (d.name ? d.name.split(' ')[0] : 'Unknown'),
+        last_name: d.last_name || (d.name ? d.name.split(' ')[1] || '' : ''),
+        phone: d.phone || '',
+        parent_phone: d.parent_phone || '',
+        address: d.address || 'N/A',
+        joining_date: d.joining_date || new Date().toISOString().split('T')[0],
+        status: d.status || 'ACTIVE',
+        avatar: d.avatar_url || null,
+        email: d.users?.email || '',
+        courses_count: d.student_courses ? d.student_courses.length : 0
+      }));
+      setStudents(mappedData);
     } catch (error) {
       console.error('Error fetching students:', error);
     } finally {
@@ -145,24 +117,19 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
 
   const fetchStudentBalances = useCallback(async () => {
     try {
-      const headers = getAuthHeaders();
-      if (!headers) return;
-      const res = await fetch('/api/v1/fees/balances', { headers });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.data) {
-          // Group by studentId and sum up balances across courses
-          const balanceMap = {};
-          (data.data || []).forEach(b => {
-            if (!balanceMap[b.studentId]) {
-              balanceMap[b.studentId] = { totalFees: 0, totalPaid: 0, remainingBalance: 0 };
-            }
-            balanceMap[b.studentId].totalFees += (b.totalCourseFee || 0);
-            balanceMap[b.studentId].totalPaid += (b.totalPaidOverall || 0);
-            balanceMap[b.studentId].remainingBalance += (b.remainingBalance || 0);
-          });
-          setStudentFees(balanceMap);
-        }
+      const data = await getFeesBalances();
+      if (data) {
+        // Group by studentId and sum up balances across courses
+        const balanceMap = {};
+        (data || []).forEach(b => {
+          if (!balanceMap[b.studentId]) {
+            balanceMap[b.studentId] = { totalFees: 0, totalPaid: 0, remainingBalance: 0 };
+          }
+          balanceMap[b.studentId].totalFees += (b.totalCourseFee || 0);
+          balanceMap[b.studentId].totalPaid += (b.totalPaidOverall || 0);
+          balanceMap[b.studentId].remainingBalance += (b.remainingBalance || 0);
+        });
+        setStudentFees(balanceMap);
       }
     } catch (e) {
       console.error('Error fetching student balances:', e);
@@ -194,18 +161,9 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
       setNewStudent({ ...newStudent, avatarUrl: previewUrl });
       setIsUploading(true);
       try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const headers = getAuthHeaders();
-        delete headers['Content-Type'];
-        
-        const response = await fetch('/api/v1/upload', { method: 'POST', headers, body: formData });
-        const resData = await response.json();
-        if (!response.ok) {
-          throw new Error(resData.message || 'Upload failed');
-        }
-        if (resData.data?.url) {
-          setNewStudent(prev => ({ ...prev, avatarUrl: resData.data.url }));
+        const resData = await uploadFile(file);
+        if (resData?.url) {
+          setNewStudent(prev => ({ ...prev, avatarUrl: resData.url }));
         }
       } catch (err) {
         console.error('Upload failed', err);
@@ -237,8 +195,6 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
     }
     try {
       setIsSubmitting(true);
-      const headers = getAuthHeaders();
-      if (!headers) return;
       const payload = {
         first_name: newStudent.first_name, last_name: newStudent.last_name, phone: newStudent.phone, parent_phone: newStudent.parent_phone,
         guardian_name: newStudent.guardian_name,
@@ -249,9 +205,8 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
       if (newStudent.password) payload.password = newStudent.password;
       if (newStudent.course_ids && newStudent.course_ids.length > 0) payload.course_ids = newStudent.course_ids;
 
-      const response = await fetch('/api/v1/students', { method: 'POST', headers, body: JSON.stringify(payload) });
-      const resData = await parseApiResponse(response);
-      const addedStudent = { ...resData.data, avatar: resData.data?.avatar_url || resData.data?.avatar || newStudent.avatarUrl };
+      const resData = await createStudent(payload);
+      const addedStudent = { ...resData, avatar: resData?.avatar_url || resData?.avatar || newStudent.avatarUrl };
       setStudents([addedStudent, ...students]);
       setIsAddModalOpen(false);
       setNewStudent({ first_name: '', last_name: '', email: '', password: '', phone: '', parent_phone: '', guardian_name: '', address: '', joining_date: '', course_ids: [], avatarUrl: null });
@@ -279,8 +234,6 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
     }
     try {
       setIsSubmitting(true);
-      const headers = getAuthHeaders();
-      if (!headers) return;
       const payload = {
         first_name: studentToEdit.first_name,
         last_name: studentToEdit.last_name,
@@ -297,9 +250,8 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
       if (studentToEdit.password) payload.password = studentToEdit.password;
       if (studentToEdit.course_id) payload.course_id = studentToEdit.course_id;
 
-      const response = await fetch(`/api/v1/students/${studentToEdit.id}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
-      const resData = await parseApiResponse(response);
-      setStudents(students.map(s => s.id === studentToEdit.id ? { ...s, ...payload, avatar: resData.data?.avatar_url || resData.data?.avatar || studentToEdit.avatarUrl } : s));
+      const resData = await updateStudent(studentToEdit.id, payload);
+      setStudents(students.map(s => s.id === studentToEdit.id ? { ...s, ...payload, avatar: resData?.avatar_url || resData?.avatar || studentToEdit.avatarUrl } : s));
       setIsEditStudentOpen(false);
       setStudentToEdit(null);
       alert('Student updated successfully!');
@@ -314,10 +266,7 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
   const handleDeleteStudent = async (id) => {
     try {
       setIsDeleting(true);
-      const headers = getAuthHeaders();
-      if (!headers) return;
-      const response = await fetch(`/api/v1/students/${id}`, { method: 'DELETE', headers });
-      await parseApiResponse(response);
+      await deleteStudent(id);
       setStudents(students.filter(s => s.id !== id));
       setStudentCourses(studentCourses.filter(sc => sc.student_id !== id));
       setStudentDocuments(studentDocuments.filter(sd => sd.student_id !== id));
@@ -334,19 +283,14 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
   const fetchStudentSubResources = async (studentId) => {
     try {
       setIsFetchingDetails(true);
-      const headers = getAuthHeaders();
-      if (!headers) return;
-      const [progressResponse, documentsResponse, tasksResponse] = await Promise.all([
-        fetch(`/api/v1/students/${studentId}/progress`, { headers }),
-        fetch(`/api/v1/students/${studentId}/documents`, { headers }),
-        fetch(`/api/v1/students/${studentId}/tasks`, { headers })
+      const [progressData, documentsData, tasksData] = await Promise.all([
+        getStudentProgress(studentId),
+        getStudentDocumentsList(studentId),
+        getStudentTasksList(studentId)
       ]);
-      const progressData = await parseApiResponse(progressResponse);
-      const documentsData = await parseApiResponse(documentsResponse);
-      const tasksData = await parseApiResponse(tasksResponse);
-      setStudentCourses(prev => [ ...prev.filter(sc => sc.student_id !== studentId), ...(progressData.data || []).map(sc => ({ ...sc, student_id: studentId })) ]);
-      setStudentDocuments(prev => [ ...prev.filter(sd => sd.student_id !== studentId), ...(documentsData.data || []).map(sd => ({ ...sd, student_id: studentId })) ]);
-      setStudentTasks(prev => [ ...prev.filter(st => st.student_id !== studentId), ...(tasksData.data || []).map(st => ({ ...st, student_id: studentId })) ]);
+      setStudentCourses(prev => [ ...prev.filter(sc => sc.student_id !== studentId), ...(progressData || []).map(sc => ({ ...sc, student_id: studentId })) ]);
+      setStudentDocuments(prev => [ ...prev.filter(sd => sd.student_id !== studentId), ...(documentsData || []).map(sd => ({ ...sd, student_id: studentId })) ]);
+      setStudentTasks(prev => [ ...prev.filter(st => st.student_id !== studentId), ...(tasksData || []).map(st => ({ ...st, student_id: studentId })) ]);
     } catch (error) {
       console.error('Error fetching student details:', error);
     } finally {
@@ -364,11 +308,9 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
     if (!newEnrollment || !activeStudent) return;
     try {
       setIsEnrolling(true);
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/students/${activeStudent.id}/courses`, { method: 'POST', headers, body: JSON.stringify({ course_id: newEnrollment }) });
-      const resData = await response.json();
-      if (response.ok) {
-        setStudentCourses([...studentCourses, { ...resData.data, student_id: activeStudent.id }]);
+      const resData = await enrollStudentCourse(activeStudent.id, newEnrollment);
+      if (resData) {
+        setStudentCourses([...studentCourses, { ...resData, student_id: activeStudent.id }]);
         
         // Record the initial ₹5,000 fee locally
         const courseData = courses.find(c => c.id === newEnrollment);
@@ -401,8 +343,6 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
         setNewEnrollment('');
         setPayInitialFee(false);
         alert('Course enrolled and initial fee recorded successfully!');
-      } else {
-        alert(resData.message || 'Failed to enroll course');
       }
     } catch (error) {
       console.error('Error enrolling course:', error);
@@ -416,14 +356,9 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
     if (!courseToRemove) return;
     try {
       setIsDeleting(true);
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/students/${courseToRemove.studentId}/courses/${courseToRemove.courseId}`, { method: 'DELETE', headers });
-      if (response.ok) {
-        setStudentCourses(studentCourses.filter(sc => !(sc.student_id === courseToRemove.studentId && sc.course_id === courseToRemove.courseId)));
-        setCourseToRemove(null);
-      } else {
-        alert("Failed to remove course");
-      }
+      await unenrollStudentCourse(courseToRemove.studentId, courseToRemove.courseId);
+      setStudentCourses(studentCourses.filter(sc => !(sc.student_id === courseToRemove.studentId && sc.course_id === courseToRemove.courseId)));
+      setCourseToRemove(null);
     } catch (err) {
       console.error(err);
     } finally {
@@ -435,14 +370,9 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
     if(!documentToDelete) return;
     try {
       setIsDeleting(true);
-      const headers = getAuthHeaders();
-      const response = await fetch(`/api/v1/students/${documentToDelete.student_id}/documents/${documentToDelete.id}`, { method: 'DELETE', headers });
-      if (response.ok) {
-        setStudentDocuments(studentDocuments.filter(sd => sd.id !== documentToDelete.id));
-        setDocumentToDelete(null);
-      } else {
-        alert("Failed to delete document");
-      }
+      await deleteStudentDocument(documentToDelete.student_id, documentToDelete.id);
+      setStudentDocuments(studentDocuments.filter(sd => sd.id !== documentToDelete.id));
+      setDocumentToDelete(null);
     } catch (error) {
       console.error(error);
     } finally {
@@ -454,20 +384,12 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
     if(!newDocName || !selectedDocFile) { alert("Please select a document type and a file to upload."); return; }
     try {
       setIsUploadingDoc(true);
-      const formData = new FormData();
-      formData.append('file', selectedDocFile);
-      const headers = getAuthHeaders();
-      let uploadHeaders = { ...headers };
-      delete uploadHeaders['Content-Type'];
-      const uploadRes = await fetch('/api/v1/upload', { method: 'POST', headers: uploadHeaders, body: formData });
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok || !uploadData.data?.url) throw new Error(uploadData.message || 'File upload failed');
+      const uploadData = await uploadFile(selectedDocFile);
+      if (!uploadData?.url) throw new Error('File upload failed');
 
-      const response = await fetch(`/api/v1/students/${activeStudent.id}/documents`, { method: 'POST', headers, body: JSON.stringify({ document_type: newDocName, document_url: uploadData.data.url }) });
-      const resData = await response.json();
-      if (!response.ok) throw new Error(resData.message || 'Failed to add document');
+      const resData = await uploadStudentDocument(activeStudent.id, { document_type: newDocName, document_url: uploadData.url });
 
-      setStudentDocuments([...studentDocuments, { ...resData.data, student_id: activeStudent.id }]);
+      setStudentDocuments([...studentDocuments, { ...resData, student_id: activeStudent.id }]);
       setNewDocName('');
       setSelectedDocFile(null);
     } catch (error) {
@@ -480,17 +402,14 @@ const StudentsContent = ({ searchQuery = '', setSearchQuery = () => {}, courses 
 
   const handleUpdateTaskStatus = async (taskId, currentStatus, newGrade, newFeedback) => {
     try {
-      const headers = getAuthHeaders();
-      if (!headers) return;
       let payload = {};
       if (newGrade !== undefined) {
         payload = { status: 'GRADED', grade: newGrade, feedback: newFeedback };
       } else if (currentStatus === 'PENDING') {
         payload = { status: 'SUBMITTED', submission_url: 'https://example.com/submission' };
       }
-      const response = await fetch(`/api/v1/students/${activeStudent.id}/tasks/${taskId}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
-      const resData = await parseApiResponse(response);
-      setStudentTasks(studentTasks.map(t => t.id === taskId ? { ...t, ...resData.data } : t));
+      const resData = await updateStudentTask(activeStudent.id, taskId, payload);
+      setStudentTasks(studentTasks.map(t => t.id === taskId ? { ...t, ...resData } : t));
     } catch (error) {
       console.error('Error updating task:', error);
       alert(error.message || 'Failed to update task');

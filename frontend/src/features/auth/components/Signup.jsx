@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import "../styles/Login.css"; // Reusing the same theme
+import { register } from '../api/authApi';
 
 export default function Signup() {
   const [role, setRole] = useState('STUDENT');
@@ -57,27 +58,15 @@ export default function Signup() {
         }
       }
 
-      const response = await fetch('/api/v1/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      await register(payload);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess(true);
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
-      } else {
-        setError(data.message || 'Registration failed');
-      }
+      setSuccess(true);
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
     } catch (err) {
       console.error("Backend connection failed:", err);
-      setError("Failed to connect to the server. Please ensure the backend is running.");
+      setError(err.message || "Failed to connect to the server. Please ensure the backend is running.");
     }
   };
 

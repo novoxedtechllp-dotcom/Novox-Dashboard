@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Send, FileText, Info, UploadCloud, Trash2, X } from 'lucide-react';
 import { apiClient } from '../../../lib/apiClient';
+import { getLeaves, createLeave, deleteLeave, uploadFile } from '../api/studentApi';
 import CloudinaryPdfViewer from '../../../components/CloudinaryPdfViewer';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -40,13 +41,8 @@ const StudentLeave = () => {
   const fetchLeaves = async () => {
     try {
       setIsLoading(true);
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const res = await fetch('/api/v1/leaves', {
-        headers: { Authorization: `Bearer ${userInfo?.token}` }
-      });
-      if (!res.ok) throw new Error("Failed to load leave history");
-      const data = await res.json();
-      setLeaveHistory(data.data || []);
+      const leaves = await getLeaves();
+      setLeaveHistory(leaves);
       setError(null);
     } catch (err) {
       console.error("Failed to fetch leaves:", err);
@@ -71,42 +67,21 @@ const StudentLeave = () => {
       let documentUrl = null;
 
       if (selectedFile) {
-        const fileFormData = new FormData();
-        fileFormData.append('file', selectedFile);
-
-        const uploadRes = await fetch('/api/v1/upload', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${userInfo?.token}` },
-          body: fileFormData
-        });
-
-        const uploadData = await uploadRes.json();
-        if (uploadRes.ok && uploadData.data?.url) {
-          documentUrl = uploadData.data.url;
+        const uploadData = await uploadFile(selectedFile);
+        if (uploadData?.url) {
+          documentUrl = uploadData.url;
         } else {
-          throw new Error(uploadData.message || "File upload failed");
+          throw new Error("File upload failed");
         }
       }
 
-      const res = await fetch('/api/v1/leaves', {
-        method: 'POST',
-        headers: { 
-          Authorization: `Bearer ${userInfo?.token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          leaveType: formData.leaveType,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          reason: formData.reason,
-          documentUrl
-        })
+      await createLeave({
+        leaveType: formData.leaveType,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        reason: formData.reason,
+        documentUrl
       });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to submit leave request");
-      }
       
       setSubmitSuccess(true);
       
@@ -137,15 +112,7 @@ const StudentLeave = () => {
     if (!leaveToDelete) return;
     try {
       setIsDeleting(true);
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      const res = await fetch(`/api/v1/leaves/${leaveToDelete}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${userInfo?.token}` }
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to delete leave request");
-      }
+      await deleteLeave(leaveToDelete);
       fetchLeaves();
       setIsDeleteModalOpen(false);
       setLeaveToDelete(null);

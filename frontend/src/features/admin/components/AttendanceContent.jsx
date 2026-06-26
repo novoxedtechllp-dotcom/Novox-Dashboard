@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, Calendar, RefreshCcw, MoreVertical, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchStudents } from '../../admin/adminSlice';
+import { getStudentAttendance, getEmployeeAttendance, markAttendance } from '../api/adminApi';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import EmployeeCalendarModal from './EmployeeCalendarModal';
 import CustomSelect from '../../../components/CustomSelect';
@@ -8,7 +11,8 @@ import 'react-datepicker/dist/react-datepicker.css';
 
 const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', setSearchQuery = () => {} }) => {
   const datePickerRef = useRef(null);
-  const [students, setStudents] = useState([]);
+  const dispatch = useDispatch();
+  const students = useSelector(state => state.admin.students);
   
   // Database tables mock state
   const [studentAttendance, setStudentAttendance] = useState([]);
@@ -44,33 +48,26 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
     const fetchData = async () => {
       setLoading(true);
       try {
-        const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-        if (!userInfo || !userInfo.token) {
-          return;
-        }
-
-        const headers = { 'Authorization': `Bearer ${userInfo.token}` };
         const selectedDate = dateFilter || new Date().toISOString().split('T')[0];
 
-        // Fetch students
-        const stdRes = await fetch('/api/v1/students', { headers });
-        if (stdRes.ok) {
-          const resData = await stdRes.json();
-          const studs = resData.data?.students || resData.data || (Array.isArray(resData) ? resData : []);
-          setStudents(studs);
+        // Fetch students via Redux if not loaded
+        if (students.length === 0) {
+          dispatch(fetchStudents());
         }
 
-        // Fetch attendance specifically for the selected date
-        const studentAttRes = await fetch(`/api/v1/attendance?type=student&from=${selectedDate}&to=${selectedDate}`, { headers });
-        const employeeAttRes = await fetch(`/api/v1/attendance?type=employee&from=${selectedDate}&to=${selectedDate}`, { headers });
+        const sData = await getStudentAttendance(selectedDate, selectedDate);
+        const eData = await getEmployeeAttendance(selectedDate, selectedDate);
         
-        if (studentAttRes.ok) {
-          const sData = await studentAttRes.json();
+        if (sData && sData.success) {
           setStudentAttendance(sData.data || []);
+        } else if (Array.isArray(sData)) {
+          setStudentAttendance(sData);
         }
-        if (employeeAttRes.ok) {
-          const eData = await employeeAttRes.json();
+        
+        if (eData && eData.success) {
           setEmployeeAttendance(eData.data || []);
+        } else if (Array.isArray(eData)) {
+          setEmployeeAttendance(eData);
         }
 
       } catch (error) {
@@ -111,10 +108,6 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
 
   const handleUpdateStatus = async (userId, type, newStatus) => {
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      if (!userInfo || !userInfo.token) return;
-      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
-      
       const selectedDate = dateFilter || new Date().toISOString().split('T')[0];
       const now = new Date().toISOString();
       const payload = {
@@ -125,24 +118,23 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
         check_in: newStatus === 'PRESENT' || newStatus === 'LATE' || newStatus === 'HALF_DAY' ? now : null,
       };
 
-      const res = await fetch('/api/v1/attendance', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-      });
+      const res = await markAttendance(payload);
       
-      if (res.ok) {
+      if (res) {
         // Re-fetch attendance
-        const studentAttRes = await fetch(`/api/v1/attendance?type=student&from=${selectedDate}&to=${selectedDate}`, { headers });
-        const employeeAttRes = await fetch(`/api/v1/attendance?type=employee&from=${selectedDate}&to=${selectedDate}`, { headers });
+        const sData = await getStudentAttendance(selectedDate, selectedDate);
+        const eData = await getEmployeeAttendance(selectedDate, selectedDate);
         
-        if (studentAttRes.ok) {
-          const sData = await studentAttRes.json();
+        if (sData && sData.success) {
           setStudentAttendance(sData.data || []);
+        } else if (Array.isArray(sData)) {
+          setStudentAttendance(sData);
         }
-        if (employeeAttRes.ok) {
-          const eData = await employeeAttRes.json();
+        
+        if (eData && eData.success) {
           setEmployeeAttendance(eData.data || []);
+        } else if (Array.isArray(eData)) {
+          setEmployeeAttendance(eData);
         }
       }
     } catch (err) {
@@ -165,10 +157,6 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     try {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo'));
-      if (!userInfo || !userInfo.token) return;
-      const headers = { 'Authorization': `Bearer ${userInfo.token}`, 'Content-Type': 'application/json' };
-      
       const datePrefix = editRecord.attendance_date || dateFilter || new Date().toISOString().split('T')[0];
       const payload = {
         userId: editRecord.userId,
@@ -180,23 +168,22 @@ const AttendanceContent = ({ employees = [], courses = [], searchQuery = '', set
         type: editRecord.type === 'Student' ? 'student' : 'employee'
       };
 
-      const res = await fetch('/api/v1/attendance', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-      });
+      const res = await markAttendance(payload);
       
-      if (res.ok) {
-        const studentAttRes = await fetch(`/api/v1/attendance?type=student&from=${datePrefix}&to=${datePrefix}`, { headers });
-        const employeeAttRes = await fetch(`/api/v1/attendance?type=employee&from=${datePrefix}&to=${datePrefix}`, { headers });
+      if (res) {
+        const sData = await getStudentAttendance(datePrefix, datePrefix);
+        const eData = await getEmployeeAttendance(datePrefix, datePrefix);
         
-        if (studentAttRes.ok) {
-          const sData = await studentAttRes.json();
+        if (sData && sData.success) {
           setStudentAttendance(sData.data || []);
+        } else if (Array.isArray(sData)) {
+          setStudentAttendance(sData);
         }
-        if (employeeAttRes.ok) {
-          const eData = await employeeAttRes.json();
+        
+        if (eData && eData.success) {
           setEmployeeAttendance(eData.data || []);
+        } else if (Array.isArray(eData)) {
+          setEmployeeAttendance(eData);
         }
       }
     } catch (err) {

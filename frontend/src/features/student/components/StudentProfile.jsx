@@ -16,6 +16,7 @@ import {
   Globe,
   Image
 } from 'lucide-react';
+import { getStudentProfile, getStudentProgress, getStudentTasks, uploadFile, updateStudent } from '../api/studentApi';
 
 const StudentProfile = ({ userInfo }) => {
   const studentId = userInfo?.student_profile_id || userInfo?.id;
@@ -144,12 +145,11 @@ const StudentProfile = ({ userInfo }) => {
 
     try {
       // 1. Fetch Student profile details
-      const studentRes = await fetch(`/api/v1/students/${studentId}`, { headers });
+      const profileDataRes = await getStudentProfile(studentId).catch(() => null);
       let profileDetails = {};
-      if (studentRes.ok) {
-        const resData = await studentRes.json();
-        if (resData.data) {
-          const s = resData.data;
+      if (profileDataRes) {
+        const s = profileDataRes.data || profileDataRes;
+        if (s) {
           profileDetails = {
             firstName: s.first_name || '',
             lastName: s.last_name || '',
@@ -167,13 +167,12 @@ const StudentProfile = ({ userInfo }) => {
       }
 
       // 2. Fetch Course/Progress info
-      const progressRes = await fetch(`/api/v1/students/${studentId}/progress`, { headers });
+      const progressData = await getStudentProgress(studentId).catch(() => null);
       let courseInfo = {
         courses: []
       };
-      if (progressRes.ok) {
-        const resData = await progressRes.json();
-        const progressList = resData.data || [];
+      if (progressData) {
+        const progressList = progressData.data || progressData || [];
         courseInfo.courses = progressList.map(p => ({
           course: p.courses?.name || 'Enrolled Course',
           department: p.courses?.track || 'N/A',
@@ -182,15 +181,14 @@ const StudentProfile = ({ userInfo }) => {
       }
 
       // 3. Fetch Tasks to calculate GPA & Credits dynamically
-      const tasksRes = await fetch(`/api/v1/students/${studentId}/tasks`, { headers });
+      const tasksData = await getStudentTasks(studentId).catch(() => null);
       let statsInfo = {
         gpa: 'N/A',
         earnedCredits: 0,
         totalCredits: 0
       };
-      if (tasksRes.ok) {
-        const resData = await tasksRes.json();
-        const tasksList = resData.data || [];
+      if (tasksData) {
+        const tasksList = tasksData.data || tasksData || [];
         
         let totalC = 0;
         let earnedC = 0;
@@ -310,27 +308,13 @@ const StudentProfile = ({ userInfo }) => {
       let finalAvatarUrl = profileData.avatar;
       
       if (selectedAvatarFile) {
-        const formData = new FormData();
-        formData.append('file', selectedAvatarFile);
-
-        const uploadRes = await fetch('/api/v1/upload', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: formData
-        });
-
-        const uploadData = await uploadRes.json();
-        if (uploadRes.ok && uploadData.data?.url) {
-          finalAvatarUrl = uploadData.data.url;
+        const uploadData = await uploadFile(selectedAvatarFile);
+        if (uploadData?.url) {
+          finalAvatarUrl = uploadData.url;
         } else {
-          throw new Error(uploadData.message || "File upload failed");
+          throw new Error("File upload failed");
         }
       }
-
-      const headers = {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
 
       const payload = {
         first_name: editForm.firstName.trim(),
@@ -342,13 +326,8 @@ const StudentProfile = ({ userInfo }) => {
         avatar_url: finalAvatarUrl
       };
 
-      const res = await fetch(`/api/v1/students/${studentId}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
+      try {
+        await updateStudent(studentId, payload);
         localStorage.setItem(`student_social_links_${studentId}`, JSON.stringify(editForm.socialLinks));
         
         // Update session storage so global header updates immediately
@@ -364,9 +343,8 @@ const StudentProfile = ({ userInfo }) => {
 
         setIsEditModalOpen(false);
         fetchStudentData();
-      } else {
-        const errData = await res.json();
-        setErrorMsg(errData.message || 'Failed to update profile.');
+      } catch (updateErr) {
+        setErrorMsg(updateErr.message || 'Failed to update profile.');
       }
     } catch (error) {
       console.error('Error updating profile:', error);
