@@ -7,10 +7,13 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  build: {
+    outDir: 'build',
+  },
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3000',
+        target: 'https://novox-dashboard.onrender.com',
         changeOrigin: true,
         secure: false,
       },
