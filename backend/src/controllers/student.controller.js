@@ -918,9 +918,7 @@ export {
   updateStudentTask,
   getStudentDailyPlan,
   submitStudentTask,
-  reviewStudentTask,
-  getStudentMentoringSessions,
-  reviewMentoringSession
+  reviewStudentTask
 };
 
 // @desc    Get student submodule progress
